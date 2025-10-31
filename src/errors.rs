@@ -47,7 +47,7 @@ impl IntoResponse for AppError {
             ),
         };
 
-        let error_response = ErrorResponse {
+        let error_response: ErrorResponse = ErrorResponse {
             status: status.as_u16(),
             error: error_type.to_string(),
             message,

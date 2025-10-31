@@ -1,5 +1,5 @@
 use serde::Serialize;
-use axum::{response::{IntoResponse, Response}, Json, http::StatusCode};
+use axum::{http::StatusCode, response::{IntoResponse, Response}, Json};
 
 #[derive(Serialize)]
 pub struct ApiResponse<T> {
@@ -10,7 +10,7 @@ pub struct ApiResponse<T> {
 
 #[allow(dead_code)] // silence "unused" warnings for now
 impl<T: Serialize> ApiResponse<T> {
-
+    /// # Purpose
     /// Generic success response with 200 OK
     pub fn success(data: T, message: &str) -> Response {
         (
@@ -23,6 +23,7 @@ impl<T: Serialize> ApiResponse<T> {
         ).into_response()
     }
 
+    /// # Purpose
     /// Resource created response with 201 Created
     pub fn created(data: T, message: &str) -> Response {
         (
