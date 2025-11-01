@@ -1,9 +1,16 @@
-use axum::{Extension, Router, middleware, routing::get};
-use sqlx::PgPool;
-use std::sync::Arc;
-use tower_http::cors::CorsLayer;
+use axum::{
+    Extension, Router,
+    extract::Request,
+    middleware,
+    response::{IntoResponse, Response},
+    routing::get,
+};
 
-use crate::middleware::layer::auth_middleware;
+use sqlx::PgPool;
+use std::{sync::Arc, time::Duration};
+use tower_http::{classify::ServerErrorsFailureClass, cors::CorsLayer, trace::TraceLayer};
+
+use crate::middleware::{Authenticated, layer::auth_middleware};
 
 pub struct AppState {
     pub pool: PgPool,
@@ -18,8 +25,9 @@ impl AppState {
 }
 
 pub fn create_router(state: Arc<AppState>) -> Router {
-    let protected_transactions: Router<Arc<AppState>> = crate::features::transactions::handlers::router()
-        .layer(middleware::from_fn(auth_middleware));
+    let protected_transactions: Router<Arc<AppState>> =
+        crate::features::transactions::handlers::router()
+            .layer(middleware::from_fn(auth_middleware));
     let protected_accounts: Router<Arc<AppState>> =
         crate::features::accounts::handlers::router().layer(middleware::from_fn(auth_middleware));
 
@@ -37,5 +45,50 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         // CORS & global state
         .layer(Extension(state.clone()))
         .layer(CorsLayer::permissive())
+        // Get log info for audit trail
+        .layer(
+            TraceLayer::new_for_http()
+                .make_span_with(|request: &Request| {
+                    let user_id = request
+                        .extensions()
+                        .get::<Authenticated>()
+                        .map(|auth: &Authenticated| auth.0.to_string())
+                        .unwrap_or_else(|| "anonymous".to_string());
+
+                    tracing::info_span!(
+                        "request",
+                        method = %request.method(),
+                        uri = %request.uri(),
+                        user_id = %user_id,
+                    )
+                })
+                .on_response(
+                    |response: &Response, latency: Duration, _span: &tracing::Span| {
+                        tracing::info!(
+                            status = response.status().as_u16(),
+                            latency = format!("{:.2?}", latency),
+                            "response sent"
+                        );
+                    },
+                )
+                .on_failure(
+                    |error: ServerErrorsFailureClass, latency: Duration, _span: &tracing::Span| {
+                        tracing::error!(
+                            status = 500,
+                            latency = format!("{:.2?}", latency),
+                            error = %error,
+                            "request failed"
+                        );
+                    },
+                ),
+        )
         .with_state(state)
+        .fallback(handler_404) // ← ADD THIS
+}
+
+// 404 Fallback Handler
+async fn handler_404() -> impl IntoResponse {
+    let error: crate::errors::AppError =
+        crate::errors::AppError::NotFound("Oops! The page you're looking for doesn't exist. CHECK THE URI".into());
+    error.into_response()
 }

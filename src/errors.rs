@@ -20,8 +20,6 @@ pub enum AppError {
     Validation(String),
     #[error("Not found")]
     NotFound(String),
-    // #[error("Not found")]
-    // NotFound,
 }
 
 impl IntoResponse for AppError {
@@ -42,16 +40,11 @@ impl IntoResponse for AppError {
                 "Validation error",
                 msg,
             ),
-            AppError::NotFound(_msg) => (
+            AppError::NotFound(msg) => (
                 StatusCode::NOT_FOUND,
                 "Not Found",
-                "The requested resource could not be found".to_string(),
+                msg,
             ),
-            // AppError::NotFound => (
-            //     StatusCode::NOT_FOUND,
-            //     "Not Found",
-            //     "The requested resource could not be found".to_string(),
-            // ),
         };
 
         let error_response: ErrorResponse = ErrorResponse {

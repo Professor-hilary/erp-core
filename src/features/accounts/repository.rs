@@ -3,6 +3,7 @@ use crate::models::account::{Account, CreateAccount};
 use crate::errors::AppError;
 use sqlx::PgPool;
 use async_trait::async_trait;
+use uuid::Uuid;
 
 // Trait for abstraction (injectable for testing)
 #[async_trait]
@@ -12,7 +13,7 @@ pub trait AccountRepository: Send + Sync {
     async fn find_by_id(&self, id: sqlx::types::Uuid, user_id: sqlx::types::Uuid) -> Result<Option<Account>, AppError>;
     async fn find_by_user(&self, user_id: sqlx::types::Uuid) -> Result<Vec<Account>, AppError>;
     async fn update_balance(&self, id: sqlx::types::Uuid, delta: f64) -> Result<(), AppError>;
-    // async fn list_all(&self, id: sqlx::types::Uuid) -> Result<(), AppError>;
+    async fn update_account_info(&self, id: Uuid, user_id: Uuid, updates: &CreateAccount) -> Result<Account, AppError>;
 }
 
 // Concrete impls
@@ -72,6 +73,31 @@ impl AccountRepository for PostgresAccountRepo {
             .execute(&self.pool)
             .await?;
         Ok(())
+    }
+
+    async fn update_account_info(&self, id: Uuid, user_id: Uuid, updates: &CreateAccount) -> Result<Account, AppError> {
+        let account = sqlx::query_as::<_, Account>(
+            "UPDATE accounts SET name = $1, type = $2 WHERE id = $3 AND user_id = $4 RETURNING *",
+        )
+        .bind(&updates.name)
+        .bind(&updates.type_)
+        .bind(id)
+        .bind(user_id)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(|e| {
+            if e.as_database_error()
+                .and_then(|db| db.constraint())
+                .map(|c| c == "accounts_type_check")
+                .unwrap_or(false)
+            {
+                AppError::Validation("Invalid account type".into())
+            } else {
+                AppError::Database(e)
+            }
+        })?;
+
+        Ok(account)
     }
 
     fn pool(&self)->&PgPool{

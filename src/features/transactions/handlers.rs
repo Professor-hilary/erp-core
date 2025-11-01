@@ -21,9 +21,9 @@ pub fn router() -> Router<Arc<AppState>> {
     Router::new()
         .route("/create", post(create_transaction))
         .route("/list", get(get_transactions))
-        .route("/:id", get(get_transaction))
-        .route("/:id", patch(update_transaction))
-        .route("/:id", delete(delete_transaction))
+        .route("/{id}", get(get_transaction))
+        .route("/{id}", patch(update_transaction))
+        .route("/{id}", delete(delete_transaction))
 }
 
 async fn create_transaction(

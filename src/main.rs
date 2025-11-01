@@ -16,6 +16,8 @@ use tokio::net::TcpListener;
 
 use routes::{create_router, AppState};
 
+use tracing_subscriber::{fmt, prelude::*, EnvFilter};
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     dotenv().ok();
@@ -24,6 +26,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .max_connections(5)
         .connect(&database_url)
         .await?;
+
+    // Initialize logger
+    tracing_subscriber::registry()
+        .with(fmt::layer())
+        .with(EnvFilter::from_default_env())
+        .init();
 
     // Run migrations on startup (in prod, use separate process)
     // sqlx::migrate!("./migrations").run(&pool).await?;
@@ -35,6 +43,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     let addr: SocketAddr = "127.0.0.1:8080".parse()?;
     println!("Listening on {}", addr);
+    tracing::info!("Server running on {}", addr);
 
     let listener = TcpListener::bind(addr).await?;
     serve(listener, app.into_make_service()).await?;

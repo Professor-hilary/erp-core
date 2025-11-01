@@ -1,5 +1,9 @@
+use axum::{
+    Json,
+    http::StatusCode,
+    response::{IntoResponse, Response},
+};
 use serde::Serialize;
-use axum::{http::StatusCode, response::{IntoResponse, Response}, Json};
 
 #[derive(Serialize)]
 pub struct ApiResponse<T> {
@@ -20,7 +24,8 @@ impl<T: Serialize> ApiResponse<T> {
                 message: message.to_string(),
                 data: Some(data),
             }),
-        ).into_response()
+        )
+            .into_response()
     }
 
     /// # Purpose
@@ -33,7 +38,8 @@ impl<T: Serialize> ApiResponse<T> {
                 message: message.to_string(),
                 data: Some(data),
             }),
-        ).into_response()
+        )
+            .into_response()
     }
 
     /// Generic OK response, optional alternative for success
@@ -45,7 +51,8 @@ impl<T: Serialize> ApiResponse<T> {
                 message: message.to_string(),
                 data: Some(data),
             }),
-        ).into_response()
+        )
+            .into_response()
     }
 
     /// Empty response with only status code and message (no data)
@@ -57,6 +64,7 @@ impl<T: Serialize> ApiResponse<T> {
                 message: message.to_string(),
                 data: None,
             }),
-        ).into_response()
+        )
+            .into_response()
     }
 }

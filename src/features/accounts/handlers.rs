@@ -18,9 +18,9 @@ pub fn router() -> Router<Arc<AppState>> {
     Router::new()
         .route("/create", post(create_account))
         .route("/list", get(get_accounts))
-        .route("/:id", get(get_account))
-        .route("/:id", patch(update_account))
-        .route("/:id", delete(delete_account))
+        .route("/{id}", get(get_account))
+        .route("/{id}", patch(update_account))
+        .route("/{id}", delete(delete_account))
 }
 
 async fn create_account(
