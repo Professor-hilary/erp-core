@@ -7,6 +7,7 @@ use async_trait::async_trait;
 // Trait for abstraction (injectable for testing)
 #[async_trait]
 pub trait AccountRepository: Send + Sync {
+    fn pool(&self)->&PgPool;
     async fn create(&self, user_id: sqlx::types::Uuid, acc: &CreateAccount) -> Result<Account, AppError>;
     async fn find_by_id(&self, id: sqlx::types::Uuid, user_id: sqlx::types::Uuid) -> Result<Option<Account>, AppError>;
     async fn find_by_user(&self, user_id: sqlx::types::Uuid) -> Result<Vec<Account>, AppError>;
@@ -73,11 +74,7 @@ impl AccountRepository for PostgresAccountRepo {
         Ok(())
     }
 
-    // async fn list_all(&self, id: sqlx::types::Uuid) -> Result<(), AppError> {
-    //     sqlx::query("SELECT * FROM accounts")
-    //         .bind(id)
-    //         .execute(&self.pool)
-    //         .await?;
-    //     Ok(())
-    // }
+    fn pool(&self)->&PgPool{
+        &self.pool
+    }
 }

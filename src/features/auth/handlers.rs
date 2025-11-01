@@ -2,7 +2,6 @@ use axum::{
     Router, extract::{Json, State}, response::Response, routing::post
 };
 use std::sync::Arc;
-
 use crate::{
     errors::AppError,
     features::auth::{AuthService, repository::PostgresUserRepo},

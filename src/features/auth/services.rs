@@ -6,7 +6,6 @@ use crate::models::user::{CreateUser, LoginUser, User};
 use bcrypt::{DEFAULT_COST, hash, verify};
 use chrono::{Duration, Utc};
 use jsonwebtoken::{EncodingKey, Header, encode};
-// use uuid::Uuid;
 
 pub struct AuthService<R: UserRepository> {
     repo: R,
@@ -36,12 +35,17 @@ impl<R: UserRepository> AuthService<R> {
             .find_by_email(&user.email)
             .await?
             .ok_or(AppError::Auth("User not found".to_string()))?;
-        verify(&user.password, &db_user.password_hash)
-            .map_err(|_| AppError::Auth("Invalid credentials".to_string()))?;
+
+        if !verify(&user.password, &db_user.password_hash)
+            .map_err(|_| AppError::Auth("Invalid credentials".to_string()))?{
+                return Err(AppError::Auth("Invalid credentials".to_string()));
+            }
+
         let claims = JwtClaims {
             sub: db_user.id,
             exp: (Utc::now() + Duration::hours(1)).timestamp() as usize,
         };
+
         let token = encode(
             &Header::default(),
             &claims,
@@ -50,4 +54,6 @@ impl<R: UserRepository> AuthService<R> {
         .map_err(|_| AppError::Auth("Token generation failed".to_string()))?;
         Ok(token)
     }
+
+
 }

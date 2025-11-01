@@ -4,6 +4,7 @@ mod models;
 mod routes;
 mod features;
 mod infrastructure;
+mod middleware;
 
 use axum::serve;
 use sqlx::postgres::PgPoolOptions;

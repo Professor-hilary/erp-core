@@ -1,25 +1,16 @@
-use crate::features::transactions::repository::TransactionRepository;
-// services.rs
+// src/features/accounts/service.rs
 use crate::errors::AppError;
 use crate::features::accounts::repository::AccountRepository;
 use crate::models::account::{Account, CreateAccount};
-// use bcrypt::{hash, verify, DEFAULT_COST};
-// use chrono::{Duration, Utc};
-// use jsonwebtoken::{encode, EncodingKey, Header};
 use uuid::Uuid;
 
-#[allow(dead_code)]
-pub struct AccountingService<R: AccountRepository, T: TransactionRepository> {
+pub struct AccountingService<R: AccountRepository> {
     account_repo: R,
-    tx_repo: T,
 }
 
-impl<R: AccountRepository, T: TransactionRepository> AccountingService<R, T> {
-    pub fn new(account_repo: R, tx_repo: T) -> Self {
-        Self {
-            account_repo,
-            tx_repo,
-        }
+impl<R: AccountRepository> AccountingService<R> {
+    pub fn new(account_repo: R) -> Self {
+        Self { account_repo }
     }
 
     pub async fn create_account(
@@ -27,8 +18,9 @@ impl<R: AccountRepository, T: TransactionRepository> AccountingService<R, T> {
         user_id: Uuid,
         acc: &CreateAccount,
     ) -> Result<Account, AppError> {
-        if !["asset", "liability", "equity", "revenue", "expense"].contains(&acc.type_.as_str()) {
-            return Err(AppError::Validation("Invalid account type".to_string()));
+        let valid_types = ["asset", "liability", "equity", "revenue", "expense"];
+        if !valid_types.contains(&acc.type_.as_str()) {
+            return Err(AppError::Validation("Invalid account type".into()));
         }
         self.account_repo.create(user_id, acc).await
     }
@@ -37,7 +29,48 @@ impl<R: AccountRepository, T: TransactionRepository> AccountingService<R, T> {
         self.account_repo.find_by_user(user_id).await
     }
 
-    // pub async fn list_accounts (&self, user_id: Uuid) -> Result<Vec<Account>, AppError> {
-    //     self.account_repo.list_all(user_id).await
-    // }
+    pub async fn get_account(&self, id: Uuid, user_id: Uuid) -> Result<Account, AppError> {
+        self.account_repo
+            .find_by_id(id, user_id)
+            .await?
+            .ok_or(AppError::NotFound("Account not found".into()))
+    }
+
+    pub async fn update_account(
+        &self,
+        id: Uuid,
+        user_id: Uuid,
+        updates: &CreateAccount,
+    ) -> Result<Account, AppError> {
+        let valid_types = ["asset", "liability", "equity", "revenue", "expense"];
+        if !valid_types.contains(&updates.type_.as_str()) {
+            return Err(AppError::Validation("Invalid account type".into()));
+        }
+
+        let account = sqlx::query_as::<_, Account>(
+            "UPDATE accounts SET name = $1, type = $2 WHERE id = $3 AND user_id = $4 RETURNING *",
+        )
+        .bind(&updates.name)
+        .bind(&updates.type_)
+        .bind(id)
+        .bind(user_id)
+        .fetch_one(self.account_repo.pool()) // ← Add `pool()` to trait
+        .await?;
+        // .map_err(|_| AppError::Database("Update failed"))?;
+
+        Ok(account)
+    }
+
+    pub async fn delete_account(&self, id: Uuid, user_id: Uuid) -> Result<(), AppError> {
+        let result = sqlx::query("DELETE FROM accounts WHERE id = $1 AND user_id = $2")
+            .bind(id)
+            .bind(user_id)
+            .execute(self.account_repo.pool())
+            .await?;
+
+        if result.rows_affected() == 0 {
+            return Err(AppError::NotFound("Account not found".into()));
+        }
+        Ok(())
+    }
 }

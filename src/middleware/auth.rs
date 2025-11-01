@@ -1,85 +1,49 @@
 // src/middleware/auth.rs
 use axum::{
     extract::FromRequestParts,
-    http::{request::Parts, StatusCode},
-    middleware::Next,
-    response::{IntoResponse, Response},
-    Extension,
+    http::request::Parts,
 };
 use jsonwebtoken::{decode, DecodingKey, Validation};
 use serde::Deserialize;
 use std::sync::Arc;
-use tower::Layer;
-use tower_http::request_id::MakeRequestUuid;
 use uuid::Uuid;
-
-use crate::models::dto::JwtClaims;
 use crate::routes::AppState;
 
-// Extract user_id from valid JWT → Extension<Authenticated>
-#[derive(Clone)]
+#[allow(dead_code)]
+#[derive(Debug, Deserialize, Clone)]
+struct Claims {
+    sub: String,
+    exp: usize,
+}
+
+#[derive(Clone, Debug)]
 pub struct Authenticated(pub Uuid);
 
-impl FromRequestParts<Arc<crate::routes::AppState>> for Authenticated {
-    type Rejection = AuthError;
+// #[async_trait]
+impl FromRequestParts<Arc<AppState>> for Authenticated {
+    type Rejection = (axum::http::StatusCode, &'static str);
 
     async fn from_request_parts(
         parts: &mut Parts,
-        state: &Arc<crate::routes::AppState>,
+        state: &Arc<AppState>,
     ) -> Result<Self, Self::Rejection> {
         let auth_header = parts
             .headers
-            .get("Authorization")
-            .and_then(|header| header.to_str().ok())
-            .and_then(|header| header.strip_prefix("Bearer ").map(|s| s.to_string()))
-            .ok_or(AuthError::MissingToken)?;
+            .get("authorization")
+            .and_then(|h| h.to_str().ok())
+            .and_then(|h| h.strip_prefix("Bearer "))
+            .ok_or((axum::http::StatusCode::UNAUTHORIZED, "Missing or invalid Authorization header"))?;
 
-        let decoding_key = DecodingKey::from_secret(state.jwt_secret.as_ref());
-        let claims = decode::<JwtClaims>(
-            &auth_header,
-            &decoding_key,
+        let token_data = decode::<Claims>(
+            auth_header,
+            &DecodingKey::from_secret(state.jwt_secret.as_bytes()),
             &Validation::default(),
         )
-        .map_err(|_| AuthError::InvalidToken)?;
+        .map_err(|_| (axum::http::StatusCode::UNAUTHORIZED, "Invalid or expired token"))?;
 
-        Ok(Authenticated(claims.claims.sub))
-    }
-}
+        let user_id = Uuid::parse_str(&token_data.claims.sub)
+            .map_err(|_| (axum::http::StatusCode::UNAUTHORIZED, "Invalid user ID in token"))?;
 
-// Tower Layer for applying auth to entire routes
-pub fn auth_layer(state: Arc<crate::routes::AppState>) -> impl Layer<axum::routing::Route> + Clone + Send + Sync + 'static {
-    tower::ServiceBuilder::new()
-        .layer(Extension(state))
-        .layer(axum::middleware::from_fn(auth_middleware))
-}
-
-// Internal middleware function
-async fn auth_middleware(
-    Extension(user_id): Extension<Authenticated>,
-    req: axum::http::Request<axum::body::Body>,
-    next: Next,
-) -> Result<axum::response::Response, AuthError> {
-    let mut req = req;
-    req.extensions_mut().insert(user_id);
-    Ok(next.run(req).await)
-}
-
-// Error responses
-#[derive(Debug)]
-pub enum AuthError {
-    MissingToken,
-    InvalidToken,
-}
-
-impl IntoResponse for AuthError {
-    fn into_response(self) -> Response {
-        let (status, error_message) = match self {
-            AuthError::MissingToken => (
-                StatusCode::UNAUTHORIZED,
-                "Missing or invalid Authorization header",
-            ),
-            AuthError::InvalidToken => (StatusCode::UNAUTHORIZED, "Invalid JWT token"),
-        };
-        (status, error_message).into_response()
+        Ok(Authenticated(user_id))
     }
 }

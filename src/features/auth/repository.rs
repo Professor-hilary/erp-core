@@ -41,8 +41,3 @@ impl UserRepository for PostgresUserRepo {
         Ok(user)
     }
 }
-
-// pub struct PostgresAccountRepo {
-//     pool: PgPool,
-// }
-
