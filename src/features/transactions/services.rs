@@ -3,6 +3,7 @@ use crate::errors::AppError;
 use crate::features::accounts::repository::AccountRepository;
 use crate::features::transactions::repository::TransactionRepository;
 use crate::models::transaction::{CreateTransaction, Transaction};
+use bigdecimal::{BigDecimal, Zero};
 use uuid::Uuid;
 
 pub struct TransactionService<R: AccountRepository, T: TransactionRepository> {
@@ -39,7 +40,7 @@ impl<R: AccountRepository, T: TransactionRepository> TransactionService<R, T> {
             return Err(AppError::Validation("Accounts must belong to user".into()));
         }
 
-        if tx.amount <= 0.0 {
+        if tx.amount <= BigDecimal::zero() {
             return Err(AppError::Validation("Amount must be positive".into()));
         }
 
@@ -48,10 +49,10 @@ impl<R: AccountRepository, T: TransactionRepository> TransactionService<R, T> {
 
         // Update account balances
         self.account_repo
-            .update_balance(tx.debit_account_id, -tx.amount)
+            .update_balance(tx.debit_account_id, -tx.amount.clone())
             .await?;
         self.account_repo
-            .update_balance(tx.credit_account_id, tx.amount)
+            .update_balance(tx.credit_account_id, tx.amount.clone())
             .await?;
 
         Ok(transaction)
@@ -95,18 +96,18 @@ impl<R: AccountRepository, T: TransactionRepository> TransactionService<R, T> {
 
         // Reverse old balances
         self.account_repo
-            .update_balance(old.debit_account_id, old.amount)
+            .update_balance(old.debit_account_id, old.amount.clone())
             .await?;
         self.account_repo
-            .update_balance(old.credit_account_id, -old.amount)
+            .update_balance(old.credit_account_id, -old.amount.clone())
             .await?;
 
         // Apply new balances
         self.account_repo
-            .update_balance(tx.debit_account_id, -tx.amount)
+            .update_balance(tx.debit_account_id, -tx.amount.clone())
             .await?;
         self.account_repo
-            .update_balance(tx.credit_account_id, tx.amount)
+            .update_balance(tx.credit_account_id, tx.amount.clone())
             .await?;
 
         // Update transaction
@@ -122,10 +123,10 @@ impl<R: AccountRepository, T: TransactionRepository> TransactionService<R, T> {
 
         // Reverse balances
         self.account_repo
-            .update_balance(tx.debit_account_id, tx.amount)
+            .update_balance(tx.debit_account_id, tx.amount.clone())
             .await?;
         self.account_repo
-            .update_balance(tx.credit_account_id, -tx.amount)
+            .update_balance(tx.credit_account_id, -tx.amount.clone())
             .await?;
 
         self.tx_repo.delete(id, user_id).await

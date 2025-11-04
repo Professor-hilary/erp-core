@@ -57,7 +57,7 @@ impl TransactionRepository for PostgresTransactionRepo {
         .bind(&tx.description)
         .bind(tx.debit_account_id)
         .bind(tx.credit_account_id)
-        .bind(tx.amount)
+        .bind(&tx.amount)
         .bind(user_id)
         .fetch_one(&self.pool)
         .await
@@ -106,7 +106,7 @@ impl TransactionRepository for PostgresTransactionRepo {
         .bind(&tx.description)
         .bind(tx.debit_account_id)
         .bind(tx.credit_account_id)
-        .bind(tx.amount)
+        .bind(&tx.amount)
         .bind(id)
         .bind(user_id)
         .fetch_one(&self.pool)

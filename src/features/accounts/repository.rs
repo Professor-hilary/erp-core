@@ -1,6 +1,7 @@
 // repositories.rs
 use crate::models::account::{Account, CreateAccount};
 use crate::errors::AppError;
+use bigdecimal::BigDecimal;
 use sqlx::PgPool;
 use async_trait::async_trait;
 use uuid::Uuid;
@@ -12,7 +13,7 @@ pub trait AccountRepository: Send + Sync {
     async fn create(&self, user_id: sqlx::types::Uuid, acc: &CreateAccount) -> Result<Account, AppError>;
     async fn find_by_id(&self, id: sqlx::types::Uuid, user_id: sqlx::types::Uuid) -> Result<Option<Account>, AppError>;
     async fn find_by_user(&self, user_id: sqlx::types::Uuid) -> Result<Vec<Account>, AppError>;
-    async fn update_balance(&self, id: sqlx::types::Uuid, delta: f64) -> Result<(), AppError>;
+    async fn update_balance(&self, id: sqlx::types::Uuid, delta: BigDecimal) -> Result<(), AppError>;
     async fn update_account_info(&self, id: Uuid, user_id: Uuid, updates: &CreateAccount) -> Result<Account, AppError>;
 }
 
@@ -66,7 +67,7 @@ impl AccountRepository for PostgresAccountRepo {
         Ok(accounts)
     }
 
-    async fn update_balance(&self, id: sqlx::types::Uuid, delta: f64) -> Result<(), AppError> {
+    async fn update_balance(&self, id: sqlx::types::Uuid, delta: BigDecimal) -> Result<(), AppError> {
         sqlx::query("UPDATE accounts SET balance = balance + $1 WHERE id = $2")
             .bind(delta)
             .bind(id)

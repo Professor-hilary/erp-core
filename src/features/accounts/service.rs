@@ -49,18 +49,6 @@ impl<R: AccountRepository> AccountingService<R> {
 
         // Now delegate to repo
         self.account_repo.update_account_info(id, user_id, updates).await
-        // let account = sqlx::query_as::<_, Account>(
-        //     "UPDATE accounts SET name = $1, type = $2 WHERE id = $3 AND user_id = $4 RETURNING *",
-        // )
-        // .bind(&updates.name)
-        // .bind(&updates.type_)
-        // .bind(id)
-        // .bind(user_id)
-        // .fetch_one(self.account_repo.pool()) // ← Add `pool()` to trait
-        // .await?;
-        // .map_err(|_| AppError::Database("Update failed"))?;
-
-        // Ok(account)
     }
 
     pub async fn delete_account(&self, id: Uuid, user_id: Uuid) -> Result<(), AppError> {
