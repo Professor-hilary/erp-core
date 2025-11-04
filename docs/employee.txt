@@ -1,0 +1,171 @@
+Perfect — you’re on a roll 🔥
+
+We’ll make the **Payroll** and **Employee** modules integrate cleanly with your accounting core (chart of accounts + GL). The goal is to have both modules feed **journal entries** into the General Ledger automatically — no manual bookkeeping.
+
+Let’s structure it step by step for PostgreSQL, the same way we did vendors and inventory.
+
+---
+
+## 🧩 1. Employee Module Schema
+
+This is the foundation — all staff, job info, benefits, and relationships.
+
+### **Schema: `hr`**
+
+```sql
+CREATE SCHEMA IF NOT EXISTS hr;
+
+CREATE TABLE hr.employees (
+    employee_id SERIAL PRIMARY KEY,
+    first_name VARCHAR(50) NOT NULL,
+    last_name VARCHAR(50) NOT NULL,
+    email VARCHAR(100) UNIQUE,
+    phone_number VARCHAR(20),
+    hire_date DATE NOT NULL,
+    termination_date DATE,
+    job_title VARCHAR(100),
+    department_id INT,
+    supervisor_id INT,
+    employment_type VARCHAR(20) CHECK (employment_type IN ('Full-time', 'Part-time', 'Contract')),
+    salary NUMERIC(14,2),
+    pay_frequency VARCHAR(20) CHECK (pay_frequency IN ('Monthly', 'Weekly', 'Bi-weekly')),
+    status VARCHAR(20) DEFAULT 'Active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+### Optional supporting tables:
+
+```sql
+CREATE TABLE hr.departments (
+    department_id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    description TEXT
+);
+
+CREATE TABLE hr.job_titles (
+    job_id SERIAL PRIMARY KEY,
+    title VARCHAR(100) NOT NULL,
+    description TEXT
+);
+```
+
+---
+
+## 🧾 2. Payroll Module Schema
+
+This one handles pay runs, payslips, and links each run to **GL transactions**.
+
+### **Schema: `payroll`**
+
+```sql
+CREATE SCHEMA IF NOT EXISTS payroll;
+
+-- Master payroll runs (e.g. January 2025 payroll)
+CREATE TABLE payroll.payruns (
+    payrun_id SERIAL PRIMARY KEY,
+    pay_period_start DATE NOT NULL,
+    pay_period_end DATE NOT NULL,
+    payment_date DATE NOT NULL,
+    status VARCHAR(20) DEFAULT 'Pending' CHECK (status IN ('Pending', 'Processed', 'Posted')),
+    gl_transaction_id INT,  -- links to GL once posted
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Individual employee payments (line items)
+CREATE TABLE payroll.payslips (
+    payslip_id SERIAL PRIMARY KEY,
+    payrun_id INT NOT NULL REFERENCES payroll.payruns(payrun_id) ON DELETE CASCADE,
+    employee_id INT NOT NULL REFERENCES hr.employees(employee_id),
+    gross_pay NUMERIC(14,2) NOT NULL,
+    tax_deducted NUMERIC(14,2) DEFAULT 0,
+    nssf NUMERIC(14,2) DEFAULT 0,
+    other_deductions NUMERIC(14,2) DEFAULT 0,
+    net_pay NUMERIC(14,2) GENERATED ALWAYS AS (gross_pay - tax_deducted - nssf - other_deductions) STORED,
+    payment_method VARCHAR(30) DEFAULT 'Bank Transfer',
+    bank_account VARCHAR(50),
+    status VARCHAR(20) DEFAULT 'Pending' CHECK (status IN ('Pending', 'Paid')),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Allowances and deductions detail
+CREATE TABLE payroll.payslip_items (
+    item_id SERIAL PRIMARY KEY,
+    payslip_id INT NOT NULL REFERENCES payroll.payslips(payslip_id) ON DELETE CASCADE,
+    item_type VARCHAR(20) CHECK (item_type IN ('Allowance', 'Deduction')),
+    description VARCHAR(100),
+    amount NUMERIC(14,2) NOT NULL
+);
+```
+
+---
+
+## ⚙️ 3. General Ledger Integration (linking to your accounting schema)
+
+When a **payroll run** is posted, it creates automatic journal entries, like:
+
+| Account            | Debit     | Credit  |
+| ------------------ | --------- | ------- |
+| Salaries Expense   | 1,000,000 |         |
+| PAYE Payable (Tax) |           | 200,000 |
+| NSSF Payable       |           | 100,000 |
+| Cash / Bank        |           | 700,000 |
+
+So your **payroll.post_payrun(payrun_id)** stored procedure could look like:
+
+```sql
+CREATE OR REPLACE FUNCTION payroll.post_payrun(p_id INT)
+RETURNS VOID AS $$
+DECLARE
+    v_total_gross NUMERIC(14,2);
+    v_total_tax NUMERIC(14,2);
+    v_total_nssf NUMERIC(14,2);
+    v_total_net NUMERIC(14,2);
+    v_gl_id INT;
+BEGIN
+    SELECT SUM(gross_pay), SUM(tax_deducted), SUM(nssf), SUM(net_pay)
+    INTO v_total_gross, v_total_tax, v_total_nssf, v_total_net
+    FROM payroll.payslips WHERE payrun_id = p_id;
+
+    -- Create GL Transaction (using your accounting schema)
+    INSERT INTO accounting.transactions (date, description)
+    VALUES (CURRENT_DATE, 'Payroll posting for payrun ' || p_id)
+    RETURNING transaction_id INTO v_gl_id;
+
+    -- Salaries Expense
+    INSERT INTO accounting.transaction_lines (transaction_id, account_id, debit, credit)
+    VALUES (v_gl_id, 5001, v_total_gross, 0);
+
+    -- PAYE Payable
+    INSERT INTO accounting.transaction_lines (transaction_id, account_id, debit, credit)
+    VALUES (v_gl_id, 2101, 0, v_total_tax);
+
+    -- NSSF Payable
+    INSERT INTO accounting.transaction_lines (transaction_id, account_id, debit, credit)
+    VALUES (v_gl_id, 2102, 0, v_total_nssf);
+
+    -- Cash/Bank
+    INSERT INTO accounting.transaction_lines (transaction_id, account_id, debit, credit)
+    VALUES (v_gl_id, 1001, 0, v_total_net);
+
+    UPDATE payroll.payruns SET status = 'Posted', gl_transaction_id = v_gl_id WHERE payrun_id = p_id;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+---
+
+## 🧠 Optional Enhancements for Later
+
+* `payroll.benefits` — employer-funded benefits (e.g. insurance, pensions)
+* `payroll.taxes` — tax brackets, PAYE rates
+* `payroll.allowances` — configurable allowance types (housing, travel, etc.)
+* Integrate with **Inventory** or **Vendors** for shared cost centers (like staff uniforms)
+* Add cost allocation fields (`department_id`, `project_id`) to payslips for managerial accounting
+
+---
+
+If you want, I can **combine all this (Employees + Payroll + GL hooks)** into one ready-to-run `.sql` migration file — clean, professional, and version-control friendly.
+Would you like me to prepare that for you next?

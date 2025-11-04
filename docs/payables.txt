@@ -1,0 +1,345 @@
+Ah — now *that’s* the right question. You’re talking about **Payables**, the other half of the coin.
+Receivables = Customers owe you.
+Payables = You owe Vendors.
+
+Building a **vendors (accounts payable)** subsystem that matches QuickBooks-level robustness is absolutely doable — and honestly, it’s where most accounting systems start to get *real*.
+
+Let’s do this step by step, professionally and modularly — you’ll end up with a schema that can seamlessly interact with your General Ledger, Inventory, and Purchases modules.
+
+---
+
+## 🧭 1. Overview — Vendors / Accounts Payable Subsystem
+
+Create its own namespace first for separation and scalability:
+
+```sql
+CREATE SCHEMA IF NOT EXISTS payables;
+```
+
+The **purpose**:
+
+1. Manage vendor records, terms, and balances.
+2. Track bills, purchase credits, and supplier invoices.
+3. Record payments (cash, bank, or M-Pesa, etc.).
+4. Post bills and payments automatically to the **GL**.
+5. Provide aging reports and payment history per supplier.
+
+---
+
+## 🧩 2. Core Tables
+
+### **1. Vendors**
+
+```sql
+CREATE TABLE payables.vendors (
+    id BIGSERIAL PRIMARY KEY,
+    code TEXT UNIQUE NOT NULL,                  -- e.g., VEND-0001
+    name TEXT NOT NULL,
+    contact_person TEXT,
+    email TEXT,
+    phone TEXT,
+    address TEXT,
+    tax_id TEXT,
+    payment_terms TEXT DEFAULT 'Net 30',
+    credit_limit NUMERIC(18,2) DEFAULT 0,
+    current_balance NUMERIC(18,2) DEFAULT 0,
+    status TEXT DEFAULT 'Active',               -- Active, Suspended, Inactive
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+);
+```
+
+---
+
+### **2. Bills (Vendor Invoices)**
+
+```sql
+CREATE TABLE payables.bills (
+    id BIGSERIAL PRIMARY KEY,
+    bill_number TEXT UNIQUE NOT NULL,             -- e.g., BILL-2025-001
+    vendor_id BIGINT NOT NULL REFERENCES payables.vendors(id) ON DELETE RESTRICT,
+    bill_date DATE NOT NULL,
+    due_date DATE NOT NULL,
+    reference TEXT,                               -- e.g., Supplier Invoice #
+    total_amount NUMERIC(18,2) NOT NULL,
+    tax_amount NUMERIC(18,2) DEFAULT 0,
+    balance_due NUMERIC(18,2) NOT NULL,
+    currency TEXT DEFAULT 'UGX',
+    status TEXT DEFAULT 'Unpaid',                 -- Unpaid, Partial, Paid, Cancelled
+    posted BOOLEAN DEFAULT FALSE,
+    gl_transaction_id BIGINT REFERENCES accounting.transactions(id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+);
+```
+
+---
+
+### **3. Bill Items**
+
+```sql
+CREATE TABLE payables.bill_items (
+    id BIGSERIAL PRIMARY KEY,
+    bill_id BIGINT NOT NULL REFERENCES payables.bills(id) ON DELETE CASCADE,
+    item_code TEXT,
+    description TEXT,
+    quantity NUMERIC(12,4) DEFAULT 1,
+    unit_price NUMERIC(18,4) DEFAULT 0,
+    tax_rate NUMERIC(5,2) DEFAULT 0,
+    total NUMERIC(18,2) NOT NULL
+);
+```
+
+---
+
+### **4. Vendor Payments**
+
+```sql
+CREATE TABLE payables.payments (
+    id BIGSERIAL PRIMARY KEY,
+    payment_number TEXT UNIQUE NOT NULL,           -- e.g., PAY-2025-001
+    vendor_id BIGINT NOT NULL REFERENCES payables.vendors(id),
+    payment_date DATE NOT NULL,
+    method TEXT NOT NULL,                          -- Cash, Bank, MobileMoney, etc.
+    reference TEXT,
+    amount NUMERIC(18,2) NOT NULL,
+    currency TEXT DEFAULT 'UGX',
+    applied_amount NUMERIC(18,2) DEFAULT 0,
+    unapplied_amount NUMERIC(18,2) DEFAULT 0,
+    gl_transaction_id BIGINT REFERENCES accounting.transactions(id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+);
+```
+
+---
+
+### **5. Payment Applications**
+
+This links a vendor payment to one or more bills.
+
+```sql
+CREATE TABLE payables.payment_applications (
+    id BIGSERIAL PRIMARY KEY,
+    payment_id BIGINT NOT NULL REFERENCES payables.payments(id) ON DELETE CASCADE,
+    bill_id BIGINT NOT NULL REFERENCES payables.bills(id) ON DELETE CASCADE,
+    applied_amount NUMERIC(18,2) NOT NULL,
+    applied_date DATE DEFAULT now(),
+    UNIQUE (payment_id, bill_id)
+);
+```
+
+---
+
+### **6. Credit Notes / Purchase Returns**
+
+```sql
+CREATE TABLE payables.credit_notes (
+    id BIGSERIAL PRIMARY KEY,
+    credit_number TEXT UNIQUE NOT NULL,
+    vendor_id BIGINT NOT NULL REFERENCES payables.vendors(id),
+    reference_bill BIGINT REFERENCES payables.bills(id),
+    issue_date DATE NOT NULL,
+    amount NUMERIC(18,2) NOT NULL,
+    reason TEXT,
+    gl_transaction_id BIGINT REFERENCES accounting.transactions(id),
+    status TEXT DEFAULT 'Open',                   -- Open, Applied, Closed
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+);
+```
+
+---
+
+## 🧠 3. Automatic Posting to GL
+
+Now let’s wire this subsystem into the **Accounting module**.
+We’ll replicate the same elegant design pattern used in Receivables — JSON-based lines posted through the `accounting.post_transaction()` function.
+
+---
+
+### **A. Post a Bill (Vendor Invoice)**
+
+When you post a bill →
+**Debit Expense / Asset (e.g. Purchases)**
+**Credit Accounts Payable**
+
+```sql
+CREATE OR REPLACE FUNCTION payables.post_bill(p_bill_id BIGINT, p_user BIGINT)
+RETURNS VOID AS $$
+DECLARE
+    v_bill payables.bills%ROWTYPE;
+    v_lines JSONB;
+BEGIN
+    SELECT * INTO v_bill FROM payables.bills WHERE id = p_bill_id;
+
+    IF v_bill.posted THEN
+        RAISE NOTICE 'Bill % already posted', v_bill.bill_number;
+        RETURN;
+    END IF;
+
+    v_lines := jsonb_build_array(
+        jsonb_build_object('account_ref','5.1.1','debit',v_bill.total_amount,'credit',0,'memo',v_bill.bill_number),
+        jsonb_build_object('account_ref','2.1.1','debit',0,'credit',v_bill.total_amount,'memo',v_bill.bill_number)
+    );
+
+    UPDATE payables.bills
+    SET gl_transaction_id = accounting.post_transaction(
+        v_bill.bill_date,
+        v_bill.bill_number,
+        'Vendor Bill Posting',
+        p_user,
+        'bill',
+        v_lines
+    ),
+    posted = TRUE
+    WHERE id = v_bill.id;
+
+    UPDATE payables.vendors
+    SET current_balance = current_balance + v_bill.total_amount
+    WHERE id = v_bill.vendor_id;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+---
+
+### **B. Post a Payment**
+
+When you pay a supplier →
+**Debit Accounts Payable**
+**Credit Cash / Bank**
+
+```sql
+CREATE OR REPLACE FUNCTION payables.post_payment(p_payment_id BIGINT, p_user BIGINT)
+RETURNS VOID AS $$
+DECLARE
+    v_payment payables.payments%ROWTYPE;
+    v_lines JSONB;
+BEGIN
+    SELECT * INTO v_payment FROM payables.payments WHERE id = p_payment_id;
+
+    v_lines := jsonb_build_array(
+        jsonb_build_object('account_ref','2.1.1','debit',v_payment.amount,'credit',0,'memo',v_payment.payment_number),
+        jsonb_build_object('account_ref','1.1.02','debit',0,'credit',v_payment.amount,'memo',v_payment.payment_number)
+    );
+
+    UPDATE payables.payments
+    SET gl_transaction_id = accounting.post_transaction(
+        v_payment.payment_date,
+        v_payment.payment_number,
+        'Vendor Payment',
+        p_user,
+        'vendor_payment',
+        v_lines
+    )
+    WHERE id = v_payment.id;
+
+    UPDATE payables.vendors
+    SET current_balance = current_balance - v_payment.amount
+    WHERE id = v_payment.vendor_id;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+---
+
+### **C. Apply Payment to Bill**
+
+```sql
+CREATE OR REPLACE FUNCTION payables.apply_payment(
+    p_payment_id BIGINT,
+    p_bill_id BIGINT,
+    p_amount NUMERIC
+)
+RETURNS VOID AS $$
+BEGIN
+    INSERT INTO payables.payment_applications (payment_id, bill_id, applied_amount)
+    VALUES (p_payment_id, p_bill_id, p_amount);
+
+    UPDATE payables.bills
+    SET balance_due = balance_due - p_amount,
+        status = CASE WHEN balance_due - p_amount <= 0 THEN 'Paid' ELSE 'Partial' END
+    WHERE id = p_bill_id;
+
+    UPDATE payables.payments
+    SET applied_amount = applied_amount + p_amount,
+        unapplied_amount = amount - applied_amount
+    WHERE id = p_payment_id;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+---
+
+## 📊 4. Reporting Views
+
+### **A. Vendor Aging Report**
+
+```sql
+CREATE OR REPLACE VIEW payables.vendor_aging AS
+SELECT
+    v.id AS vendor_id,
+    v.name,
+    SUM(CASE WHEN b.due_date >= current_date THEN b.balance_due ELSE 0 END) AS current,
+    SUM(CASE WHEN b.due_date < current_date AND b.due_date >= current_date - INTERVAL '30 days' THEN b.balance_due ELSE 0 END) AS days_1_30,
+    SUM(CASE WHEN b.due_date < current_date - INTERVAL '30 days' AND b.due_date >= current_date - INTERVAL '60 days' THEN b.balance_due ELSE 0 END) AS days_31_60,
+    SUM(CASE WHEN b.due_date < current_date - INTERVAL '60 days' AND b.due_date >= current_date - INTERVAL '90 days' THEN b.balance_due ELSE 0 END) AS days_61_90,
+    SUM(CASE WHEN b.due_date < current_date - INTERVAL '90 days' THEN b.balance_due ELSE 0 END) AS days_over_90
+FROM payables.vendors v
+LEFT JOIN payables.bills b ON v.id = b.vendor_id
+GROUP BY v.id, v.name;
+```
+
+---
+
+### **B. Vendor Statement**
+
+```sql
+CREATE OR REPLACE VIEW payables.vendor_statement AS
+SELECT
+    v.name AS vendor_name,
+    b.bill_number,
+    b.bill_date,
+    b.due_date,
+    b.total_amount,
+    b.balance_due,
+    COALESCE(p.payment_number, '') AS last_payment_number,
+    COALESCE(p.amount, 0) AS last_payment_amount,
+    COALESCE(p.payment_date, NULL) AS last_payment_date
+FROM payables.vendors v
+LEFT JOIN payables.bills b ON v.id = b.vendor_id
+LEFT JOIN payables.payments p ON p.vendor_id = v.id;
+```
+
+---
+
+## 🧱 5. Indexes
+
+```sql
+CREATE INDEX idx_vendor_name ON payables.vendors(name);
+CREATE INDEX idx_bill_due_date ON payables.bills(due_date);
+CREATE INDEX idx_bill_status ON payables.bills(status);
+CREATE INDEX idx_payment_date ON payables.payments(payment_date);
+```
+
+---
+
+## ⚙️ 6. Backend Integration Notes (Rust / API)
+
+When your backend receives:
+
+* **A vendor bill** → call `payables.post_bill(bill_id, user_id)`
+* **A payment** → call `payables.post_payment(payment_id, user_id)`
+* **An application of payment** → call `payables.apply_payment(payment_id, bill_id, amount)`
+
+Your backend logic should ensure that each operation:
+
+* runs in a DB transaction
+* verifies vendor and bill existence
+* validates balance before applying payments
+
+---
+
+If you’d like, I can now prepare this **as a complete SQL migration** (e.g., `02_payables_module.sql`) that you can execute directly after your accounting schema.
+
+Would you like me to generate that file next, so your QuickBooks-grade vendor system is installable in one shot?

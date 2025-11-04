@@ -1,0 +1,893 @@
+Now that we have most of the core modules ready, le'me give you a glimpse into what my features were structured. Currently, I only have accounts and transactions plus the obvious user auth feature that deals with the authentication and jwt functionality which work just fine, just know everything works, but I want to now hook vendor, customer and hr features (modules) too. I will share the model, handler, service, mod, repository and the over-aching router doing the routing at a higher level.
+
+// src/models/accounts.rs
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+use sqlx::{FromRow, types::BigDecimal};
+use uuid::Uuid;
+
+#[derive(Debug, FromRow, Serialize, Deserialize, Clone)]
+pub struct Account {
+    pub id: Uuid,
+    pub name: String,
+    #[sqlx(rename = "type")]
+    pub type_: String,
+    pub balance: BigDecimal,  // ← Changed from f64 (or rust_decimal::Decimal)
+    pub user_id: Uuid,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CreateAccount {
+    pub name: String,
+    pub type_: String,
+}
+
+// src/features/accounts/handlers.rs
+// src/features/accounts/handlers.rs
+use axum::{
+    Extension, Router, extract::{Json, Path, State}, response::Response,
+    routing::{get, post, patch, delete},
+};
+use uuid::Uuid;
+use std::sync::Arc;
+use crate::{
+    errors::AppError,
+    features::accounts::{repository::PostgresAccountRepo, service::AccountingService},
+    infrastructure::responses::ApiResponse,
+    middleware::Authenticated,
+    models::account::CreateAccount,
+    routes::AppState,
+};
+
+pub fn router() -> Router<Arc<AppState>> {
+    Router::new()
+        .route("/create", post(create_account))
+        .route("/list", get(get_accounts))
+        .route("/{id}", get(get_account))
+        .route("/{id}", patch(update_account))
+        .route("/{id}", delete(delete_account))
+}
+
+async fn create_account(
+    State(state): State<Arc<AppState>>,
+    Extension(user): Extension<Authenticated>,
+    Json(payload): Json<CreateAccount>,
+) -> Result<Response, AppError> {
+    let repo = PostgresAccountRepo::new(state.pool.clone());
+    let service = AccountingService::new(repo);
+    let account = service.create_account(user.0, &payload).await?;
+    Ok(ApiResponse::created(account, "Account created"))
+}
+
+async fn get_accounts(
+    State(state): State<Arc<AppState>>,
+    Extension(user): Extension<Authenticated>,
+) -> Result<Response, AppError> {
+    let repo = PostgresAccountRepo::new(state.pool.clone());
+    let service = AccountingService::new(repo);
+    let accounts = service.get_accounts(user.0).await?;
+    Ok(ApiResponse::success(accounts, "Accounts fetched"))
+}
+
+async fn get_account(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<Uuid>,
+    Extension(user): Extension<Authenticated>,
+) -> Result<Response, AppError> {
+    let repo = PostgresAccountRepo::new(state.pool.clone());
+    let service = AccountingService::new(repo);
+    let account = service.get_account(id, user.0).await?;
+    Ok(ApiResponse::success(account, "Account fetched"))
+}
+
+async fn update_account(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<Uuid>,
+    Extension(user): Extension<Authenticated>,
+    Json(payload): Json<CreateAccount>,
+) -> Result<Response, AppError> {
+    let repo = PostgresAccountRepo::new(state.pool.clone());
+    let service = AccountingService::new(repo);
+    let account = service.update_account(id, user.0, &payload).await?;
+    Ok(ApiResponse::success(account, "Account updated"))
+}
+
+async fn delete_account(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<Uuid>,
+    Extension(user): Extension<Authenticated>,
+) -> Result<Response, AppError> {
+    let repo = PostgresAccountRepo::new(state.pool.clone());
+    let service = AccountingService::new(repo);
+    service.delete_account(id, user.0).await?;
+    Ok(ApiResponse::success((), "Account deleted"))
+}
+
+// src/features/accounts/mod.rs
+pub mod handlers;
+pub mod service;
+pub mod repository;
+
+// src/features/accounts/repositories.rs
+use crate::models::account::{Account, CreateAccount};
+use crate::errors::AppError;
+use bigdecimal::BigDecimal;
+use sqlx::PgPool;
+use async_trait::async_trait;
+use uuid::Uuid;
+
+// Trait for abstraction (injectable for testing)
+#[async_trait]
+pub trait AccountRepository: Send + Sync {
+    fn pool(&self)->&PgPool;
+    async fn create(&self, user_id: sqlx::types::Uuid, acc: &CreateAccount) -> Result<Account, AppError>;
+    async fn find_by_id(&self, id: sqlx::types::Uuid, user_id: sqlx::types::Uuid) -> Result<Option<Account>, AppError>;
+    async fn find_by_user(&self, user_id: sqlx::types::Uuid) -> Result<Vec<Account>, AppError>;
+    async fn update_balance(&self, id: sqlx::types::Uuid, delta: BigDecimal) -> Result<(), AppError>;
+    async fn update_account_info(&self, id: Uuid, user_id: Uuid, updates: &CreateAccount) -> Result<Account, AppError>;
+}
+
+// Concrete impls
+pub struct PostgresAccountRepo {
+    pool: PgPool,
+}
+
+impl PostgresAccountRepo {
+    pub fn new(pool: PgPool) -> Self { Self { pool } }
+}
+
+#[async_trait]
+impl AccountRepository for PostgresAccountRepo {
+    /// # Purpose
+    /// Create a new user and insert into the database. User may be employee, admin, or owner.
+    /// Purpose of user is authentication and authorization to access and use the application.
+    /// User will be used to perform sign in/signup, DBMS CRUD functions and any relevant jobs.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if user cannot be created.
+    async fn create(&self, user_id: sqlx::types::Uuid, acc: &CreateAccount) -> Result<Account, AppError> {
+        let account = sqlx::query_as::<_, Account>(
+            "INSERT INTO accounts (name, type, user_id) VALUES ($1, $2, $3) RETURNING *"
+        )
+        .bind(&acc.name)
+        .bind(&acc.type_)
+        .bind(user_id)
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(account)
+    }
+
+    async fn find_by_id(&self, id: sqlx::types::Uuid, user_id: sqlx::types::Uuid) -> Result<Option<Account>, AppError> {
+        let account = sqlx::query_as::<_, Account>(
+            "SELECT * FROM accounts WHERE id = $1 AND user_id = $2"
+        )
+        .bind(id)
+        .bind(user_id)
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(account)
+    }
+
+    async fn find_by_user(&self, user_id: sqlx::types::Uuid) -> Result<Vec<Account>, AppError> {
+        let accounts = sqlx::query_as::<_, Account>("SELECT * FROM accounts WHERE user_id = $1")
+            .bind(user_id)
+            .fetch_all(&self.pool)
+            .await?;
+        Ok(accounts)
+    }
+
+    async fn update_balance(&self, id: sqlx::types::Uuid, delta: BigDecimal) -> Result<(), AppError> {
+        sqlx::query("UPDATE accounts SET balance = balance + $1 WHERE id = $2")
+            .bind(delta)
+            .bind(id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
+    async fn update_account_info(&self, id: Uuid, user_id: Uuid, updates: &CreateAccount) -> Result<Account, AppError> {
+        let account = sqlx::query_as::<_, Account>(
+            "UPDATE accounts SET name = $1, type = $2 WHERE id = $3 AND user_id = $4 RETURNING *",
+        )
+        .bind(&updates.name)
+        .bind(&updates.type_)
+        .bind(id)
+        .bind(user_id)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(|e| {
+            if e.as_database_error()
+                .and_then(|db| db.constraint())
+                .map(|c| c == "accounts_type_check")
+                .unwrap_or(false)
+            {
+                AppError::Validation("Invalid account type".into())
+            } else {
+                AppError::Database(e)
+            }
+        })?;
+
+        Ok(account)
+    }
+
+    fn pool(&self)->&PgPool{
+        &self.pool
+    }
+}
+
+// src/features/accounts/service.rs
+// src/features/accounts/service.rs
+use crate::errors::AppError;
+use crate::features::accounts::repository::AccountRepository;
+use crate::models::account::{Account, CreateAccount};
+use uuid::Uuid;
+
+pub struct AccountingService<R: AccountRepository> {
+    account_repo: R,
+}
+
+impl<R: AccountRepository> AccountingService<R> {
+    pub fn new(account_repo: R) -> Self {
+        Self { account_repo }
+    }
+
+    pub async fn create_account(
+        &self,
+        user_id: Uuid,
+        acc: &CreateAccount,
+    ) -> Result<Account, AppError> {
+        let valid_types = ["asset", "liability", "equity", "revenue", "expense"];
+        if !valid_types.contains(&acc.type_.as_str()) {
+            return Err(AppError::Validation("Invalid account type".into()));
+        }
+        self.account_repo.create(user_id, acc).await
+    }
+
+    pub async fn get_accounts(&self, user_id: Uuid) -> Result<Vec<Account>, AppError> {
+        self.account_repo.find_by_user(user_id).await
+    }
+
+    pub async fn get_account(&self, id: Uuid, user_id: Uuid) -> Result<Account, AppError> {
+        self.account_repo
+            .find_by_id(id, user_id)
+            .await?
+            .ok_or(AppError::NotFound("Account not found".into()))
+    }
+
+    pub async fn update_account(
+        &self,
+        id: Uuid,
+        user_id: Uuid,
+        updates: &CreateAccount,
+    ) -> Result<Account, AppError> {
+        let valid_types = ["asset", "liability", "equity", "revenue", "expense"];
+        if !valid_types.contains(&updates.type_.as_str()) {
+            return Err(AppError::Validation("Invalid account type".into()));
+        }
+
+        // Now delegate to repo
+        self.account_repo.update_account_info(id, user_id, updates).await
+    }
+
+    pub async fn delete_account(&self, id: Uuid, user_id: Uuid) -> Result<(), AppError> {
+        let result = sqlx::query("DELETE FROM accounts WHERE id = $1 AND user_id = $2")
+            .bind(id)
+            .bind(user_id)
+            .execute(self.account_repo.pool())
+            .await?;
+
+        if result.rows_affected() == 0 {
+            return Err(AppError::NotFound("Account not found".into()));
+        }
+        Ok(())
+    }
+}
+
+// src/routes.rs
+use axum::{
+    Extension, Router,
+    extract::Request,
+    middleware,
+    response::{IntoResponse, Response},
+    routing::get,
+};
+
+use sqlx::PgPool;
+use std::{sync::Arc, time::Duration};
+use tower_http::{classify::ServerErrorsFailureClass, cors::CorsLayer, trace::TraceLayer};
+
+use crate::middleware::{Authenticated, layer::auth_middleware};
+
+pub struct AppState {
+    pub pool: PgPool,
+    pub jwt_secret: String,
+}
+
+#[allow(dead_code)]
+impl AppState {
+    pub fn new(pool: PgPool, jwt_secret: String) -> Self {
+        Self { pool, jwt_secret }
+    }
+}
+
+pub fn create_router(state: Arc<AppState>) -> Router {
+    let protected_transactions: Router<Arc<AppState>> =
+        crate::features::transactions::handlers::router()
+            .layer(middleware::from_fn(auth_middleware));
+    let protected_accounts: Router<Arc<AppState>> =
+        crate::features::accounts::handlers::router().layer(middleware::from_fn(auth_middleware));
+
+    Router::new()
+        // CHECK THAT SERVER IS UP AND RUNING
+        .route(
+            "/",
+            get(|| async { "Yey! Service Up And Runing Successfully!\n" }),
+        )
+        // PUBLIC ROUTES (no auth required)
+        .nest("/api/auth", crate::features::auth::handlers::router())
+        // PROTECTED ROUTES (require auth)
+        .nest("/api/transactions", protected_transactions)
+        .nest("/api/accounts", protected_accounts)
+        // CORS & global state
+        .layer(Extension(state.clone()))
+        .layer(CorsLayer::permissive())
+        // Get log info for audit trail
+        .layer(
+            TraceLayer::new_for_http()
+                .make_span_with(|request: &Request| {
+                    let user_id = request
+                        .extensions()
+                        .get::<Authenticated>()
+                        .map(|auth: &Authenticated| auth.0.to_string())
+                        .unwrap_or_else(|| "anonymous".to_string());
+
+                    tracing::info_span!(
+                        "request",
+                        method = %request.method(),
+                        uri = %request.uri(),
+                        user_id = %user_id,
+                    )
+                })
+                .on_response(
+                    |response: &Response, latency: Duration, _span: &tracing::Span| {
+                        tracing::info!(
+                            status = response.status().as_u16(),
+                            latency = format!("{:.2?}", latency),
+                            "response sent"
+                        );
+                    },
+                )
+                .on_failure(
+                    |error: ServerErrorsFailureClass, latency: Duration, _span: &tracing::Span| {
+                        tracing::error!(
+                            status = 500,
+                            latency = format!("{:.2?}", latency),
+                            error = %error,
+                            "request failed"
+                        );
+                    },
+                ),
+        )
+        .with_state(state)
+        .fallback(handler_404) // ← ADD THIS
+}
+
+// 404 Fallback Handler
+async fn handler_404() -> impl IntoResponse {
+    let error: crate::errors::AppError =
+        crate::errors::AppError::NotFound("Oops! The page you're looking for doesn't exist. CHECK THE URI".into());
+    error.into_response()
+}
+
+// srd/errors.rs
+// errors.rs
+use axum::{http::StatusCode, response::IntoResponse};
+use thiserror::Error;
+use serde::Serialize;
+
+#[derive(Serialize)]
+struct ErrorResponse {
+    status: u16,
+    error: String,
+    message: String,
+}
+
+#[derive(Error, Debug)]
+pub enum AppError {
+    #[error("Database error: {0}")]
+    Database(#[from] sqlx::Error),
+    #[error("Auth error: {0}")]
+    Auth(String),
+    #[error("Validation error: {0}")]
+    Validation(String),
+    #[error("Not found")]
+    NotFound(String),
+}
+
+impl IntoResponse for AppError {
+    fn into_response(self) -> axum::response::Response {
+        let (status, error_type, message): (StatusCode, &str, String) = match self {
+            AppError::Database(e) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Database error",
+                e.to_string(),
+            ),
+            AppError::Auth(msg) => (
+                StatusCode::UNAUTHORIZED,
+                "Authentication error",
+                msg,
+            ),
+            AppError::Validation(msg) => (
+                StatusCode::BAD_REQUEST,
+                "Validation error",
+                msg,
+            ),
+            AppError::NotFound(msg) => (
+                StatusCode::NOT_FOUND,
+                "Not Found",
+                msg,
+            ),
+        };
+
+        let error_response: ErrorResponse = ErrorResponse {
+            status: status.as_u16(),
+            error: error_type.to_string(),
+            message,
+        };
+
+        (status, axum::Json(error_response)).into_response()
+    }
+}
+
+// main.rs
+mod errors;
+mod models;
+mod routes;
+mod features;
+mod infrastructure;
+mod middleware;
+
+use axum::serve;
+use sqlx::postgres::PgPoolOptions;
+use std::env;
+use std::net::SocketAddr;
+use std::sync::Arc;
+use dotenv::dotenv;
+use tokio::net::TcpListener;
+
+use routes::{create_router, AppState};
+
+use tracing_subscriber::{fmt, prelude::*, EnvFilter};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    dotenv().ok();
+    let database_url: String = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    let pool: sqlx::Pool<sqlx::Postgres> = PgPoolOptions::new()
+        .max_connections(5)
+        .connect(&database_url)
+        .await?;
+
+    // Initialize logger
+    tracing_subscriber::registry()
+        .with(fmt::layer())
+        .with(EnvFilter::from_default_env())
+        .init();
+
+    // Run migrations on startup (in prod, use separate process)
+    // sqlx::migrate!("./migrations").run(&pool).await?;
+
+    let jwt_secret: String = env::var("JWT_SECRET").expect("JWT_SECRET must be set");
+    let state: Arc<AppState> = Arc::new(AppState { pool, jwt_secret });
+
+    let app: axum::Router = create_router(state);
+
+    let addr: SocketAddr = "127.0.0.1:8080".parse()?;
+    println!("Listening on {}", addr);
+    tracing::info!("Server running on {}", addr);
+
+    let listener = TcpListener::bind(addr).await?;
+    serve(listener, app.into_make_service()).await?;
+
+    Ok(())
+}
+NOTE: Now, I have already run these scriptsbelow to create the schema and tables, functions, indices and any other depencirs. We need to come up with the rust code using the above as a simple point of reference:
+1. a practical modular schema layout (schemas + core DDL)
+2. strong constraints, indexes, and data types for financial accuracy
+3. an atomic stored-procedure pattern to *guarantee* balanced double-entry posting (the backend will call this)
+4. audit logging and helpful ops notes (partitioning, VACUUM, migrations)
+
+You can copy-paste the SQL into a file (e.g. `00_init.sql`) and run it in psql (or use your migration tool). I intentionally keep things explicit and conventional so any Rust DB layer (sqlx/diesel) or migration tool can map to it easily.
+
+---
+
+# 1 — Setup: schemas & utility extensions
+
+```sql
+-- run as superuser or db owner
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- create module schemas (modular layout)
+CREATE SCHEMA IF NOT EXISTS accounting;
+CREATE SCHEMA IF NOT EXISTS receivables;
+CREATE SCHEMA IF NOT EXISTS payables;
+CREATE SCHEMA IF NOT EXISTS inventory;
+CREATE SCHEMA IF NOT EXISTS system;
+CREATE SCHEMA IF NOT EXISTS reporting;
+
+-- optional: convenience search_path (for application sessions)
+-- SET search_path TO accounting, receivables, payables, inventory, system, public;
+```
+
+---
+
+# 2 — Core accounting tables (double-entry foundation)
+
+Use `bigserial` primary keys and `NUMERIC(18,2)` for money. Adjust precision if you need fractions.
+
+```sql
+-- accounts: chart of accounts
+CREATE TABLE accounting.accounts (
+    id BIGSERIAL PRIMARY KEY,
+    code TEXT NOT NULL UNIQUE,    -- e.g. "1.1.01"
+    name TEXT NOT NULL,
+    type TEXT NOT NULL,           -- Asset, Liability, Equity, Revenue, Expense
+    parent_id BIGINT REFERENCES accounting.accounts(id) ON DELETE SET NULL,
+    normal_balance TEXT NOT NULL, -- 'DR' or 'CR'
+    is_contra BOOLEAN DEFAULT FALSE,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+);
+
+CREATE INDEX ON accounting.accounts (type);
+CREATE INDEX ON accounting.accounts (code);
+
+-- transactions: header/journal
+CREATE TABLE accounting.transactions (
+    id BIGSERIAL PRIMARY KEY,
+    txn_uuid UUID DEFAULT uuid_generate_v4() NOT NULL UNIQUE,
+    txn_date DATE NOT NULL,
+    reference TEXT,
+    description TEXT,
+    created_by BIGINT, -- fk to system.users
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+    posted BOOLEAN DEFAULT TRUE,  -- keep for drafts/approval workflows
+    module TEXT                 -- e.g., 'invoice', 'payment', 'journal'
+);
+
+CREATE INDEX ON accounting.transactions (txn_date);
+CREATE INDEX ON accounting.transactions (module);
+
+-- transaction entries (double-entry lines)
+CREATE TABLE accounting.transaction_entries (
+    id BIGSERIAL PRIMARY KEY,
+    transaction_id BIGINT NOT NULL REFERENCES accounting.transactions(id) ON DELETE CASCADE,
+    account_id BIGINT NOT NULL REFERENCES accounting.accounts(id),
+    line_no INT NOT NULL,
+    amount NUMERIC(18,2) NOT NULL CHECK (amount >= 0),
+    debit NUMERIC(18,2) NOT NULL DEFAULT 0 CHECK (debit >= 0),
+    credit NUMERIC(18,2) NOT NULL DEFAULT 0 CHECK (credit >= 0),
+    memo TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+);
+
+CREATE INDEX ON accounting.transaction_entries (account_id);
+CREATE INDEX ON accounting.transaction_entries (transaction_id);
+CREATE INDEX ON accounting.transaction_entries (created_at);
+```
+
+Notes:
+
+* We store `debit` and `credit` explicitly (either one is zero). `amount` can be redundant but useful; you can enforce `amount = debit + credit`.
+* `line_no` maintains order for UI readability.
+
+Add constraint ensuring `amount = debit + credit`:
+
+```sql
+ALTER TABLE accounting.transaction_entries
+  ADD CONSTRAINT chk_amount_eq_debit_plus_credit CHECK (amount = debit + credit);
+```
+
+---
+
+# 3 — Stored procedure: Atomic posting that enforces balance
+
+Instead of depending on application to post many entries correctly, expose a single stored procedure that accepts JSONB lines and atomically inserts header + entries and validates that debits == credits.
+
+```sql
+-- function to post a transaction with JSONB entries
+CREATE OR REPLACE FUNCTION accounting.post_transaction(
+    p_txn_date DATE,
+    p_reference TEXT,
+    p_description TEXT,
+    p_created_by BIGINT,
+    p_module TEXT,
+    p_lines JSONB  -- array of {account_code or account_id, debit, credit, memo}
+) RETURNS BIGINT
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_txn_id BIGINT;
+    v_total_debits NUMERIC(18,2) := 0;
+    v_total_credits NUMERIC(18,2) := 0;
+    v_line RECORD;
+    v_account_id BIGINT;
+    v_line_no INT := 0;
+BEGIN
+    -- compute sums from JSON input
+    FOR v_line IN SELECT * FROM jsonb_to_recordset(p_lines)
+        AS (account_ref TEXT, debit NUMERIC, credit NUMERIC, memo TEXT)
+    LOOP
+        v_total_debits := v_total_debits + COALESCE(v_line.debit, 0);
+        v_total_credits := v_total_credits + COALESCE(v_line.credit, 0);
+    END LOOP;
+
+    IF v_total_debits IS NULL OR v_total_credits IS NULL THEN
+        RAISE EXCEPTION 'Debits or credits missing';
+    END IF;
+
+    IF v_total_debits <> v_total_credits THEN
+        RAISE EXCEPTION 'Unbalanced transaction: debits (%) != credits (%)', v_total_debits, v_total_credits;
+    END IF;
+
+    -- insert header
+    INSERT INTO accounting.transactions(txn_date, reference, description, created_by, module)
+    VALUES (p_txn_date, p_reference, p_description, p_created_by, p_module)
+    RETURNING id INTO v_txn_id;
+
+    -- insert lines
+    FOR v_line IN SELECT * FROM jsonb_to_recordset(p_lines)
+            AS (account_ref TEXT, debit NUMERIC, credit NUMERIC, memo TEXT)
+    LOOP
+        v_line_no := v_line_no + 1;
+
+        -- resolve account_ref: allow numeric id or code
+        BEGIN
+            v_account_id := (v_line.account_ref)::BIGINT;
+        EXCEPTION WHEN others THEN
+            SELECT id INTO v_account_id FROM accounting.accounts WHERE code = v_line.account_ref LIMIT 1;
+            IF v_account_id IS NULL THEN
+                RAISE EXCEPTION 'Account % not found', v_line.account_ref;
+            END IF;
+        END;
+
+        INSERT INTO accounting.transaction_entries(
+            transaction_id, account_id, line_no, amount, debit, credit, memo
+        ) VALUES (
+            v_txn_id, v_account_id, v_line_no, COALESCE(v_line.debit,0) + COALESCE(v_line.credit,0), COALESCE(v_line.debit,0), COALESCE(v_line.credit,0), v_line.memo
+        );
+    END LOOP;
+
+    RETURN v_txn_id;
+END;
+$$;
+```
+
+Usage example (from psql):
+
+```sql
+SELECT accounting.post_transaction(
+  '2025-11-03'::date,
+  'INV-0001',
+  'Invoice #INV-0001 sale to ACME',
+  1,
+  'invoice',
+  '[
+    {"account_ref":"1.2.1", "debit": 1000, "credit": 0, "memo":"A/R - ACME"},
+    {"account_ref":"4.1.1", "debit": 0, "credit": 1000, "memo":"Revenue - Product"}
+  ]'::jsonb
+);
+```
+
+Notes:
+
+* `account_ref` accepts either account `id` (numeric) or `code` (text like `"1.2.1"`).
+* The function throws if unbalanced or if an account ref is not found.
+* This pattern forces all postings through a single server-side API — consistent, auditable, and safe.
+
+---
+
+# 4 — Receivables tables (invoices, customers, payments) with auto GL posting example
+
+Core receivables tables and a small stored procedure to create invoice + GL post.
+
+```sql
+-- customers
+CREATE TABLE receivables.customers (
+    id BIGSERIAL PRIMARY KEY,
+    name TEXT NOT NULL,
+    email TEXT,
+    phone TEXT,
+    billing_address TEXT,
+    credit_limit NUMERIC(18,2) DEFAULT 0,
+    current_balance NUMERIC(18,2) DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+);
+CREATE INDEX ON receivables.customers (name);
+
+-- invoices
+CREATE TABLE receivables.invoices (
+    id BIGSERIAL PRIMARY KEY,
+    invoice_number TEXT UNIQUE NOT NULL,
+    customer_id BIGINT NOT NULL REFERENCES receivables.customers(id) ON DELETE RESTRICT,
+    issue_date DATE NOT NULL,
+    due_date DATE NOT NULL,
+    total_amount NUMERIC(18,2) NOT NULL,
+    balance_due NUMERIC(18,2) NOT NULL,
+    status TEXT DEFAULT 'Unpaid', -- Unpaid, Partial, Paid, Cancelled
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+);
+CREATE INDEX ON receivables.invoices (customer_id);
+CREATE INDEX ON receivables.invoices (issue_date);
+
+-- invoice_items (if itemized)
+CREATE TABLE receivables.invoice_items (
+    id BIGSERIAL PRIMARY KEY,
+    invoice_id BIGINT NOT NULL REFERENCES receivables.invoices(id) ON DELETE CASCADE,
+    description TEXT,
+    quantity NUMERIC(12,4) DEFAULT 1,
+    unit_price NUMERIC(18,4) DEFAULT 0,
+    total NUMERIC(18,2) NOT NULL
+);
+CREATE INDEX ON receivables.invoice_items (invoice_id);
+
+-- payments
+CREATE TABLE receivables.payments (
+    id BIGSERIAL PRIMARY KEY,
+    invoice_id BIGINT REFERENCES receivables.invoices(id) ON DELETE SET NULL,
+    customer_id BIGINT NOT NULL REFERENCES receivables.customers(id) ON DELETE RESTRICT,
+    payment_date DATE NOT NULL,
+    amount NUMERIC(18,2) NOT NULL,
+    method TEXT,  -- Cash, Bank, MobileMoney
+    reference TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+);
+CREATE INDEX ON receivables.payments (customer_id);
+CREATE INDEX ON receivables.payments (payment_date);
+```
+
+Procedure example to create invoice and post GL (high level):
+
+```sql
+CREATE OR REPLACE FUNCTION receivables.create_invoice_and_post_gl(
+    p_invoice_number TEXT,
+    p_customer_id BIGINT,
+    p_issue_date DATE,
+    p_due_date DATE,
+    p_total NUMERIC,
+    p_items JSONB,  -- optional items array
+    p_created_by BIGINT
+) RETURNS BIGINT LANGUAGE plpgsql AS $$
+DECLARE
+    v_invoice_id BIGINT;
+    v_lines JSONB;
+BEGIN
+    INSERT INTO receivables.invoices(invoice_number, customer_id, issue_date, due_date, total_amount, balance_due)
+    VALUES (p_invoice_number, p_customer_id, p_issue_date, p_due_date, p_total, p_total)
+    RETURNING id INTO v_invoice_id;
+
+    -- Optionally store items
+    IF p_items IS NOT NULL THEN
+        INSERT INTO receivables.invoice_items (invoice_id, description, quantity, unit_price, total)
+        SELECT v_invoice_id, it->>'description', (it->>'quantity')::NUMERIC, (it->>'unit_price')::NUMERIC, (it->>'total')::NUMERIC
+        FROM jsonb_array_elements(p_items) AS t(it);
+    END IF;
+
+    -- build JSON lines for GL: debit A/R, credit Revenue
+    SELECT jsonb_build_array(
+        jsonb_build_object('account_ref', '1.2.1', 'debit', p_total, 'credit', 0, 'memo', format('AR - invoice %s', p_invoice_number)),
+        jsonb_build_object('account_ref', '4.1.1', 'debit', 0, 'credit', p_total, 'memo', format('Revenue invoice %s', p_invoice_number))
+    ) INTO v_lines;
+
+    PERFORM accounting.post_transaction(p_issue_date, p_invoice_number, 'Invoice posted', p_created_by, 'invoice', v_lines);
+
+    -- update customer balance (simple)
+    UPDATE receivables.customers SET current_balance = current_balance + p_total WHERE id = p_customer_id;
+
+    RETURN v_invoice_id;
+END;
+$$;
+```
+
+Adjust `account_ref` to your actual account codes for AR and Revenue as seeded.
+
+---
+
+# 5 — Audit logging (immutable audit trail)
+
+Simple trigger-based audit log for sensitive tables (transactions, transaction_entries, invoices, payments).
+
+```sql
+CREATE TABLE system.audit_logs (
+    id BIGSERIAL PRIMARY KEY,
+    schema_name TEXT,
+    table_name TEXT,
+    record_id TEXT,
+    operation TEXT,
+    changed_by BIGINT,
+    changed_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+    old_data JSONB,
+    new_data JSONB
+);
+
+CREATE OR REPLACE FUNCTION system.audit_trigger_fn() RETURNS trigger AS $$
+BEGIN
+    IF TG_OP = 'INSERT' THEN
+        INSERT INTO system.audit_logs(schema_name, table_name, record_id, operation, changed_by, new_data)
+        VALUES (TG_TABLE_SCHEMA, TG_TABLE_NAME, NEW.*::text, TG_OP, NULL, to_jsonb(NEW));
+        RETURN NEW;
+    ELSIF TG_OP = 'UPDATE' THEN
+        INSERT INTO system.audit_logs(schema_name, table_name, record_id, operation, changed_by, old_data, new_data)
+        VALUES (TG_TABLE_SCHEMA, TG_TABLE_NAME, NEW.*::text, TG_OP, NULL, to_jsonb(OLD), to_jsonb(NEW));
+        RETURN NEW;
+    ELSIF TG_OP = 'DELETE' THEN
+        INSERT INTO system.audit_logs(schema_name, table_name, record_id, operation, changed_by, old_data)
+        VALUES (TG_TABLE_SCHEMA, TG_TABLE_NAME, OLD.*::text, TG_OP, NULL, to_jsonb(OLD));
+        RETURN OLD;
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+-- attach audit trigger to important tables
+CREATE TRIGGER trg_audit_transactions
+AFTER INSERT OR UPDATE OR DELETE ON accounting.transactions
+FOR EACH ROW EXECUTE FUNCTION system.audit_trigger_fn();
+
+CREATE TRIGGER trg_audit_tx_entries
+AFTER INSERT OR UPDATE OR DELETE ON accounting.transaction_entries
+FOR EACH ROW EXECUTE FUNCTION system.audit_trigger_fn();
+
+CREATE TRIGGER trg_audit_invoices
+AFTER INSERT OR UPDATE OR DELETE ON receivables.invoices
+FOR EACH ROW EXECUTE FUNCTION system.audit_trigger_fn();
+
+CREATE TRIGGER trg_audit_payments
+AFTER INSERT OR UPDATE OR DELETE ON receivables.payments
+FOR EACH ROW EXECUTE FUNCTION system.audit_trigger_fn();
+```
+
+Note: record_id uses `NEW.*::text`—you may instead prefer a specific primary key field for clarity.
+
+---
+
+# 6 — Indexing, partitioning & performance tips
+
+* Index `transaction_entries` on `(account_id, created_at)` for ledger queries.
+* Use partial indexes for active accounts: `CREATE INDEX ON accounting.transaction_entries (account_id) WHERE created_at > now() - interval '2 years';` if needed.
+* For very high volumes, partition `accounting.transaction_entries` by `transaction_date` or `created_at` (monthly/quarterly). Use native Postgres partitioning.
+* VACUUM regularly; run `VACUUM (FULL)` minimally, rely on autovacuum and tune thresholds for heavy write loads.
+* Use connection pooling (PgBouncer) for Rust to avoid connection storms.
+
+---
+
+# 7 — Migrations & deployment workflow
+
+* Use a migration tool: `sqitch`, `migra`, `diesel migration`, or `sqlx` migrations. Keep schema SQL in versioned migration scripts.
+* Seed minimal chart of accounts with a first migration; more accounts can be imported by CSV later.
+* Back up with `pg_dump` schema-by-schema if you want portability.
+
+---
+
+# 8 — Seeding accounts (example snippet)
+
+Minimal seed of key accounts to start:
+
+```sql
+INSERT INTO accounting.accounts (code, name, type, normal_balance) VALUES
+('1.1.01','Cash on Hand','Asset','DR'),
+('1.1.02','Bank - Main','Asset','DR'),
+('1.2.01','Accounts Receivable - Trade','Asset','DR'),
+('1.3.01','Inventory - Merchandise','Asset','DR'),
+('1.5.01','Buildings','Asset','DR'),
+('1.5.10','Accumulated Depreciation - Buildings','Asset','CR'),
+('2.1.01','Accounts Payable - Trade','Liability','CR'),
+('2.3.01','Loans Payable','Liability','CR'),
+('3.1.01','Share Capital','Equity','CR'),
+('3.2.01','Retained Earnings','Equity','CR'),
+('4.1.01','Sales Revenue','Revenue','CR'),
+('5.1.01','Cost of Goods Sold','Expense','DR'),
+('5.1.02','Salaries Expense','Expense','DR');
+```

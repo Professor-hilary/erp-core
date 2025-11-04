@@ -25,11 +25,18 @@ impl AppState {
 }
 
 pub fn create_router(state: Arc<AppState>) -> Router {
-    let protected_transactions: Router<Arc<AppState>> =
-        crate::features::transactions::handlers::router()
-            .layer(middleware::from_fn(auth_middleware));
-    let protected_accounts: Router<Arc<AppState>> =
+    let vendorsx: Router<Arc<AppState>> =
+        crate::features::vendors::handlers::router().layer(middleware::from_fn(auth_middleware));
+    let customersx: Router<Arc<AppState>> =
+        crate::features::customers::handlers::router().layer(middleware::from_fn(auth_middleware));
+    let employeesx: Router<Arc<AppState>> =
+        crate::features::hr::handler::router().layer(middleware::from_fn(auth_middleware));
+    let transactionsx: Router<Arc<AppState>> = crate::features::transactions::handlers::router()
+        .layer(middleware::from_fn(auth_middleware));
+    let accountsx: Router<Arc<AppState>> =
         crate::features::accounts::handlers::router().layer(middleware::from_fn(auth_middleware));
+    let inventoryx: Router<Arc<AppState>> =
+        crate::features::inventory::handler::router().layer(middleware::from_fn(auth_middleware));
 
     Router::new()
         // CHECK THAT SERVER IS UP AND RUNING
@@ -40,8 +47,12 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         // PUBLIC ROUTES (no auth required)
         .nest("/api/auth", crate::features::auth::handlers::router())
         // PROTECTED ROUTES (require auth)
-        .nest("/api/transactions", protected_transactions)
-        .nest("/api/accounts", protected_accounts)
+        .nest("/api/transactions", transactionsx)
+        .nest("/api/accounts", accountsx)
+        .nest("/api/customers", customersx)
+        .nest("/api/inventory", inventoryx)
+        .nest("/api/vendors", vendorsx)
+        .nest("/api/employees", employeesx)
         // CORS & global state
         .layer(Extension(state.clone()))
         .layer(CorsLayer::permissive())
@@ -88,7 +99,8 @@ pub fn create_router(state: Arc<AppState>) -> Router {
 
 // 404 Fallback Handler
 async fn handler_404() -> impl IntoResponse {
-    let error: crate::errors::AppError =
-        crate::errors::AppError::NotFound("Oops! The page you're looking for doesn't exist. CHECK THE URI".into());
+    let error: crate::errors::AppError = crate::errors::AppError::NotFound(
+        "Oops! The page you're looking for doesn't exist. CHECK THE URI".into(),
+    );
     error.into_response()
 }

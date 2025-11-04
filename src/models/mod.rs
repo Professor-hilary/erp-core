@@ -2,26 +2,14 @@
 pub mod user;
 pub mod account;
 pub mod transaction;
+pub mod customers;
+pub mod employee;
+pub mod payrun;
+pub mod vendor;
+pub mod inventory_movement;
+pub mod invoice;
+pub mod bills;
+pub mod item;
 pub mod dto;
 
 pub use transaction::Transaction;
-
-
-// // models.rs
-// use chrono::{DateTime, Utc, NaiveDate};
-// use serde::{Deserialize, Serialize};
-// use sqlx::FromRow;
-// use uuid::Uuid;
-
-// #[derive(Debug, Serialize)]
-// pub struct JwtClaims {
-//     pub sub: Uuid,
-//     pub exp: usize,
-// }
-
-// #[derive(Debug, Serialize)]
-// pub struct TrialBalance {
-//     pub account_id: Uuid,
-//     pub name: String,
-//     pub balance: f64,
-// }
