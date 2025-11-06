@@ -22,10 +22,10 @@ pub fn router() -> Router<Arc<AppState>> {
     Router::new()
         .route("/vendors", post(create_vendor))
         .route("/vendors", get(list_vendors))
-        .route("/vendors/:id", get(get_vendor))
-        .route("/vendors/:id", patch(update_vendor))
-        .route("/vendors/:id", delete(delete_vendor))
-        .route("/vendors/:cid/bills", post(create_bill))
+        .route("/vendors/{id}", get(get_vendor))
+        .route("/vendors/{id}", patch(update_vendor))
+        .route("/vendors/{id}", delete(delete_vendor))
+        .route("/vendors/{cid}/bills", post(create_bill))
 }
 
 async fn create_vendor(

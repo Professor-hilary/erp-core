@@ -1,17 +1,24 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::{FromRow, types::BigDecimal};
+use sqlx::{FromRow};
 use uuid::Uuid;
 
 #[derive(Debug, FromRow, Serialize, Deserialize, Clone)]
 pub struct Account {
-    pub id: Uuid,
+    pub uuid: Uuid,
+    pub serial_id: i64,
     pub name: String,
+    pub code: String,
     #[sqlx(rename = "type")]
     pub type_: String,
-    pub balance: BigDecimal,  // ← Changed from f64 (or rust_decimal::Decimal)
-    pub user_id: Uuid,
+    pub parent_uuid: Option<Uuid>,
+    pub normal_balance: String,
+    pub is_contra: bool,
+    pub is_active: bool,
+    // pub balance: BigDecimal,
     pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub subtype: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]

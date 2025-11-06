@@ -25,20 +25,20 @@ impl<R: AccountRepository, T: TransactionRepository> TransactionService<R, T> {
         tx: &CreateTransaction,
     ) -> Result<Transaction, AppError> {
         // Validate accounts exist and belong to user
-        let debit_acc = self
+        let _debit_acc = self
             .account_repo
             .find_by_id(tx.debit_account_id, user_id)
             .await?
             .ok_or(AppError::NotFound("Debit account not found".into()))?;
-        let credit_acc = self
+        let _credit_acc = self
             .account_repo
             .find_by_id(tx.credit_account_id, user_id)
             .await?
             .ok_or(AppError::NotFound("Credit account not found".into()))?;
 
-        if debit_acc.user_id != user_id || credit_acc.user_id != user_id {
-            return Err(AppError::Validation("Accounts must belong to user".into()));
-        }
+        // if debit_acc.user_id != user_id || credit_acc.user_id != user_id {
+        //     return Err(AppError::Validation("Accounts must belong to user".into()));
+        // }
 
         if tx.amount <= BigDecimal::zero() {
             return Err(AppError::Validation("Amount must be positive".into()));

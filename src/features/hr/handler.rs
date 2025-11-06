@@ -20,11 +20,11 @@ pub fn router() -> Router<Arc<AppState>> {
     Router::new()
         .route("/employees", post(create_employee))
         .route("/employees", get(list_employees))
-        .route("/employees/:id", get(get_employee))
-        .route("/employees/:id", patch(update_employee))
-        .route("/employees/:id", delete(delete_employee))
+        .route("/employees/{id}", get(get_employee))
+        .route("/employees/{id}", patch(update_employee))
+        .route("/employees/{id}", delete(delete_employee))
         .route("/payruns", post(create_and_post_payrun))
-        .route("/payruns/:id", get(get_payrun))
+        .route("/payruns/{id}", get(get_payrun))
 }
 
 async fn create_employee(

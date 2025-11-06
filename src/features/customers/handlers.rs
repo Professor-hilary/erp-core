@@ -20,10 +20,10 @@ pub fn router() -> Router<Arc<AppState>> {
     Router::new()
         .route("/customers", post(create_customer))
         .route("/customers", get(list_customers))
-        .route("/customers/:id", get(get_customer))
-        .route("/customers/:id", patch(update_customer))
-        .route("/customers/:id", delete(delete_customer))
-        .route("/customers/:cid/invoices", post(create_invoice))
+        .route("/customers/{id}", get(get_customer))
+        .route("/customers/{id}", patch(update_customer))
+        .route("/customers/{id}", delete(delete_customer))
+        .route("/customers/{cid}/invoices", post(create_invoice))
 }
 
 async fn create_customer(

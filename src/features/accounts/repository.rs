@@ -1,20 +1,37 @@
 // repositories.rs
-use crate::models::account::{Account, CreateAccount};
 use crate::errors::AppError;
+use crate::models::account::{Account, CreateAccount};
+use async_trait::async_trait;
 use bigdecimal::BigDecimal;
 use sqlx::PgPool;
-use async_trait::async_trait;
 use uuid::Uuid;
 
 // Trait for abstraction (injectable for testing)
 #[async_trait]
 pub trait AccountRepository: Send + Sync {
-    fn pool(&self)->&PgPool;
-    async fn create(&self, user_id: sqlx::types::Uuid, acc: &CreateAccount) -> Result<Account, AppError>;
-    async fn find_by_id(&self, id: sqlx::types::Uuid, user_id: sqlx::types::Uuid) -> Result<Option<Account>, AppError>;
+    fn pool(&self) -> &PgPool;
+    async fn create(
+        &self,
+        user_id: sqlx::types::Uuid,
+        acc: &CreateAccount,
+    ) -> Result<Account, AppError>;
+    async fn find_by_id(
+        &self,
+        id: sqlx::types::Uuid,
+        user_id: sqlx::types::Uuid,
+    ) -> Result<Option<Account>, AppError>;
     async fn find_by_user(&self, user_id: sqlx::types::Uuid) -> Result<Vec<Account>, AppError>;
-    async fn update_balance(&self, id: sqlx::types::Uuid, delta: BigDecimal) -> Result<(), AppError>;
-    async fn update_account_info(&self, id: Uuid, user_id: Uuid, updates: &CreateAccount) -> Result<Account, AppError>;
+    async fn update_balance(
+        &self,
+        id: sqlx::types::Uuid,
+        delta: BigDecimal,
+    ) -> Result<(), AppError>;
+    async fn update_account_info(
+        &self,
+        id: Uuid,
+        user_id: Uuid,
+        updates: &CreateAccount,
+    ) -> Result<Account, AppError>;
 }
 
 // Concrete impls
@@ -23,7 +40,9 @@ pub struct PostgresAccountRepo {
 }
 
 impl PostgresAccountRepo {
-    pub fn new(pool: PgPool) -> Self { Self { pool } }
+    pub fn new(pool: PgPool) -> Self {
+        Self { pool }
+    }
 }
 
 #[async_trait]
@@ -36,9 +55,13 @@ impl AccountRepository for PostgresAccountRepo {
     /// # Errors
     ///
     /// This function will return an error if user cannot be created.
-    async fn create(&self, user_id: sqlx::types::Uuid, acc: &CreateAccount) -> Result<Account, AppError> {
+    async fn create(
+        &self,
+        user_id: sqlx::types::Uuid,
+        acc: &CreateAccount,
+    ) -> Result<Account, AppError> {
         let account = sqlx::query_as::<_, Account>(
-            "INSERT INTO accounts (name, type, user_id) VALUES ($1, $2, $3) RETURNING *"
+            "INSERT INTO accounting.accounts (name, type, user_id) VALUES ($1, $2, $3) RETURNING *",
         )
         .bind(&acc.name)
         .bind(&acc.type_)
@@ -48,9 +71,13 @@ impl AccountRepository for PostgresAccountRepo {
         Ok(account)
     }
 
-    async fn find_by_id(&self, id: sqlx::types::Uuid, user_id: sqlx::types::Uuid) -> Result<Option<Account>, AppError> {
+    async fn find_by_id(
+        &self,
+        id: sqlx::types::Uuid,
+        user_id: sqlx::types::Uuid,
+    ) -> Result<Option<Account>, AppError> {
         let account = sqlx::query_as::<_, Account>(
-            "SELECT * FROM accounts WHERE id = $1 AND user_id = $2"
+            "SELECT * FROM accounting.accounts WHERE serial_id = $1",
         )
         .bind(id)
         .bind(user_id)
@@ -60,15 +87,20 @@ impl AccountRepository for PostgresAccountRepo {
     }
 
     async fn find_by_user(&self, user_id: sqlx::types::Uuid) -> Result<Vec<Account>, AppError> {
-        let accounts = sqlx::query_as::<_, Account>("SELECT * FROM accounts WHERE user_id = $1")
-            .bind(user_id)
-            .fetch_all(&self.pool)
-            .await?;
+        let accounts: Vec<Account> =
+            sqlx::query_as::<_, Account>("SELECT * FROM accounting.accounts")
+                .bind(user_id)
+                .fetch_all(&self.pool)
+                .await?;
         Ok(accounts)
     }
 
-    async fn update_balance(&self, id: sqlx::types::Uuid, delta: BigDecimal) -> Result<(), AppError> {
-        sqlx::query("UPDATE accounts SET balance = balance + $1 WHERE id = $2")
+    async fn update_balance(
+        &self,
+        id: sqlx::types::Uuid,
+        delta: BigDecimal,
+    ) -> Result<(), AppError> {
+        sqlx::query("UPDATE accounting.accounts SET balance = balance + $1 WHERE serial_id = $2")
             .bind(delta)
             .bind(id)
             .execute(&self.pool)
@@ -76,9 +108,14 @@ impl AccountRepository for PostgresAccountRepo {
         Ok(())
     }
 
-    async fn update_account_info(&self, id: Uuid, user_id: Uuid, updates: &CreateAccount) -> Result<Account, AppError> {
+    async fn update_account_info(
+        &self,
+        id: Uuid,
+        user_id: Uuid,
+        updates: &CreateAccount,
+    ) -> Result<Account, AppError> {
         let account = sqlx::query_as::<_, Account>(
-            "UPDATE accounts SET name = $1, type = $2 WHERE id = $3 AND user_id = $4 RETURNING *",
+            "UPDATE accounting.accounts SET name = $1, type = $2 WHERE id = $3 AND user_id = $4 RETURNING *",
         )
         .bind(&updates.name)
         .bind(&updates.type_)
@@ -101,7 +138,7 @@ impl AccountRepository for PostgresAccountRepo {
         Ok(account)
     }
 
-    fn pool(&self)->&PgPool{
+    fn pool(&self) -> &PgPool {
         &self.pool
     }
 }

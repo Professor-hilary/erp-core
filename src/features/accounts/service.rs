@@ -52,7 +52,7 @@ impl<R: AccountRepository> AccountingService<R> {
     }
 
     pub async fn delete_account(&self, id: Uuid, user_id: Uuid) -> Result<(), AppError> {
-        let result = sqlx::query("DELETE FROM accounts WHERE id = $1 AND user_id = $2")
+        let result = sqlx::query("DELETE FROM accounting.accounts WHERE id = $1 AND user_id = $2")
             .bind(id)
             .bind(user_id)
             .execute(self.account_repo.pool())

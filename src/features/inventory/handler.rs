@@ -20,9 +20,9 @@ pub fn router() -> Router<Arc<AppState>> {
     Router::new()
         .route("/items", post(create_item))
         .route("/items", get(list_items))
-        .route("/items/:id", get(get_item))
-        .route("/items/:id", patch(update_item))
-        .route("/items/:id", delete(delete_item))
+        .route("/items/{id}", get(get_item))
+        .route("/items/{id}", patch(update_item))
+        .route("/items/{id}", delete(delete_item))
         .route("/purchases", post(post_purchase))
         .route("/sales", post(post_sale))
 }

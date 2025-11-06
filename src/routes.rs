@@ -25,6 +25,7 @@ impl AppState {
 }
 
 pub fn create_router(state: Arc<AppState>) -> Router {
+    // Protected Routes
     let vendorsx: Router<Arc<AppState>> =
         crate::features::vendors::handlers::router().layer(middleware::from_fn(auth_middleware));
     let customersx: Router<Arc<AppState>> =
