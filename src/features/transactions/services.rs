@@ -27,12 +27,12 @@ impl<R: AccountRepository, T: TransactionRepository> TransactionService<R, T> {
         // Validate accounts exist and belong to user
         let _debit_acc = self
             .account_repo
-            .find_by_id(tx.debit_account_id, user_id)
+            .find_by_uuid(tx.debit_account_id, user_id)
             .await?
             .ok_or(AppError::NotFound("Debit account not found".into()))?;
         let _credit_acc = self
             .account_repo
-            .find_by_id(tx.credit_account_id, user_id)
+            .find_by_uuid(tx.credit_account_id, user_id)
             .await?
             .ok_or(AppError::NotFound("Credit account not found".into()))?;
 
@@ -85,12 +85,12 @@ impl<R: AccountRepository, T: TransactionRepository> TransactionService<R, T> {
         // Validate new accounts
         let _debit_acc = self
             .account_repo
-            .find_by_id(tx.debit_account_id, user_id)
+            .find_by_uuid(tx.debit_account_id, user_id)
             .await?
             .ok_or(AppError::NotFound("New debit account not found".into()))?;
         let _credit_acc = self
             .account_repo
-            .find_by_id(tx.credit_account_id, user_id)
+            .find_by_uuid(tx.credit_account_id, user_id)
             .await?
             .ok_or(AppError::NotFound("New credit account not found".into()))?;
 

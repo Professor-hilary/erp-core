@@ -29,9 +29,24 @@ impl<R: AccountRepository> AccountingService<R> {
         self.account_repo.find_by_user(user_id).await
     }
 
-    pub async fn get_account(&self, id: Uuid, user_id: Uuid) -> Result<Account, AppError> {
+    pub async fn get_account_by_uuid(
+        &self,
+        uuid: Uuid,
+        user_id: Uuid,
+    ) -> Result<Account, AppError> {
         self.account_repo
-            .find_by_id(id, user_id)
+            .find_by_uuid(uuid, user_id)
+            .await?
+            .ok_or(AppError::NotFound("Account not found".into()))
+    }
+
+    pub async fn get_account_by_serial(
+        &self,
+        serial_id: i64,
+        user_id: Uuid,
+    ) -> Result<Account, AppError> {
+        self.account_repo
+            .find_by_serial_id(serial_id, user_id)
             .await?
             .ok_or(AppError::NotFound("Account not found".into()))
     }
@@ -48,7 +63,9 @@ impl<R: AccountRepository> AccountingService<R> {
         }
 
         // Now delegate to repo
-        self.account_repo.update_account_info(id, user_id, updates).await
+        self.account_repo
+            .update_account_info(id, user_id, updates)
+            .await
     }
 
     pub async fn delete_account(&self, id: Uuid, user_id: Uuid) -> Result<(), AppError> {

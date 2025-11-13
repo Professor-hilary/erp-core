@@ -1,4 +1,4 @@
-// repositories.rs
+// src/features/accounts/repositories.rs
 use crate::errors::AppError;
 use crate::models::account::{Account, CreateAccount};
 use async_trait::async_trait;
@@ -15,11 +15,17 @@ pub trait AccountRepository: Send + Sync {
         user_id: sqlx::types::Uuid,
         acc: &CreateAccount,
     ) -> Result<Account, AppError>;
-    async fn find_by_id(
+    async fn find_by_serial_id(
         &self,
-        id: sqlx::types::Uuid,
+        id: i64,
         user_id: sqlx::types::Uuid,
     ) -> Result<Option<Account>, AppError>;
+    async fn find_by_uuid(
+        &self,
+        uuid: sqlx::types::Uuid,
+        user_id: sqlx::types::Uuid,
+    ) -> Result<Option<Account>, AppError>;
+    // find_by_user() is useful later
     async fn find_by_user(&self, user_id: sqlx::types::Uuid) -> Result<Vec<Account>, AppError>;
     async fn update_balance(
         &self,
@@ -71,18 +77,31 @@ impl AccountRepository for PostgresAccountRepo {
         Ok(account)
     }
 
-    async fn find_by_id(
+    async fn find_by_serial_id(
         &self,
-        id: sqlx::types::Uuid,
+        id: i64,
         user_id: sqlx::types::Uuid,
     ) -> Result<Option<Account>, AppError> {
-        let account = sqlx::query_as::<_, Account>(
-            "SELECT * FROM accounting.accounts WHERE serial_id = $1",
-        )
-        .bind(id)
-        .bind(user_id)
-        .fetch_optional(&self.pool)
-        .await?;
+        let account =
+            sqlx::query_as::<_, Account>("SELECT * FROM accounting.accounts WHERE serial_id = $1")
+                .bind(id)
+                .bind(user_id)
+                .fetch_optional(&self.pool)
+                .await?;
+        Ok(account)
+    }
+
+    async fn find_by_uuid(
+        &self,
+        uuid: sqlx::types::Uuid,
+        user_id: sqlx::types::Uuid,
+    ) -> Result<Option<Account>, AppError> {
+        let account =
+            sqlx::query_as::<_, Account>("SELECT * FROM accounting.accounts WHERE uuid = $1")
+                .bind(uuid)
+                .bind(user_id)
+                .fetch_optional(&self.pool)
+                .await?;
         Ok(account)
     }
 

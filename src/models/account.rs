@@ -1,6 +1,7 @@
+// src/models/account.rs
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::{FromRow};
+use sqlx::FromRow;
 use uuid::Uuid;
 
 #[derive(Debug, FromRow, Serialize, Deserialize, Clone)]
@@ -15,7 +16,6 @@ pub struct Account {
     pub normal_balance: String,
     pub is_contra: bool,
     pub is_active: bool,
-    // pub balance: BigDecimal,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub subtype: Option<String>,
