@@ -6,23 +6,30 @@ use uuid::Uuid;
 
 #[derive(Debug, FromRow, Serialize, Deserialize, Clone)]
 pub struct Account {
-    pub uuid: Uuid,
-    pub serial_id: i64,
-    pub name: String,
-    pub code: String,
-    #[sqlx(rename = "type")]
+    pub uuid: Uuid,                // Required, Auto_gen
+    pub serial_id: i64,            // Required, Auto_gen
+    pub name: String,              // Required
+    pub code: String,              // Required
+    pub parent_uuid: Option<Uuid>, // Optional, Null Default
+    pub normal_balance: String,    // Required
+    pub is_contra: bool,           // Optional, False Default
+    pub is_active: bool,           // Optional, False Default
+    pub created_at: DateTime<Utc>, // Required, Auto_gen
+    pub updated_at: DateTime<Utc>, // Required, Auto_gen
+    pub subtype: Option<String>,   // Optional, Null Default
+    #[sqlx(rename = "type")] // Required
     pub type_: String,
-    pub parent_uuid: Option<Uuid>,
-    pub normal_balance: String,
-    pub is_contra: bool,
-    pub is_active: bool,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-    pub subtype: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, FromRow)]
 pub struct CreateAccount {
     pub name: String,
+    #[sqlx(rename = "type")]
     pub type_: String,
+    pub code: String,
+    pub normal_balance: String,
+    // pub subtype: String,
+    pub parent_uuid: Option<Uuid>,
+    pub is_contra: bool,
+    // pub is_active: String,
 }

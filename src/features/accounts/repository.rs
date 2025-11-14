@@ -63,15 +63,21 @@ impl AccountRepository for PostgresAccountRepo {
     /// This function will return an error if user cannot be created.
     async fn create(
         &self,
-        user_id: sqlx::types::Uuid,
+        _user_id: sqlx::types::Uuid,
         acc: &CreateAccount,
     ) -> Result<Account, AppError> {
         let account = sqlx::query_as::<_, Account>(
-            "INSERT INTO accounting.accounts (name, type, user_id) VALUES ($1, $2, $3) RETURNING *",
+            "INSERT INTO accounting.accounts (
+                name, type, code, parent_uuid, normal_balance, is_contra
+            ) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *",
         )
         .bind(&acc.name)
         .bind(&acc.type_)
-        .bind(user_id)
+        // .bind(&acc.subtype)
+        .bind(&acc.code)
+        .bind(&acc.parent_uuid)
+        .bind(&acc.normal_balance)
+        .bind(&acc.is_contra)
         .fetch_one(&self.pool)
         .await?;
         Ok(account)

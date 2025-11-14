@@ -18,7 +18,7 @@ impl<R: AccountRepository> AccountingService<R> {
         user_id: Uuid,
         acc: &CreateAccount,
     ) -> Result<Account, AppError> {
-        let valid_types = ["asset", "liability", "equity", "revenue", "expense"];
+        let valid_types = ["Asset", "Liability", "Equity", "Revenue", "Expense"];
         if !valid_types.contains(&acc.type_.as_str()) {
             return Err(AppError::Validation("Invalid account type".into()));
         }
