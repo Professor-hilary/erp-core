@@ -2,6 +2,7 @@
 use crate::errors::AppError;
 use crate::features::accounts::repository::AccountRepository;
 use crate::models::account::{Account, CreateAccount};
+use sqlx::PgPool;
 use uuid::Uuid;
 
 pub struct AccountingService<R: AccountRepository> {
@@ -14,7 +15,7 @@ impl<R: AccountRepository> AccountingService<R> {
     }
 
     pub async fn create_account(
-        &self,
+        &self, tenant_pool: &PgPool,
         user_id: Uuid,
         acc: &CreateAccount,
     ) -> Result<Account, AppError> {
@@ -22,37 +23,37 @@ impl<R: AccountRepository> AccountingService<R> {
         if !valid_types.contains(&acc.type_.as_str()) {
             return Err(AppError::Validation("Invalid account type".into()));
         }
-        self.account_repo.create(user_id, acc).await
+        self.account_repo.create(tenant_pool, user_id, acc).await
     }
 
-    pub async fn get_accounts(&self, user_id: Uuid) -> Result<Vec<Account>, AppError> {
-        self.account_repo.find_by_user(user_id).await
+    pub async fn get_accounts(&self, tenant_pool: &PgPool,user_id: Uuid) -> Result<Vec<Account>, AppError> {
+        self.account_repo.find_by_user(tenant_pool,user_id).await
     }
 
     pub async fn get_account_by_uuid(
-        &self,
+        &self,tenant_pool: &PgPool,
         uuid: Uuid,
         user_id: Uuid,
     ) -> Result<Account, AppError> {
         self.account_repo
-            .find_by_uuid(uuid, user_id)
+            .find_by_uuid(tenant_pool,uuid, user_id)
             .await?
             .ok_or(AppError::NotFound("Account not found".into()))
     }
 
     pub async fn get_account_by_serial(
-        &self,
+        &self,tenant_pool: &PgPool,
         serial_id: i64,
         user_id: Uuid,
     ) -> Result<Account, AppError> {
         self.account_repo
-            .find_by_serial_id(serial_id, user_id)
+            .find_by_serial_id(tenant_pool,serial_id, user_id)
             .await?
             .ok_or(AppError::NotFound("Account not found".into()))
     }
 
     pub async fn update_account(
-        &self,
+        &self,tenant_pool: &PgPool,
         id: Uuid,
         user_id: Uuid,
         updates: &CreateAccount,
@@ -64,20 +65,19 @@ impl<R: AccountRepository> AccountingService<R> {
 
         // Now delegate to repo
         self.account_repo
-            .update_account_info(id, user_id, updates)
+            .update_account_info(tenant_pool,id, user_id, updates)
             .await
     }
 
-    pub async fn delete_account(&self, id: Uuid, user_id: Uuid) -> Result<(), AppError> {
-        let result = sqlx::query("DELETE FROM accounting.accounts WHERE id = $1 AND user_id = $2")
-            .bind(id)
-            .bind(user_id)
-            .execute(self.account_repo.pool())
-            .await?;
+    pub async fn delete_account(&self,tenant_pool: &PgPool, id: Uuid, user_id: Uuid) -> Result<(/* Account, AppError */), AppError> {
+        self.account_repo
+            .delete_account(tenant_pool,id, user_id)
+            .await
+            // .ok_or(AppError::NotFound("Account not found".into()))
 
-        if result.rows_affected() == 0 {
-            return Err(AppError::NotFound("Account not found".into()));
-        }
-        Ok(())
+        // if result.rows_affected() == 0 {
+        //     return Err(AppError::NotFound("Account not found".into()));
+        // }
+        // Ok(())
     }
 }

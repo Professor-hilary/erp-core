@@ -27,67 +27,67 @@ pub fn router() -> Router<Arc<AppState>> {
 }
 
 async fn create_account(
-    State(state): State<Arc<AppState>>,
+    State(_state): State<Arc<AppState>>,
     Extension(user): Extension<Authenticated>,
     Json(payload): Json<CreateAccount>,
 ) -> Result<Response, AppError> {
-    let repo = PostgresAccountRepo::new(state.pool.clone());
+    let repo = PostgresAccountRepo::new();
     let service = AccountingService::new(repo);
-    let account = service.create_account(user.0, &payload).await?;
+    let account = service.create_account(&user.tenant_pool,user.user_id, &payload).await?;
     Ok(ApiResponse::created(account, "Account created"))
 }
 
 async fn get_accounts(
-    State(state): State<Arc<AppState>>,
+    State(_state): State<Arc<AppState>>,
     Extension(user): Extension<Authenticated>,
 ) -> Result<Response, AppError> {
-    let repo = PostgresAccountRepo::new(state.pool.clone());
+    let repo = PostgresAccountRepo::new();
     let service = AccountingService::new(repo);
-    let accounts = service.get_accounts(user.0).await?;
+    let accounts = service.get_accounts(&user.tenant_pool, user.user_id).await?;
     Ok(ApiResponse::success(accounts, "Accounts fetched"))
 }
 
 async fn get_account_by_uuid(
-    State(state): State<Arc<AppState>>,
+    State(_state): State<Arc<AppState>>,
     Path(id): Path<Uuid>,
     Extension(user): Extension<Authenticated>,
 ) -> Result<Response, AppError> {
-    let repo = PostgresAccountRepo::new(state.pool.clone());
+    let repo = PostgresAccountRepo::new();
     let service = AccountingService::new(repo);
-    let account = service.get_account_by_uuid(id, user.0).await?;
+    let account = service.get_account_by_uuid(&user.tenant_pool, id, user.user_id).await?;
     Ok(ApiResponse::success(account, "Account fetched"))
 }
 
 async fn get_account_by_serial(
-    State(state): State<Arc<AppState>>,
+    State(_state): State<Arc<AppState>>,
     Path(id): Path<i64>,
     Extension(user): Extension<Authenticated>,
 ) -> Result<Response, AppError> {
-    let repo = PostgresAccountRepo::new(state.pool.clone());
+    let repo = PostgresAccountRepo::new();
     let service = AccountingService::new(repo);
-    let account = service.get_account_by_serial(id, user.0).await?;
+    let account = service.get_account_by_serial(&user.tenant_pool,id, user.user_id).await?;
     Ok(ApiResponse::success(account, "Account fetched"))
 }
 
 async fn update_account(
-    State(state): State<Arc<AppState>>,
+    State(_state): State<Arc<AppState>>,
     Path(id): Path<Uuid>,
     Extension(user): Extension<Authenticated>,
     Json(payload): Json<CreateAccount>,
 ) -> Result<Response, AppError> {
-    let repo = PostgresAccountRepo::new(state.pool.clone());
+    let repo = PostgresAccountRepo::new();
     let service = AccountingService::new(repo);
-    let account = service.update_account(id, user.0, &payload).await?;
+    let account = service.update_account(&user.tenant_pool,id, user.user_id, &payload).await?;
     Ok(ApiResponse::success(account, "Account updated"))
 }
 
 async fn delete_account(
-    State(state): State<Arc<AppState>>,
+    State(_state): State<Arc<AppState>>,
     Path(id): Path<Uuid>,
     Extension(user): Extension<Authenticated>,
 ) -> Result<Response, AppError> {
-    let repo = PostgresAccountRepo::new(state.pool.clone());
+    let repo = PostgresAccountRepo::new();
     let service = AccountingService::new(repo);
-    service.delete_account(id, user.0).await?;
+    service.delete_account(&user.tenant_pool, id, user.user_id).await?;
     Ok(ApiResponse::success((), "Account deleted"))
 }
