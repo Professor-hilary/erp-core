@@ -1,0 +1,583 @@
+{
+    "industry": "education",
+    "name": "Education & Schools",
+    "description": "COA for private schools, colleges, universities, and education service providers. Supports tuition tracking, student deposits, grants, and academic cost centers.",
+    "accounts": [
+        {
+            "code": "100000",
+            "name": "Assets",
+            "category": "asset",
+            "parent_code": null,
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "110000",
+            "name": "Current Assets",
+            "category": "asset",
+            "parent_code": "100000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "111000",
+            "name": "Cash on Hand",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "112000",
+            "name": "Bank Accounts",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "113000",
+            "name": "Accounts Receivable",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "113100",
+            "name": "Tuition Fees Receivable",
+            "category": "asset",
+            "parent_code": "113000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "113200",
+            "name": "Other Student Fees Receivable",
+            "category": "asset",
+            "parent_code": "113000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "113300",
+            "name": "Allowance for Doubtful Tuition",
+            "category": "asset",
+            "parent_code": "113000",
+            "normal_balance": "credit",
+            "is_contra": true
+        },
+        {
+            "code": "114000",
+            "name": "Prepaid Expenses",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "114100",
+            "name": "Prepaid Insurance",
+            "category": "asset",
+            "parent_code": "114000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "114200",
+            "name": "Prepaid Teaching Materials",
+            "category": "asset",
+            "parent_code": "114000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "120000",
+            "name": "Non-Current Assets",
+            "category": "asset",
+            "parent_code": "100000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "121000",
+            "name": "Property, Plant & Equipment",
+            "category": "asset",
+            "parent_code": "120000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "121100",
+            "name": "Land & Buildings",
+            "category": "asset",
+            "parent_code": "121000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "121200",
+            "name": "Classroom Furniture",
+            "category": "asset",
+            "parent_code": "121000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "121300",
+            "name": "Laboratory Equipment",
+            "category": "asset",
+            "parent_code": "121000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "121400",
+            "name": "School Buses",
+            "category": "asset",
+            "parent_code": "121000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "122000",
+            "name": "Accumulated Depreciation",
+            "category": "asset",
+            "parent_code": "120000",
+            "normal_balance": "credit",
+            "is_contra": true
+        },
+        {
+            "code": "122100",
+            "name": "Acc. Dep. - Buildings",
+            "category": "asset",
+            "parent_code": "122000",
+            "normal_balance": "credit",
+            "is_contra": true
+        },
+        {
+            "code": "122200",
+            "name": "Acc. Dep. - Buses",
+            "category": "asset",
+            "parent_code": "122000",
+            "normal_balance": "credit",
+            "is_contra": true
+        },
+        {
+            "code": "200000",
+            "name": "Liabilities",
+            "category": "liability",
+            "parent_code": null,
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "210000",
+            "name": "Current Liabilities",
+            "category": "liability",
+            "parent_code": "200000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "211000",
+            "name": "Accounts Payable",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "212000",
+            "name": "Accrued Teacher Salaries",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "213000",
+            "name": "Student Deposits",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "213100",
+            "name": "Caution Money",
+            "category": "liability",
+            "parent_code": "213000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "213200",
+            "name": "Advance Tuition Paid",
+            "category": "liability",
+            "parent_code": "213000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "214000",
+            "name": "Taxes Payable",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "220000",
+            "name": "Non-Current Liabilities",
+            "category": "liability",
+            "parent_code": "200000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "221000",
+            "name": "School Loan - Long Term",
+            "category": "liability",
+            "parent_code": "220000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "300000",
+            "name": "Equity",
+            "category": "equity",
+            "parent_code": null,
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "310000",
+            "name": "Owner's Equity",
+            "category": "equity",
+            "parent_code": "300000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "311000",
+            "name": "Owner's Capital",
+            "category": "equity",
+            "parent_code": "310000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "312000",
+            "name": "Owner's Drawings",
+            "category": "equity",
+            "parent_code": "310000",
+            "normal_balance": "debit",
+            "is_contra": true
+        },
+        {
+            "code": "313000",
+            "name": "Retained Earnings",
+            "category": "equity",
+            "parent_code": "310000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "400000",
+            "name": "Revenue",
+            "category": "income",
+            "parent_code": null,
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "410000",
+            "name": "Tuition & Academic Fees",
+            "category": "income",
+            "parent_code": "400000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "411000",
+            "name": "Term Fees",
+            "category": "income",
+            "parent_code": "410000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "412000",
+            "name": "Registration & Admission",
+            "category": "income",
+            "parent_code": "410000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "413000",
+            "name": "Examination Fees",
+            "category": "income",
+            "parent_code": "410000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "420000",
+            "name": "Auxiliary Revenue",
+            "category": "income",
+            "parent_code": "400000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "421000",
+            "name": "Boarding & Meals",
+            "category": "income",
+            "parent_code": "420000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "422000",
+            "name": "Transport Fees",
+            "category": "income",
+            "parent_code": "420000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "423000",
+            "name": "Uniform & Book Sales",
+            "category": "income",
+            "parent_code": "420000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "430000",
+            "name": "Grants & Donations",
+            "category": "income",
+            "parent_code": "400000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "431000",
+            "name": "Government Grants",
+            "category": "income",
+            "parent_code": "430000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "432000",
+            "name": "PTA Contributions",
+            "category": "income",
+            "parent_code": "430000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "440000",
+            "name": "Revenue Adjustments",
+            "category": "income",
+            "parent_code": "400000",
+            "normal_balance": "debit",
+            "is_contra": true
+        },
+        {
+            "code": "441000",
+            "name": "Scholarships & Waivers",
+            "category": "income",
+            "parent_code": "440000",
+            "normal_balance": "debit",
+            "is_contra": true
+        },
+        {
+            "code": "500000",
+            "name": "Cost of Education Services",
+            "category": "expense",
+            "parent_code": null,
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "510000",
+            "name": "Teaching Staff Costs",
+            "category": "expense",
+            "parent_code": "500000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "511000",
+            "name": "Teacher Salaries",
+            "category": "expense",
+            "parent_code": "510000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "512000",
+            "name": "Staff Development & Training",
+            "category": "expense",
+            "parent_code": "510000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "520000",
+            "name": "Learning Materials",
+            "category": "expense",
+            "parent_code": "500000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "521000",
+            "name": "Textbooks & Stationery",
+            "category": "expense",
+            "parent_code": "520000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "522000",
+            "name": "Laboratory Supplies",
+            "category": "expense",
+            "parent_code": "520000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "530000",
+            "name": "Student Welfare",
+            "category": "expense",
+            "parent_code": "500000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "531000",
+            "name": "Meals & Boarding Costs",
+            "category": "expense",
+            "parent_code": "530000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "532000",
+            "name": "Medical & First Aid",
+            "category": "expense",
+            "parent_code": "530000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "600000",
+            "name": "Operating Expenses",
+            "category": "expense",
+            "parent_code": null,
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "610000",
+            "name": "Administrative Expenses",
+            "category": "expense",
+            "parent_code": "600000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "611000",
+            "name": "Admin Salaries",
+            "category": "expense",
+            "parent_code": "610000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "612000",
+            "name": "Office Supplies",
+            "category": "expense",
+            "parent_code": "610000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "620000",
+            "name": "Facilities & Maintenance",
+            "category": "expense",
+            "parent_code": "600000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "621000",
+            "name": "Utilities (Water, Electricity)",
+            "category": "expense",
+            "parent_code": "620000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "622000",
+            "name": "Repairs & Maintenance",
+            "category": "expense",
+            "parent_code": "620000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "630000",
+            "name": "Transportation Costs",
+            "category": "expense",
+            "parent_code": "600000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "631000",
+            "name": "Fuel & Bus Maintenance",
+            "category": "expense",
+            "parent_code": "630000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "640000",
+            "name": "Depreciation Expense",
+            "category": "expense",
+            "parent_code": "600000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "700000",
+            "name": "Other Income & Expense",
+            "category": "income",
+            "parent_code": null,
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "710000",
+            "name": "Interest Income",
+            "category": "income",
+            "parent_code": "700000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "720000",
+            "name": "Interest Expense",
+            "category": "expense",
+            "parent_code": "700000",
+            "normal_balance": "debit",
+            "is_contra": false
+        }
+    ]
+}

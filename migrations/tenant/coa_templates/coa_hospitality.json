@@ -1,0 +1,583 @@
+{
+    "industry": "hospitality",
+    "name": "Hospitality, Hotels & Restaurants",
+    "description": "COA for hotels, lodges, restaurants, bars, cafés, and food service operations. USALI-compliant structure.",
+    "accounts": [
+        {
+            "code": "100000",
+            "name": "Assets",
+            "category": "asset",
+            "parent_code": null,
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "110000",
+            "name": "Current Assets",
+            "category": "asset",
+            "parent_code": "100000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "111000",
+            "name": "Cash on Hand",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "111100",
+            "name": "Cash in Drawer - Front Desk",
+            "category": "asset",
+            "parent_code": "111000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "111200",
+            "name": "Cash in Drawer - Restaurant",
+            "category": "asset",
+            "parent_code": "111000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "112000",
+            "name": "Bank Accounts",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "113000",
+            "name": "Accounts Receivable",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "113100",
+            "name": "Guest Ledger",
+            "category": "asset",
+            "parent_code": "113000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "113200",
+            "name": "City Ledger",
+            "category": "asset",
+            "parent_code": "113000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "113300",
+            "name": "Allowance for Doubtful Accounts",
+            "category": "asset",
+            "parent_code": "113000",
+            "normal_balance": "credit",
+            "is_contra": true
+        },
+        {
+            "code": "120000",
+            "name": "Inventory",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "121000",
+            "name": "Food Inventory",
+            "category": "asset",
+            "parent_code": "120000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "122000",
+            "name": "Beverage Inventory",
+            "category": "asset",
+            "parent_code": "120000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "123000",
+            "name": "Room Supplies Inventory",
+            "category": "asset",
+            "parent_code": "120000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "124000",
+            "name": "Guest Amenities",
+            "category": "asset",
+            "parent_code": "120000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "130000",
+            "name": "Prepaid Expenses",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "131000",
+            "name": "Prepaid Insurance",
+            "category": "asset",
+            "parent_code": "130000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "132000",
+            "name": "Prepaid Licenses",
+            "category": "asset",
+            "parent_code": "130000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "140000",
+            "name": "Non-Current Assets",
+            "category": "asset",
+            "parent_code": "100000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "141000",
+            "name": "Property, Plant & Equipment",
+            "category": "asset",
+            "parent_code": "140000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "141100",
+            "name": "Land & Buildings",
+            "category": "asset",
+            "parent_code": "141000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "141200",
+            "name": "Furniture & Fixtures",
+            "category": "asset",
+            "parent_code": "141000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "141300",
+            "name": "Kitchen Equipment",
+            "category": "asset",
+            "parent_code": "141000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "142000",
+            "name": "Accumulated Depreciation",
+            "category": "asset",
+            "parent_code": "140000",
+            "normal_balance": "credit",
+            "is_contra": true
+        },
+        {
+            "code": "142100",
+            "name": "Acc. Dep. - Buildings",
+            "category": "asset",
+            "parent_code": "142000",
+            "normal_balance": "credit",
+            "is_contra": true
+        },
+        {
+            "code": "142200",
+            "name": "Acc. Dep. - Furniture",
+            "category": "asset",
+            "parent_code": "142000",
+            "normal_balance": "credit",
+            "is_contra": true
+        },
+        {
+            "code": "200000",
+            "name": "Liabilities",
+            "category": "liability",
+            "parent_code": null,
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "210000",
+            "name": "Current Liabilities",
+            "category": "liability",
+            "parent_code": "200000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "211000",
+            "name": "Accounts Payable",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "212000",
+            "name": "Accrued Salaries & Wages",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "213000",
+            "name": "Sales Tax Payable",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "214000",
+            "name": "Gift Card Liability",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "215000",
+            "name": "Guest Deposits",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "220000",
+            "name": "Non-Current Liabilities",
+            "category": "liability",
+            "parent_code": "200000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "221000",
+            "name": "Mortgage Payable",
+            "category": "liability",
+            "parent_code": "220000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "300000",
+            "name": "Equity",
+            "category": "equity",
+            "parent_code": null,
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "310000",
+            "name": "Owner's Equity",
+            "category": "equity",
+            "parent_code": "300000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "311000",
+            "name": "Owner's Capital",
+            "category": "equity",
+            "parent_code": "310000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "312000",
+            "name": "Owner's Drawings",
+            "category": "equity",
+            "parent_code": "310000",
+            "normal_balance": "debit",
+            "is_contra": true
+        },
+        {
+            "code": "313000",
+            "name": "Retained Earnings",
+            "category": "equity",
+            "parent_code": "310000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "400000",
+            "name": "Revenue",
+            "category": "income",
+            "parent_code": null,
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "410000",
+            "name": "Room Revenue",
+            "category": "income",
+            "parent_code": "400000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "411000",
+            "name": "Room Service Revenue",
+            "category": "income",
+            "parent_code": "410000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "420000",
+            "name": "Food & Beverage Revenue",
+            "category": "income",
+            "parent_code": "400000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "421000",
+            "name": "Restaurant Sales",
+            "category": "income",
+            "parent_code": "420000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "422000",
+            "name": "Bar Sales",
+            "category": "income",
+            "parent_code": "420000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "430000",
+            "name": "Event & Banquet Revenue",
+            "category": "income",
+            "parent_code": "400000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "440000",
+            "name": "Other Operating Revenue",
+            "category": "income",
+            "parent_code": "400000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "441000",
+            "name": "Laundry Revenue",
+            "category": "income",
+            "parent_code": "440000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "442000",
+            "name": "Spa & Wellness Revenue",
+            "category": "income",
+            "parent_code": "440000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "450000",
+            "name": "Revenue Adjustments",
+            "category": "income",
+            "parent_code": "400000",
+            "normal_balance": "debit",
+            "is_contra": true
+        },
+        {
+            "code": "500000",
+            "name": "Cost of Sales",
+            "category": "expense",
+            "parent_code": null,
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "510000",
+            "name": "Food Cost",
+            "category": "expense",
+            "parent_code": "500000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "520000",
+            "name": "Beverage Cost",
+            "category": "expense",
+            "parent_code": "500000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "530000",
+            "name": "Housekeeping & Laundry Supplies",
+            "category": "expense",
+            "parent_code": "500000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "540000",
+            "name": "Guest Amenities Cost",
+            "category": "expense",
+            "parent_code": "500000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "600000",
+            "name": "Operating Expenses",
+            "category": "expense",
+            "parent_code": null,
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "610000",
+            "name": "Payroll Expenses",
+            "category": "expense",
+            "parent_code": "600000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "611000",
+            "name": "Salaries & Wages",
+            "category": "expense",
+            "parent_code": "610000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "612000",
+            "name": "Staff Meals & Hospitality",
+            "category": "expense",
+            "parent_code": "610000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "620000",
+            "name": "Utilities",
+            "category": "expense",
+            "parent_code": "600000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "621000",
+            "name": "Electricity",
+            "category": "expense",
+            "parent_code": "620000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "622000",
+            "name": "Water & Gas",
+            "category": "expense",
+            "parent_code": "620000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "630000",
+            "name": "Maintenance & Repairs",
+            "category": "expense",
+            "parent_code": "600000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "640000",
+            "name": "Marketing & Sales",
+            "category": "expense",
+            "parent_code": "600000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "650000",
+            "name": "Administrative Expenses",
+            "category": "expense",
+            "parent_code": "600000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "651000",
+            "name": "Office Supplies",
+            "category": "expense",
+            "parent_code": "650000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "652000",
+            "name": "Telephone & Internet",
+            "category": "expense",
+            "parent_code": "650000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "660000",
+            "name": "Depreciation Expense",
+            "category": "expense",
+            "parent_code": "600000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "700000",
+            "name": "Other Income & Expense",
+            "category": "income",
+            "parent_code": null,
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "710000",
+            "name": "Interest Income",
+            "category": "income",
+            "parent_code": "700000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "720000",
+            "name": "Interest Expense",
+            "category": "expense",
+            "parent_code": "700000",
+            "normal_balance": "debit",
+            "is_contra": false
+        }
+    ]
+}

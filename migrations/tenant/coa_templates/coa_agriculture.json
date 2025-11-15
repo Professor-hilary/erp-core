@@ -1,0 +1,487 @@
+{
+    "industry": "agriculture",
+    "name": "Agriculture & Farming",
+    "description": "COA for crop farms, livestock farms, agro-processing, and mixed agriculture operations. Compliant with IAS 41 (Biological Assets).",
+    "accounts": [
+        {
+            "code": "100000",
+            "name": "Assets",
+            "category": "asset",
+            "parent_code": null,
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "110000",
+            "name": "Current Assets",
+            "category": "asset",
+            "parent_code": "100000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "111000",
+            "name": "Cash on Hand",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "112000",
+            "name": "Bank Accounts",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "113000",
+            "name": "Accounts Receivable",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "113100",
+            "name": "Allowance for Doubtful Accounts",
+            "category": "asset",
+            "parent_code": "113000",
+            "normal_balance": "credit",
+            "is_contra": true
+        },
+        {
+            "code": "120000",
+            "name": "Biological Assets",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "121000",
+            "name": "Growing Crops",
+            "category": "asset",
+            "parent_code": "120000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "121100",
+            "name": "Maize in Field",
+            "category": "asset",
+            "parent_code": "121000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "121200",
+            "name": "Coffee Plantation",
+            "category": "asset",
+            "parent_code": "121000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "122000",
+            "name": "Livestock",
+            "category": "asset",
+            "parent_code": "120000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "122100",
+            "name": "Dairy Cattle",
+            "category": "asset",
+            "parent_code": "122000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "122200",
+            "name": "Poultry",
+            "category": "asset",
+            "parent_code": "122000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "123000",
+            "name": "Harvested Produce Inventory",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "123100",
+            "name": "Grain in Storage",
+            "category": "asset",
+            "parent_code": "123000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "123200",
+            "name": "Milk Inventory",
+            "category": "asset",
+            "parent_code": "123000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "130000",
+            "name": "Prepaid Expenses",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "131000",
+            "name": "Prepaid Seeds & Fertilizer",
+            "category": "asset",
+            "parent_code": "130000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "132000",
+            "name": "Prepaid Insurance",
+            "category": "asset",
+            "parent_code": "130000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "140000",
+            "name": "Non-Current Assets",
+            "category": "asset",
+            "parent_code": "100000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "141000",
+            "name": "Land & Improvements",
+            "category": "asset",
+            "parent_code": "140000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "141100",
+            "name": "Farmland",
+            "category": "asset",
+            "parent_code": "141000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "141200",
+            "name": "Irrigation Systems",
+            "category": "asset",
+            "parent_code": "141000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "142000",
+            "name": "Farm Equipment",
+            "category": "asset",
+            "parent_code": "140000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "142100",
+            "name": "Tractors",
+            "category": "asset",
+            "parent_code": "142000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "142200",
+            "name": "Harvesters",
+            "category": "asset",
+            "parent_code": "142000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "143000",
+            "name": "Accumulated Depreciation",
+            "category": "asset",
+            "parent_code": "140000",
+            "normal_balance": "credit",
+            "is_contra": true
+        },
+        {
+            "code": "143100",
+            "name": "Acc. Dep. - Tractors",
+            "category": "asset",
+            "parent_code": "143000",
+            "normal_balance": "credit",
+            "is_contra": true
+        },
+        {
+            "code": "200000",
+            "name": "Liabilities",
+            "category": "liability",
+            "parent_code": null,
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "210000",
+            "name": "Current Liabilities",
+            "category": "liability",
+            "parent_code": "200000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "211000",
+            "name": "Accounts Payable",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "212000",
+            "name": "Accrued Labor",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "213000",
+            "name": "Taxes Payable",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "220000",
+            "name": "Non-Current Liabilities",
+            "category": "liability",
+            "parent_code": "200000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "221000",
+            "name": "Agricultural Loan - Long Term",
+            "category": "liability",
+            "parent_code": "220000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "222000",
+            "name": "Equipment Loan",
+            "category": "liability",
+            "parent_code": "220000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "300000",
+            "name": "Equity",
+            "category": "equity",
+            "parent_code": null,
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "310000",
+            "name": "Owner's Equity",
+            "category": "equity",
+            "parent_code": "300000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "311000",
+            "name": "Owner's Capital",
+            "category": "equity",
+            "parent_code": "310000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "312000",
+            "name": "Owner's Drawings",
+            "category": "equity",
+            "parent_code": "310000",
+            "normal_balance": "debit",
+            "is_contra": true
+        },
+        {
+            "code": "313000",
+            "name": "Retained Earnings",
+            "category": "equity",
+            "parent_code": "310000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "400000",
+            "name": "Revenue",
+            "category": "income",
+            "parent_code": null,
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "410000",
+            "name": "Crop Sales Revenue",
+            "category": "income",
+            "parent_code": "400000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "420000",
+            "name": "Livestock Sales Revenue",
+            "category": "income",
+            "parent_code": "400000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "430000",
+            "name": "Agricultural Grants & Subsidies",
+            "category": "income",
+            "parent_code": "400000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "440000",
+            "name": "Fair Value Gain on Biological Assets",
+            "category": "income",
+            "parent_code": "400000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "450000",
+            "name": "Fair Value Loss on Biological Assets",
+            "category": "income",
+            "parent_code": "400000",
+            "normal_balance": "debit",
+            "is_contra": true
+        },
+        {
+            "code": "500000",
+            "name": "Cost of Agricultural Production",
+            "category": "expense",
+            "parent_code": null,
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "510000",
+            "name": "Seeds, Fertilizer & Pesticides",
+            "category": "expense",
+            "parent_code": "500000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "520000",
+            "name": "Livestock Feed & Veterinary",
+            "category": "expense",
+            "parent_code": "500000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "530000",
+            "name": "Farm Labor",
+            "category": "expense",
+            "parent_code": "500000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "540000",
+            "name": "Fuel & Equipment Maintenance",
+            "category": "expense",
+            "parent_code": "500000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "550000",
+            "name": "Irrigation & Water Costs",
+            "category": "expense",
+            "parent_code": "500000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "600000",
+            "name": "Operating Expenses",
+            "category": "expense",
+            "parent_code": null,
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "610000",
+            "name": "Farm Office Expenses",
+            "category": "expense",
+            "parent_code": "600000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "620000",
+            "name": "Insurance Expense",
+            "category": "expense",
+            "parent_code": "600000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "630000",
+            "name": "Depreciation Expense",
+            "category": "expense",
+            "parent_code": "600000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "700000",
+            "name": "Other Income & Expense",
+            "category": "income",
+            "parent_code": null,
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "710000",
+            "name": "Sale of Farm Byproducts",
+            "category": "income",
+            "parent_code": "700000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "720000",
+            "name": "Interest Expense",
+            "category": "expense",
+            "parent_code": "700000",
+            "normal_balance": "debit",
+            "is_contra": false
+        }
+    ]
+}

@@ -1,0 +1,543 @@
+{
+    "industry": "it_software",
+    "name": "IT & Software / SaaS",
+    "description": "COA for software companies, SaaS providers, IT service firms, and tech startups. ASC 606 / IFRS 15 compliant with deferred revenue, R&D capitalization, and SaaS metrics support.",
+    "accounts": [
+        {
+            "code": "100000",
+            "name": "Assets",
+            "category": "asset",
+            "parent_code": null,
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "110000",
+            "name": "Current Assets",
+            "category": "asset",
+            "parent_code": "100000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "111000",
+            "name": "Cash on Hand",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "112000",
+            "name": "Bank Accounts",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "113000",
+            "name": "Accounts Receivable",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "113100",
+            "name": "Billed AR",
+            "category": "asset",
+            "parent_code": "113000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "113200",
+            "name": "Unbilled AR (Accrued Revenue)",
+            "category": "asset",
+            "parent_code": "113000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "113300",
+            "name": "Allowance for Doubtful Accounts",
+            "category": "asset",
+            "parent_code": "113000",
+            "normal_balance": "credit",
+            "is_contra": true
+        },
+        {
+            "code": "114000",
+            "name": "Prepaid Expenses",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "114100",
+            "name": "Prepaid Hosting",
+            "category": "asset",
+            "parent_code": "114000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "114200",
+            "name": "Prepaid Software Licenses",
+            "category": "asset",
+            "parent_code": "114000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "114300",
+            "name": "Prepaid Insurance",
+            "category": "asset",
+            "parent_code": "114000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "120000",
+            "name": "Non-Current Assets",
+            "category": "asset",
+            "parent_code": "100000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "121000",
+            "name": "Capitalized Software Development",
+            "category": "asset",
+            "parent_code": "120000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "121100",
+            "name": "Internal-Use Software",
+            "category": "asset",
+            "parent_code": "121000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "121200",
+            "name": "Customer-Facing Product (R&D Capitalized)",
+            "category": "asset",
+            "parent_code": "121000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "122000",
+            "name": "Office Equipment & Computers",
+            "category": "asset",
+            "parent_code": "120000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "123000",
+            "name": "Accumulated Amortization",
+            "category": "asset",
+            "parent_code": "120000",
+            "normal_balance": "credit",
+            "is_contra": true
+        },
+        {
+            "code": "123100",
+            "name": "Acc. Amort. - Capitalized Software",
+            "category": "asset",
+            "parent_code": "123000",
+            "normal_balance": "credit",
+            "is_contra": true
+        },
+        {
+            "code": "123200",
+            "name": "Acc. Dep. - Office Equipment",
+            "category": "asset",
+            "parent_code": "123000",
+            "normal_balance": "credit",
+            "is_contra": true
+        },
+        {
+            "code": "200000",
+            "name": "Liabilities",
+            "category": "liability",
+            "parent_code": null,
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "210000",
+            "name": "Current Liabilities",
+            "category": "liability",
+            "parent_code": "200000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "211000",
+            "name": "Accounts Payable",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "212000",
+            "name": "Accrued Salaries & Bonuses",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "213000",
+            "name": "Deferred Revenue",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "213100",
+            "name": "Deferred - Annual Subscriptions",
+            "category": "liability",
+            "parent_code": "213000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "213200",
+            "name": "Deferred - Multi-Year Contracts",
+            "category": "liability",
+            "parent_code": "213000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "214000",
+            "name": "Taxes Payable",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "220000",
+            "name": "Non-Current Liabilities",
+            "category": "liability",
+            "parent_code": "200000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "221000",
+            "name": "Long-Term Loan",
+            "category": "liability",
+            "parent_code": "220000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "300000",
+            "name": "Equity",
+            "category": "equity",
+            "parent_code": null,
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "310000",
+            "name": "Owner's Equity",
+            "category": "equity",
+            "parent_code": "300000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "311000",
+            "name": "Common Stock",
+            "category": "equity",
+            "parent_code": "310000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "312000",
+            "name": "Additional Paid-In Capital",
+            "category": "equity",
+            "parent_code": "310000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "313000",
+            "name": "Retained Earnings",
+            "category": "equity",
+            "parent_code": "310000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "400000",
+            "name": "Revenue",
+            "category": "income",
+            "parent_code": null,
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "410000",
+            "name": "Subscription Revenue",
+            "category": "income",
+            "parent_code": "400000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "411000",
+            "name": "Monthly Recurring Revenue (MRR)",
+            "category": "income",
+            "parent_code": "410000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "412000",
+            "name": "Annual Recurring Revenue (ARR)",
+            "category": "income",
+            "parent_code": "410000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "413000",
+            "name": "Usage-Based Revenue",
+            "category": "income",
+            "parent_code": "410000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "420000",
+            "name": "Professional Services Revenue",
+            "category": "income",
+            "parent_code": "400000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "421000",
+            "name": "Implementation Fees",
+            "category": "income",
+            "parent_code": "420000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "422000",
+            "name": "Consulting & Training",
+            "category": "income",
+            "parent_code": "420000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "430000",
+            "name": "Other Revenue",
+            "category": "income",
+            "parent_code": "400000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "431000",
+            "name": "Setup & Onboarding Fees",
+            "category": "income",
+            "parent_code": "430000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "440000",
+            "name": "Revenue Adjustments",
+            "category": "income",
+            "parent_code": "400000",
+            "normal_balance": "debit",
+            "is_contra": true
+        },
+        {
+            "code": "441000",
+            "name": "Discounts & Credits",
+            "category": "income",
+            "parent_code": "440000",
+            "normal_balance": "debit",
+            "is_contra": true
+        },
+        {
+            "code": "500000",
+            "name": "Cost of Revenue",
+            "category": "expense",
+            "parent_code": null,
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "510000",
+            "name": "Hosting & Cloud Infrastructure",
+            "category": "expense",
+            "parent_code": "500000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "520000",
+            "name": "Third-Party APIs & Services",
+            "category": "expense",
+            "parent_code": "500000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "530000",
+            "name": "Customer Support Salaries",
+            "category": "expense",
+            "parent_code": "500000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "540000",
+            "name": "Amortization of Capitalized Software",
+            "category": "expense",
+            "parent_code": "500000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "600000",
+            "name": "Operating Expenses",
+            "category": "expense",
+            "parent_code": null,
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "610000",
+            "name": "Research & Development",
+            "category": "expense",
+            "parent_code": "600000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "611000",
+            "name": "Engineering Salaries",
+            "category": "expense",
+            "parent_code": "610000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "612000",
+            "name": "R&D Tools & Software",
+            "category": "expense",
+            "parent_code": "610000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "620000",
+            "name": "Sales & Marketing",
+            "category": "expense",
+            "parent_code": "600000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "621000",
+            "name": "Advertising & PPC",
+            "category": "expense",
+            "parent_code": "620000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "622000",
+            "name": "Content & SEO",
+            "category": "expense",
+            "parent_code": "620000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "623000",
+            "name": "Sales Commissions",
+            "category": "expense",
+            "parent_code": "620000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "630000",
+            "name": "General & Administrative",
+            "category": "expense",
+            "parent_code": "600000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "631000",
+            "name": "Office Rent & Utilities",
+            "category": "expense",
+            "parent_code": "630000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "632000",
+            "name": "Legal & Accounting",
+            "category": "expense",
+            "parent_code": "630000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "633000",
+            "name": "Depreciation Expense",
+            "category": "expense",
+            "parent_code": "630000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "700000",
+            "name": "Other Income & Expense",
+            "category": "income",
+            "parent_code": null,
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "710000",
+            "name": "Interest Income",
+            "category": "income",
+            "parent_code": "700000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "720000",
+            "name": "Interest Expense",
+            "category": "expense",
+            "parent_code": "700000",
+            "normal_balance": "debit",
+            "is_contra": false
+        }
+    ]
+}

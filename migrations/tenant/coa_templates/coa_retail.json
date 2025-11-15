@@ -1,0 +1,431 @@
+{
+    "industry": "retail",
+    "name": "Retail & Trading",
+    "description": "Standard chart of accounts for shops, e-commerce, wholesalers, and trading companies.",
+    "accounts": [
+        {
+            "code": "100000",
+            "name": "Assets",
+            "category": "asset",
+            "parent_code": null,
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "110000",
+            "name": "Current Assets",
+            "category": "asset",
+            "parent_code": "100000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "111000",
+            "name": "Cash on Hand",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "112000",
+            "name": "Bank Accounts",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "113000",
+            "name": "Accounts Receivable",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "113100",
+            "name": "Allowance for Doubtful Accounts",
+            "category": "asset",
+            "parent_code": "113000",
+            "normal_balance": "credit",
+            "is_contra": true
+        },
+        {
+            "code": "120000",
+            "name": "Inventory",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "121000",
+            "name": "Merchandise Inventory",
+            "category": "asset",
+            "parent_code": "120000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "122000",
+            "name": "Inventory Shrinkage",
+            "category": "asset",
+            "parent_code": "120000",
+            "normal_balance": "debit",
+            "is_contra": true
+        },
+        {
+            "code": "130000",
+            "name": "Prepaid Expenses",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "131000",
+            "name": "Prepaid Rent",
+            "category": "asset",
+            "parent_code": "130000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "132000",
+            "name": "Prepaid Insurance",
+            "category": "asset",
+            "parent_code": "130000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "140000",
+            "name": "Non-Current Assets",
+            "category": "asset",
+            "parent_code": "100000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "141000",
+            "name": "Property, Plant & Equipment",
+            "category": "asset",
+            "parent_code": "140000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "141100",
+            "name": "Store Fixtures",
+            "category": "asset",
+            "parent_code": "141000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "141200",
+            "name": "Delivery Vehicles",
+            "category": "asset",
+            "parent_code": "141000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "142000",
+            "name": "Accumulated Depreciation",
+            "category": "asset",
+            "parent_code": "140000",
+            "normal_balance": "credit",
+            "is_contra": true
+        },
+        {
+            "code": "142100",
+            "name": "Acc. Dep. - Store Fixtures",
+            "category": "asset",
+            "parent_code": "142000",
+            "normal_balance": "credit",
+            "is_contra": true
+        },
+        {
+            "code": "142200",
+            "name": "Acc. Dep. - Delivery Vehicles",
+            "category": "asset",
+            "parent_code": "142000",
+            "normal_balance": "credit",
+            "is_contra": true
+        },
+        {
+            "code": "200000",
+            "name": "Liabilities",
+            "category": "liability",
+            "parent_code": null,
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "210000",
+            "name": "Current Liabilities",
+            "category": "liability",
+            "parent_code": "200000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "211000",
+            "name": "Accounts Payable",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "212000",
+            "name": "Accrued Expenses",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "213000",
+            "name": "Sales Tax Payable",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "214000",
+            "name": "Gift Card Liability",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "220000",
+            "name": "Non-Current Liabilities",
+            "category": "liability",
+            "parent_code": "200000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "221000",
+            "name": "Long-Term Loan",
+            "category": "liability",
+            "parent_code": "220000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "300000",
+            "name": "Equity",
+            "category": "equity",
+            "parent_code": null,
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "310000",
+            "name": "Owner's Equity",
+            "category": "equity",
+            "parent_code": "300000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "311000",
+            "name": "Owner's Capital",
+            "category": "equity",
+            "parent_code": "310000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "312000",
+            "name": "Owner's Drawings",
+            "category": "equity",
+            "parent_code": "310000",
+            "normal_balance": "debit",
+            "is_contra": true
+        },
+        {
+            "code": "313000",
+            "name": "Retained Earnings",
+            "category": "equity",
+            "parent_code": "310000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "400000",
+            "name": "Revenue",
+            "category": "income",
+            "parent_code": null,
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "410000",
+            "name": "Sales Revenue",
+            "category": "income",
+            "parent_code": "400000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "411000",
+            "name": "Sales Returns & Allowances",
+            "category": "income",
+            "parent_code": "410000",
+            "normal_balance": "debit",
+            "is_contra": true
+        },
+        {
+            "code": "412000",
+            "name": "Sales Discounts",
+            "category": "income",
+            "parent_code": "410000",
+            "normal_balance": "debit",
+            "is_contra": true
+        },
+        {
+            "code": "500000",
+            "name": "Cost of Goods Sold",
+            "category": "expense",
+            "parent_code": null,
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "510000",
+            "name": "Purchases",
+            "category": "expense",
+            "parent_code": "500000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "511000",
+            "name": "Purchase Returns & Allowances",
+            "category": "expense",
+            "parent_code": "510000",
+            "normal_balance": "credit",
+            "is_contra": true
+        },
+        {
+            "code": "520000",
+            "name": "Freight-In",
+            "category": "expense",
+            "parent_code": "500000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "600000",
+            "name": "Operating Expenses",
+            "category": "expense",
+            "parent_code": null,
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "610000",
+            "name": "Selling Expenses",
+            "category": "expense",
+            "parent_code": "600000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "611000",
+            "name": "Advertising",
+            "category": "expense",
+            "parent_code": "610000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "612000",
+            "name": "Store Supplies",
+            "category": "expense",
+            "parent_code": "610000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "620000",
+            "name": "General & Administrative",
+            "category": "expense",
+            "parent_code": "600000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "621000",
+            "name": "Rent Expense",
+            "category": "expense",
+            "parent_code": "620000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "622000",
+            "name": "Utilities",
+            "category": "expense",
+            "parent_code": "620000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "623000",
+            "name": "Salaries & Wages",
+            "category": "expense",
+            "parent_code": "620000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "630000",
+            "name": "Depreciation Expense",
+            "category": "expense",
+            "parent_code": "600000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "631000",
+            "name": "Depreciation - Store Fixtures",
+            "category": "expense",
+            "parent_code": "630000",
+            "normal_balance": "debit",
+            "is_contra": false
+        },
+        {
+            "code": "700000",
+            "name": "Other Income & Expense",
+            "category": "income",
+            "parent_code": null,
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "710000",
+            "name": "Interest Income",
+            "category": "income",
+            "parent_code": "700000",
+            "normal_balance": "credit",
+            "is_contra": false
+        },
+        {
+            "code": "720000",
+            "name": "Interest Expense",
+            "category": "expense",
+            "parent_code": "700000",
+            "normal_balance": "debit",
+            "is_contra": false
+        }
+    ]
+}

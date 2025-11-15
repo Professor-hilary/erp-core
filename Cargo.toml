@@ -12,7 +12,7 @@ sqlx = { version = "0.8.6", features = [
     "postgres",
     "runtime-tokio-rustls",
     "chrono",
-	"macros",
+    "macros",
     "uuid",
     "migrate",              # migrations
     "bigdecimal",           # ← This enables BigDecimal support for NUMERIC
@@ -29,3 +29,4 @@ tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
 uuid = { version = "1.7", features = ["v4", "serde"] }
 thiserror = "2.0.17"
 async-trait = "0.1"
+dashmap = "6.1.0"

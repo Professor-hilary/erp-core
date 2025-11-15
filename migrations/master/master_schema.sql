@@ -16,8 +16,15 @@ CREATE TABLE IF NOT EXISTS companies (
     slug text UNIQUE NOT NULL,
     tenant_db_name text NOT NULL,
     tenant_db_uri text NOT NULL,
+    industry text NOT NULL,
+    business_type text NOT NULL,
     status text NOT NULL DEFAULT 'provisioning',
     created_by uuid REFERENCES users(uuid),
+    created_at timestamptz DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS industry_coa_templates (
+    industry text PRIMARY KEY,
+    template jsonb NOT NULL,
     created_at timestamptz DEFAULT now()
 );
 CREATE TABLE IF NOT EXISTS user_companies(
