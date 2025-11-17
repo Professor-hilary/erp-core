@@ -6,37 +6,48 @@ use axum::{
     routing::get,
 };
 
+use dashmap::DashMap;
 use sqlx::PgPool;
 use std::{sync::Arc, time::Duration};
 use tower_http::{classify::ServerErrorsFailureClass, cors::CorsLayer, trace::TraceLayer};
+use uuid::Uuid;
 
 use crate::middleware::{Authenticated, layer::auth_middleware};
 
+#[allow(unused)]
 pub struct AppState {
-    pub pool: PgPool,
+    pub master_pool: PgPool,
+    pub tenant_pools: DashMap<Uuid, PgPool>, // map tenant_id -> pool
     pub jwt_secret: String,
 }
 
 #[allow(dead_code)]
 impl AppState {
-    pub fn new(pool: PgPool, jwt_secret: String) -> Self {
-        Self { pool, jwt_secret }
+    pub fn new(master_pool: PgPool, jwt_secret: String) -> Self {
+        Self {
+            master_pool,
+            jwt_secret,
+            tenant_pools: DashMap::new(),
+        }
     }
 }
 
 pub fn create_router(state: Arc<AppState>) -> Router {
     // Protected Routes
-    let vendorsx: Router<Arc<AppState>> =
+    let company_routes =
+        crate::features::company::handlers::router().layer(middleware::from_fn(auth_middleware));
+    let vendor_routes: Router<Arc<AppState>> =
         crate::features::vendors::handlers::router().layer(middleware::from_fn(auth_middleware));
-    let customersx: Router<Arc<AppState>> =
+    let customer_routes: Router<Arc<AppState>> =
         crate::features::customers::handlers::router().layer(middleware::from_fn(auth_middleware));
-    let employeesx: Router<Arc<AppState>> =
+    let employee_routes: Router<Arc<AppState>> =
         crate::features::hr::handler::router().layer(middleware::from_fn(auth_middleware));
-    let transactionsx: Router<Arc<AppState>> = crate::features::transactions::handlers::router()
-        .layer(middleware::from_fn(auth_middleware));
-    let accountsx: Router<Arc<AppState>> =
+    let transaction_routes: Router<Arc<AppState>> =
+        crate::features::transactions::handlers::router()
+            .layer(middleware::from_fn(auth_middleware));
+    let account_routes: Router<Arc<AppState>> =
         crate::features::accounts::handlers::router().layer(middleware::from_fn(auth_middleware));
-    let inventoryx: Router<Arc<AppState>> =
+    let inventory_routes: Router<Arc<AppState>> =
         crate::features::inventory::handler::router().layer(middleware::from_fn(auth_middleware));
 
     Router::new()
@@ -45,15 +56,17 @@ pub fn create_router(state: Arc<AppState>) -> Router {
             "/",
             get(|| async { "Yey! Service Up And Runing Successfully!\n" }),
         )
+        //.route("/companies", post(create_company_handler))
         // PUBLIC ROUTES (no auth required)
         .nest("/api/auth", crate::features::auth::handlers::router())
         // PROTECTED ROUTES (require auth)
-        .nest("/api/transactions", transactionsx)
-        .nest("/api/accounts", accountsx)
-        .nest("/api/customers", customersx)
-        .nest("/api/inventory", inventoryx)
-        .nest("/api/vendors", vendorsx)
-        .nest("/api/employees", employeesx)
+        .nest("/api/companies", company_routes)
+        .nest("/api/transactions", transaction_routes)
+        .nest("/api/accounts", account_routes)
+        .nest("/api/customers", customer_routes)
+        .nest("/api/inventory", inventory_routes)
+        .nest("/api/vendors", vendor_routes)
+        .nest("/api/employees", employee_routes)
         // CORS & global state
         .layer(Extension(state.clone()))
         .layer(CorsLayer::permissive())
@@ -64,7 +77,7 @@ pub fn create_router(state: Arc<AppState>) -> Router {
                     let user_id = request
                         .extensions()
                         .get::<Authenticated>()
-                        .map(|auth: &Authenticated| auth.0.to_string())
+                        .map(|auth: &Authenticated| auth.user_id.to_string())
                         .unwrap_or_else(|| "anonymous".to_string());
 
                     tracing::info_span!(

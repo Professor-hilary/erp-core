@@ -29,57 +29,57 @@ pub fn router() -> Router<Arc<AppState>> {
 }
 
 async fn create_vendor(
-    State(state): State<Arc<AppState>>,
+    State(_state): State<Arc<AppState>>,
     Extension(user): Extension<Authenticated>,
     Json(payload): Json<CreateVendor>,
 ) -> Result<Response, AppError> {
-    let repo = PostgresVendorRepo::new(state.pool.clone());
+    let repo = PostgresVendorRepo::new();
     let svc = VendorService::new(repo);
-    let cust = svc.create(user.0, &payload).await?;
+    let cust = svc.create(&user.tenant_pool,user.user_id, &payload).await?;
     Ok(ApiResponse::created(cust, "Vendor created"))
 }
 
 async fn list_vendors(
-    State(state): State<Arc<AppState>>,
+    State(_state): State<Arc<AppState>>,
     Extension(user): Extension<Authenticated>,
 ) -> Result<Response, AppError> {
-    let repo = PostgresVendorRepo::new(state.pool.clone());
+    let repo = PostgresVendorRepo::new();
     let svc = VendorService::new(repo);
-    let list = svc.list(user.0).await?;
+    let list = svc.list(&user.tenant_pool,user.user_id).await?;
     Ok(ApiResponse::success(list, "Vendors fetched"))
 }
 
 async fn get_vendor(
-    State(state): State<Arc<AppState>>,
+    State(_state): State<Arc<AppState>>,
     Path(id): Path<i64>,
     Extension(user): Extension<Authenticated>,
 ) -> Result<Response, AppError> {
-    let repo = PostgresVendorRepo::new(state.pool.clone());
+    let repo = PostgresVendorRepo::new();
     let svc = VendorService::new(repo);
-    let cust = svc.get(id, user.0).await?;
+    let cust = svc.get(&user.tenant_pool,id, user.user_id).await?;
     Ok(ApiResponse::success(cust, "Vendor fetched"))
 }
 
 async fn update_vendor(
-    State(state): State<Arc<AppState>>,
+    State(_state): State<Arc<AppState>>,
     Path(id): Path<i64>,
     Extension(user): Extension<Authenticated>,
     Json(payload): Json<CreateVendor>,
 ) -> Result<Response, AppError> {
-    let repo = PostgresVendorRepo::new(state.pool.clone());
+    let repo = PostgresVendorRepo::new();
     let svc = VendorService::new(repo);
-    let cust = svc.update(id, user.0, &payload).await?;
+    let cust = svc.update(&user.tenant_pool,id, user.user_id, &payload).await?;
     Ok(ApiResponse::success(cust, "Vendor updated"))
 }
 
 async fn delete_vendor(
-    State(state): State<Arc<AppState>>,
+    State(_state): State<Arc<AppState>>,
     Path(id): Path<i64>,
     Extension(user): Extension<Authenticated>,
 ) -> Result<Response, AppError> {
-    let repo = PostgresVendorRepo::new(state.pool.clone());
+    let repo = PostgresVendorRepo::new();
     let svc = VendorService::new(repo);
-    svc.delete(id, user.0).await?;
+    svc.delete(&user.tenant_pool,id, user.user_id).await?;
     Ok(ApiResponse::success((), "Vendor deleted"))
 }
 
@@ -91,7 +91,7 @@ pub struct BillId {
 }
 
 async fn create_bill(
-    State(state): State<Arc<AppState>>,
+    State(_state): State<Arc<AppState>>,
     Extension(user): Extension<Authenticated>,
     Json(payload): Json<CreateBill>,
 ) -> Result<Response, AppError> {
@@ -108,8 +108,8 @@ async fn create_bill(
     .bind(payload.due_date)
     .bind(&payload.total)
     .bind(payload.items.as_ref().map(|v| JsonValue::from(v.clone())))
-    .bind(user.0) // assuming system.users.id is BIGINT
-    .fetch_one(&state.pool)
+    .bind(user.user_id) // assuming system.users.id is BIGINT
+    .fetch_one(&_state.master_pool)
     .await?;
 
     Ok(ApiResponse::created(rows, "Bill created & GL posted"))

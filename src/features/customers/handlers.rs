@@ -27,57 +27,57 @@ pub fn router() -> Router<Arc<AppState>> {
 }
 
 async fn create_customer(
-    State(state): State<Arc<AppState>>,
+    State(_state): State<Arc<AppState>>,
     Extension(user): Extension<Authenticated>,
     Json(payload): Json<CreateCustomer>,
 ) -> Result<Response, AppError> {
-    let repo = PostgresCustomerRepo::new(state.pool.clone());
-    let svc = CustomerService::new(repo);
-    let cust = svc.create(user.0, &payload).await?;
+    let repo = PostgresCustomerRepo::new();
+    let service = CustomerService::new(repo);
+    let cust = service.create(&user.tenant_pool,user.user_id, &payload).await?;
     Ok(ApiResponse::created(cust, "Customer created"))
 }
 
 async fn list_customers(
-    State(state): State<Arc<AppState>>,
+    State(_state): State<Arc<AppState>>,
     Extension(user): Extension<Authenticated>,
 ) -> Result<Response, AppError> {
-    let repo = PostgresCustomerRepo::new(state.pool.clone());
-    let svc = CustomerService::new(repo);
-    let list = svc.list(user.0).await?;
+    let repo = PostgresCustomerRepo::new();
+    let service = CustomerService::new(repo);
+    let list = service.list(&user.tenant_pool, user.user_id).await?;
     Ok(ApiResponse::success(list, "Customers fetched"))
 }
 
 async fn get_customer(
-    State(state): State<Arc<AppState>>,
+    State(_state): State<Arc<AppState>>,
     Path(id): Path<i64>,
     Extension(user): Extension<Authenticated>,
 ) -> Result<Response, AppError> {
-    let repo = PostgresCustomerRepo::new(state.pool.clone());
-    let svc = CustomerService::new(repo);
-    let cust = svc.get(id, user.0).await?;
+    let repo = PostgresCustomerRepo::new();
+    let service = CustomerService::new(repo);
+    let cust = service.get(&user.tenant_pool,id, user.user_id).await?;
     Ok(ApiResponse::success(cust, "Customer fetched"))
 }
 
 async fn update_customer(
-    State(state): State<Arc<AppState>>,
+    State(_state): State<Arc<AppState>>,
     Path(id): Path<i64>,
     Extension(user): Extension<Authenticated>,
     Json(payload): Json<CreateCustomer>,
 ) -> Result<Response, AppError> {
-    let repo = PostgresCustomerRepo::new(state.pool.clone());
-    let svc = CustomerService::new(repo);
-    let cust = svc.update(id, user.0, &payload).await?;
+    let repo = PostgresCustomerRepo::new();
+    let service = CustomerService::new(repo);
+    let cust = service.update(&user.tenant_pool,id, user.user_id, &payload).await?;
     Ok(ApiResponse::success(cust, "Customer updated"))
 }
 
 async fn delete_customer(
-    State(state): State<Arc<AppState>>,
+    State(_state): State<Arc<AppState>>,
     Path(id): Path<i64>,
     Extension(user): Extension<Authenticated>,
 ) -> Result<Response, AppError> {
-    let repo = PostgresCustomerRepo::new(state.pool.clone());
-    let svc = CustomerService::new(repo);
-    svc.delete(id, user.0).await?;
+    let repo = PostgresCustomerRepo::new();
+    let service = CustomerService::new(repo);
+    service.delete(&user.tenant_pool,id, user.user_id).await?;
     Ok(ApiResponse::success((), "Customer deleted"))
 }
 
@@ -106,8 +106,8 @@ async fn create_invoice(
     .bind(payload.due_date)
     .bind(&payload.total)
     .bind(payload.items.as_ref().map(|v| JsonValue::from(v.clone())))
-    .bind(user.0) // assuming system.users.id is BIGINT
-    .fetch_one(&state.pool)
+    .bind(user.user_id) // assuming system.users.id is BIGINT
+    .fetch_one(&state.master_pool)
     .await?;
 
     Ok(ApiResponse::created(rows, "Invoice created & GL posted"))

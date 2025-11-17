@@ -11,5 +11,6 @@ pub mod invoice;
 pub mod bills;
 pub mod item;
 pub mod dto;
+pub mod company;
 
 pub use transaction::Transaction;

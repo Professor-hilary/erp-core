@@ -1,10 +1,4 @@
 // src/features/transactions/handlers.rs
-use axum::{
-    Extension, Router, extract::{Json, Path, State}, response::Response,
-    routing::{get, post, patch, delete},
-};
-use uuid::Uuid;
-use std::sync::Arc;
 use crate::{
     errors::AppError,
     features::{
@@ -16,6 +10,14 @@ use crate::{
     models::transaction::CreateTransaction,
     routes::AppState,
 };
+use axum::{
+    Extension, Router,
+    extract::{Json, Path, State},
+    response::Response,
+    routing::{delete, get, patch, post},
+};
+use std::sync::Arc;
+use uuid::Uuid;
 
 pub fn router() -> Router<Arc<AppState>> {
     Router::new()
@@ -27,61 +29,72 @@ pub fn router() -> Router<Arc<AppState>> {
 }
 
 async fn create_transaction(
-    State(state): State<Arc<AppState>>,
+    State(_state): State<Arc<AppState>>,
     Extension(user): Extension<Authenticated>,
     Json(payload): Json<CreateTransaction>,
 ) -> Result<Response, AppError> {
-    let acc_repo = PostgresAccountRepo::new(state.pool.clone());
-    let tx_repo = PostgresTransactionRepo::new(state.pool.clone());
+    let acc_repo = PostgresAccountRepo::new();
+    let tx_repo = PostgresTransactionRepo::new();
     let service = TransactionService::new(acc_repo, tx_repo);
-    let tx = service.create_transaction(user.0, &payload).await?;
+    let tx = service
+        .create_transaction(&user.tenant_pool, user.user_id, &payload)
+        .await?;
     Ok(ApiResponse::created(tx, "Transaction created"))
 }
 
 async fn get_transactions(
-    State(state): State<Arc<AppState>>,
+    State(_state): State<Arc<AppState>>,
     Extension(user): Extension<Authenticated>,
 ) -> Result<Response, AppError> {
-    let acc_repo = PostgresAccountRepo::new(state.pool.clone());
-    let tx_repo = PostgresTransactionRepo::new(state.pool.clone());
+    let acc_repo = PostgresAccountRepo::new();
+    let tx_repo = PostgresTransactionRepo::new();
     let service = TransactionService::new(acc_repo, tx_repo);
-    let txs = service.get_transactions(user.0).await?;
+    let txs = service
+        .get_transactions(&user.tenant_pool, user.user_id)
+        .await?;
     Ok(ApiResponse::success(txs, "Transactions fetched"))
 }
 
 async fn get_transaction(
-    State(state): State<Arc<AppState>>,
+    State(_state): State<Arc<AppState>>,
     Path(id): Path<Uuid>,
     Extension(user): Extension<Authenticated>,
 ) -> Result<Response, AppError> {
-    let acc_repo = PostgresAccountRepo::new(state.pool.clone());
-    let tx_repo = PostgresTransactionRepo::new(state.pool.clone());
+    let acc_repo = PostgresAccountRepo::new();
+    let tx_repo = PostgresTransactionRepo::new();
     let service = TransactionService::new(acc_repo, tx_repo);
-    let tx = service.get_transaction(id, user.0).await?;
+    let tx = service
+        .get_transaction(&user.tenant_pool, id, user.user_id)
+        .await?;
     Ok(ApiResponse::success(tx, "Transaction fetched"))
 }
 
 async fn update_transaction(
-    State(state): State<Arc<AppState>>,
+    State(_state): State<Arc<AppState>>,
     Path(id): Path<Uuid>,
     Extension(user): Extension<Authenticated>,
     Json(payload): Json<CreateTransaction>,
 ) -> Result<Response, AppError> {
-    let acc_repo = PostgresAccountRepo::new(state.pool.clone());
-    let tx_repo = PostgresTransactionRepo::new(state.pool.clone());
+    let acc_repo = PostgresAccountRepo::new();
+    let tx_repo = PostgresTransactionRepo::new();
     let service = TransactionService::new(acc_repo, tx_repo);
-    let tx = service.update_transaction(id, user.0, &payload).await?;
+    let tx = service
+        .update_transaction(&user.tenant_pool, id, user.user_id, &payload)
+        .await?;
     Ok(ApiResponse::success(tx, "Transaction updated"))
 }
 
 async fn delete_transaction(
-    State(state): State<Arc<AppState>>,
+    State(_state): State<Arc<AppState>>,
     Path(id): Path<Uuid>,
     Extension(user): Extension<Authenticated>,
 ) -> Result<Response, AppError> {
-    let acc_repo = PostgresAccountRepo::new(state.pool.clone());
-    let tx_repo = PostgresTransactionRepo::new(state.pool.clone());
-    let service = TransactionService::new(acc_repo, tx_repo);
-    service.delete_transaction(id, user.0).await?;
+    let acc_repo: PostgresAccountRepo = PostgresAccountRepo::new();
+    let tx_repo: PostgresTransactionRepo = PostgresTransactionRepo::new();
+    let service: TransactionService<PostgresAccountRepo, PostgresTransactionRepo> =
+        TransactionService::new(acc_repo, tx_repo);
+    service
+        .delete_transaction(&user.tenant_pool, id, user.user_id)
+        .await?;
     Ok(ApiResponse::success((), "Transaction deleted"))
 }

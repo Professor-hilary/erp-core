@@ -5,9 +5,15 @@
 CREATE TABLE IF NOT EXISTS users (
     uuid uuid PRIMARY KEY DEFAULT uuid_generate_v4() NOT NULL,
     email text UNIQUE NOT NULL,
-    password_has text NOT NULL,
+    password_hash text NOT NULL,
     created_at timestamptz DEFAULT now(),
     is_active boolean DEFAULT true
+);
+CREATE TABLE IF NOT EXISTS tenants (
+    uuid uuid PRIMARY KEY DEFAULT uuid_generate_v4() NOT NULL,
+    name TEXT NOT NULL,
+    db_name TEXT NOT NULL UNIQUE,
+    created_at timestamptz DEFAULT now()
 );
 -- Optional: tenant_db_uri should be encrypted at rest (VAULT/KMS)
 CREATE TABLE IF NOT EXISTS companies (

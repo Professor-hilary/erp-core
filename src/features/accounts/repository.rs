@@ -76,7 +76,7 @@ impl AccountRepository for PostgresAccountRepo {
     /// This function will return an error if user cannot be created.
     async fn create(
         &self,
-        pool: &PgPool, // Tenant Pool Passed Here
+        pool: &PgPool,
         _user_id: sqlx::types::Uuid,
         acc: &CreateAccount,
     ) -> Result<Account, AppError> {

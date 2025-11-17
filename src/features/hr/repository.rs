@@ -13,51 +13,49 @@ use uuid::Uuid;
 #[async_trait]
 pub trait HrRepository: Send + Sync {
     async fn create_employee(
-        &self,
+        &self, pool: &PgPool,
         user_id: Uuid,
         payload: &CreateEmployee,
     ) -> Result<Employee, AppError>;
-    async fn list_employees(&self, user_id: Uuid) -> Result<Vec<Employee>, AppError>;
-    async fn get_employee(&self, id: i32, user_id: Uuid) -> Result<Employee, AppError>;
+    async fn list_employees(&self, pool: &PgPool, user_id: Uuid) -> Result<Vec<Employee>, AppError>;
+    async fn get_employee(&self, pool: &PgPool, id: i32, user_id: Uuid) -> Result<Employee, AppError>;
     async fn update_employee(
-        &self,
+        &self, pool: &PgPool,
         id: i32,
         user_id: Uuid,
         payload: &CreateEmployee,
     ) -> Result<Employee, AppError>;
-    async fn delete_employee(&self, id: i32, user_id: Uuid) -> Result<(), AppError>;
+    async fn delete_employee(&self, pool: &PgPool, id: i32, user_id: Uuid) -> Result<(), AppError>;
 
     async fn create_payrun(
-        &self,
+        &self, pool: &PgPool,
         user_id: Uuid,
         payload: &CreatePayrun,
         tx: &mut Transaction<'_, sqlx::Postgres>,
     ) -> Result<Payrun, AppError>;
     async fn create_payslips(
-        &self,
+        &self, pool: &PgPool,
         payrun_id: i32,
         payslips: &[CreatePayslip],
         tx: &mut Transaction<'_, sqlx::Postgres>,
     ) -> Result<(), AppError>;
-    async fn post_payrun(&self, payrun_id: i32) -> Result<(), AppError>;
-    async fn get_payrun(&self, id: i32, user_id: Uuid) -> Result<Payrun, AppError>;
+    async fn post_payrun(&self, pool: &PgPool, payrun_id: i32) -> Result<(), AppError>;
+    async fn get_payrun(&self, pool: &PgPool, id: i32, user_id: Uuid) -> Result<Payrun, AppError>;
     // Add list_payruns if needed
 }
 
-pub struct PostgresHrRepo {
-    pool: PgPool,
-}
+pub struct PostgresHrRepo;
 
 impl PostgresHrRepo {
-    pub fn new(pool: PgPool) -> Self {
-        Self { pool }
+    pub fn new() -> Self {
+        Self
     }
 }
 
 #[async_trait]
 impl HrRepository for PostgresHrRepo {
     async fn create_employee(
-        &self,
+        &self,pool: &PgPool,
         _user_id: Uuid,
         payload: &CreateEmployee,
     ) -> Result<Employee, AppError> {
@@ -80,30 +78,30 @@ impl HrRepository for PostgresHrRepo {
         .bind(&payload.employment_type)
         .bind(&payload.salary)
         .bind(&payload.pay_frequency)
-        .fetch_one(&self.pool)
+        .fetch_one(pool)
         .await?;
         Ok(emp)
     }
 
-    async fn list_employees(&self, _user_id: Uuid) -> Result<Vec<Employee>, AppError> {
+    async fn list_employees(&self, pool: &PgPool, _user_id: Uuid) -> Result<Vec<Employee>, AppError> {
         let rows = sqlx::query_as::<_, Employee>("SELECT * FROM hr.employees")
-            .fetch_all(&self.pool)
+            .fetch_all(pool)
             .await?;
         Ok(rows)
     }
 
-    async fn get_employee(&self, id: i32, _user_id: Uuid) -> Result<Employee, AppError> {
+    async fn get_employee(&self, pool: &PgPool, id: i32, _user_id: Uuid) -> Result<Employee, AppError> {
         let emp =
             sqlx::query_as::<_, Employee>("SELECT * FROM hr.employees WHERE employee_id = $1")
                 .bind(id)
-                .fetch_optional(&self.pool)
+                .fetch_optional(pool)
                 .await?
                 .ok_or(AppError::NotFound("Employee not found".into()))?;
         Ok(emp)
     }
 
     async fn update_employee(
-        &self,
+        &self, pool: &PgPool,
         id: i32,
         _user_id: Uuid,
         payload: &CreateEmployee,
@@ -131,15 +129,15 @@ impl HrRepository for PostgresHrRepo {
         .bind(&payload.salary)
         .bind(&payload.pay_frequency)
         .bind(id)
-        .fetch_one(&self.pool)
+        .fetch_one(pool)
         .await?;
         Ok(emp)
     }
 
-    async fn delete_employee(&self, id: i32, _user_id: Uuid) -> Result<(), AppError> {
+    async fn delete_employee(&self, pool: &PgPool, id: i32, _user_id: Uuid) -> Result<(), AppError> {
         let res = sqlx::query("DELETE FROM hr.employees WHERE employee_id = $1")
             .bind(id)
-            .execute(&self.pool)
+            .execute(pool)
             .await?;
         if res.rows_affected() == 0 {
             Err(AppError::NotFound("Employee not found".into()))
@@ -149,7 +147,7 @@ impl HrRepository for PostgresHrRepo {
     }
 
     async fn create_payrun(
-        &self,
+        &self, _pool: &PgPool,
         _user_id: Uuid,
         payload: &CreatePayrun,
         tx: &mut Transaction<'_, sqlx::Postgres>,
@@ -171,7 +169,7 @@ impl HrRepository for PostgresHrRepo {
     }
 
     async fn create_payslips(
-        &self,
+        &self, _pool: &PgPool,
         payrun_id: i32,
         payslips: &[CreatePayslip],
         tx: &mut Transaction<'_, sqlx::Postgres>,
@@ -223,19 +221,19 @@ impl HrRepository for PostgresHrRepo {
         Ok(())
     }
 
-    async fn post_payrun(&self, payrun_id: i32) -> Result<(), AppError> {
+    async fn post_payrun(&self, pool: &PgPool, payrun_id: i32) -> Result<(), AppError> {
         sqlx::query("SELECT payroll.post_payrun($1)")
             .bind(payrun_id)
-            .execute(&self.pool)
+            .execute(pool)
             .await?;
         Ok(())
     }
 
-    async fn get_payrun(&self, id: i32, _user_id: Uuid) -> Result<Payrun, AppError> {
+    async fn get_payrun(&self, pool: &PgPool, id: i32, _user_id: Uuid) -> Result<Payrun, AppError> {
         let payrun =
             sqlx::query_as::<_, Payrun>("SELECT * FROM payroll.payruns WHERE payrun_id = $1")
                 .bind(id)
-                .fetch_optional(&self.pool)
+                .fetch_optional(pool)
                 .await?
                 .ok_or(AppError::NotFound("Payrun not found".into()))?;
         Ok(payrun)

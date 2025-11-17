@@ -6,3 +6,4 @@ pub mod hr;
 pub mod vendors;
 pub mod customers;
 pub mod inventory;
+pub mod company;

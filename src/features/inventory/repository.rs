@@ -1,32 +1,64 @@
 // src/features/inventory/repository.rs
-use crate::{errors::AppError, models::{inventory_movement::{PostPurchase, PostSale}, item::{CreateItem, Item}}};
+use crate::{
+    errors::AppError,
+    models::{
+        inventory_movement::{PostPurchase, PostSale},
+        item::{CreateItem, Item},
+    },
+};
 use async_trait::async_trait;
 use sqlx::PgPool;
 use uuid::Uuid;
 
 #[async_trait]
 pub trait InventoryRepository: Send + Sync {
-    async fn create_item(&self, user_id: Uuid, payload: &CreateItem) -> Result<Item, AppError>;
-    async fn list_items(&self, user_id: Uuid) -> Result<Vec<Item>, AppError>;
-    async fn get_item(&self, id: i64, user_id: Uuid) -> Result<Item, AppError>;
-    async fn update_item(&self, id: i64, user_id: Uuid, payload: &CreateItem) -> Result<Item, AppError>;
-    async fn delete_item(&self, id: i64, user_id: Uuid) -> Result<(), AppError>;
+    async fn create_item(
+        &self,
+        pool: &PgPool,
+        user_id: Uuid,
+        payload: &CreateItem,
+    ) -> Result<Item, AppError>;
+    async fn list_items(&self, pool: &PgPool, user_id: Uuid) -> Result<Vec<Item>, AppError>;
+    async fn get_item(&self, pool: &PgPool, id: i64, user_id: Uuid) -> Result<Item, AppError>;
+    async fn update_item(
+        &self,
+        pool: &PgPool,
+        id: i64,
+        user_id: Uuid,
+        payload: &CreateItem,
+    ) -> Result<Item, AppError>;
+    async fn delete_item(&self, pool: &PgPool, id: i64, user_id: Uuid) -> Result<(), AppError>;
 
-    async fn post_purchase(&self, user_id: Uuid, payload: &PostPurchase) -> Result<(), AppError>;
-    async fn post_sale(&self, user_id: Uuid, payload: &PostSale) -> Result<(), AppError>;
+    async fn post_purchase(
+        &self,
+        pool: &PgPool,
+        user_id: Uuid,
+        payload: &PostPurchase,
+    ) -> Result<(), AppError>;
+    async fn post_sale(
+        &self,
+        pool: &PgPool,
+        user_id: Uuid,
+        payload: &PostSale,
+    ) -> Result<(), AppError>;
 }
 
-pub struct PostgresInventoryRepo {
-    pool: PgPool,
-}
+pub struct PostgresInventoryRepo;
 
 impl PostgresInventoryRepo {
-    pub fn new(pool: PgPool) -> Self { Self { pool } }
+    pub fn new() -> Self {
+        Self
+    }
 }
 
 #[async_trait]
 impl InventoryRepository for PostgresInventoryRepo {
-    async fn create_item(&self, _user_id: Uuid, payload: &CreateItem) -> Result<Item, AppError> {
+    async fn create_item(
+        &self,
+        pool: &PgPool,
+        _user_id: Uuid,
+        payload: &CreateItem,
+    ) -> Result<Item, AppError> {
         let item = sqlx::query_as::<_, Item>(
             r#"
             INSERT INTO inventory.items (sku, name, category_id, description, unit, cost_price, selling_price, track_quantity, reorder_level, asset_account, cogs_account, income_account)
@@ -46,28 +78,34 @@ impl InventoryRepository for PostgresInventoryRepo {
         .bind(&payload.asset_account)
         .bind(&payload.cogs_account)
         .bind(&payload.income_account)
-        .fetch_one(&self.pool)
+        .fetch_one(pool)
         .await?;
         Ok(item)
     }
 
-    async fn list_items(&self, _user_id: Uuid) -> Result<Vec<Item>, AppError> {
+    async fn list_items(&self, pool: &PgPool, _user_id: Uuid) -> Result<Vec<Item>, AppError> {
         let rows = sqlx::query_as::<_, Item>("SELECT * FROM inventory.items")
-            .fetch_all(&self.pool)
+            .fetch_all(pool)
             .await?;
         Ok(rows)
     }
 
-    async fn get_item(&self, id: i64, _user_id: Uuid) -> Result<Item, AppError> {
+    async fn get_item(&self, pool: &PgPool, id: i64, _user_id: Uuid) -> Result<Item, AppError> {
         let item = sqlx::query_as::<_, Item>("SELECT * FROM inventory.items WHERE id = $1")
             .bind(id)
-            .fetch_optional(&self.pool)
+            .fetch_optional(pool)
             .await?
             .ok_or(AppError::NotFound("Item not found".into()))?;
         Ok(item)
     }
 
-    async fn update_item(&self, id: i64, _user_id: Uuid, payload: &CreateItem) -> Result<Item, AppError> {
+    async fn update_item(
+        &self,
+        pool: &PgPool,
+        id: i64,
+        _user_id: Uuid,
+        payload: &CreateItem,
+    ) -> Result<Item, AppError> {
         let item = sqlx::query_as::<_, Item>(
             r#"
             UPDATE inventory.items
@@ -92,15 +130,15 @@ impl InventoryRepository for PostgresInventoryRepo {
         .bind(&payload.cogs_account)
         .bind(&payload.income_account)
         .bind(id)
-        .fetch_one(&self.pool)
+        .fetch_one(pool)
         .await?;
         Ok(item)
     }
 
-    async fn delete_item(&self, id: i64, _user_id: Uuid) -> Result<(), AppError> {
+    async fn delete_item(&self, pool: &PgPool, id: i64, _user_id: Uuid) -> Result<(), AppError> {
         let res = sqlx::query("DELETE FROM inventory.items WHERE id = $1")
             .bind(id)
-            .execute(&self.pool)
+            .execute(pool)
             .await?;
         if res.rows_affected() == 0 {
             Err(AppError::NotFound("Item not found".into()))
@@ -109,20 +147,30 @@ impl InventoryRepository for PostgresInventoryRepo {
         }
     }
 
-    async fn post_purchase(&self, user_id: Uuid, payload: &PostPurchase) -> Result<(), AppError> {
+    async fn post_purchase(
+        &self,
+        pool: &PgPool,
+        user_id: Uuid,
+        payload: &PostPurchase,
+    ) -> Result<(), AppError> {
         sqlx::query("SELECT inventory.post_purchase($1, $2, $3, $4, $5, $6)")
             .bind(payload.item_id)
             .bind(&payload.quantity)
             .bind(&payload.unit_cost)
             .bind(&payload.reference_type)
             .bind(payload.reference_id)
-            .bind(user_id)  // assuming user_id as BIGINT
-            .execute(&self.pool)
+            .bind(user_id) // assuming user_id as BIGINT
+            .execute(pool)
             .await?;
         Ok(())
     }
 
-    async fn post_sale(&self, user_id: Uuid, payload: &PostSale) -> Result<(), AppError> {
+    async fn post_sale(
+        &self,
+        pool: &PgPool,
+        user_id: Uuid,
+        payload: &PostSale,
+    ) -> Result<(), AppError> {
         sqlx::query("SELECT inventory.post_sale($1, $2, $3, $4, $5, $6)")
             .bind(payload.item_id)
             .bind(&payload.quantity)
@@ -130,7 +178,7 @@ impl InventoryRepository for PostgresInventoryRepo {
             .bind(&payload.reference_type)
             .bind(payload.reference_id)
             .bind(user_id)
-            .execute(&self.pool)
+            .execute(pool)
             .await?;
         Ok(())
     }

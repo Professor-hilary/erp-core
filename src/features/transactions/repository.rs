@@ -8,44 +8,60 @@ use uuid::Uuid;
 #[async_trait]
 pub trait TransactionRepository: Send + Sync {
     #[allow(dead_code)]
-    fn pool(&self) -> &PgPool;
+    //fn pool(&self) -> &PgPool;
 
-    async fn create(&self, user_id: Uuid, tx: &CreateTransaction) -> Result<Transaction, AppError>;
-    async fn find_by_id(&self, id: Uuid, user_id: Uuid) -> Result<Option<Transaction>, AppError>;
-    async fn find_by_user(&self, user_id: Uuid) -> Result<Vec<Transaction>, AppError>;
+    async fn create(
+        &self,
+        pool: &PgPool,
+        user_id: Uuid,
+        tx: &CreateTransaction,
+    ) -> Result<Transaction, AppError>;
+    async fn find_by_id(
+        &self,
+        pool: &PgPool,
+        id: Uuid,
+        user_id: Uuid,
+    ) -> Result<Option<Transaction>, AppError>;
+    async fn find_by_user(
+        &self,
+        pool: &PgPool,
+        user_id: Uuid,
+    ) -> Result<Vec<Transaction>, AppError>;
     async fn update(
         &self,
+        pool: &PgPool,
         id: Uuid,
         user_id: Uuid,
         tx: &CreateTransaction,
     ) -> Result<Transaction, AppError>;
-    async fn delete(&self, id: Uuid, user_id: Uuid) -> Result<(), AppError>;
+    async fn delete(&self, pool: &PgPool, id: Uuid, user_id: Uuid) -> Result<(), AppError>;
 }
 
 // Concrete impls
 #[allow(dead_code)]
-pub struct PostgresUserRepo {
-    pool: PgPool,
-}
+pub struct PostgresUserRepo;
 
 // Concrete impls
-pub struct PostgresTransactionRepo {
-    pool: PgPool,
-}
+pub struct PostgresTransactionRepo;
 
 impl PostgresTransactionRepo {
-    pub fn new(pool: PgPool) -> Self {
-        Self { pool }
+    pub fn new() -> Self {
+        Self
     }
 }
 
 #[async_trait]
 impl TransactionRepository for PostgresTransactionRepo {
-    fn pool(&self) -> &PgPool {
-        &self.pool
-    }
+    // fn pool(&self) -> &PgPool {
+    //     pool
+    // }
 
-    async fn create(&self, user_id: Uuid, tx: &CreateTransaction) -> Result<Transaction, AppError> {
+    async fn create(
+        &self,
+        pool: &PgPool,
+        user_id: Uuid,
+        tx: &CreateTransaction,
+    ) -> Result<Transaction, AppError> {
         let transaction = sqlx::query_as::<_, Transaction>(
             r#"
             INSERT INTO transactions
@@ -59,31 +75,40 @@ impl TransactionRepository for PostgresTransactionRepo {
         .bind(tx.credit_account_id)
         .bind(&tx.amount)
         .bind(user_id)
-        .fetch_one(&self.pool)
+        .fetch_one(pool)
         .await
         .map_err(|e| AppError::Database(e))?;
 
         Ok(transaction)
     }
 
-    async fn find_by_id(&self, id: Uuid, user_id: Uuid) -> Result<Option<Transaction>, AppError> {
+    async fn find_by_id(
+        &self,
+        pool: &PgPool,
+        id: Uuid,
+        user_id: Uuid,
+    ) -> Result<Option<Transaction>, AppError> {
         let tx = sqlx::query_as::<_, Transaction>(
             "SELECT * FROM transactions WHERE id = $1 AND user_id = $2",
         )
         .bind(id)
         .bind(user_id)
-        .fetch_optional(&self.pool)
+        .fetch_optional(pool)
         .await
         .map_err(|e| AppError::Database(e))?;
         Ok(tx)
     }
 
-    async fn find_by_user(&self, user_id: Uuid) -> Result<Vec<Transaction>, AppError> {
+    async fn find_by_user(
+        &self,
+        pool: &PgPool,
+        user_id: Uuid,
+    ) -> Result<Vec<Transaction>, AppError> {
         let txs = sqlx::query_as::<_, Transaction>(
             "SELECT * FROM transactions WHERE user_id = $1 ORDER BY date DESC, created_at DESC",
         )
         .bind(user_id)
-        .fetch_all(&self.pool)
+        .fetch_all(pool)
         .await
         .map_err(|e| AppError::Database(e))?;
         Ok(txs)
@@ -91,6 +116,7 @@ impl TransactionRepository for PostgresTransactionRepo {
 
     async fn update(
         &self,
+        pool: &PgPool,
         id: Uuid,
         user_id: Uuid,
         tx: &CreateTransaction,
@@ -109,17 +135,17 @@ impl TransactionRepository for PostgresTransactionRepo {
         .bind(&tx.amount)
         .bind(id)
         .bind(user_id)
-        .fetch_one(&self.pool)
+        .fetch_one(pool)
         .await
         .map_err(|e| AppError::Database(e))?;
         Ok(updated)
     }
 
-    async fn delete(&self, id: Uuid, user_id: Uuid) -> Result<(), AppError> {
+    async fn delete(&self, pool: &PgPool, id: Uuid, user_id: Uuid) -> Result<(), AppError> {
         let result = sqlx::query("DELETE FROM transactions WHERE id = $1 AND user_id = $2")
             .bind(id)
             .bind(user_id)
-            .execute(&self.pool)
+            .execute(pool)
             .await
             .map_err(|e| AppError::Database(e))?;
 
