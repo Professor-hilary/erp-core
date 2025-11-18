@@ -55,10 +55,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // -------------------------------------------------------------------------------
     // 4. Launch server
     // -------------------------------------------------------------------------------
-    // let pool: sqlx::Pool<sqlx::Postgres> = PgPoolOptions::new()
-    //     .max_connections(5)
-    //     .connect(&database_url)
-    //     .await?;
 
     // Initialize logger
     tracing_subscriber::registry()
@@ -67,8 +63,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .init();
 
     // Run migrations on startup (in prod, use separate process)
-    // sqlx::migrate!("./migrations").run(&pool).await?;
-
     let jwt_secret: String = env::var("JWT_SECRET").expect("JWT_SECRET must be set");
     let state: Arc<AppState> = Arc::new(AppState {
         master_pool,

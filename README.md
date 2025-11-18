@@ -19,29 +19,29 @@ Designed to power a **Flutter-based desktop application**, this backend delivers
 
 ## Core Features (Current & Planned)
 
-| Feature                    | Status     | Description |
-|---------------------------|------------|-----------|
-| User Auth (Sign up / Login) | Done       | JWT-based secure authentication |
-| Chart of Accounts (CRUD)   | Done       | Asset, Liability, Equity, Revenue, Expense |
-| Transactions (Journal Entries) | In Progress | Double-entry with debit/credit validation |
-| Company Management         | Planned    | Multi-company support |
-| Customers & Vendors        | Planned    | Contacts, invoices, payments |
-| Financial Reports          | Planned    | Balance Sheet, P&L, Trial Balance |
-| AI-Powered Insights        | Future     | Forecasting, anomaly detection, recommendations |
+| Feature                        | Status      | Description                                     |
+| ------------------------------ | ----------- | ----------------------------------------------- |
+| User Auth (Sign up / Login)    | Done        | JWT-based secure authentication                 |
+| Chart of Accounts (CRUD)       | Done        | Asset, Liability, Equity, Revenue, Expense      |
+| Transactions (Journal Entries) | In Progress | Double-entry with debit/credit validation       |
+| Company Management             | Planned     | Multi-company support                           |
+| Customers & Vendors            | Planned     | Contacts, invoices, payments                    |
+| Financial Reports              | Planned     | Balance Sheet, P&L, Trial Balance               |
+| AI-Powered Insights            | Future      | Forecasting, anomaly detection, recommendations |
 
 ---
 
 ## Tech Stack
 
-| Layer         | Technology |
-|--------------|------------|
-| Language     | **Rust** (safe, fast, zero-cost abstractions) |
-| Framework    | **Axum** (async, modular, production-ready) |
+| Layer        | Technology                                            |
+| ------------ | ----------------------------------------------------- |
+| Language     | **Rust** (safe, fast, zero-cost abstractions)         |
+| Framework    | **Axum** (async, modular, production-ready)           |
 | Database     | **PostgreSQL** (`NUMERIC` for money, ACID compliance) |
-| ORM/Query    | **SQLx** (type-safe, compile-time checked) |
-| Auth         | **JWT + Argon2** |
-| Decimal Math | **rust_decimal** (no floating-point errors) |
-| Frontend     | **Flutter Desktop** (Windows, macOS, Linux) |
+| ORM/Query    | **SQLx** (type-safe, compile-time checked)            |
+| Auth         | **JWT + Argon2**                                      |
+| Decimal Math | **rust_decimal** (no floating-point errors)           |
+| Frontend     | **Flutter Desktop** (Windows, macOS, Linux)           |
 
 ---
 
@@ -181,11 +181,11 @@ Mockable repository traits → easy unit testing.
 
 ## Roadmap
 
-| Phase | Features |
-|------|---------|
-| **MVP** | Auth, Accounts, Transactions, Basic Reports |
-| **v1.0** | Multi-company, Customers/Vendors, Invoices |
-| **v2.0** | Import/Export (CSV, QIF), Audit Log |
+| Phase    | Features                                           |
+| -------- | -------------------------------------------------- |
+| **MVP**  | Auth, Accounts, Transactions, Basic Reports        |
+| **v1.0** | Multi-company, Customers/Vendors, Invoices         |
+| **v2.0** | Import/Export (CSV, QIF), Audit Log                |
 | **v3.0** | AI Recommendations, Anomaly Detection, Forecasting |
 
 ---

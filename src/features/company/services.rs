@@ -12,27 +12,28 @@ use uuid::Uuid;
 pub struct CompanyService;
 
 impl CompanyService {
+    /// # Create Company
     /// Create a new company + tenant DB + assign admin
     pub async fn create_company(
         state: Arc<AppState>,
         user_id: Uuid,
         req: CreateCompanyDto,
     ) -> Result<Company, AppError> {
-        let slug = req.name.to_lowercase().replace(" ", "-");
-        let tenant_db_name = format!("tenant_{}_{}", user_id.simple(), slug);
+        let slug: String = req.name.to_lowercase().replace(" ", "-");
+        let tenant_db_name: String = format!("tenant_{}_{}", user_id.simple(), slug);
 
         // Use env vars properly (with fallbacks)
-        let db_user = std::env::var("TENANT_DB_USER").unwrap_or("postgres".into());
-        let db_pass = std::env::var("TENANT_DB_PASSWORD").unwrap_or("password".into());
-        let db_host = std::env::var("TENANT_DB_HOST").unwrap_or("localhost:5432".into());
-        let tenant_db_uri = format!("postgres://{db_user}:{db_pass}@{db_host}/{tenant_db_name}");
+        let db_user: String = std::env::var("TENANT_DB_USER").unwrap_or("postgres".into());
+        let db_pass: String = std::env::var("TENANT_DB_PASSWORD").unwrap_or("password".into());
+        let db_host: String = std::env::var("TENANT_DB_HOST").unwrap_or("localhost:5432".into());
+        let tenant_db_uri: String = format!("postgres://{db_user}:{db_pass}@{db_host}/{tenant_db_name}");
 
         // Start transaction on master DB
-        let mut tx = state.master_pool.begin().await?;
+        let mut tx: sqlx::Transaction<'_, sqlx::Postgres> = state.master_pool.begin().await?;
 
         // 1. Create the tenant database (only if your role has CREATEDB)
         // If this fails in prod (most hosted DBs block it), it will return an error — that's OK!
-        let db_create_result = sqlx::query(&format!(r#"CREATE DATABASE "{}""#, tenant_db_name))
+        let db_create_result: Result<sqlx::postgres::PgQueryResult, sqlx::Error> = sqlx::query(&format!(r#"CREATE DATABASE "{}""#, tenant_db_name))
             .execute(&mut *tx)
             .await;
 
@@ -43,13 +44,14 @@ impl CompanyService {
         }
 
         // 2. Try to connect and run migrations on tenant DB
-        let tenant_pool_result = PgPool::connect(&tenant_db_uri).await;
-        let tenant_pool = match tenant_pool_result {
+        let tenant_pool_result: Result<sqlx::Pool<sqlx::Postgres>, sqlx::Error> = PgPool::connect(&tenant_db_uri).await;
+        let tenant_pool: Option<sqlx::Pool<sqlx::Postgres>> = match tenant_pool_result {
             Ok(pool) => {
                 match sqlx::migrate!("./migrations/tenant")
-                                    .run(&pool)
-                                    .await
-                                    .is_ok() {
+                    .run(&pool)
+                    .await
+                    .is_ok()
+                {
                     true => Some(pool),
                     false => None,
                 }
@@ -58,10 +60,10 @@ impl CompanyService {
         };
 
         // 3. Insert company record in master
-        let repo = PostgresCompanyRepository;
-        let company = repo
+        let repo: PostgresCompanyRepository = PostgresCompanyRepository;
+        let company: Company = repo
             .create(
-                &mut *tx, // Now works because we accept any Executor
+                &mut *tx, // We accept any Executor
                 &req.name,
                 &slug,
                 &tenant_db_name,
@@ -85,16 +87,17 @@ impl CompanyService {
         Ok(company)
     }
 
-    // Soft delete — keeps all data for audit
+    /// # Delete Company
+    /// Soft delete — keeps all data for audit trail and revival
     pub async fn delete_company(
         state: Arc<AppState>,
         _user_id: Uuid,
         company_id: Uuid,
     ) -> Result<(), AppError> {
-        let repo = PostgresCompanyRepository;
+        let repo: PostgresCompanyRepository = PostgresCompanyRepository;
 
         // Optional: check if user is admin of this company
-        let _company = repo
+        let _company: Company = repo
             .find_by_id(&state.master_pool, company_id)
             .await?
             .ok_or(AppError::NotFound("Company not found".into()))?;
@@ -108,21 +111,25 @@ impl CompanyService {
         Ok(())
     }
 
+    /// # Update Company
+    /// Update company info given user is an admin and company id is provided
     pub async fn update_company(
         state: Arc<AppState>,
         _user_id: Uuid,
         company_id: Uuid,
         req: crate::models::company::UpdateCompanyDto,
     ) -> Result<Company, AppError> {
-        let repo = PostgresCompanyRepository;
+        let repo: PostgresCompanyRepository = PostgresCompanyRepository;
         repo.update(&state.master_pool, company_id, req).await
     }
 
+    /// # List Companies
+    /// Get companies registered to currently auth'ed user
     pub async fn list_user_companies(
         state: Arc<AppState>,
         user_id: Uuid,
     ) -> Result<Vec<Company>, AppError> {
-        let repo = PostgresCompanyRepository;
+        let repo: PostgresCompanyRepository = PostgresCompanyRepository;
         repo.find_by_user(&state.master_pool, user_id).await
     }
 }

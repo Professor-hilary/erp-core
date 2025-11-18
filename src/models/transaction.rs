@@ -1,5 +1,5 @@
 // models.rs
-use chrono::{DateTime, Utc, NaiveDate};
+use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, types::BigDecimal};
 use uuid::Uuid;

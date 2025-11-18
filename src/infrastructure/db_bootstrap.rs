@@ -1,11 +1,13 @@
 // src/infrustructure/db_bootstrap.rs
-use sqlx::postgres::PgPoolOptions;
+use sqlx::{Pool, postgres::PgPoolOptions};
 
+/// # Run Master DB
+/// Check existence of master db, if undefined or unexistent, attempt creating it.
 pub async fn ensure_database_exists(
     super_url: &str,
     db_name: &str,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let super_pool = PgPoolOptions::new()
+    let super_pool: Pool<sqlx::Postgres> = PgPoolOptions::new()
         .max_connections(5)
         .connect(super_url)
         .await?;

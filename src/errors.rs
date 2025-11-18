@@ -1,7 +1,7 @@
 // errors.rs
 use axum::{http::StatusCode, response::IntoResponse};
-use thiserror::Error;
 use serde::Serialize;
+use thiserror::Error;
 
 #[derive(Serialize)]
 struct ErrorResponse {
@@ -30,21 +30,9 @@ impl IntoResponse for AppError {
                 "Database error",
                 e.to_string(),
             ),
-            AppError::Auth(msg) => (
-                StatusCode::UNAUTHORIZED,
-                "Authentication error",
-                msg,
-            ),
-            AppError::Validation(msg) => (
-                StatusCode::BAD_REQUEST,
-                "Validation error",
-                msg,
-            ),
-            AppError::NotFound(msg) => (
-                StatusCode::NOT_FOUND,
-                "Not Found",
-                msg,
-            ),
+            AppError::Auth(msg) => (StatusCode::UNAUTHORIZED, "Authentication error", msg),
+            AppError::Validation(msg) => (StatusCode::BAD_REQUEST, "Validation error", msg),
+            AppError::NotFound(msg) => (StatusCode::NOT_FOUND, "Not Found", msg),
         };
 
         let error_response: ErrorResponse = ErrorResponse {

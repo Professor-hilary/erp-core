@@ -26,7 +26,7 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/companies/:id", delete(delete_company))
 }
 
-// POST /companies
+/// POST /companies
 async fn create_company(
     State(state): State<Arc<AppState>>,
     Authenticated { user_id, .. }: Authenticated,
@@ -36,7 +36,7 @@ async fn create_company(
     Ok(Json(company))
 }
 
-// GET /companies (user's companies)
+/// GET /companies (user's companies)
 async fn list_companies(
     State(state): State<Arc<AppState>>,
     Authenticated { user_id, .. }: Authenticated,
@@ -46,7 +46,7 @@ async fn list_companies(
     Ok(Json(companies))
 }
 
-// GET /companies/:id
+/// GET /companies/:id
 async fn get_company(
     State(state): State<Arc<AppState>>,
     Path(company_id): Path<Uuid>,
@@ -61,7 +61,7 @@ async fn get_company(
     Ok(Json(company))
 }
 
-// PUT /companies/:id
+/// PUT /companies/:id
 async fn update_company(
     State(state): State<Arc<AppState>>,
     Path(company_id): Path<Uuid>,
@@ -73,7 +73,7 @@ async fn update_company(
     Ok(Json(company))
 }
 
-// DELETE /companies/:id (soft delete)
+/// DELETE /companies/:id (soft delete)
 async fn delete_company(
     State(state): State<Arc<AppState>>,
     Path(company_id): Path<Uuid>,

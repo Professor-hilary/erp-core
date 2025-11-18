@@ -9,6 +9,8 @@ use uuid::Uuid;
 
 #[async_trait]
 pub trait CompanyRepository: Send + Sync {
+    /// # Create Company
+    /// Create a new company for currently signed user
     async fn create<'e, E: Executor<'e, Database = Postgres>>(
         &self,
         executor: E,
@@ -21,6 +23,8 @@ pub trait CompanyRepository: Send + Sync {
         created_by: Uuid,
     ) -> Result<Company, AppError>;
 
+    /// # Assign Admin Privilege
+    /// Make current user the admin for created company
     async fn assign_user_as_admin<'e, E: Executor<'e, Database = Postgres>>(
         &self,
         executor: E,
@@ -28,19 +32,25 @@ pub trait CompanyRepository: Send + Sync {
         company_id: Uuid,
     ) -> Result<(), AppError>;
 
+    /// # Find By Id
+    /// Find company by id provided in master database
     async fn find_by_id<'e, E: Executor<'e, Database = Postgres>>(
         &self,
         executor: E,
-
         id: Uuid,
     ) -> Result<Option<Company>, AppError>;
 
+    /// # Find By User
+    /// Find all companies registered to current signed user
     async fn find_by_user<'e, E: Executor<'e, Database = Postgres>>(
         &self,
         executor: E,
         user_id: Uuid,
     ) -> Result<Vec<Company>, AppError>;
 
+
+    /// # Update Company Details
+    /// Update current company details, user must be the admin
     async fn update<'e, E: Executor<'e, Database = Postgres>>(
         &self,
         executor: E,
@@ -48,6 +58,8 @@ pub trait CompanyRepository: Send + Sync {
         dto: UpdateCompanyDto,
     ) -> Result<Company, AppError>;
 
+    /// # Soft Delete Company
+    /// Mark company as deleted for audit and recovery purpose
     async fn soft_delete<'e, E: Executor<'e, Database = Postgres>>(
         &self,
         executor: E,

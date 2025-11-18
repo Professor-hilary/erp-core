@@ -74,7 +74,7 @@ impl FromRequestParts<Arc<AppState>> for Authenticated {
         .await
         .map_err(|_| (axum::http::StatusCode::UNAUTHORIZED, "User has no company"))?;
 
-        let company_id = record.get("company_id");
+        let company_id: Uuid = record.get("company_id");
 
         // 4️⃣ Get company database
         let company = sqlx::query(
