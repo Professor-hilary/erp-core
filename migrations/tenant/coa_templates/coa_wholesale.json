@@ -8,7 +8,7 @@
       "name": "Assets",
       "category": "asset",
       "parent_code": null,
-      "normal_balance": "debit",
+      "normal_balance": "dr",
       "is_contra": false
     },
     {
@@ -16,7 +16,7 @@
       "name": "Current Assets",
       "category": "asset",
       "parent_code": "100000",
-      "normal_balance": "debit",
+      "normal_balance": "dr",
       "is_contra": false
     },
     {
@@ -24,7 +24,7 @@
       "name": "Cash on Hand",
       "category": "asset",
       "parent_code": "110000",
-      "normal_balance": "debit",
+      "normal_balance": "dr",
       "is_contra": false
     },
     {
@@ -32,7 +32,7 @@
       "name": "Bank Accounts",
       "category": "asset",
       "parent_code": "110000",
-      "normal_balance": "debit",
+      "normal_balance": "dr",
       "is_contra": false
     },
     {
@@ -40,7 +40,7 @@
       "name": "Accounts Receivable",
       "category": "asset",
       "parent_code": "110000",
-      "normal_balance": "debit",
+      "normal_balance": "dr",
       "is_contra": false
     },
     {
@@ -48,7 +48,7 @@
       "name": "Trade Receivables",
       "category": "asset",
       "parent_code": "113000",
-      "normal_balance": "debit",
+      "normal_balance": "dr",
       "is_contra": false
     },
     {
@@ -56,7 +56,7 @@
       "name": "Allowance for Doubtful Accounts",
       "category": "asset",
       "parent_code": "113000",
-      "normal_balance": "credit",
+      "normal_balance": "cr",
       "is_contra": true
     },
     {
@@ -64,7 +64,7 @@
       "name": "Inventory",
       "category": "asset",
       "parent_code": "110000",
-      "normal_balance": "debit",
+      "normal_balance": "dr",
       "is_contra": false
     },
     {
@@ -72,7 +72,7 @@
       "name": "Finished Goods - Warehouse A",
       "category": "asset",
       "parent_code": "114000",
-      "normal_balance": "debit",
+      "normal_balance": "dr",
       "is_contra": false
     },
     {
@@ -80,7 +80,7 @@
       "name": "Finished Goods - Warehouse B",
       "category": "asset",
       "parent_code": "114000",
-      "normal_balance": "debit",
+      "normal_balance": "dr",
       "is_contra": false
     },
     {
@@ -88,7 +88,7 @@
       "name": "Goods in Transit",
       "category": "asset",
       "parent_code": "114000",
-      "normal_balance": "debit",
+      "normal_balance": "dr",
       "is_contra": false
     },
     {
@@ -96,7 +96,7 @@
       "name": "Landed Cost Reserve",
       "category": "asset",
       "parent_code": "114000",
-      "normal_balance": "debit",
+      "normal_balance": "dr",
       "is_contra": false
     },
     {
@@ -104,7 +104,7 @@
       "name": "Prepaid Expenses",
       "category": "asset",
       "parent_code": "110000",
-      "normal_balance": "debit",
+      "normal_balance": "dr",
       "is_contra": false
     },
     {
@@ -112,7 +112,7 @@
       "name": "Prepaid Customs Duty",
       "category": "asset",
       "parent_code": "115000",
-      "normal_balance": "debit",
+      "normal_balance": "dr",
       "is_contra": false
     },
     {
@@ -120,7 +120,7 @@
       "name": "Prepaid Freight & Insurance",
       "category": "asset",
       "parent_code": "115000",
-      "normal_balance": "debit",
+      "normal_balance": "dr",
       "is_contra": false
     },
     {
@@ -128,7 +128,7 @@
       "name": "Non-Current Assets",
       "category": "asset",
       "parent_code": "100000",
-      "normal_balance": "debit",
+      "normal_balance": "dr",
       "is_contra": false
     },
     {
@@ -136,7 +136,7 @@
       "name": "Property, Plant & Equipment",
       "category": "asset",
       "parent_code": "120000",
-      "normal_balance": "debit",
+      "normal_balance": "dr",
       "is_contra": false
     },
     {
@@ -144,7 +144,7 @@
       "name": "Warehouse Buildings",
       "category": "asset",
       "parent_code": "121000",
-      "normal_balance": "debit",
+      "normal_balance": "dr",
       "is_contra": false
     },
     {
@@ -152,7 +152,7 @@
       "name": "Delivery Vehicles",
       "category": "asset",
       "parent_code": "121000",
-      "normal_balance": "debit",
+      "normal_balance": "dr",
       "is_contra": false
     },
     {
@@ -160,7 +160,7 @@
       "name": "Forklifts & Racking",
       "category": "asset",
       "parent_code": "121000",
-      "normal_balance": "debit",
+      "normal_balance": "dr",
       "is_contra": false
     },
     {
@@ -168,7 +168,7 @@
       "name": "Accumulated Depreciation",
       "category": "asset",
       "parent_code": "120000",
-      "normal_balance": "credit",
+      "normal_balance": "cr",
       "is_contra": true
     },
     {
@@ -176,7 +176,7 @@
       "name": "Acc. Dep. - Buildings",
       "category": "asset",
       "parent_code": "122000",
-      "normal_balance": "credit",
+      "normal_balance": "cr",
       "is_contra": true
     },
     {
@@ -184,7 +184,7 @@
       "name": "Acc. Dep. - Vehicles",
       "category": "asset",
       "parent_code": "122000",
-      "normal_balance": "credit",
+      "normal_balance": "cr",
       "is_contra": true
     },
     {
@@ -192,7 +192,7 @@
       "name": "Liabilities",
       "category": "liability",
       "parent_code": null,
-      "normal_balance": "credit",
+      "normal_balance": "cr",
       "is_contra": false
     },
     {
@@ -200,7 +200,7 @@
       "name": "Current Liabilities",
       "category": "liability",
       "parent_code": "200000",
-      "normal_balance": "credit",
+      "normal_balance": "cr",
       "is_contra": false
     },
     {
@@ -208,7 +208,7 @@
       "name": "Accounts Payable",
       "category": "liability",
       "parent_code": "210000",
-      "normal_balance": "credit",
+      "normal_balance": "cr",
       "is_contra": false
     },
     {
@@ -216,7 +216,7 @@
       "name": "Local Suppliers",
       "category": "liability",
       "parent_code": "211000",
-      "normal_balance": "credit",
+      "normal_balance": "cr",
       "is_contra": false
     },
     {
@@ -224,7 +224,7 @@
       "name": "Import Suppliers",
       "category": "liability",
       "parent_code": "211000",
-      "normal_balance": "credit",
+      "normal_balance": "cr",
       "is_contra": false
     },
     {
@@ -232,7 +232,7 @@
       "name": "Accrued Expenses",
       "category": "liability",
       "parent_code": "210000",
-      "normal_balance": "credit",
+      "normal_balance": "cr",
       "is_contra": false
     },
     {
@@ -240,7 +240,7 @@
       "name": "VAT Payable",
       "category": "liability",
       "parent_code": "210000",
-      "normal_balance": "credit",
+      "normal_balance": "cr",
       "is_contra": false
     },
     {
@@ -248,7 +248,7 @@
       "name": "Import Duties Payable",
       "category": "liability",
       "parent_code": "210000",
-      "normal_balance": "credit",
+      "normal_balance": "cr",
       "is_contra": false
     },
     {
@@ -256,7 +256,7 @@
       "name": "Non-Current Liabilities",
       "category": "liability",
       "parent_code": "200000",
-      "normal_balance": "credit",
+      "normal_balance": "cr",
       "is_contra": false
     },
     {
@@ -264,7 +264,7 @@
       "name": "Long-Term Loan",
       "category": "liability",
       "parent_code": "220000",
-      "normal_balance": "credit",
+      "normal_balance": "cr",
       "is_contra": false
     },
     {
@@ -272,7 +272,7 @@
       "name": "Equity",
       "category": "equity",
       "parent_code": null,
-      "normal_balance": "credit",
+      "normal_balance": "cr",
       "is_contra": false
     },
     {
@@ -280,7 +280,7 @@
       "name": "Owner's Equity",
       "category": "equity",
       "parent_code": "300000",
-      "normal_balance": "credit",
+      "normal_balance": "cr",
       "is_contra": false
     },
     {
@@ -288,7 +288,7 @@
       "name": "Owner's Capital",
       "category": "equity",
       "parent_code": "310000",
-      "normal_balance": "credit",
+      "normal_balance": "cr",
       "is_contra": false
     },
     {
@@ -296,7 +296,7 @@
       "name": "Owner's Drawings",
       "category": "equity",
       "parent_code": "310000",
-      "normal_balance": "debit",
+      "normal_balance": "dr",
       "is_contra": true
     },
     {
@@ -304,7 +304,7 @@
       "name": "Retained Earnings",
       "category": "equity",
       "parent_code": "310000",
-      "normal_balance": "credit",
+      "normal_balance": "cr",
       "is_contra": false
     },
     {
@@ -312,7 +312,7 @@
       "name": "Revenue",
       "category": "income",
       "parent_code": null,
-      "normal_balance": "credit",
+      "normal_balance": "cr",
       "is_contra": false
     },
     {
@@ -320,7 +320,7 @@
       "name": "Sales Revenue",
       "category": "income",
       "parent_code": "400000",
-      "normal_balance": "credit",
+      "normal_balance": "cr",
       "is_contra": false
     },
     {
@@ -328,7 +328,7 @@
       "name": "Wholesale Sales",
       "category": "income",
       "parent_code": "410000",
-      "normal_balance": "credit",
+      "normal_balance": "cr",
       "is_contra": false
     },
     {
@@ -336,7 +336,7 @@
       "name": "Export Sales",
       "category": "income",
       "parent_code": "410000",
-      "normal_balance": "credit",
+      "normal_balance": "cr",
       "is_contra": false
     },
     {
@@ -344,7 +344,7 @@
       "name": "Online Sales",
       "category": "income",
       "parent_code": "410000",
-      "normal_balance": "credit",
+      "normal_balance": "cr",
       "is_contra": false
     },
     {
@@ -352,7 +352,7 @@
       "name": "Other Revenue",
       "category": "income",
       "parent_code": "400000",
-      "normal_balance": "credit",
+      "normal_balance": "cr",
       "is_contra": false
     },
     {
@@ -360,7 +360,7 @@
       "name": "Freight Recovery",
       "category": "income",
       "parent_code": "420000",
-      "normal_balance": "credit",
+      "normal_balance": "cr",
       "is_contra": false
     },
     {
@@ -368,7 +368,7 @@
       "name": "Revenue Deductions",
       "category": "income",
       "parent_code": "400000",
-      "normal_balance": "debit",
+      "normal_balance": "dr",
       "is_contra": true
     },
     {
@@ -376,7 +376,7 @@
       "name": "Sales Discounts",
       "category": "income",
       "parent_code": "430000",
-      "normal_balance": "debit",
+      "normal_balance": "dr",
       "is_contra": true
     },
     {
@@ -384,7 +384,7 @@
       "name": "Sales Returns",
       "category": "income",
       "parent_code": "430000",
-      "normal_balance": "debit",
+      "normal_balance": "dr",
       "is_contra": true
     },
     {
@@ -392,7 +392,7 @@
       "name": "Cost of Goods Sold",
       "category": "expense",
       "parent_code": null,
-      "normal_balance": "debit",
+      "normal_balance": "dr",
       "is_contra": false
     },
     {
@@ -400,7 +400,7 @@
       "name": "Purchases",
       "category": "expense",
       "parent_code": "500000",
-      "normal_balance": "debit",
+      "normal_balance": "dr",
       "is_contra": false
     },
     {
@@ -408,7 +408,7 @@
       "name": "Local Purchases",
       "category": "expense",
       "parent_code": "510000",
-      "normal_balance": "debit",
+      "normal_balance": "dr",
       "is_contra": false
     },
     {
@@ -416,7 +416,7 @@
       "name": "Import Purchases",
       "category": "expense",
       "parent_code": "510000",
-      "normal_balance": "debit",
+      "normal_balance": "dr",
       "is_contra": false
     },
     {
@@ -424,7 +424,7 @@
       "name": "Landed Costs",
       "category": "expense",
       "parent_code": "500000",
-      "normal_balance": "debit",
+      "normal_balance": "dr",
       "is_contra": false
     },
     {
@@ -432,7 +432,7 @@
       "name": "Freight In",
       "category": "expense",
       "parent_code": "520000",
-      "normal_balance": "debit",
+      "normal_balance": "dr",
       "is_contra": false
     },
     {
@@ -440,7 +440,7 @@
       "name": "Customs Duty",
       "category": "expense",
       "parent_code": "520000",
-      "normal_balance": "debit",
+      "normal_balance": "dr",
       "is_contra": false
     },
     {
@@ -448,7 +448,7 @@
       "name": "Clearing & Forwarding",
       "category": "expense",
       "parent_code": "520000",
-      "normal_balance": "debit",
+      "normal_balance": "dr",
       "is_contra": false
     },
     {
@@ -456,7 +456,7 @@
       "name": "Inventory Adjustments",
       "category": "expense",
       "parent_code": "500000",
-      "normal_balance": "debit",
+      "normal_balance": "dr",
       "is_contra": false
     },
     {
@@ -464,7 +464,7 @@
       "name": "Stock Write-Offs",
       "category": "expense",
       "parent_code": "530000",
-      "normal_balance": "debit",
+      "normal_balance": "dr",
       "is_contra": false
     },
     {
@@ -472,7 +472,7 @@
       "name": "Operating Expenses",
       "category": "expense",
       "parent_code": null,
-      "normal_balance": "debit",
+      "normal_balance": "dr",
       "is_contra": false
     },
     {
@@ -480,7 +480,7 @@
       "name": "Payroll Expenses",
       "category": "expense",
       "parent_code": "600000",
-      "normal_balance": "debit",
+      "normal_balance": "dr",
       "is_contra": false
     },
     {
@@ -488,7 +488,7 @@
       "name": "Sales Staff Salaries",
       "category": "expense",
       "parent_code": "610000",
-      "normal_balance": "debit",
+      "normal_balance": "dr",
       "is_contra": false
     },
     {
@@ -496,7 +496,7 @@
       "name": "Warehouse Staff",
       "category": "expense",
       "parent_code": "610000",
-      "normal_balance": "debit",
+      "normal_balance": "dr",
       "is_contra": false
     },
     {
@@ -504,7 +504,7 @@
       "name": "Warehouse Operations",
       "category": "expense",
       "parent_code": "600000",
-      "normal_balance": "debit",
+      "normal_balance": "dr",
       "is_contra": false
     },
     {
@@ -512,7 +512,7 @@
       "name": "Rent & Utilities",
       "category": "expense",
       "parent_code": "620000",
-      "normal_balance": "debit",
+      "normal_balance": "dr",
       "is_contra": false
     },
     {
@@ -520,7 +520,7 @@
       "name": "Security & Cleaning",
       "category": "expense",
       "parent_code": "620000",
-      "normal_balance": "debit",
+      "normal_balance": "dr",
       "is_contra": false
     },
     {
@@ -528,7 +528,7 @@
       "name": "Transportation & Delivery",
       "category": "expense",
       "parent_code": "600000",
-      "normal_balance": "debit",
+      "normal_balance": "dr",
       "is_contra": false
     },
     {
@@ -536,7 +536,7 @@
       "name": "Fuel & Vehicle Maintenance",
       "category": "expense",
       "parent_code": "630000",
-      "normal_balance": "debit",
+      "normal_balance": "dr",
       "is_contra": false
     },
     {
@@ -544,7 +544,7 @@
       "name": "Selling Expenses",
       "category": "expense",
       "parent_code": "600000",
-      "normal_balance": "debit",
+      "normal_balance": "dr",
       "is_contra": false
     },
     {
@@ -552,7 +552,7 @@
       "name": "Commissions",
       "category": "expense",
       "parent_code": "640000",
-      "normal_balance": "debit",
+      "normal_balance": "dr",
       "is_contra": false
     },
     {
@@ -560,7 +560,7 @@
       "name": "Depreciation Expense",
       "category": "expense",
       "parent_code": "600000",
-      "normal_balance": "debit",
+      "normal_balance": "dr",
       "is_contra": false
     },
     {
@@ -568,7 +568,7 @@
       "name": "Other Income & Expense",
       "category": "income",
       "parent_code": null,
-      "normal_balance": "credit",
+      "normal_balance": "cr",
       "is_contra": false
     },
     {
@@ -576,7 +576,7 @@
       "name": "Interest Income",
       "category": "income",
       "parent_code": "700000",
-      "normal_balance": "credit",
+      "normal_balance": "cr",
       "is_contra": false
     },
     {
@@ -584,7 +584,7 @@
       "name": "Interest Expense",
       "category": "expense",
       "parent_code": "700000",
-      "normal_balance": "debit",
+      "normal_balance": "dr",
       "is_contra": false
     }
   ]

@@ -1,0 +1,39 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: chiefalry_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: erp_admin
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-erp_pass_123}
+      POSTGRES_DB: chiefalry_master
+    volumnes:
+      - chiefalry_db:/var/lib/postgresql/data
+    ports:
+      - "5432:5432" # Only for dev; remove for locked-down installs
+
+  backend:
+    image: chiefalry/backend:latest
+    container_name: chiefalry_backend
+    depends_on:
+      - db
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://erp_admin:${POSTGRES_PASSWORD:-erp_pass_123}@db:5432/chiefalry_master
+      RUST_LOG: info
+    command: ["/usr/local/bin/chiefalry", "migrate-and-serve"]
+    ports:
+      - "8000:8000"
+
+  frontend:
+    image: chiefalry/frontend:latest
+    container_name: chiefalry_frontend
+    depends_on:
+      - backend
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+
+volumnes: chiefalry_db

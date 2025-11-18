@@ -1,9 +1,9 @@
 // src/features/company/handlers.rs
 use crate::{
     errors::AppError,
-    features::company::services::CompanyService, // ← fixed path
+    features::company::services::CompanyService,
     middleware::Authenticated,
-    models::company::{Company, CreateCompanyDto, UpdateCompanyDto}, // ← fixed names
+    models::company::{Company, CreateCompanyDto, UpdateCompanyDto},
     routes::AppState,
 };
 use axum::{
@@ -32,7 +32,7 @@ async fn create_company(
     Authenticated { user_id, .. }: Authenticated,
     Json(payload): Json<CreateCompanyDto>,
 ) -> Result<Json<Company>, AppError> {
-    let company = CompanyService::create_company(state.clone(), user_id, payload).await?;
+    let company: Company = CompanyService::create_company(state.clone(), user_id, payload).await?;
     Ok(Json(company))
 }
 
@@ -41,7 +41,8 @@ async fn list_companies(
     State(state): State<Arc<AppState>>,
     Authenticated { user_id, .. }: Authenticated,
 ) -> Result<Json<Vec<Company>>, AppError> {
-    let companies = CompanyService::list_user_companies(state.clone(), user_id).await?;
+    let companies: Vec<Company> =
+        CompanyService::list_user_companies(state.clone(), user_id).await?;
     Ok(Json(companies))
 }
 
@@ -52,7 +53,7 @@ async fn get_company(
     Authenticated { user_id: _, .. }: Authenticated,
 ) -> Result<Json<Company>, AppError> {
     let repo = PostgresCompanyRepository;
-    let company = repo
+    let company: Company = repo
         .find_by_id(&state.master_pool, company_id)
         .await?
         .ok_or(AppError::NotFound("Company not found".into()))?;
@@ -67,7 +68,7 @@ async fn update_company(
     Authenticated { user_id, .. }: Authenticated,
     Json(payload): Json<UpdateCompanyDto>,
 ) -> Result<Json<Company>, AppError> {
-    let company =
+    let company: Company =
         CompanyService::update_company(state.clone(), user_id, company_id, payload).await?;
     Ok(Json(company))
 }

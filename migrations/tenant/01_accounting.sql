@@ -20,8 +20,8 @@ CREATE TABLE accounting.accounts (
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
     CONSTRAINT accounts_pkey PRIMARY KEY (uuid),
-    CONSTRAINT accounts_code_key UNIQUE (code),
     CONSTRAINT accounts_serial_id_key UNIQUE (serial_id),
+    CONSTRAINT accounts_code_key UNIQUE (code),
     CONSTRAINT accounts_parent_serial_fkey FOREIGN KEY (parent_serial) REFERENCES accounting.accounts(serial_id) ON DELETE
     SET NULL
 );
@@ -81,49 +81,34 @@ CREATE OR REPLACE FUNCTION accounting.post_transaction(
         p_lines jsonb
     ) RETURNS bigint LANGUAGE plpgsql AS $$
 DECLARE v_txn_uuid UUID;
-v_txn_serial_id BIGINT;
-v_total_debits NUMERIC(18, 2) := 0;
-v_total_credits NUMERIC(18, 2) := 0;
-v_line RECORD;
-v_account_uuid UUID;
-v_line_no INT := 0;
+    v_txn_serial_id BIGINT;
+    v_total_debits NUMERIC(18, 2) := 0;
+    v_total_credits NUMERIC(18, 2) := 0;
+    v_line RECORD;
+    v_account_uuid UUID;
+    v_line_no INT := 0;
 BEGIN -- Validate balance
-FOR v_line IN
-SELECT *
-FROM jsonb_to_recordset(p_lines) AS t(
-        account_ref JSONB,
-        debit NUMERIC,
-        credit NUMERIC,
-        memo TEXT
-    ) LOOP v_total_debits := v_total_debits + COALESCE(v_line.debit, 0);
-v_total_credits := v_total_credits + COALESCE(v_line.credit, 0);
+    FOR v_line IN
+    SELECT *
+    FROM jsonb_to_recordset(p_lines) AS t(
+            account_ref JSONB,
+            debit NUMERIC,
+            credit NUMERIC,
+            memo TEXT
+        ) LOOP v_total_debits := v_total_debits + COALESCE(v_line.debit, 0);
+    v_total_credits := v_total_credits + COALESCE(v_line.credit, 0);
 END LOOP;
 IF v_total_debits <> v_total_credits THEN RAISE EXCEPTION 'Unbalanced transaction: debits (%) != credits (%)',
-v_total_debits,
-v_total_credits;
+    v_total_debits,
+    v_total_credits;
 END IF;
 -- Insert transaction header
-INSERT INTO accounting.transactions(
-        txn_date,
-        reference,
-        description,
-        created_by,
-        module
-    )
-VALUES (
-        p_txn_date,
-        p_reference,
-        p_description,
-        p_created_by,
-        p_module
-    )
-RETURNING uuid,
-    serial_id INTO v_txn_uuid,
-    v_txn_serial_id;
+INSERT INTO accounting.transactions(txn_date,reference,description,created_by,module)
+VALUES (p_txn_date,p_reference,p_description,p_created_by,p_module)
+RETURNING uuid,serial_id INTO v_txn_uuid,v_txn_serial_id;
 -- Insert entries
 FOR v_line IN
-SELECT *
-FROM jsonb_to_recordset(p_lines) AS t(
+SELECT * FROM jsonb_to_recordset(p_lines) AS t(
         account_ref JSONB,
         debit NUMERIC,
         credit NUMERIC,
@@ -131,19 +116,19 @@ FROM jsonb_to_recordset(p_lines) AS t(
     ) LOOP v_line_no := v_line_no + 1;
 -- Resolve account_ref
 IF jsonb_typeof(v_line.account_ref) = 'string' THEN
-SELECT uuid INTO v_account_uuid
-FROM accounting.accounts
-WHERE code = (v_line.account_ref)::TEXT;
-IF v_account_uuid IS NULL THEN RAISE EXCEPTION 'Account with code % not found',
-v_line.account_ref;
-END IF;
+    SELECT uuid INTO v_account_uuid
+    FROM accounting.accounts
+    WHERE code = (v_line.account_ref)::TEXT;
+    IF v_account_uuid IS NULL THEN RAISE EXCEPTION 'Account with code % not found',
+    v_line.account_ref;
+    END IF;
 ELSIF jsonb_typeof(v_line.account_ref) = 'number' THEN
-SELECT uuid INTO v_account_uuid
-FROM accounting.accounts
-WHERE serial_id = (v_line.account_ref)::BIGINT;
-IF v_account_uuid IS NULL THEN RAISE EXCEPTION 'Account with serial_id % not found',
-v_line.account_ref;
-END IF;
+    SELECT uuid INTO v_account_uuid
+    FROM accounting.accounts
+    WHERE serial_id = (v_line.account_ref)::BIGINT;
+    IF v_account_uuid IS NULL THEN RAISE EXCEPTION 'Account with serial_id % not found',
+    v_line.account_ref;
+    END IF;
 ELSE RAISE EXCEPTION 'Invalid account_ref type: must be string (code) or number (serial_id)';
 END IF;
 -- Insert line

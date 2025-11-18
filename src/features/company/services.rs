@@ -110,7 +110,6 @@ impl CompanyService {
         Ok(())
     }
 
-    // Update stays the same — already safe
     pub async fn update_company(
         state: Arc<AppState>,
         _user_id: Uuid,

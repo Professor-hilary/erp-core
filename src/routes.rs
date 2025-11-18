@@ -54,9 +54,8 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         // CHECK THAT SERVER IS UP AND RUNING
         .route(
             "/",
-            get(|| async { "Yey! Service Up And Runing Successfully!\n" }),
+            get(|| async { "Yey! Service Up And Running Successfully!🇺🇬\n" }),
         )
-        //.route("/companies", post(create_company_handler))
         // PUBLIC ROUTES (no auth required)
         .nest("/api/auth", crate::features::auth::handlers::router())
         // PROTECTED ROUTES (require auth)

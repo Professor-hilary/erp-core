@@ -1,5 +1,5 @@
 -- ========================================
--- PAYABLES MODULE - FULL SCHEMA (UGANDA-READY)
+-- PAYABLES MODULE - FULL SCHEMA
 -- Run this ONCE after `accounting` schema exists
 -- ========================================
 

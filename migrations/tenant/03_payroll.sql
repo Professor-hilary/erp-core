@@ -44,10 +44,10 @@ CREATE TABLE IF NOT EXISTS payroll.payslips (
     employee_uuid uuid NOT NULL,
     gross_pay numeric(14, 2) NOT NULL,
     tax_deducted numeric(14, 2) DEFAULT 0,
-    nssf numeric(14, 2) DEFAULT 0,
+    social_security numeric(14, 2) DEFAULT 0,
     other_deductions numeric(14, 2) DEFAULT 0,
     net_pay numeric(14, 2) GENERATED ALWAYS AS (
-        ((gross_pay - tax_deducted) - nssf) - other_deductions
+        ((gross_pay - tax_deducted) - social_security) - other_deductions
     ) STORED,
     payment_method varchar(30) DEFAULT 'Bank Transfer',
     bank_account varchar(50),
@@ -92,7 +92,7 @@ SELECT
     COUNT(ps.uuid) AS employee_count,
     SUM(ps.gross_pay) AS total_gross,
     SUM(ps.tax_deducted) AS total_tax,
-    SUM(ps.nssf) AS total_nssf,
+    SUM(ps.social_security) AS total_social_security,
     SUM(ps.net_pay) AS total_net
 FROM payroll.payruns pr
 LEFT JOIN payroll.payslips ps ON ps.payrun_uuid = pr.uuid
@@ -107,7 +107,7 @@ DECLARE
     v_payrun payroll.payruns%ROWTYPE;
     v_total_gross numeric(14, 2) := 0;
     v_total_tax numeric(14, 2) := 0;
-    v_total_nssf numeric(14, 2) := 0;
+    v_total_social_security numeric(14, 2) := 0;
     v_total_net numeric(14, 2) := 0;
     v_txn_serial_id bigint;
     v_txn_uuid uuid;
@@ -132,9 +132,9 @@ BEGIN
     SELECT
         COALESCE(SUM(gross_pay), 0),
         COALESCE(SUM(tax_deducted), 0),
-        COALESCE(SUM(nssf), 0),
+        COALESCE(SUM(social_security), 0),
         COALESCE(SUM(net_pay), 0)
-    INTO v_total_gross, v_total_tax, v_total_nssf, v_total_net
+    INTO v_total_gross, v_total_tax, v_total_social_security, v_total_net
     FROM payroll.payslips
     WHERE payrun_uuid = v_payrun.uuid;
 
@@ -148,8 +148,8 @@ BEGIN
             'memo', format('Payroll Gross - Payrun %s', v_payrun.serial_id)),
         jsonb_build_object('account_ref', '2.1.2', 'debit', 0, 'credit', v_total_tax,
             'memo', 'PAYE Withholding'),
-        jsonb_build_object('account_ref', '2.1.3', 'debit', 0, 'credit', v_total_nssf,
-            'memo', 'NSSF Contribution'),
+        jsonb_build_object('account_ref', '2.1.3', 'debit', 0, 'credit', v_total_social_security,
+            'memo', 'Social Security Contribution'),
         jsonb_build_object('account_ref', '1.1.02', 'debit', 0, 'credit', v_total_net,
             'memo', format('Payroll Net Pay - Payrun %s', v_payrun.serial_id))
     );

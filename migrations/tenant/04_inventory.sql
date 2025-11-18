@@ -1,5 +1,5 @@
 -- ========================================
--- INVENTORY MODULE - FULL SCHEMA (UGANDA-READY)
+-- INVENTORY MODULE - FULL SCHEMA
 -- Run this ONCE in a fresh DB with `accounting` schema already present
 -- ========================================
 

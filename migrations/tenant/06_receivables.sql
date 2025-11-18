@@ -1,5 +1,5 @@
 -- ========================================
--- RECEIVABLES MODULE - FULL SCHEMA (GLOBAL-READY)
+-- RECEIVABLES MODULE - FULL SCHEMA
 -- Run this ONCE after `accounting` schema exists
 -- ========================================
 
@@ -97,7 +97,7 @@ CREATE TABLE IF NOT EXISTS receivables.payments (
     payment_number text NOT NULL,
     customer_uuid uuid NOT NULL,
     payment_date date NOT NULL,
-    method text NOT NULL CHECK (method IN ('Cash', 'Bank Transfer', 'Mobile Money', 'Card', 'Cheque')),
+    method text NOT NULL CHECK (method IN ('Cash', 'Bank Transfer', 'Mobile Money', 'Card', 'Cheque', 'Digital Payment')),
     reference text,
     amount numeric(18, 2) NOT NULL,
     currency text DEFAULT 'USD',
@@ -246,23 +246,18 @@ DECLARE
 BEGIN
     SELECT * INTO v_payment FROM receivables.payments WHERE serial_id = p_payment_serial_id;
     IF NOT FOUND THEN RAISE EXCEPTION 'Payment serial_id % not found', p_payment_serial_id; END IF;
-
     v_lines := jsonb_build_array(
         jsonb_build_object('account_ref', '1.1.02', 'debit', v_payment.amount, 'credit', 0, 'memo', v_payment.payment_number),
         jsonb_build_object('account_ref', '1.2.1', 'debit', 0, 'credit', v_payment.amount, 'memo', v_payment.payment_number)
     );
-
     v_txn_serial_id := accounting.post_transaction(
         v_payment.payment_date, v_payment.payment_number, 'Payment Receipt', p_user, 'payment', v_lines
     );
-
     SELECT uuid INTO v_txn_uuid FROM accounting.transactions WHERE serial_id = v_txn_serial_id;
     IF v_txn_uuid IS NULL THEN RAISE EXCEPTION 'Failed to retrieve GL transaction UUID'; END IF;
-
     UPDATE receivables.payments
     SET gl_transaction_uuid = v_txn_uuid, updated_at = now()
     WHERE serial_id = p_payment_serial_id;
-
     UPDATE receivables.customers
     SET current_balance = current_balance - v_payment.amount, updated_at = now()
     WHERE uuid = v_payment.customer_uuid;
@@ -282,14 +277,11 @@ DECLARE
 BEGIN
     SELECT uuid INTO v_payment_uuid FROM receivables.payments WHERE serial_id = p_payment_serial_id;
     SELECT uuid, balance_due INTO v_invoice_uuid, v_balance_due FROM receivables.invoices WHERE serial_id = p_invoice_serial_id;
-
     IF v_payment_uuid IS NULL THEN RAISE EXCEPTION 'Payment not found'; END IF;
     IF v_invoice_uuid IS NULL THEN RAISE EXCEPTION 'Invoice not found'; END IF;
     IF p_amount <= 0 THEN RAISE EXCEPTION 'Amount must be positive'; END IF;
-
     INSERT INTO receivables.payment_applications (payment_uuid, invoice_uuid, applied_amount, applied_date)
     VALUES (v_payment_uuid, v_invoice_uuid, p_amount, CURRENT_DATE);
-
     UPDATE receivables.invoices
     SET balance_due = balance_due - p_amount,
         status = CASE
@@ -299,7 +291,6 @@ BEGIN
         END,
         updated_at = now()
     WHERE uuid = v_invoice_uuid;
-
     UPDATE receivables.payments
     SET applied_amount = applied_amount + p_amount,
         updated_at = now()
