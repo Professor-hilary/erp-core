@@ -101,7 +101,7 @@
         },
         {
             "code": "121000",
-            "name": "Property, Plant & Equipment",
+            "name": "Property, Plant and Equipment",
             "category": "asset",
             "parent_code": "120000",
             "normal_balance": "dr",
@@ -109,7 +109,7 @@
         },
         {
             "code": "121100",
-            "name": "Land & Buildings",
+            "name": "Land and Buildings",
             "category": "asset",
             "parent_code": "121000",
             "normal_balance": "dr",
@@ -133,7 +133,7 @@
         },
         {
             "code": "121400",
-            "name": "School Buses",
+            "name": "Buses and Vans",
             "category": "asset",
             "parent_code": "121000",
             "normal_balance": "dr",
@@ -189,7 +189,7 @@
         },
         {
             "code": "212000",
-            "name": "Accrued Teacher Salaries",
+            "name": "Accrued Facilitator Salaries",
             "category": "liability",
             "parent_code": "210000",
             "normal_balance": "cr",
@@ -293,7 +293,7 @@
         },
         {
             "code": "410000",
-            "name": "Tuition & Academic Fees",
+            "name": "Tuition and Academic Fees",
             "category": "income",
             "parent_code": "400000",
             "normal_balance": "cr",
@@ -309,7 +309,7 @@
         },
         {
             "code": "412000",
-            "name": "Registration & Admission",
+            "name": "Registration and Admission",
             "category": "income",
             "parent_code": "410000",
             "normal_balance": "cr",
@@ -333,7 +333,7 @@
         },
         {
             "code": "421000",
-            "name": "Boarding & Meals",
+            "name": "Boarding and Meals",
             "category": "income",
             "parent_code": "420000",
             "normal_balance": "cr",
@@ -349,7 +349,7 @@
         },
         {
             "code": "423000",
-            "name": "Uniform & Book Sales",
+            "name": "Uniform and Book Sales",
             "category": "income",
             "parent_code": "420000",
             "normal_balance": "cr",
@@ -357,7 +357,7 @@
         },
         {
             "code": "430000",
-            "name": "Grants & Donations",
+            "name": "Grants and Donations",
             "category": "income",
             "parent_code": "400000",
             "normal_balance": "cr",
@@ -389,7 +389,7 @@
         },
         {
             "code": "441000",
-            "name": "Scholarships & Waivers",
+            "name": "Scholarships and Waivers",
             "category": "income",
             "parent_code": "440000",
             "normal_balance": "dr",
@@ -413,7 +413,7 @@
         },
         {
             "code": "511000",
-            "name": "Teacher Salaries",
+            "name": "Facilitator Salaries",
             "category": "expense",
             "parent_code": "510000",
             "normal_balance": "dr",
@@ -421,7 +421,7 @@
         },
         {
             "code": "512000",
-            "name": "Staff Development & Training",
+            "name": "Staff Development and Training",
             "category": "expense",
             "parent_code": "510000",
             "normal_balance": "dr",
@@ -437,7 +437,7 @@
         },
         {
             "code": "521000",
-            "name": "Textbooks & Stationery",
+            "name": "Textbooks and Stationery",
             "category": "expense",
             "parent_code": "520000",
             "normal_balance": "dr",
@@ -461,7 +461,7 @@
         },
         {
             "code": "531000",
-            "name": "Meals & Boarding Costs",
+            "name": "Meals and Boarding Costs",
             "category": "expense",
             "parent_code": "530000",
             "normal_balance": "dr",
@@ -469,7 +469,7 @@
         },
         {
             "code": "532000",
-            "name": "Medical & First Aid",
+            "name": "Medical and First Aid",
             "category": "expense",
             "parent_code": "530000",
             "normal_balance": "dr",
@@ -509,7 +509,7 @@
         },
         {
             "code": "620000",
-            "name": "Facilities & Maintenance",
+            "name": "Facilities and Maintenance",
             "category": "expense",
             "parent_code": "600000",
             "normal_balance": "dr",
@@ -525,7 +525,7 @@
         },
         {
             "code": "622000",
-            "name": "Repairs & Maintenance",
+            "name": "Repairs and Maintenance",
             "category": "expense",
             "parent_code": "620000",
             "normal_balance": "dr",
@@ -541,7 +541,7 @@
         },
         {
             "code": "631000",
-            "name": "Fuel & Bus Maintenance",
+            "name": "Fuel and Bus Maintenance",
             "category": "expense",
             "parent_code": "630000",
             "normal_balance": "dr",
@@ -557,7 +557,7 @@
         },
         {
             "code": "700000",
-            "name": "Other Income & Expense",
+            "name": "Other Income and Expense",
             "category": "income",
             "parent_code": null,
             "normal_balance": "cr",

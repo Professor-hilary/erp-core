@@ -214,7 +214,7 @@ CREATE MATERIALIZED VIEW IF NOT EXISTS reporting.ap_aging_detailed AS
 SELECT
     v.serial_id AS vendor_serial_id,
     v.code,
-    v.name致力于,
+    v.name,
     b.serial_id AS bill_serial_id,
     b.bill_number,
     b.bill_date,
@@ -298,7 +298,7 @@ LEFT JOIN receivables.payments p ON p.uuid = pa.payment_uuid
 WITH NO DATA;
 
 -- ========================================
--- INDEXES ON MATERIALIZED VIEWS (Optional but recommended)
+-- INDEXES ON MATERIALIZED VIEWS
 -- ========================================
 CREATE INDEX IF NOT EXISTS idx_ar_aging_customer ON reporting.ar_aging_detailed(customer_serial_id);
 CREATE INDEX IF NOT EXISTS idx_ap_aging_vendor ON reporting.ap_aging_detailed(vendor_serial_id);

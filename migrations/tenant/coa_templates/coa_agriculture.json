@@ -68,22 +68,6 @@
             "is_contra": false
         },
         {
-            "code": "121100",
-            "name": "Maize in Field",
-            "category": "asset",
-            "parent_code": "121000",
-            "normal_balance": "dr",
-            "is_contra": false
-        },
-        {
-            "code": "121200",
-            "name": "Coffee Plantation",
-            "category": "asset",
-            "parent_code": "121000",
-            "normal_balance": "dr",
-            "is_contra": false
-        },
-        {
             "code": "122000",
             "name": "Livestock",
             "category": "asset",
@@ -92,42 +76,10 @@
             "is_contra": false
         },
         {
-            "code": "122100",
-            "name": "Dairy Cattle",
-            "category": "asset",
-            "parent_code": "122000",
-            "normal_balance": "dr",
-            "is_contra": false
-        },
-        {
-            "code": "122200",
-            "name": "Poultry",
-            "category": "asset",
-            "parent_code": "122000",
-            "normal_balance": "dr",
-            "is_contra": false
-        },
-        {
             "code": "123000",
             "name": "Harvested Produce Inventory",
             "category": "asset",
             "parent_code": "110000",
-            "normal_balance": "dr",
-            "is_contra": false
-        },
-        {
-            "code": "123100",
-            "name": "Grain in Storage",
-            "category": "asset",
-            "parent_code": "123000",
-            "normal_balance": "dr",
-            "is_contra": false
-        },
-        {
-            "code": "123200",
-            "name": "Milk Inventory",
-            "category": "asset",
-            "parent_code": "123000",
             "normal_balance": "dr",
             "is_contra": false
         },
@@ -150,6 +102,14 @@
         {
             "code": "132000",
             "name": "Prepaid Insurance",
+            "category": "asset",
+            "parent_code": "130000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "132000",
+            "name": "Other Prepayments",
             "category": "asset",
             "parent_code": "130000",
             "normal_balance": "dr",
@@ -196,34 +156,10 @@
             "is_contra": false
         },
         {
-            "code": "142100",
-            "name": "Tractors",
-            "category": "asset",
-            "parent_code": "142000",
-            "normal_balance": "dr",
-            "is_contra": false
-        },
-        {
-            "code": "142200",
-            "name": "Harvesters",
-            "category": "asset",
-            "parent_code": "142000",
-            "normal_balance": "dr",
-            "is_contra": false
-        },
-        {
             "code": "143000",
             "name": "Accumulated Depreciation",
             "category": "asset",
             "parent_code": "140000",
-            "normal_balance": "cr",
-            "is_contra": true
-        },
-        {
-            "code": "143100",
-            "name": "Acc. Dep. - Tractors",
-            "category": "asset",
-            "parent_code": "143000",
             "normal_balance": "cr",
             "is_contra": true
         },
@@ -267,6 +203,15 @@
             "normal_balance": "cr",
             "is_contra": false
         },
+
+        {
+            "code": "214000",
+            "name": "Other Accrued Expenditures",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "cr",
+            "is_contra": false
+        },
         {
             "code": "220000",
             "name": "Non-Current Liabilities",
@@ -286,6 +231,15 @@
         {
             "code": "222000",
             "name": "Equipment Loan",
+            "category": "liability",
+            "parent_code": "220000",
+            "normal_balance": "cr",
+            "is_contra": false
+        },
+
+        {
+            "code": "223000",
+            "name": "Lease Liability",
             "category": "liability",
             "parent_code": "220000",
             "normal_balance": "cr",
@@ -341,17 +295,25 @@
         },
         {
             "code": "410000",
-            "name": "Crop Sales Revenue",
+            "name": "Sales Revenue",
             "category": "income",
             "parent_code": "400000",
             "normal_balance": "cr",
             "is_contra": false
         },
         {
-            "code": "420000",
+            "code": "411000",
+            "name": "Crop Sales Revenue",
+            "category": "income",
+            "parent_code": "410000",
+            "normal_balance": "cr",
+            "is_contra": false
+        },
+        {
+            "code": "412000",
             "name": "Livestock Sales Revenue",
             "category": "income",
-            "parent_code": "400000",
+            "parent_code": "410000",
             "normal_balance": "cr",
             "is_contra": false
         },
@@ -374,6 +336,14 @@
         {
             "code": "450000",
             "name": "Fair Value Loss on Biological Assets",
+            "category": "income",
+            "parent_code": "400000",
+            "normal_balance": "dr",
+            "is_contra": true
+        },
+        {
+            "code": "460000",
+            "name": "Agricural Services",
             "category": "income",
             "parent_code": "400000",
             "normal_balance": "dr",
@@ -413,7 +383,7 @@
         },
         {
             "code": "540000",
-            "name": "Fuel & Equipment Maintenance",
+            "name": "Fuel & Equipment",
             "category": "expense",
             "parent_code": "500000",
             "normal_balance": "dr",
@@ -422,6 +392,22 @@
         {
             "code": "550000",
             "name": "Irrigation & Water Costs",
+            "category": "expense",
+            "parent_code": "500000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "560000",
+            "name": "Utility Costs",
+            "category": "expense",
+            "parent_code": "500000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "570000",
+            "name": "Other Direct Costs",
             "category": "expense",
             "parent_code": "500000",
             "normal_balance": "dr",

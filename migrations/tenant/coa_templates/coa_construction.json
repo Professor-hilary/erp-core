@@ -84,6 +84,22 @@
             "is_contra": false
         },
         {
+            "code": "117000",
+            "name": "Short Term Investments",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "118000",
+            "name": "Other Prepayments",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
             "code": "120000",
             "name": "Non-Current Assets",
             "category": "asset",
@@ -142,6 +158,14 @@
         {
             "code": "123200",
             "name": "Acc. Dep. - Vehicles",
+            "category": "asset",
+            "parent_code": "123000",
+            "normal_balance": "cr",
+            "is_contra": true
+        },
+        {
+            "code": "12400",
+            "name": "Long Term Investments",
             "category": "asset",
             "parent_code": "123000",
             "normal_balance": "cr",
@@ -212,6 +236,30 @@
             "is_contra": false
         },
         {
+            "code": "216000",
+            "name": "Expenditures Payable",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "cr",
+            "is_contra": false
+        },
+        {
+            "code": "217000",
+            "name": "Short Term Loans",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "cr",
+            "is_contra": false
+        },
+        {
+            "code": "218000",
+            "name": "Other Short Term Liabilities",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "cr",
+            "is_contra": false
+        },
+        {
             "code": "220000",
             "name": "Non-Current Liabilities",
             "category": "liability",
@@ -221,7 +269,23 @@
         },
         {
             "code": "221000",
-            "name": "Long-Term Loan - Equipment",
+            "name": "Long-Term Loan",
+            "category": "liability",
+            "parent_code": "220000",
+            "normal_balance": "cr",
+            "is_contra": false
+        },
+        {
+            "code": "222000",
+            "name": "Warranty Liabilities",
+            "category": "liability",
+            "parent_code": "220000",
+            "normal_balance": "cr",
+            "is_contra": false
+        },
+        {
+            "code": "223000",
+            "name": "Other Long Term Liabilities",
             "category": "liability",
             "parent_code": "220000",
             "normal_balance": "cr",
@@ -308,6 +372,22 @@
             "is_contra": true
         },
         {
+            "code": "414000",
+            "name": "Material and Equipment Sales",
+            "category": "income",
+            "parent_code": "400000",
+            "normal_balance": "dr",
+            "is_contra": true
+        },
+        {
+            "code": "415000",
+            "name": "Other Revenues",
+            "category": "income",
+            "parent_code": "400000",
+            "normal_balance": "dr",
+            "is_contra": true
+        },
+        {
             "code": "500000",
             "name": "Cost of Construction",
             "category": "expense",
@@ -317,7 +397,7 @@
         },
         {
             "code": "510000",
-            "name": "Direct Materials",
+            "name": "Materials and Supplies",
             "category": "expense",
             "parent_code": "500000",
             "normal_balance": "dr",
@@ -325,14 +405,14 @@
         },
         {
             "code": "520000",
-            "name": "Direct Labor",
+            "name": "Labor Costs",
             "category": "expense",
             "parent_code": "500000",
             "normal_balance": "dr",
             "is_contra": false
         },
         {
-            "code": "521000",
+            "code": "530000",
             "name": "Subcontractor Costs",
             "category": "expense",
             "parent_code": "500000",
@@ -341,7 +421,7 @@
         },
         {
             "code": "530000",
-            "name": "Equipment Usage Expense",
+            "name": "Equipment Costs",
             "category": "expense",
             "parent_code": "500000",
             "normal_balance": "dr",
@@ -357,9 +437,17 @@
         },
         {
             "code": "532000",
-            "name": "Equipment Rental",
+            "name": "Equipment Lease",
             "category": "expense",
             "parent_code": "530000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "540000",
+            "name": "Other Direct Costs",
+            "category": "expense",
+            "parent_code": "500000",
             "normal_balance": "dr",
             "is_contra": false
         },
@@ -374,6 +462,38 @@
         {
             "code": "541000",
             "name": "Site Office Expense",
+            "category": "expense",
+            "parent_code": "540000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "542000",
+            "name": "Security",
+            "category": "expense",
+            "parent_code": "540000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "543000",
+            "name": "Utilities",
+            "category": "expense",
+            "parent_code": "540000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "544000",
+            "name": "Equipment Insurance",
+            "category": "expense",
+            "parent_code": "540000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "545000",
+            "name": "Other Overheads",
             "category": "expense",
             "parent_code": "540000",
             "normal_balance": "dr",

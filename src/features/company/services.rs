@@ -46,14 +46,12 @@ impl CompanyService {
         let tenant_pool_result = PgPool::connect(&tenant_db_uri).await;
         let tenant_pool = match tenant_pool_result {
             Ok(pool) => {
-                if sqlx::migrate!("./migrations/tenant")
-                    .run(&pool)
-                    .await
-                    .is_ok()
-                {
-                    Some(pool)
-                } else {
-                    None
+                match sqlx::migrate!("./migrations/tenant")
+                                    .run(&pool)
+                                    .await
+                                    .is_ok() {
+                    true => Some(pool),
+                    false => None,
                 }
             }
             Err(_) => None,

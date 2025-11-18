@@ -301,7 +301,7 @@
         },
         {
             "code": "510000",
-            "name": "Direct Materials Used",
+            "name": "Direct Materials",
             "category": "expense",
             "parent_code": "500000",
             "normal_balance": "dr",

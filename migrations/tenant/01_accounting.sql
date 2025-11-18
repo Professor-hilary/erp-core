@@ -91,11 +91,11 @@ BEGIN -- Validate balance
     FOR v_line IN
     SELECT *
     FROM jsonb_to_recordset(p_lines) AS t(
-            account_ref JSONB,
-            debit NUMERIC,
-            credit NUMERIC,
-            memo TEXT
-        ) LOOP v_total_debits := v_total_debits + COALESCE(v_line.debit, 0);
+        account_ref JSONB,
+        debit NUMERIC,
+        credit NUMERIC,
+        memo TEXT
+    ) LOOP v_total_debits := v_total_debits + COALESCE(v_line.debit, 0);
     v_total_credits := v_total_credits + COALESCE(v_line.credit, 0);
 END LOOP;
 IF v_total_debits <> v_total_credits THEN RAISE EXCEPTION 'Unbalanced transaction: debits (%) != credits (%)',
@@ -133,23 +133,22 @@ ELSE RAISE EXCEPTION 'Invalid account_ref type: must be string (code) or number 
 END IF;
 -- Insert line
 INSERT INTO accounting.transaction_entries(
-        transaction_uuid,
-        account_uuid,
-        line_no,
-        amount,
-        debit,
-        credit,
-        memo
-    )
-VALUES (
-        v_txn_uuid,
-        v_account_uuid,
-        v_line_no,
-        COALESCE(v_line.debit, 0) + COALESCE(v_line.credit, 0),
-        COALESCE(v_line.debit, 0),
-        COALESCE(v_line.credit, 0),
-        v_line.memo
-    );
+    transaction_uuid,
+    account_uuid,
+    line_no,
+    amount,
+    debit,
+    credit,
+    memo
+) VALUES (
+    v_txn_uuid,
+    v_account_uuid,
+    v_line_no,
+    COALESCE(v_line.debit, 0) + COALESCE(v_line.credit, 0),
+    COALESCE(v_line.debit, 0),
+    COALESCE(v_line.credit, 0),
+    v_line.memo
+);
 END LOOP;
 RETURN v_txn_serial_id;
 END;

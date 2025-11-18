@@ -117,7 +117,7 @@
         },
         {
             "code": "115200",
-            "name": "Prepaid ERA License Fees",
+            "name": "Prepaid License Fees",
             "category": "asset",
             "parent_code": "115000",
             "normal_balance": "dr",
@@ -253,7 +253,7 @@
         },
         {
             "code": "214000",
-            "name": "Taxes Payable (VAT, PAYE)",
+            "name": "Taxes Payable",
             "category": "liability",
             "parent_code": "210000",
             "normal_balance": "cr",
@@ -420,14 +420,6 @@
             "is_contra": true
         },
         {
-            "code": "441000",
-            "name": "Bad Debt Expense",
-            "category": "income",
-            "parent_code": "440000",
-            "normal_balance": "dr",
-            "is_contra": true
-        },
-        {
             "code": "500000",
             "name": "Cost of Operations",
             "category": "expense",
@@ -533,7 +525,7 @@
         },
         {
             "code": "621000",
-            "name": "ERA License Fees",
+            "name": "License Fees",
             "category": "expense",
             "parent_code": "620000",
             "normal_balance": "dr",
@@ -550,6 +542,14 @@
         {
             "code": "640000",
             "name": "Insurance Expense",
+            "category": "expense",
+            "parent_code": "600000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "650000",
+            "name": "Bad Debt Expense",
             "category": "expense",
             "parent_code": "600000",
             "normal_balance": "dr",
