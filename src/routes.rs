@@ -1,3 +1,4 @@
+// src/routes.rs
 use axum::{
     Extension, Router,
     extract::Request,
@@ -6,31 +7,12 @@ use axum::{
     routing::get,
 };
 
-use dashmap::DashMap;
-use sqlx::PgPool;
+use crate::AppState;
+
 use std::{sync::Arc, time::Duration};
 use tower_http::{classify::ServerErrorsFailureClass, cors::CorsLayer, trace::TraceLayer};
-use uuid::Uuid;
 
 use crate::middleware::{Authenticated, layer::auth_middleware};
-
-#[allow(unused)]
-pub struct AppState {
-    pub master_pool: PgPool,
-    pub tenant_pools: DashMap<Uuid, PgPool>, // map tenant_id -> pool
-    pub jwt_secret: String,
-}
-
-#[allow(dead_code)]
-impl AppState {
-    pub fn new(master_pool: PgPool, jwt_secret: String) -> Self {
-        Self {
-            master_pool,
-            jwt_secret,
-            tenant_pools: DashMap::new(),
-        }
-    }
-}
 
 pub fn create_router(state: Arc<AppState>) -> Router {
     // Protected Routes

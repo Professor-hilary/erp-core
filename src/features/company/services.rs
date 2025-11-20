@@ -1,11 +1,11 @@
 // src/features/company/service.rs
 use crate::{
-    errors::AppError,
     features::company::repository::{CompanyRepository, PostgresCompanyRepository},
+    infrastructure::responses::AppError,
     models::company::{Company, CreateCompanyDto},
-    routes::AppState,
+    state::AppState,
 };
-use sqlx::PgPool;
+use sqlx::postgres::PgPoolOptions;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -19,72 +19,91 @@ impl CompanyService {
         user_id: Uuid,
         req: CreateCompanyDto,
     ) -> Result<Company, AppError> {
-        let slug: String = req.name.to_lowercase().replace(" ", "-");
-        let tenant_db_name: String = format!("tenant_{}_{}", user_id.simple(), slug);
+        let slug = req.name.to_lowercase().replace(' ', "-");
+        let tenant_db_name = format!("tenant_{}_{}", user_id.simple(), slug);
 
-        // Use env vars properly (with fallbacks)
-        let db_user: String = std::env::var("TENANT_DB_USER").unwrap_or("postgres".into());
-        let db_pass: String = std::env::var("TENANT_DB_PASSWORD").unwrap_or("password".into());
-        let db_host: String = std::env::var("TENANT_DB_HOST").unwrap_or("localhost:5432".into());
-        let tenant_db_uri: String = format!("postgres://{db_user}:{db_pass}@{db_host}/{tenant_db_name}");
+        let mut tx = state
+            .master_pool
+            .begin()
+            .await
+            .map_err(|_| AppError::Internal("Failed to start transaction".into()))?;
 
-        // Start transaction on master DB
-        let mut tx: sqlx::Transaction<'_, sqlx::Postgres> = state.master_pool.begin().await?;
+        // 1. Try to create database + role (fails silently in managed DBs)
+        let create_db_sql = format!(r#"CREATE DATABASE "{}""#, tenant_db_name);
+        let password = Self::generate_secure_password(32);
+        let create_role_sql = format!(
+            r#"CREATE ROLE "{}" WITH LOGIN PASSWORD '{}'"#,
+            tenant_db_name, password
+        );
 
-        // 1. Create the tenant database (only if your role has CREATEDB)
-        // If this fails in prod (most hosted DBs block it), it will return an error — that's OK!
-        let db_create_result: Result<sqlx::postgres::PgQueryResult, sqlx::Error> = sqlx::query(&format!(r#"CREATE DATABASE "{}""#, tenant_db_name))
+        let _db_provisioned = sqlx::query(&create_db_sql).execute(&mut *tx).await.is_ok()
+            && sqlx::query(&create_role_sql)
+                .execute(&mut *tx)
+                .await
+                .is_ok()
+            && sqlx::query(&format!(
+                r#"GRANT ALL ON DATABASE "{}" TO "{}""#,
+                tenant_db_name, tenant_db_name
+            ))
             .execute(&mut *tx)
-            .await;
+            .await
+            .is_ok();
 
-        if let Err(e) = db_create_result {
-            // In production, you might want to fall back to a shared schema or queue a job
-            tracing::warn!("Could not create tenant DB (normal in managed DBs): {e}");
-            // Continue anyway — we'll mark it as provisioning failed later if needed
-        }
-
-        // 2. Try to connect and run migrations on tenant DB
-        let tenant_pool_result: Result<sqlx::Pool<sqlx::Postgres>, sqlx::Error> = PgPool::connect(&tenant_db_uri).await;
-        let tenant_pool: Option<sqlx::Pool<sqlx::Postgres>> = match tenant_pool_result {
+        // 2. Connect to tenant DB and run migrations
+        let tenant_url = state.tenant_db_url(&tenant_db_name);
+        let tenant_pool = match PgPoolOptions::new()
+            .max_connections(10)
+            .connect(&tenant_url)
+            .await
+        {
             Ok(pool) => {
-                match sqlx::migrate!("./migrations/tenant")
+                if sqlx::migrate!("./migrations/tenant")
                     .run(&pool)
                     .await
-                    .is_ok()
+                    .is_err()
                 {
-                    true => Some(pool),
-                    false => None,
+                    return Err(AppError::Internal("Tenant migration failed".into()));
                 }
+                Some(pool)
             }
             Err(_) => None,
         };
 
-        // 3. Insert company record in master
-        let repo: PostgresCompanyRepository = PostgresCompanyRepository;
-        let company: Company = repo
+        // 3. Insert company record
+        let company = PostgresCompanyRepository
             .create(
-                &mut *tx, // We accept any Executor
+                &mut *tx,
                 &req.name,
                 &slug,
                 &tenant_db_name,
-                &tenant_db_uri,
+                &tenant_url,
                 &req.industry,
                 &req.business_type,
                 user_id,
             )
-            .await?;
+            .await
+            .map_err(|_| AppError::Internal("Failed to create company record".into()))?;
 
-        // 4. Make creator admin
-        repo.assign_user_as_admin(&mut *tx, user_id, company.uuid)
-            .await?;
+        // 4. Make user admin
+        PostgresCompanyRepository
+            .assign_user_as_admin(&mut *tx, user_id, company.uuid)
+            .await
+            .map_err(|_| AppError::Internal("Failed to assign admin role".into()))?;
 
-        // 5. Cache tenant pool if we successfully created it
+        // 5. Cache pool if created
         if let Some(pool) = tenant_pool {
             state.tenant_pools.insert(company.uuid, pool);
         }
 
-        tx.commit().await?;
+        tx.commit()
+            .await
+            .map_err(|_| AppError::Internal("Failed to commit transaction".into()))?;
+
         Ok(company)
+    }
+
+    fn generate_secure_password(_size: i32) -> String {
+        return "".to_string();
     }
 
     /// # Delete Company
@@ -100,7 +119,7 @@ impl CompanyService {
         let _company: Company = repo
             .find_by_id(&state.master_pool, company_id)
             .await?
-            .ok_or(AppError::NotFound("Company not found".into()))?;
+            .ok_or(AppError::Internal("Company not found".into()))?;
 
         // Just mark as deleted — data stays forever
         repo.soft_delete(&state.master_pool, company_id).await?;
@@ -120,7 +139,13 @@ impl CompanyService {
         req: crate::models::company::UpdateCompanyDto,
     ) -> Result<Company, AppError> {
         let repo: PostgresCompanyRepository = PostgresCompanyRepository;
-        repo.update(&state.master_pool, company_id, req).await
+
+        let company = repo
+            .update(&state.master_pool, company_id, req)
+            .await
+            .map_err(|_| AppError::NotFound)?;
+
+        Ok(company)
     }
 
     /// # List Companies

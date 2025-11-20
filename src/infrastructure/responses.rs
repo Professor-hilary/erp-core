@@ -16,16 +16,6 @@ pub struct ApiResponse {
     pub meta: Option<Value>,
 }
 
-#[derive(serde::Serialize)]
-pub struct ErrResponse {
-    pub status: u16,
-    pub error: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub message: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub details: Option<Value>,
-}
-
 pub enum AppError {
     Unauthorized(String),
     Forbidden(String),
@@ -117,87 +107,6 @@ impl ApiResponse {
     #[allow(unused)]
     pub fn forbidden(message: &str) -> Response {
         Self::empty(StatusCode::FORBIDDEN, message)
-    }
-}
-
-impl ErrResponse {
-    /// Construct generic json message body for subscribing response codes.
-    pub fn build(
-        status: StatusCode,
-        error: &str,
-        message: Option<&str>,
-        details: Option<Value>,
-    ) -> Response {
-        (
-            status,
-            Json(ErrResponse {
-                status: status.as_u16(),
-                error: error.to_string(),
-                message: message.map(|s| s.to_string()),
-                details,
-            }),
-        )
-            .into_response()
-    }
-
-    #[allow(unused)]
-    pub fn not_found() -> Response {
-        Self::build(
-            StatusCode::NOT_FOUND,
-            "Not Found",
-            Some("Resource not found"),
-            None,
-        )
-    }
-
-    #[allow(unused)]
-    pub fn unauthorized(message: impl AsRef<str>) -> Response {
-        Self::build(
-            StatusCode::UNAUTHORIZED,
-            "Unauthorized",
-            Some(message.as_ref()),
-            None,
-        )
-    }
-
-    #[allow(unused)]
-    pub fn forbidden(message: impl AsRef<str>) -> Response {
-        Self::build(
-            StatusCode::FORBIDDEN,
-            "Forbidden",
-            Some(message.as_ref()),
-            None,
-        )
-    }
-
-    #[allow(unused)]
-    pub fn bad_request(message: impl AsRef<str>) -> Response {
-        Self::build(
-            StatusCode::BAD_REQUEST,
-            "Bad Request",
-            Some(message.as_ref()),
-            None,
-        )
-    }
-
-    #[allow(unused)]
-    pub fn conflict(message: impl AsRef<str>) -> Response {
-        Self::build(
-            StatusCode::CONFLICT,
-            "Conflict",
-            Some(message.as_ref()),
-            None,
-        )
-    }
-
-    #[allow(unused)]
-    pub fn internal(message: impl AsRef<str>) -> Response {
-        Self::build(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            "Internal Server Error",
-            Some(message.as_ref()),
-            None,
-        )
     }
 }
 

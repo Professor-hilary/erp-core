@@ -20,6 +20,8 @@ pub enum AppError {
     Validation(String),
     #[error("Not found")]
     NotFound(String),
+    #[error("Not found")]
+    Internal(String),
 }
 
 impl IntoResponse for AppError {
@@ -33,6 +35,7 @@ impl IntoResponse for AppError {
             AppError::Auth(msg) => (StatusCode::UNAUTHORIZED, "Authentication error", msg),
             AppError::Validation(msg) => (StatusCode::BAD_REQUEST, "Validation error", msg),
             AppError::NotFound(msg) => (StatusCode::NOT_FOUND, "Not Found", msg),
+            AppError::Internal(msg) => (StatusCode::INTERNAL_SERVER_ERROR, "Internal Error", msg),
         };
 
         let error_response: ErrorResponse = ErrorResponse {

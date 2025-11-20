@@ -13,7 +13,7 @@ use crate::{
     infrastructure::responses::ApiResponse,
     middleware::Authenticated,
     models::{customers::CreateCustomer, invoice::CreateInvoice},
-    routes::AppState,
+    state::AppState,
 };
 
 pub fn router() -> Router<Arc<AppState>> {

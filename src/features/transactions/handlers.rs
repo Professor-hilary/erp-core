@@ -8,7 +8,7 @@ use crate::{
     infrastructure::responses::ApiResponse,
     middleware::Authenticated,
     models::transaction::CreateTransaction,
-    routes::AppState,
+    state::AppState,
 };
 use axum::{
     Extension, Router,

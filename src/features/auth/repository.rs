@@ -36,12 +36,12 @@ impl UserRepository for PostgresUserRepo {
         email: &str,
         password_hash: &str,
     ) -> Result<User, AppError> {
-        let user = sqlx::query_as::<_, User>(
+        let user: User = sqlx::query_as::<_, User>(
             "INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING *",
         )
         .bind(email)
         .bind(password_hash)
-        .fetch_one( pool)
+        .fetch_one(pool)
         .await?;
         Ok(user)
     }
@@ -49,7 +49,7 @@ impl UserRepository for PostgresUserRepo {
     async fn find_by_email(&self, pool: &PgPool, email: &str) -> Result<Option<User>, AppError> {
         let user = sqlx::query_as::<_, User>("SELECT * FROM users WHERE email = $1")
             .bind(email)
-            .fetch_optional( pool)
+            .fetch_optional(pool)
             .await?;
         Ok(user)
     }

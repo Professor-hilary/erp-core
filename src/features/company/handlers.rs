@@ -1,10 +1,11 @@
 // src/features/company/handlers.rs
 use crate::{
-    errors::AppError,
     features::company::services::CompanyService,
+    //errors::AppError,
+    infrastructure::responses::AppError,
     middleware::Authenticated,
     models::company::{Company, CreateCompanyDto, UpdateCompanyDto},
-    routes::AppState,
+    state::AppState,
 };
 use axum::{
     Json, Router,
@@ -41,8 +42,9 @@ async fn list_companies(
     State(state): State<Arc<AppState>>,
     Authenticated { user_id, .. }: Authenticated,
 ) -> Result<Json<Vec<Company>>, AppError> {
-    let companies: Vec<Company> =
-        CompanyService::list_user_companies(state.clone(), user_id).await?;
+    let companies: Vec<Company> = CompanyService::list_user_companies(state.clone(), user_id)
+        .await
+        .map_err(|_| AppError::Internal("Failed to assign admin role".into()))?;
     Ok(Json(companies))
 }
 
@@ -53,11 +55,11 @@ async fn get_company(
     Authenticated { user_id: _, .. }: Authenticated,
 ) -> Result<Json<Company>, AppError> {
     let repo = PostgresCompanyRepository;
-    let company: Company = repo
+    let company = repo
         .find_by_id(&state.master_pool, company_id)
-        .await?
-        .ok_or(AppError::NotFound("Company not found".into()))?;
-
+        .await
+        .map_err(|_| AppError::Internal("Failed to assign admin role".into()))?
+        .ok_or(AppError::NotFound)?;
     Ok(Json(company))
 }
 
@@ -69,7 +71,9 @@ async fn update_company(
     Json(payload): Json<UpdateCompanyDto>,
 ) -> Result<Json<Company>, AppError> {
     let company: Company =
-        CompanyService::update_company(state.clone(), user_id, company_id, payload).await?;
+        CompanyService::update_company(state.clone(), user_id, company_id, payload)
+            .await
+            .map_err(|_| AppError::Internal("Failed to assign admin role".into()))?;
     Ok(Json(company))
 }
 

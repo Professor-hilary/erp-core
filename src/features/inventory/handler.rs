@@ -16,7 +16,7 @@ use crate::{
         inventory_movement::{PostPurchase, PostSale},
         item::CreateItem,
     },
-    routes::AppState,
+    state::AppState,
 };
 
 pub fn router() -> Router<Arc<AppState>> {

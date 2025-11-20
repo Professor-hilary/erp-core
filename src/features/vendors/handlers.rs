@@ -15,7 +15,7 @@ use crate::{
     infrastructure::responses::ApiResponse,
     middleware::Authenticated,
     models::{bills::CreateBill, vendor::CreateVendor},
-    routes::AppState,
+    state::AppState,
 };
 
 pub fn router() -> Router<Arc<AppState>> {

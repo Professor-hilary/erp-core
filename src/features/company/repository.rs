@@ -1,6 +1,6 @@
 // src/features/company/repository.rs
 use crate::{
-    errors::AppError,
+    infrastructure::responses::AppError,
     models::company::{Company, UpdateCompanyDto},
 };
 use async_trait::async_trait;
@@ -47,7 +47,6 @@ pub trait CompanyRepository: Send + Sync {
         executor: E,
         user_id: Uuid,
     ) -> Result<Vec<Company>, AppError>;
-
 
     /// # Update Company Details
     /// Update current company details, user must be the admin
@@ -99,7 +98,8 @@ impl CompanyRepository for PostgresCompanyRepository {
         .bind(business_type)
         .bind(created_by)
         .fetch_one(executor)
-        .await?;
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
 
         Ok(company)
     }
@@ -120,7 +120,8 @@ impl CompanyRepository for PostgresCompanyRepository {
         .bind(user_id)
         .bind(company_id)
         .execute(executor)
-        .await?;
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
         Ok(())
     }
 
@@ -134,7 +135,8 @@ impl CompanyRepository for PostgresCompanyRepository {
         )
         .bind(id)
         .fetch_optional(executor)
-        .await?;
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
         Ok(company)
     }
 
@@ -153,7 +155,8 @@ impl CompanyRepository for PostgresCompanyRepository {
         )
         .bind(user_id)
         .fetch_all(executor)
-        .await?;
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
         Ok(companies)
     }
 
@@ -186,7 +189,8 @@ impl CompanyRepository for PostgresCompanyRepository {
         .bind(dto.business_type.as_ref())
         .bind(id)
         .fetch_one(executor)
-        .await?;
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
 
         Ok(company)
     }
@@ -201,7 +205,9 @@ impl CompanyRepository for PostgresCompanyRepository {
         )
         .bind(id)
         .execute(executor)
-        .await?;
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+
         Ok(())
     }
 }
