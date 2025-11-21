@@ -2,11 +2,14 @@
 use crate::{
     features::company::repository::{CompanyRepository, PostgresCompanyRepository},
     infrastructure::responses::AppError,
-    models::company::{Company, CreateCompanyDto},
+    models::{
+        coa_entry::ChartOfAccountsEntry,
+        company::{Company, CreateCompanyDto},
+    },
     state::AppState,
 };
-use sqlx::postgres::PgPoolOptions;
-use std::sync::Arc;
+use sqlx::{PgPool, postgres::PgPoolOptions};
+use std::{fs, sync::Arc};
 use uuid::Uuid;
 
 pub struct CompanyService;
@@ -19,7 +22,8 @@ impl CompanyService {
         user_id: Uuid,
         req: CreateCompanyDto,
     ) -> Result<Company, AppError> {
-        let slug = req.name.to_lowercase().replace(' ', "-");
+        let slug = Self::slugify(&req.name);
+
         let tenant_db_name = format!("tenant_{}_{}", user_id.simple(), slug);
 
         let mut tx = state
@@ -84,11 +88,16 @@ impl CompanyService {
             .await
             .map_err(|_| AppError::Internal("Failed to create company record".into()))?;
 
-        // 4. Make user admin
+        // 4a. Make user admin
         PostgresCompanyRepository
             .assign_user_as_admin(&mut *tx, user_id, company.uuid)
             .await
             .map_err(|_| AppError::Internal("Failed to assign admin role".into()))?;
+
+        // 4b. Mark as active
+        PostgresCompanyRepository
+            .update_status(&mut *tx, company.uuid, "active")
+            .await?;
 
         // 5. Cache pool if created
         if let Some(pool) = tenant_pool {
@@ -102,8 +111,26 @@ impl CompanyService {
         Ok(company)
     }
 
-    fn generate_secure_password(_size: i32) -> String {
-        return "".to_string();
+    fn slugify(name: &str) -> String {
+        name.to_lowercase()
+            .replace(|c: char| !c.is_ascii_alphanumeric(), "-")
+            .trim_matches('-')
+            .replace("--", "-")
+    }
+
+    fn generate_secure_password(size: usize) -> String {
+        use rand::Rng;
+        const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ\
+                             abcdefghijklmnopqrstuvwxyz\
+                             0123456789-";
+
+        let mut rng = rand::rng();
+        (0..size)
+            .map(|_| {
+                let idx = rng.random_range(0..CHARSET.len());
+                CHARSET[idx] as char
+            })
+            .collect()
     }
 
     /// # Delete Company
@@ -156,5 +183,59 @@ impl CompanyService {
     ) -> Result<Vec<Company>, AppError> {
         let repo: PostgresCompanyRepository = PostgresCompanyRepository;
         repo.find_by_user(&state.master_pool, user_id).await
+    }
+
+    /// Seed default chart of accounts for a tenant based on company type
+    pub async fn seed_coa(tenant_pool: &PgPool, business_type: &str) -> Result<(), AppError> {
+        // Map business_type to file name (Adjust mapping as needed)
+        let file_name = match business_type {
+            "agric" => "coa_agriculture.json",
+            "energy" => "coa_energy.json",
+            "infotech" => "coa_infotechnology.json",
+            "nfp" => "coa_not_for_profit.json",
+            "wholesome" => "coa_wholesale.json",
+            "construction" => "coa_construction.json",
+            "health" => "coa_healthcare.json",
+            "logistics" => "coa_logistics.json",
+            "services" => "coa_professional_services.json",
+            "education" => "coa_education.json",
+            "hospitality" => "coa_hospitality.json",
+            "manufacturing" => "coa_manufacturing.json",
+            "retail" => "coa_retail.json",
+            _ => {
+                return Err(AppError::Unauthorized(format!(
+                    "Unknown business type: {}",
+                    business_type
+                )));
+            }
+        };
+
+        let path = format!("./seed/{}", file_name);
+        let contents = fs::read_to_string(&path)
+            .map_err(|_| AppError::Internal(format!("Failed to reach COA file: {}", path)))?;
+
+        let entries: Vec<ChartOfAccountsEntry> = serde_json::from_str(&contents)
+            .map_err(|_| AppError::Internal(format!("Invalid JSON in COA file: {}", path)))?;
+
+        // Insert into tenant DB
+        for entry in entries {
+            sqlx::query(
+                r#"
+                INSERT INTO accounting.accounts (code, name, category, parent_code, normal_balance, is_contra)
+                VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (code) DO NOTHING
+                "#
+            )
+            .bind(&entry.code)
+            .bind(&entry.name)
+            .bind(&entry.category)
+            .bind(&entry.parent_code)
+            .bind(&entry.normal_balance)
+            .bind(&entry.is_contra)
+            .execute(tenant_pool)
+            .await
+            .map_err(|e| AppError::Internal(format!("Failed to insert COA entry: {}", e)))?;
+        }
+
+        Ok(())
     }
 }

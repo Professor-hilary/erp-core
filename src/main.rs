@@ -17,6 +17,8 @@ use std::sync::Arc;
 use tokio::net::TcpListener;
 use tracing_subscriber::{EnvFilter, fmt, prelude::*};
 
+use crate::features::auth::AuthService;
+use crate::features::auth::repository::PostgresUserRepo;
 use crate::infrastructure::db_bootstrap::ensure_database_exists;
 use crate::state::{AppState, TenantConfig};
 
@@ -68,12 +70,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // --------------------------------------------------
     // Build application state
     // --------------------------------------------------
-    let state = Arc::new(AppState {
+
+    let app_state = Arc::new(AppState {
         master_pool,
         jwt_secret,
         tenant_pools: DashMap::new(),
         tenant_config,
+        // auth_service,
     });
+    let user_repo = PostgresUserRepo::new(master_pool.clone());
+    let auth_service = Arc::new(AuthService::new(user_repo, app_state.clone()));
 
     // --------------------------------------------------
     // Start HTTP server
@@ -83,7 +89,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .with(EnvFilter::from_default_env())
         .init();
 
-    let app = routes::create_router(state);
+    let app = routes::create_router(app_state);
     let addr: SocketAddr = "127.0.0.1:8080".parse()?;
 
     println!("Listening on {}", addr);

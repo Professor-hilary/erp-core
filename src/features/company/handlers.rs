@@ -44,7 +44,7 @@ async fn list_companies(
 ) -> Result<Json<Vec<Company>>, AppError> {
     let companies: Vec<Company> = CompanyService::list_user_companies(state.clone(), user_id)
         .await
-        .map_err(|_| AppError::Internal("Failed to assign admin role".into()))?;
+        .map_err(|_| AppError::Internal("Failed to fetch companies".into()))?;
     Ok(Json(companies))
 }
 
@@ -58,7 +58,7 @@ async fn get_company(
     let company = repo
         .find_by_id(&state.master_pool, company_id)
         .await
-        .map_err(|_| AppError::Internal("Failed to assign admin role".into()))?
+        .map_err(|_| AppError::Internal("Failed to fetch companies".into()))?
         .ok_or(AppError::NotFound)?;
     Ok(Json(company))
 }
@@ -73,7 +73,7 @@ async fn update_company(
     let company: Company =
         CompanyService::update_company(state.clone(), user_id, company_id, payload)
             .await
-            .map_err(|_| AppError::Internal("Failed to assign admin role".into()))?;
+            .map_err(|_| AppError::Internal("Failed to fetch companies".into()))?;
     Ok(Json(company))
 }
 

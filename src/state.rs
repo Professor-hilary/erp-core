@@ -1,7 +1,11 @@
+use std::sync::Arc;
+
 // src/state.rs
 use dashmap::DashMap;
 use sqlx::PgPool;
 use uuid::Uuid;
+
+use crate::features::auth::{repository::PostgresUserRepo,AuthService};
 
 #[allow(unused)]
 #[derive(Clone)]
@@ -20,6 +24,9 @@ pub struct AppState {
     pub tenant_pools: DashMap<Uuid, PgPool>,
     pub jwt_secret: String,
     pub tenant_config: TenantConfig,
+
+    // shared services
+    // pub auth_service: Arc<AuthService<PostgresUserRepo>>,
 }
 
 impl AppState {

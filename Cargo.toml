@@ -31,3 +31,4 @@ uuid = { version = "1.7", features = ["v4", "serde"] }
 thiserror = "2.0.17"
 async-trait = "0.1"
 dashmap = "6.1.0"
+rand = "0.9.2"

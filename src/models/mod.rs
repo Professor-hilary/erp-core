@@ -12,5 +12,6 @@ pub mod payrun;
 pub mod transaction;
 pub mod user;
 pub mod vendor;
+pub mod coa_entry;
 
 pub use transaction::Transaction;

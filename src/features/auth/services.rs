@@ -1,13 +1,13 @@
 // src/features/auth/services.rs
-use std::sync::Arc;
 use crate::errors::AppError;
 use crate::features::auth::repository::UserRepository;
 use crate::models::dto::JwtClaims;
 use crate::models::user::{CreateUser, LoginUser, User};
 use crate::state::AppState;
-use bcrypt::{hash, verify, DEFAULT_COST};
+use bcrypt::{DEFAULT_COST, hash, verify};
 use chrono::{Duration, Utc};
 use jsonwebtoken::{EncodingKey, Header, encode};
+use std::sync::Arc;
 use uuid::Uuid;
 
 pub struct AuthService<R: UserRepository> {
@@ -21,7 +21,10 @@ impl<R: UserRepository> AuthService<R> {
     }
 
     // Helper: get user's companies and auto-select one if possible
-    async fn get_user_company(&self, user_id: Uuid) -> Result<(Option<Uuid>, Option<String>), AppError> {
+    async fn get_user_company(
+        &self,
+        user_id: Uuid,
+    ) -> Result<(Option<Uuid>, Option<String>), AppError> {
         let row: Option<(Uuid, String)> = sqlx::query_as(
             r#"
             SELECT c.uuid, c.tenant_db_name
@@ -29,13 +32,15 @@ impl<R: UserRepository> AuthService<R> {
             JOIN user_companies uc ON c.uuid = uc.company_id
             WHERE uc.user_id = $1 AND c.status != 'deleted'
             LIMIT 1
-            "#
+            "#,
         )
         .bind(user_id)
         .fetch_optional(&self.state.master_pool)
         .await?;
 
-        Ok(row.map(|(id, db)| (Some(id), Some(db))).unwrap_or((None, None)))
+        Ok(row
+            .map(|(id, db)| (Some(id), Some(db)))
+            .unwrap_or((None, None)))
     }
 
     pub async fn register(&self, user: &CreateUser) -> Result<(User, String), AppError> {
@@ -46,20 +51,25 @@ impl<R: UserRepository> AuthService<R> {
         let password_hash = hash(&user.password, DEFAULT_COST)
             .map_err(|_| AppError::Validation("Failed to hash password".into()))?;
 
-        let created_user = self.repo
-            .create(&self.state.master_pool, &user.email, &password_hash)
+        let created_user = self
+            .repo
+            .create(
+                /* &self.state.master_pool, */ &user.email,
+                &password_hash,
+            )
             .await?;
 
         let (company_id, tenant_db) = self.get_user_company(created_user.id).await?;
 
-        let token = self.generate_token(created_user.id, company_id, tenant_db).await?;
+        let token = self.generate_token(created_user.id, company_id, tenant_db)?;
 
         Ok((created_user, token))
     }
 
     pub async fn login(&self, user: &LoginUser) -> Result<String, AppError> {
-        let db_user = self.repo
-            .find_by_email(&self.state.master_pool, &user.email)
+        let db_user = self
+            .repo
+            .find_by_email(/* &self.state.master_pool, */ &user.email)
             .await?
             .ok_or(AppError::Auth("Invalid credentials".into()))?;
 
@@ -71,11 +81,11 @@ impl<R: UserRepository> AuthService<R> {
 
         let (company_id, tenant_db) = self.get_user_company(db_user.id).await?;
 
-        self.generate_token(db_user.id, company_id, tenant_db).await
+        self.generate_token(db_user.id, company_id, tenant_db)
     }
 
     // Shared token generation logic
-    async fn generate_token(
+    fn generate_token(
         &self,
         user_id: Uuid,
         company_id: Option<Uuid>,
@@ -97,10 +107,17 @@ impl<R: UserRepository> AuthService<R> {
     }
 
     // New: Switch company
-    pub async fn switch_company(&self, user_id: Uuid, company_id: Uuid) -> Result<String, AppError> {
+    pub async fn switch_company(
+        &self,
+        user_id: Uuid,
+        company_id: Uuid,
+    ) -> Result<String, AppError> {
         // Verify membership
         let company: Option<(String,)> = sqlx::query_as(
-            "SELECT c.tenant_db_name FROM companies c JOIN user_companies uc ON c.uuid = uc.company_id WHERE uc.user_id = $1 AND c.uuid = $2"
+            "SELECT c.tenant_db_name
+         FROM companies c
+         JOIN user_companies uc ON c.uuid = uc.company_id
+         WHERE uc.user_id = $1 AND c.uuid = $2",
         )
         .bind(user_id)
         .bind(company_id)
@@ -109,85 +126,9 @@ impl<R: UserRepository> AuthService<R> {
 
         let tenant_db = company.map(|(db_name,)| db_name);
 
-        self.generate_token(user_id, Some(company_id), tenant_db).await
+        // RETURN the token
+        let token = self.generate_token(user_id, Some(company_id), tenant_db)?;
+
+        Ok(token)
     }
 }
-
-// // src/features/auth/services.rs
-// use std::sync::Arc;
-// use crate::errors::AppError;
-// use crate::features::auth::repository::UserRepository;
-// use crate::models::dto::JwtClaims;
-// use crate::models::user::{CreateUser, LoginUser, User};
-// use crate::state::AppState;
-// use bcrypt::{DEFAULT_COST, hash, verify};
-// use chrono::{Duration, Utc};
-// use jsonwebtoken::{EncodingKey, Header, encode};
-
-// pub struct AuthService<R: UserRepository> {
-//     repo: R,
-//     state: Arc<AppState>,
-// }
-
-// impl<R: UserRepository> AuthService<R> {
-//     pub fn new(repo: R, state: Arc<AppState>) -> Self {
-//         Self { repo, state }
-//     }
-
-//     pub async fn register(&self, user: &CreateUser) -> Result<(User, String), AppError> {
-//         if user.email.is_empty() || user.password.is_empty() {
-//             return Err(AppError::Validation("Email and password required".into()));
-//         }
-
-//         let password_hash = hash(&user.password, DEFAULT_COST)
-//             .map_err(|_| AppError::Validation("Hash error".into()))?;
-
-//         let created_user = self
-//             .repo
-//             .create(&self.state.master_pool, &user.email, &password_hash)
-//             .await?;
-
-//         // Generate JWT immediately
-//         let claims = JwtClaims {
-//             sub: created_user.id,
-//             exp: (Utc::now() + Duration::weeks(4)).timestamp() as usize,
-//         };
-
-//         let token = encode(
-//             &Header::default(),
-//             &claims,
-//             &EncodingKey::from_secret(self.state.jwt_secret.as_ref()),
-//         )
-//         .map_err(|_| AppError::Auth("Token generation failed".into()))?;
-
-//         Ok((created_user, token))
-//     }
-
-//     pub async fn login(&self, user: &LoginUser) -> Result<String, AppError> {
-//         // Returns JWT
-//         let db_user = self
-//             .repo
-//             .find_by_email(&self.state.master_pool, &user.email)
-//             .await?
-//             .ok_or(AppError::Auth("User not found".to_string()))?;
-
-//         if !verify(&user.password, &db_user.password_hash)
-//             .map_err(|_| AppError::Auth("Invalid credentials".to_string()))?
-//         {
-//             return Err(AppError::Auth("Invalid credentials".to_string()));
-//         }
-
-//         let claims = JwtClaims {
-//             sub: db_user.id,
-//             exp: (Utc::now() + Duration::hours(1)).timestamp() as usize,
-//         };
-
-//         let token = encode(
-//             &Header::default(),
-//             &claims,
-//             &EncodingKey::from_secret(self.state.jwt_secret.as_ref()),
-//         )
-//         .map_err(|_| AppError::Auth("Token generation failed".to_string()))?;
-//         Ok(token)
-//     }
-// }

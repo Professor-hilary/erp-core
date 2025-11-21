@@ -64,6 +64,13 @@ pub trait CompanyRepository: Send + Sync {
         executor: E,
         id: Uuid,
     ) -> Result<(), AppError>;
+
+    async fn update_status<'e, E: Executor<'e, Database = Postgres>>(
+        &self,
+        executor: E,
+        id: Uuid,
+        status: &str,
+    ) -> Result<(), AppError>;
 }
 
 pub struct PostgresCompanyRepository;
@@ -207,6 +214,22 @@ impl CompanyRepository for PostgresCompanyRepository {
         .execute(executor)
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
+
+        Ok(())
+    }
+
+    async fn update_status<'e, E: Executor<'e, Database = Postgres>>(
+        &self,
+        executor: E,
+        id: Uuid,
+        status: &str,
+    ) -> Result<(), AppError> {
+        sqlx::query("UPDATE companies SET status=$1 WHERE uuid=$2")
+            .bind(status)
+            .bind(id)
+            .execute(executor)
+            .await
+            .map_err(|e| AppError::Internal(e.to_string()))?;
 
         Ok(())
     }

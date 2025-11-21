@@ -9,11 +9,11 @@ use sqlx::PgPool;
 pub trait UserRepository: Send + Sync {
     async fn create(
         &self,
-        pool: &PgPool,
+        // pool: &PgPool,
         email: &str,
         password_hash: &str,
     ) -> Result<User, AppError>;
-    async fn find_by_email(&self, pool: &PgPool, email: &str) -> Result<Option<User>, AppError>;
+    async fn find_by_email(&self, /* pool: &PgPool, */ email: &str) -> Result<Option<User>, AppError>;
 }
 
 // Concrete impls
@@ -32,7 +32,7 @@ impl PostgresUserRepo {
 impl UserRepository for PostgresUserRepo {
     async fn create(
         &self,
-        pool: &PgPool,
+        // pool: &PgPool,
         email: &str,
         password_hash: &str,
     ) -> Result<User, AppError> {
@@ -41,15 +41,15 @@ impl UserRepository for PostgresUserRepo {
         )
         .bind(email)
         .bind(password_hash)
-        .fetch_one(pool)
+        .fetch_one(&self.pool)
         .await?;
         Ok(user)
     }
 
-    async fn find_by_email(&self, pool: &PgPool, email: &str) -> Result<Option<User>, AppError> {
+    async fn find_by_email(&self/* , pool: &PgPool */, email: &str) -> Result<Option<User>, AppError> {
         let user = sqlx::query_as::<_, User>("SELECT * FROM users WHERE email = $1")
             .bind(email)
-            .fetch_optional(pool)
+            .fetch_optional(&self.pool)
             .await?;
         Ok(user)
     }
