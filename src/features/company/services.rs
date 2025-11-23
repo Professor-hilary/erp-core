@@ -1,7 +1,7 @@
 // src/features/company/service.rs
 use crate::{
     features::company::repository::{CompanyRepository, PostgresCompanyRepository},
-    infrastructure::{responses::AppError, tenant_provisioner::TenantProvisioner},
+    infrastructure::{database::tenant_provisioner::TenantProvisioner, responses::AppError },
     models::{
         coa_entry::ChartOfAccountsEntry,
         company::{Company, CreateCompanyDto},

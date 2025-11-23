@@ -2,7 +2,6 @@
 use rand::{Rng, distr::Alphanumeric, rng};
 use sqlx::{PgPool, postgres::PgPoolOptions};
 use uuid::Uuid;
-
 pub struct TenantProvisioner;
 
 impl TenantProvisioner {
@@ -10,17 +9,26 @@ impl TenantProvisioner {
         master_pool: &PgPool,
         user_id: Uuid,
         company_name: &str,
-        tenant_base_url: &str, // e.g. "postgres://myapp:mysecret@localhost:5432/"
+        _tenant_base_url: &str,
     ) -> Result<PgPool, sqlx::Error> {
         let slug = company_name
             .to_lowercase()
             .replace(' ', "_")
             .chars()
-            .map(|c| if c.is_alphanumeric() || c == '_' { c } else { '_' })
+            .map(|c| {
+                if c.is_alphanumeric() || c == '_' {
+                    c
+                } else {
+                    '_'
+                }
+            })
             .collect::<String>();
 
-        let db_name = format!("tenant_{}_{}", user_id.simple(), slug);
-        let role_name = &db_name; // 1:1 role per tenant
+         let db_name = format!("tenant_{}_{}", user_id.simple(), slug);
+        // let role_name = &db_name; // 1:1 role per tenant
+        let safe_slug = slug.chars().take(30).collect::<String>();
+        let role_name = format!("tenant_{}_{}", &user_id.simple(), safe_slug);
+
         let password: String = rng()
             .sample_iter(&Alphanumeric)
             .take(32)
@@ -47,7 +55,10 @@ impl TenantProvisioner {
         .await?;
 
         // Connect using the new role (more secure than reusing master creds)
-        let tenant_url = format!("{}{}?user={}&password={}", tenant_base_url, db_name, role_name, password);
+        let tenant_url = format!(
+            "postgres://{}:{}@localhost:5432/{}",
+            role_name, password, db_name
+        );
         let tenant_pool = PgPoolOptions::new()
             .max_connections(10)
             .connect(&tenant_url)
