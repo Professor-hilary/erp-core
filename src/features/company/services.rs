@@ -1,14 +1,14 @@
 // src/features/company/service.rs
 use crate::{
     features::company::repository::{CompanyRepository, PostgresCompanyRepository},
-    infrastructure::responses::AppError,
+    infrastructure::{responses::AppError, tenant_provisioner::TenantProvisioner},
     models::{
         coa_entry::ChartOfAccountsEntry,
         company::{Company, CreateCompanyDto},
     },
     state::AppState,
 };
-use sqlx::{PgPool, postgres::PgPoolOptions};
+use sqlx::PgPool;
 use std::{fs, sync::Arc};
 use uuid::Uuid;
 
@@ -24,57 +24,43 @@ impl CompanyService {
     ) -> Result<Company, AppError> {
         let slug = Self::slugify(&req.name);
 
-        let tenant_db_name = format!("tenant_{}_{}", user_id.simple(), slug);
-
-        let mut tx = state
+        // Step 1: Start transaction on master DB (for company record + admin assignment)
+        let mut tx: sqlx::Transaction<'_, sqlx::Postgres> = state
             .master_pool
             .begin()
             .await
             .map_err(|_| AppError::Internal("Failed to start transaction".into()))?;
 
-        // 1. Try to create database + role (fails silently in managed DBs)
-        let create_db_sql = format!(r#"CREATE DATABASE "{}""#, tenant_db_name);
-        let password = Self::generate_secure_password(32);
-        let create_role_sql = format!(
-            r#"CREATE ROLE "{}" WITH LOGIN PASSWORD '{}'"#,
-            tenant_db_name, password
-        );
+        // Step 2: Provision tenant database (this commits independently)
+        // Note: We cannot keep this inside the same tx as master operations
+        // because CREATE DATABASE cannot run inside a transaction block in PostgreSQL
+        let tenant_pool = TenantProvisioner::create_tenant_db(
+            &state.master_pool,
+            user_id,
+            &req.name,
+            &state.tenant_config.base_url, // e.g. "postgres://app_user:app_pass@localhost:5432/"
+        )
+        .await
+        .map_err(|e| AppError::Internal(format!("Failed to provision tenant database: {}", e)))?;
 
-        let _db_provisioned = sqlx::query(&create_db_sql).execute(&mut *tx).await.is_ok()
-            && sqlx::query(&create_role_sql)
-                .execute(&mut *tx)
-                .await
-                .is_ok()
-            && sqlx::query(&format!(
-                r#"GRANT ALL ON DATABASE "{}" TO "{}""#,
-                tenant_db_name, tenant_db_name
-            ))
-            .execute(&mut *tx)
+        let tenant_db_name = format!("tenant_{}_{}", user_id.simple(), slug);
+        let tenant_url = format!("{}{}", state.tenant_config.base_url, tenant_db_name);
+
+        // Run migrations (already done inside TenantProvisioner, but safe to run again)
+        sqlx::migrate!("./migrations/tenant")
+            .run(&tenant_pool)
             .await
-            .is_ok();
+            .map_err(|_| AppError::Internal("Tenant migration failed".into()))?;
 
-        // 2. Connect to tenant DB and run migrations
-        let tenant_url = state.tenant_db_url(&tenant_db_name);
-        let tenant_pool = match PgPoolOptions::new()
-            .max_connections(10)
-            .connect(&tenant_url)
+        // Step 3: Seed Chart of Accounts
+        Self::seed_coa(&tenant_pool, &req.business_type)
             .await
-        {
-            Ok(pool) => {
-                if sqlx::migrate!("./migrations/tenant")
-                    .run(&pool)
-                    .await
-                    .is_err()
-                {
-                    return Err(AppError::Internal("Tenant migration failed".into()));
-                }
-                Some(pool)
-            }
-            Err(_) => None,
-        };
+            .map_err(|_| AppError::Internal("Failed to seed Chart of Accounts".into()))?;
 
-        // 3. Insert company record
-        let company = PostgresCompanyRepository
+        let repo = PostgresCompanyRepository;
+
+        // Step 4: Insert company record into master DB
+        let company = repo
             .create(
                 &mut *tx,
                 &req.name,
@@ -88,25 +74,22 @@ impl CompanyService {
             .await
             .map_err(|_| AppError::Internal("Failed to create company record".into()))?;
 
-        // 4a. Make user admin
-        PostgresCompanyRepository
-            .assign_user_as_admin(&mut *tx, user_id, company.uuid)
+        // Step 5: Assign user as admin + activate
+        repo.assign_user_as_admin(&mut *tx, user_id, company.uuid)
             .await
             .map_err(|_| AppError::Internal("Failed to assign admin role".into()))?;
 
-        // 4b. Mark as active
-        PostgresCompanyRepository
-            .update_status(&mut *tx, company.uuid, "active")
-            .await?;
+        repo.update_status(&mut *tx, company.uuid, "active")
+            .await
+            .map_err(|_| AppError::Internal("Failed to activate company".into()))?;
 
-        // 5. Cache pool if created
-        if let Some(pool) = tenant_pool {
-            state.tenant_pools.insert(company.uuid, pool);
-        }
-
+        // Step 6: Commit master transaction
         tx.commit()
             .await
             .map_err(|_| AppError::Internal("Failed to commit transaction".into()))?;
+
+        // Step 7: Cache the tenant pool only after everything succeeds
+        state.tenant_pools.insert(company.uuid, tenant_pool);
 
         Ok(company)
     }
@@ -118,6 +101,7 @@ impl CompanyService {
             .replace("--", "-")
     }
 
+    #[allow(dead_code)]
     fn generate_secure_password(size: usize) -> String {
         use rand::Rng;
         const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ\
@@ -185,17 +169,18 @@ impl CompanyService {
         repo.find_by_user(&state.master_pool, user_id).await
     }
 
+    /// # COA seed
     /// Seed default chart of accounts for a tenant based on company type
     pub async fn seed_coa(tenant_pool: &PgPool, business_type: &str) -> Result<(), AppError> {
         // Map business_type to file name (Adjust mapping as needed)
         let file_name = match business_type {
-            "agric" => "coa_agriculture.json",
+            "agriculture" => "coa_agriculture.json",
             "energy" => "coa_energy.json",
             "infotech" => "coa_infotechnology.json",
-            "nfp" => "coa_not_for_profit.json",
+            "non_profit" => "coa_not_for_profit.json",
             "wholesome" => "coa_wholesale.json",
             "construction" => "coa_construction.json",
-            "health" => "coa_healthcare.json",
+            "healthcare" => "coa_healthcare.json",
             "logistics" => "coa_logistics.json",
             "services" => "coa_professional_services.json",
             "education" => "coa_education.json",

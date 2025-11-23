@@ -17,8 +17,8 @@ use std::sync::Arc;
 use tokio::net::TcpListener;
 use tracing_subscriber::{EnvFilter, fmt, prelude::*};
 
-use crate::features::auth::AuthService;
-use crate::features::auth::repository::PostgresUserRepo;
+// use crate::features::auth::AuthService;
+// use crate::features::auth::repository::PostgresUserRepo;
 use crate::infrastructure::db_bootstrap::ensure_database_exists;
 use crate::state::{AppState, TenantConfig};
 
@@ -78,8 +78,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         tenant_config,
         // auth_service,
     });
-    let user_repo = PostgresUserRepo::new(master_pool.clone());
-    let auth_service = Arc::new(AuthService::new(user_repo, app_state.clone()));
+    // let user_repo = PostgresUserRepo::new(master_pool.clone());
+    // let auth_service = Arc::new(AuthService::new(user_repo, app_state.clone()));
 
     // --------------------------------------------------
     // Start HTTP server

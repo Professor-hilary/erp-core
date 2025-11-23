@@ -1,52 +1,59 @@
-use rand::{Rng, distr::Alphanumeric};
-use sqlx::PgPool;
+// src/infrastructure/tenant_provisioner.rs
+use rand::{Rng, distr::Alphanumeric, rng};
+use sqlx::{PgPool, postgres::PgPoolOptions};
 use uuid::Uuid;
 
 pub struct TenantProvisioner;
 
 impl TenantProvisioner {
-    /// Create a tenant database for a new company
-    /// Returns: pool to tenant DB (ready for use)
     pub async fn create_tenant_db(
         master_pool: &PgPool,
         user_id: Uuid,
         company_name: &str,
-        tenant_base_url: &str, // "postgres://user:pass@host:port/"
+        tenant_base_url: &str, // e.g. "postgres://myapp:mysecret@localhost:5432/"
     ) -> Result<PgPool, sqlx::Error> {
-        // Slug & tenant DB name
-        let slug = company_name.to_lowercase().replace(' ', "_");
-        let tenant_db_name = format!("tenant_{}_{}", user_id.simple(), slug);
+        let slug = company_name
+            .to_lowercase()
+            .replace(' ', "_")
+            .chars()
+            .map(|c| if c.is_alphanumeric() || c == '_' { c } else { '_' })
+            .collect::<String>();
 
-        // Random password for role
-        let password: String = rand::rng()
+        let db_name = format!("tenant_{}_{}", user_id.simple(), slug);
+        let role_name = &db_name; // 1:1 role per tenant
+        let password: String = rng()
             .sample_iter(&Alphanumeric)
             .take(32)
             .map(char::from)
             .collect();
 
-        // SQL: create DB and role
-        let create_db_sql = format!(r#"CREATE DATABASE "{}""#, tenant_db_name);
-        let create_role_sql = format!(
+        // Note: CREATE DATABASE cannot be in a transaction block
+        sqlx::query(&format!(r#"CREATE DATABASE "{}""#, db_name))
+            .execute(master_pool)
+            .await?;
+
+        sqlx::query(&format!(
             r#"CREATE ROLE "{}" WITH LOGIN PASSWORD '{}'"#,
-            tenant_db_name, password
-        );
-        let grant_sql = format!(
-            r#"GRANT ALL ON DATABASE "{}" TO "{}""#,
-            tenant_db_name, tenant_db_name
-        );
+            role_name, password
+        ))
+        .execute(master_pool)
+        .await?;
 
-        // Run on master pool
-        let mut tx = master_pool.begin().await?;
-        sqlx::query(&create_db_sql).execute(&mut *tx).await?;
-        sqlx::query(&create_role_sql).execute(&mut *tx).await?;
-        sqlx::query(&grant_sql).execute(&mut *tx).await?;
-        tx.commit().await?;
+        sqlx::query(&format!(
+            r#"GRANT ALL PRIVILEGES ON DATABASE "{}" TO "{}""#,
+            db_name, role_name
+        ))
+        .execute(master_pool)
+        .await?;
 
-        // Connect to tenant DB
-        let tenant_url = format!("{}{}", tenant_base_url, tenant_db_name);
-        let tenant_pool = PgPool::connect(&tenant_url).await?;
+        // Connect using the new role (more secure than reusing master creds)
+        let tenant_url = format!("{}{}?user={}&password={}", tenant_base_url, db_name, role_name, password);
+        let tenant_pool = PgPoolOptions::new()
+            .max_connections(10)
+            .connect(&tenant_url)
+            .await?;
 
-        // Run tenant migrations
+        // Run migrations
         sqlx::migrate!("./migrations/tenant")
             .run(&tenant_pool)
             .await?;
