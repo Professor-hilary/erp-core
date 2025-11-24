@@ -1,5 +1,3 @@
-// use std::sync::Arc;
-
 // src/state.rs
 use dashmap::DashMap;
 use sqlx::PgPool;

@@ -22,9 +22,9 @@ pub fn router() -> Router<Arc<AppState>> {
     Router::new()
         .route("/companies", post(create_company))
         .route("/companies", get(list_companies))
-        .route("/companies/:id", get(get_company))
-        .route("/companies/:id", put(update_company))
-        .route("/companies/:id", delete(delete_company))
+        .route("/companies/{id}", get(get_company))
+        .route("/companies/{id}", put(update_company))
+        .route("/companies/{id}", delete(delete_company))
 }
 
 /// POST /companies
