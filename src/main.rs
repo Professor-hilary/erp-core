@@ -11,9 +11,7 @@ use axum::serve;
 use dashmap::DashMap;
 use dotenv::dotenv;
 use sqlx::postgres::PgPoolOptions;
-use std::env;
-use std::net::SocketAddr;
-use std::sync::Arc;
+use std::{env, net::SocketAddr, sync::Arc};
 use tokio::net::TcpListener;
 use tracing_subscriber::{EnvFilter, fmt, prelude::*};
 
@@ -25,14 +23,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     dotenv().ok();
 
     // --------------------------------------------------
-    // Read environment: Master DB
+    // Read environment: Master DB Variables Preset
     // --------------------------------------------------
-    let master_db_name: String = env::var("MASTER_DB_NAME").expect("MASTER_DB_NAME missing");
-    let master_db_url: String = env::var("DATABASE_URL").expect("MASTER_URL missing");
+    let master_db_name: String = env::var("MASTER_DB_NAME").expect("Master database name missing");
+    let master_db_pass: String = env::var("MASTER_DB_PASS").expect("Master database pass missing");
+    let master_db_user: String = env::var("MASTER_DB_USER").expect("Master database user missing");
+    let master_db_url: String = env::var("DATABASE_URL").expect("Master url missing");
     let super_url: String = env::var("POSTGRES_SUPER_URL").expect("POSTGRES_SUPER_URL missing");
 
     // Ensure master DB exists -> Create if running first time
-    let _ = init_master(&super_url, &master_db_name).await;
+    let _ = init_master(
+        &super_url,
+        &master_db_name,
+        &master_db_user,
+        &master_db_pass,
+    )
+    .await
+    .expect("Master DB initialization failed");
 
     // Create master pool
     let master_pool: sqlx::Pool<sqlx::Postgres> = PgPoolOptions::new()
@@ -41,7 +48,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .await?;
 
     // -----------------------------------------------------------------------------
-    // Tenant configuration here is illegal, can only be done after login or signup
+    // Tenant configuration structure, will be set after login/signup in user module
     // -----------------------------------------------------------------------------
     // let tenant_config: TenantConfig = TenantConfig {
     //     user: "",
@@ -57,7 +64,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     //     ),
     // };
 
-    // JWT secret
+    // JWT secret set inside .env, generated with encryption algorithm
     let jwt_secret: String = env::var("JWT_SECRET").expect("JWT_SECRET must be set");
 
     // --------------------------------------------------
@@ -77,7 +84,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     });
 
     // --------------------------------------------------
-    // Start HTTP server
+    // Start HTTP server, entry point for global APIs
     // --------------------------------------------------
     tracing_subscriber::registry()
         .with(fmt::layer())

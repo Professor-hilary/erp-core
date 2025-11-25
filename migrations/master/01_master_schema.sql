@@ -1,6 +1,7 @@
 --
 -- master_schema.db
 --
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 CREATE TABLE IF NOT EXISTS users (
     uuid uuid PRIMARY KEY DEFAULT uuid_generate_v4() NOT NULL,

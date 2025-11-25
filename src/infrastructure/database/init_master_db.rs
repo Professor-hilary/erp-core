@@ -1,90 +1,95 @@
-// src/bin/init_master_db.rs
-use sqlx::{PgPool, postgres::PgPoolOptions};
+// src/infrastructure/database/init_master_db.rs
 
-const MASTER_DB_NAME: &str = "master_db";
-const DEFAULT_SUPER_URL: &str = "postgres://postgres:mJql0TD29mzZ@localhost:5432/postgres";
+use sqlx::{PgPool, migrate::Migrator, postgres::PgPoolOptions};
+use std::error::Error;
 
-#[allow(unused)]
-pub async fn init_master(super_url: &str, db_name: &str) -> Result<(), Box<dyn std::error::Error>> {
-    println!("Connecting to PostgreSQL cluster using default superuser...");
+pub async fn init_master(
+    super_url: &str,
+    master_db_name: &str,
+    master_db_user: &str,
+    master_db_pass: &str,
+) -> Result<(), Box<dyn Error + Send + Sync>> {
+    println!("Connecting to PostgreSQL as superuser...");
+    let super_pool: PgPool = PgPool::connect(super_url)
+        .await
+        .map_err(|e| format!("Failed to connect as superuser: {e}"))?;
 
-    let super_pool: sqlx::Pool<sqlx::Postgres> = PgPool::connect(DEFAULT_SUPER_URL).await.map_err(|e| {
-        format!(
-            "Failed to connect to PostgreSQL. Is it running?\n  Error: {}",
-            e
-        )
-    })?;
-
-    // 1. Create master database if not exists
-    let exists: bool =
+    // 1. Ensure database exists
+    let db_exists: bool =
         sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM pg_database WHERE datname = $1)")
-            .bind(MASTER_DB_NAME)
+            .bind(master_db_name)
             .fetch_one(&super_pool)
             .await?;
 
-    if exists {
-        println!("Master database '{}' already exists.", MASTER_DB_NAME);
-    } else {
-        println!("Creating master database '{}'...", MASTER_DB_NAME);
-        sqlx::query(&format!(r#"CREATE DATABASE "{}""#, MASTER_DB_NAME))
+    if !db_exists {
+        println!("Creating database '{master_db_name}'...");
+        sqlx::query(&format!("CREATE DATABASE \"{master_db_name}\""))
             .execute(&super_pool)
             .await?;
-        println!("Master database created.");
+    } else {
+        println!("Database '{master_db_name}' already exists.");
     }
 
-    // 2. Create limited master DB user (app runtime user)
-    let master_user: &str = "master_user";
-    let master_pass: &str = "AodMzT6aEM0dX9HuZpyvChPsylI0ugcLmIIL"; // In prod: generate or use vault
-
+    // 2. Ensure role exists
     let user_exists: bool =
         sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM pg_roles WHERE rolname = $1)")
-            .bind(master_user)
+            .bind(master_db_user)
             .fetch_one(&super_pool)
             .await?;
 
-    if user_exists {
-        println!("User '{}' already exists.", master_user);
+    if !user_exists {
+        println!("Creating role '{master_db_user}'...");
+        sqlx::query(&format!(
+            "CREATE ROLE {master_db_user} WITH LOGIN PASSWORD '{master_db_pass}'"
+        ))
+        .execute(&super_pool)
+        .await?;
     } else {
-        println!("Creating application master user '{}'...", master_user);
+        // Safely update password on re-run (optional but nice)
+        println!("Updating password for '{master_db_user}' (idempotent)...");
         sqlx::query(&format!(
-            "CREATE USER {} WITH PASSWORD '{}'",
-            master_user, master_pass
+            "ALTER ROLE {master_db_user} WITH PASSWORD '{master_db_pass}'"
         ))
         .execute(&super_pool)
         .await?;
-        sqlx::query(&format!(
-            "GRANT ALL ON DATABASE \"{}\" TO {}",
-            MASTER_DB_NAME, master_user
-        ))
-        .execute(&super_pool)
-        .await?;
-        println!("Master user created and granted access.");
     }
 
-    // 4. Connect to master DB and run migrations
-    let master_url = format!(
-        "postgres://{}:{}@localhost/{}",
-        master_user, master_pass, MASTER_DB_NAME
-    );
-    let master_pool: sqlx::Pool<sqlx::Postgres> = PgPoolOptions::new()
+    // 3. Ownership & privileges — ALL done as superuser
+    println!("Setting ownership and privileges...");
+
+    let queries = [
+        format!("GRANT ALL PRIVILEGES ON DATABASE \"{master_db_name}\" TO {master_db_user}"),
+        format!("ALTER DATABASE \"{master_db_name}\" OWNER TO {master_db_user}"),
+        format!("ALTER SCHEMA public OWNER TO {master_db_user}"),
+        format!("GRANT ALL ON SCHEMA public TO {master_db_user}"),
+        // Future objects in public will belong to master_user by default
+        format!("ALTER ROLE {master_db_user} SET search_path = public"),
+    ];
+
+    for query in queries {
+        // Ignore errors like "already owner" — PostgreSQL doesn't have IF NOT EXISTS for these
+        let _ = sqlx::query(&query).execute(&super_pool).await;
+    }
+
+    // 4. Connect as the app user and run migrations
+    let master_url =
+        format!("postgres://{master_db_user}:{master_db_pass}@localhost:5432/{master_db_name}");
+
+    println!("Connecting as '{master_db_user}' to run migrations...");
+    let master_pool = PgPoolOptions::new()
         .max_connections(10)
         .connect(&master_url)
-        .await?;
+        .await
+        .map_err(|e| {
+            format!("Failed to connect as app user. Did ownership transfer succeed?\n{e}")
+        })?;
 
-    println!("Running master database migrations...");
-    sqlx::migrate!("./migrations/master")
-        .run(&master_pool)
-        .await?;
+    println!("Running migrations...");
+    static MIGRATOR: Migrator = sqlx::migrate!("./migrations/master");
+    MIGRATOR.run(&master_pool).await?;
 
-    println!();
-    println!("Setup complete!");
-    println!("Your master database is ready: {}", MASTER_DB_NAME);
-    println!("Start the API with: cargo run");
-    println!();
-    println!(
-        "DATABASE_URL=postgres://{}:{}@localhost/{}",
-        master_user, master_pass, MASTER_DB_NAME
-    );
+    println!("Master database setup complete!");
+    println!("Connection string: {master_url}");
 
     Ok(())
 }
