@@ -29,11 +29,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let master_db_pass: String = env::var("MASTER_DB_PASS").expect("Master database pass missing");
     let master_db_user: String = env::var("MASTER_DB_USER").expect("Master database user missing");
     let master_db_url: String = env::var("DATABASE_URL").expect("Master url missing");
-    let super_url: String = env::var("POSTGRES_SUPER_URL").expect("POSTGRES_SUPER_URL missing");
+    let super_psql_url: String =
+        env::var("POSTGRES_SUPER_URL").expect("POSTGRES_SUPER_URL missing");
 
     // Ensure master DB exists -> Create if running first time
     let _ = init_master(
-        &super_url,
+        &super_psql_url,
         &master_db_name,
         &master_db_user,
         &master_db_pass,
@@ -47,22 +48,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .connect(&master_db_url)
         .await?;
 
-    // -----------------------------------------------------------------------------
-    // Tenant configuration structure, will be set after login/signup in user module
-    // -----------------------------------------------------------------------------
-    // let tenant_config: TenantConfig = TenantConfig {
-    //     user: "",
-    //     password: "",
-    //     host: "",
-    //     port: "",
-    //     base_url: format!(
-    //         "postgres://{}:{}@{}:{}/",
-    //         "TENANT_DB_USER",    // USER set within company module
-    //         "TENANT_DB_PASSWORD" // PASSWD set within company module
-    //         "localhost"          // Default is localhost, can change
-    //         "5432"               // Default is 5432, should be dynamic
-    //     ),
-    // };
+    /********************************************************************************
+        -----------------------------------------------------------------------------
+        Tenant configuration structure, will be set after login/signup in user module
+        -----------------------------------------------------------------------------
+        let tenant_config: TenantConfig = TenantConfig {
+            user: "",
+            password: "",
+            host: "",
+            port: "",
+            base_url: format!(
+                "TENANT_DB_USER",    // USER   set within company module
+                "TENANT_DB_PASSWORD" // PASSWD set within company module
+                "TENANT_HOST"        // Default = localhost, for desktop
+                "SERVER_PORT"        // Default = 5432 setup dynamically
+                "postgres://{}:{}@{}:{}/", // Full tenant connection URL
+            ),
+        };
+    *********************************************************************************/
 
     // JWT secret set inside .env, generated with encryption algorithm
     let jwt_secret: String = env::var("JWT_SECRET").expect("JWT_SECRET must be set");

@@ -11,7 +11,7 @@ impl TenantProvisioner {
         company_name: &str,
         _tenant_base_url: &str,
     ) -> Result<PgPool, sqlx::Error> {
-        let slug = company_name
+        let slug: String = company_name
             .to_lowercase()
             .replace(' ', "_")
             .chars()
@@ -24,10 +24,9 @@ impl TenantProvisioner {
             })
             .collect::<String>();
 
-         let db_name = format!("tenant_{}_{}", user_id.simple(), slug);
-        // let role_name = &db_name; // 1:1 role per tenant
-        let safe_slug = slug.chars().take(30).collect::<String>();
-        let role_name = format!("tenant_{}_{}", &user_id.simple(), safe_slug);
+        let db_name: String = format!("tenant_{}_{}", user_id.simple(), slug);
+        let safe_slug: String = slug.chars().take(30).collect::<String>();
+        let role_name: String = format!("tenant_{}_{}", &user_id.simple(), safe_slug);
 
         let password: String = rng()
             .sample_iter(&Alphanumeric)
@@ -59,7 +58,7 @@ impl TenantProvisioner {
             "postgres://{}:{}@localhost:5432/{}",
             role_name, password, db_name
         );
-        let tenant_pool = PgPoolOptions::new()
+        let tenant_pool: sqlx::Pool<sqlx::Postgres> = PgPoolOptions::new()
             .max_connections(10)
             .connect(&tenant_url)
             .await?;

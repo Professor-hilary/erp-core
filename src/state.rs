@@ -14,7 +14,6 @@ pub struct TenantConfig {
     pub base_url: String,
 }
 
-#[allow(unused)]
 #[derive(Clone)]
 pub struct AppState {
     pub master_pool: PgPool,

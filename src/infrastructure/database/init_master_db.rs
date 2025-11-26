@@ -4,13 +4,13 @@ use sqlx::{PgPool, migrate::Migrator, postgres::PgPoolOptions};
 use std::error::Error;
 
 pub async fn init_master(
-    super_url: &str,
+    super_psql_url: &str,
     master_db_name: &str,
     master_db_user: &str,
     master_db_pass: &str,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
     println!("Connecting to PostgreSQL as superuser...");
-    let super_pool: PgPool = PgPool::connect(super_url)
+    let super_pool: PgPool = PgPool::connect(super_psql_url)
         .await
         .map_err(|e| format!("Failed to connect as superuser: {e}"))?;
 
@@ -57,7 +57,7 @@ pub async fn init_master(
     // 3. Ownership & privileges — ALL done as superuser
     println!("Setting ownership and privileges...");
 
-    let queries = [
+    let queries: [String; 5] = [
         format!("GRANT ALL PRIVILEGES ON DATABASE \"{master_db_name}\" TO {master_db_user}"),
         format!("ALTER DATABASE \"{master_db_name}\" OWNER TO {master_db_user}"),
         format!("ALTER SCHEMA public OWNER TO {master_db_user}"),
@@ -72,7 +72,7 @@ pub async fn init_master(
     }
 
     // 4. Connect as the app user and run migrations
-    let master_url =
+    let master_url: String =
         format!("postgres://{master_db_user}:{master_db_pass}@localhost:5432/{master_db_name}");
 
     println!("Connecting as '{master_db_user}' to run migrations...");

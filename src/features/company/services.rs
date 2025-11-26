@@ -1,14 +1,14 @@
 // src/features/company/service.rs
 use crate::{
     features::company::repository::{CompanyRepository, PostgresCompanyRepository},
-    infrastructure::{database::tenant_provisioner::TenantProvisioner, responses::AppError },
+    infrastructure::{database::tenant_provisioner::TenantProvisioner, responses::AppError},
     models::{
         coa_entry::ChartOfAccountsEntry,
         company::{Company, CreateCompanyDto},
     },
     state::AppState,
 };
-use sqlx::PgPool;
+use sqlx::{PgPool, Pool, Postgres};
 use std::{fs, sync::Arc};
 use uuid::Uuid;
 
@@ -25,7 +25,7 @@ impl CompanyService {
         let slug = Self::slugify(&req.name);
 
         // Step 1: Start transaction on master DB (for company record + admin assignment)
-        let mut tx: sqlx::Transaction<'_, sqlx::Postgres> = state
+        let mut tx: sqlx::Transaction<'_, Postgres> = state
             .master_pool
             .begin()
             .await
@@ -34,7 +34,7 @@ impl CompanyService {
         // Step 2: Provision tenant database (this commits independently)
         // Note: We cannot keep this inside the same tx as master operations
         // because CREATE DATABASE cannot run inside a transaction block in PostgreSQL
-        let tenant_pool = TenantProvisioner::create_tenant_db(
+        let tenant_pool: Pool<Postgres> = TenantProvisioner::create_tenant_db(
             &state.master_pool,
             user_id,
             &req.name,
@@ -43,8 +43,8 @@ impl CompanyService {
         .await
         .map_err(|e| AppError::Internal(format!("Failed to provision tenant database: {}", e)))?;
 
-        let tenant_db_name = format!("tenant_{}_{}", user_id.simple(), slug);
-        let tenant_url = format!("{}{}", state.tenant_config.base_url, tenant_db_name);
+        let tenant_db_name: String = format!("tenant_{}_{}", user_id.simple(), slug);
+        let tenant_url: String = format!("{}{}", state.tenant_config.base_url, tenant_db_name);
 
         // Run migrations (already done inside TenantProvisioner, but safe to run again)
         sqlx::migrate!("./migrations/tenant")
@@ -57,10 +57,10 @@ impl CompanyService {
             .await
             .map_err(|_| AppError::Internal("Failed to seed Chart of Accounts".into()))?;
 
-        let repo = PostgresCompanyRepository;
+        let repo: PostgresCompanyRepository = PostgresCompanyRepository;
 
         // Step 4: Insert company record into master DB
-        let company = repo
+        let company: Company = repo
             .create(
                 &mut *tx,
                 &req.name,
@@ -106,12 +106,12 @@ impl CompanyService {
         use rand::Rng;
         const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ\
                              abcdefghijklmnopqrstuvwxyz\
-                             0123456789-";
+                             0123456789";
 
-        let mut rng = rand::rng();
+        let mut rng: rand::prelude::ThreadRng = rand::rng();
         (0..size)
             .map(|_| {
-                let idx = rng.random_range(0..CHARSET.len());
+                let idx: usize = rng.random_range(0..CHARSET.len());
                 CHARSET[idx] as char
             })
             .collect()
@@ -151,7 +151,7 @@ impl CompanyService {
     ) -> Result<Company, AppError> {
         let repo: PostgresCompanyRepository = PostgresCompanyRepository;
 
-        let company = repo
+        let company: Company = repo
             .update(&state.master_pool, company_id, req)
             .await
             .map_err(|_| AppError::NotFound)?;
@@ -195,8 +195,8 @@ impl CompanyService {
             }
         };
 
-        let path = format!("./seed/{}", file_name);
-        let contents = fs::read_to_string(&path)
+        let path: String = format!("./seed/{}", file_name);
+        let contents: String = fs::read_to_string(&path)
             .map_err(|_| AppError::Internal(format!("Failed to reach COA file: {}", path)))?;
 
         let entries: Vec<ChartOfAccountsEntry> = serde_json::from_str(&contents)
