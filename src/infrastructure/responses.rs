@@ -16,6 +16,7 @@ pub struct ApiResponse {
     pub meta: Option<Value>,
 }
 
+#[allow(dead_code)]
 pub enum AppError {
     Unauthorized(String),
     Forbidden(String),

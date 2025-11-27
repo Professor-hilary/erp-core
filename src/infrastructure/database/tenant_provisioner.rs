@@ -1,7 +1,10 @@
 // src/infrastructure/tenant_provisioner.rs
 use rand::{Rng, distr::Alphanumeric, rng};
 use sqlx::{PgPool, postgres::PgPoolOptions};
+use std::env;
 use uuid::Uuid;
+
+use crate::infrastructure::responses::AppError;
 pub struct TenantProvisioner;
 
 impl TenantProvisioner {
@@ -9,8 +12,17 @@ impl TenantProvisioner {
         master_pool: &PgPool,
         user_id: Uuid,
         company_name: &str,
-        _tenant_base_url: &str,
+        //_tenant_base_url: &str,
     ) -> Result<PgPool, sqlx::Error> {
+        let super_psql_url =
+            env::var("POSTGRES_SUPER_URL").expect("POSTGRES_SUPER_URL missing");
+
+        let _super_pool = PgPool::connect(&super_psql_url)
+            .await
+            .map_err(|e| format!("Failed to connect as superuser: {e}"));
+
+        let s_pool = _super_pool.unwrap();
+
         let slug: String = company_name
             .to_lowercase()
             .replace(' ', "_")
@@ -35,23 +47,26 @@ impl TenantProvisioner {
             .collect();
 
         // Note: CREATE DATABASE cannot be in a transaction block
-        sqlx::query(&format!(r#"CREATE DATABASE "{}""#, db_name))
+        let _ = sqlx::query(&format!(r#"CREATE DATABASE "{}""#, db_name))
             .execute(master_pool)
-            .await?;
+            .await
+            .map_err(|e| AppError::Internal(e.to_string()));
 
-        sqlx::query(&format!(
+        let _ = sqlx::query(&format!(
             r#"CREATE ROLE "{}" WITH LOGIN PASSWORD '{}'"#,
             role_name, password
         ))
         .execute(master_pool)
-        .await?;
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()));
 
-        sqlx::query(&format!(
+        let _ = sqlx::query(&format!(
             r#"GRANT ALL PRIVILEGES ON DATABASE "{}" TO "{}""#,
             db_name, role_name
         ))
         .execute(master_pool)
-        .await?;
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()));
 
         // Connect using the new role (more secure than reusing master creds)
         let tenant_url = format!(
@@ -64,9 +79,10 @@ impl TenantProvisioner {
             .await?;
 
         // Run migrations
-        sqlx::migrate!("./migrations/tenant")
+        let _ = sqlx::migrate!("./migrations/tenant")
             .run(&tenant_pool)
-            .await?;
+            .await
+            .map_err(|_| AppError::Internal("Tenant migration failed".into()));
 
         Ok(tenant_pool)
     }

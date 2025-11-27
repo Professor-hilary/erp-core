@@ -1,10 +1,6 @@
 // src/features/accounts/handlers.rs
 use crate::{
-    errors::AppError,
-    features::accounts::{repository::PostgresAccountRepo, service::AccountingService},
-    infrastructure::responses::ApiResponse,
-    middleware::Authenticated,
-    models::account::CreateAccount, state::AppState,
+    errors::AppError, features::accounts::{repository::PostgresAccountRepo, service::AccountingService}, infrastructure::responses::ApiResponse, middleware::auth::AuthenticatedTenant, models::account::CreateAccount, state::AppState
 };
 use axum::{
     Extension, Router,
@@ -27,7 +23,7 @@ pub fn router() -> Router<Arc<AppState>> {
 
 async fn create_account(
     State(_state): State<Arc<AppState>>,
-    Extension(user): Extension<Authenticated>,
+    Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<CreateAccount>,
 ) -> Result<Response, AppError> {
     let repo = PostgresAccountRepo::new();
@@ -40,7 +36,7 @@ async fn create_account(
 
 async fn get_accounts(
     State(_state): State<Arc<AppState>>,
-    Extension(user): Extension<Authenticated>,
+    Extension(user): Extension<AuthenticatedTenant>,
 ) -> Result<Response, AppError> {
     let repo = PostgresAccountRepo::new();
     let service = AccountingService::new(repo);
@@ -53,7 +49,7 @@ async fn get_accounts(
 async fn get_account_by_uuid(
     State(_state): State<Arc<AppState>>,
     Path(id): Path<Uuid>,
-    Extension(user): Extension<Authenticated>,
+    Extension(user): Extension<AuthenticatedTenant>,
 ) -> Result<Response, AppError> {
     let repo = PostgresAccountRepo::new();
     let service = AccountingService::new(repo);
@@ -66,7 +62,7 @@ async fn get_account_by_uuid(
 async fn get_account_by_serial(
     State(_state): State<Arc<AppState>>,
     Path(id): Path<i64>,
-    Extension(user): Extension<Authenticated>,
+    Extension(user): Extension<AuthenticatedTenant>,
 ) -> Result<Response, AppError> {
     let repo = PostgresAccountRepo::new();
     let service = AccountingService::new(repo);
@@ -79,7 +75,7 @@ async fn get_account_by_serial(
 async fn update_account(
     State(_state): State<Arc<AppState>>,
     Path(id): Path<Uuid>,
-    Extension(user): Extension<Authenticated>,
+    Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<CreateAccount>,
 ) -> Result<Response, AppError> {
     let repo = PostgresAccountRepo::new();
@@ -93,7 +89,7 @@ async fn update_account(
 async fn delete_account(
     State(_state): State<Arc<AppState>>,
     Path(id): Path<Uuid>,
-    Extension(user): Extension<Authenticated>,
+    Extension(user): Extension<AuthenticatedTenant>,
 ) -> Result<Response, AppError> {
     let repo = PostgresAccountRepo::new();
     let service = AccountingService::new(repo);

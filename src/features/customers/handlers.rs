@@ -8,12 +8,7 @@ use std::sync::Arc;
 use sqlx::{FromRow, types::JsonValue};
 
 use crate::{
-    errors::AppError,
-    features::customers::{repository::PostgresCustomerRepo, service::CustomerService},
-    infrastructure::responses::ApiResponse,
-    middleware::Authenticated,
-    models::{customers::CreateCustomer, invoice::CreateInvoice},
-    state::AppState,
+    errors::AppError, features::customers::{repository::PostgresCustomerRepo, service::CustomerService}, infrastructure::responses::ApiResponse, middleware::auth::AuthenticatedTenant, models::{customers::CreateCustomer, invoice::CreateInvoice}, state::AppState
 };
 
 pub fn router() -> Router<Arc<AppState>> {
@@ -28,7 +23,7 @@ pub fn router() -> Router<Arc<AppState>> {
 
 async fn create_customer(
     State(_state): State<Arc<AppState>>,
-    Extension(user): Extension<Authenticated>,
+    Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<CreateCustomer>,
 ) -> Result<Response, AppError> {
     let repo = PostgresCustomerRepo::new();
@@ -39,7 +34,7 @@ async fn create_customer(
 
 async fn list_customers(
     State(_state): State<Arc<AppState>>,
-    Extension(user): Extension<Authenticated>,
+    Extension(user): Extension<AuthenticatedTenant>,
 ) -> Result<Response, AppError> {
     let repo = PostgresCustomerRepo::new();
     let service = CustomerService::new(repo);
@@ -50,7 +45,7 @@ async fn list_customers(
 async fn get_customer(
     State(_state): State<Arc<AppState>>,
     Path(id): Path<i64>,
-    Extension(user): Extension<Authenticated>,
+    Extension(user): Extension<AuthenticatedTenant>,
 ) -> Result<Response, AppError> {
     let repo = PostgresCustomerRepo::new();
     let service = CustomerService::new(repo);
@@ -61,7 +56,7 @@ async fn get_customer(
 async fn update_customer(
     State(_state): State<Arc<AppState>>,
     Path(id): Path<i64>,
-    Extension(user): Extension<Authenticated>,
+    Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<CreateCustomer>,
 ) -> Result<Response, AppError> {
     let repo = PostgresCustomerRepo::new();
@@ -73,7 +68,7 @@ async fn update_customer(
 async fn delete_customer(
     State(_state): State<Arc<AppState>>,
     Path(id): Path<i64>,
-    Extension(user): Extension<Authenticated>,
+    Extension(user): Extension<AuthenticatedTenant>,
 ) -> Result<Response, AppError> {
     let repo = PostgresCustomerRepo::new();
     let service = CustomerService::new(repo);
@@ -90,7 +85,7 @@ pub struct InvoiceId {
 
 async fn create_invoice(
     State(state): State<Arc<AppState>>,
-    Extension(user): Extension<Authenticated>,
+    Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<CreateInvoice>,
 ) -> Result<Response, AppError> {
     let rows = sqlx::query_as::<_, InvoiceId>(

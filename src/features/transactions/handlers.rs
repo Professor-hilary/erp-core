@@ -1,14 +1,9 @@
 // src/features/transactions/handlers.rs
 use crate::{
-    errors::AppError,
-    features::{
+    errors::AppError, features::{
         accounts::repository::PostgresAccountRepo,
         transactions::{repository::PostgresTransactionRepo, services::TransactionService},
-    },
-    infrastructure::responses::ApiResponse,
-    middleware::Authenticated,
-    models::transaction::CreateTransaction,
-    state::AppState,
+    }, infrastructure::responses::ApiResponse, middleware::auth::AuthenticatedTenant, models::transaction::CreateTransaction, state::AppState
 };
 use axum::{
     Extension, Router,
@@ -30,7 +25,7 @@ pub fn router() -> Router<Arc<AppState>> {
 
 async fn create_transaction(
     State(_state): State<Arc<AppState>>,
-    Extension(user): Extension<Authenticated>,
+    Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<CreateTransaction>,
 ) -> Result<Response, AppError> {
     let acc_repo = PostgresAccountRepo::new();
@@ -44,7 +39,7 @@ async fn create_transaction(
 
 async fn get_transactions(
     State(_state): State<Arc<AppState>>,
-    Extension(user): Extension<Authenticated>,
+    Extension(user): Extension<AuthenticatedTenant>,
 ) -> Result<Response, AppError> {
     let acc_repo = PostgresAccountRepo::new();
     let tx_repo = PostgresTransactionRepo::new();
@@ -58,7 +53,7 @@ async fn get_transactions(
 async fn get_transaction(
     State(_state): State<Arc<AppState>>,
     Path(id): Path<Uuid>,
-    Extension(user): Extension<Authenticated>,
+    Extension(user): Extension<AuthenticatedTenant>,
 ) -> Result<Response, AppError> {
     let acc_repo = PostgresAccountRepo::new();
     let tx_repo = PostgresTransactionRepo::new();
@@ -72,7 +67,7 @@ async fn get_transaction(
 async fn update_transaction(
     State(_state): State<Arc<AppState>>,
     Path(id): Path<Uuid>,
-    Extension(user): Extension<Authenticated>,
+    Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<CreateTransaction>,
 ) -> Result<Response, AppError> {
     let acc_repo = PostgresAccountRepo::new();
@@ -87,7 +82,7 @@ async fn update_transaction(
 async fn delete_transaction(
     State(_state): State<Arc<AppState>>,
     Path(id): Path<Uuid>,
-    Extension(user): Extension<Authenticated>,
+    Extension(user): Extension<AuthenticatedTenant>,
 ) -> Result<Response, AppError> {
     let acc_repo: PostgresAccountRepo = PostgresAccountRepo::new();
     let tx_repo: PostgresTransactionRepo = PostgresTransactionRepo::new();

@@ -8,15 +8,10 @@ use axum::{
 use std::sync::Arc;
 
 use crate::{
-    errors::AppError,
-    features::inventory::{repository::PostgresInventoryRepo, service::InventoryService},
-    infrastructure::responses::ApiResponse,
-    middleware::Authenticated,
-    models::{
+    errors::AppError, features::inventory::{repository::PostgresInventoryRepo, service::InventoryService}, infrastructure::responses::ApiResponse, middleware::auth::AuthenticatedTenant, models::{
         inventory_movement::{PostPurchase, PostSale},
         item::CreateItem,
-    },
-    state::AppState,
+    }, state::AppState
 };
 
 pub fn router() -> Router<Arc<AppState>> {
@@ -32,7 +27,7 @@ pub fn router() -> Router<Arc<AppState>> {
 
 async fn create_item(
     State(_state): State<Arc<AppState>>,
-    Extension(user): Extension<Authenticated>,
+    Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<CreateItem>,
 ) -> Result<Response, AppError> {
     let repo = PostgresInventoryRepo::new();
@@ -45,7 +40,7 @@ async fn create_item(
 
 async fn list_items(
     State(_state): State<Arc<AppState>>,
-    Extension(user): Extension<Authenticated>,
+    Extension(user): Extension<AuthenticatedTenant>,
 ) -> Result<Response, AppError> {
     let repo = PostgresInventoryRepo::new();
     let service = InventoryService::new(repo);
@@ -56,7 +51,7 @@ async fn list_items(
 async fn get_item(
     State(_state): State<Arc<AppState>>,
     Path(id): Path<i64>,
-    Extension(user): Extension<Authenticated>,
+    Extension(user): Extension<AuthenticatedTenant>,
 ) -> Result<Response, AppError> {
     let repo = PostgresInventoryRepo::new();
     let service = InventoryService::new(repo);
@@ -69,7 +64,7 @@ async fn get_item(
 async fn update_item(
     State(_state): State<Arc<AppState>>,
     Path(id): Path<i64>,
-    Extension(user): Extension<Authenticated>,
+    Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<CreateItem>,
 ) -> Result<Response, AppError> {
     let repo = PostgresInventoryRepo::new();
@@ -83,7 +78,7 @@ async fn update_item(
 async fn delete_item(
     State(_state): State<Arc<AppState>>,
     Path(id): Path<i64>,
-    Extension(user): Extension<Authenticated>,
+    Extension(user): Extension<AuthenticatedTenant>,
 ) -> Result<Response, AppError> {
     let repo = PostgresInventoryRepo::new();
     let service = InventoryService::new(repo);
@@ -95,7 +90,7 @@ async fn delete_item(
 
 async fn post_purchase(
     State(_state): State<Arc<AppState>>,
-    Extension(user): Extension<Authenticated>,
+    Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<PostPurchase>,
 ) -> Result<Response, AppError> {
     let repo = PostgresInventoryRepo::new();
@@ -111,7 +106,7 @@ async fn post_purchase(
 
 async fn post_sale(
     State(_state): State<Arc<AppState>>,
-    Extension(user): Extension<Authenticated>,
+    Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<PostSale>,
 ) -> Result<Response, AppError> {
     let repo = PostgresInventoryRepo::new();

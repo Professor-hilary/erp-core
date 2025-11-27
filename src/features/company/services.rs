@@ -1,6 +1,9 @@
 // src/features/company/service.rs
 use crate::{
-    features::company::repository::{CompanyRepository, PostgresCompanyRepository},
+    features::{
+        auth::{AuthService, repository::PostgresUserRepo},
+        company::repository::{CompanyRepository, PostgresCompanyRepository},
+    },
     infrastructure::{database::tenant_provisioner::TenantProvisioner, responses::AppError},
     models::{
         coa_entry::ChartOfAccountsEntry,
@@ -38,19 +41,13 @@ impl CompanyService {
             &state.master_pool,
             user_id,
             &req.name,
-            &state.tenant_config.base_url, // e.g. "postgres://app_user:app_pass@localhost:5432/"
+            // &state.tenant_config.base_url, // e.g. "postgres://app_user:app_pass@localhost:5432/"
         )
         .await
         .map_err(|e| AppError::Internal(format!("Failed to provision tenant database: {}", e)))?;
 
         let tenant_db_name: String = format!("tenant_{}_{}", user_id.simple(), slug);
         let tenant_url: String = format!("{}{}", state.tenant_config.base_url, tenant_db_name);
-
-        // Run migrations (already done inside TenantProvisioner, but safe to run again)
-        sqlx::migrate!("./migrations/tenant")
-            .run(&tenant_pool)
-            .await
-            .map_err(|_| AppError::Internal("Tenant migration failed".into()))?;
 
         // Step 3: Seed Chart of Accounts
         Self::seed_coa(&tenant_pool, &req.business_type)
@@ -91,6 +88,15 @@ impl CompanyService {
         // Step 7: Cache the tenant pool only after everything succeeds
         state.tenant_pools.insert(company.uuid, tenant_pool);
 
+        // After caching tenant_pool and committing:
+        let repo = PostgresUserRepo::new(state.master_pool.clone());
+        let auth_service = AuthService::new(repo, state.clone());
+
+        let _new_token = auth_service
+            .generate_token(user_id, Some(company.uuid), Some(tenant_db_name))
+            .map_err(|_| AppError::Internal("Failed to generate new token".into()))?;
+
+        // Return both company + new token
         Ok(company)
     }
 

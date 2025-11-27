@@ -8,12 +8,7 @@ use axum::{
 use std::sync::Arc;
 
 use crate::{
-    errors::AppError,
-    features::hr::{repository::PostgresHrRepo, service::HrService},
-    infrastructure::responses::ApiResponse,
-    middleware::Authenticated,
-    models::{employee::{CreateEmployee}, payrun::{CreatePayrun}},
-    state::AppState,
+    errors::AppError, features::hr::{repository::PostgresHrRepo, service::HrService}, infrastructure::responses::ApiResponse, middleware::auth::AuthenticatedTenant, models::{employee::CreateEmployee, payrun::CreatePayrun}, state::AppState
 };
 
 pub fn router() -> Router<Arc<AppState>> {
@@ -29,7 +24,7 @@ pub fn router() -> Router<Arc<AppState>> {
 
 async fn create_employee(
     State(_state): State<Arc<AppState>>,
-    Extension(user): Extension<Authenticated>,
+    Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<CreateEmployee>,
 ) -> Result<Response, AppError> {
     let repo = PostgresHrRepo::new();
@@ -40,7 +35,7 @@ async fn create_employee(
 
 async fn list_employees(
     State(_state): State<Arc<AppState>>,
-    Extension(user): Extension<Authenticated>,
+    Extension(user): Extension<AuthenticatedTenant>,
 ) -> Result<Response, AppError> {
     let repo = PostgresHrRepo::new();
     let svc = HrService::new(repo);
@@ -51,7 +46,7 @@ async fn list_employees(
 async fn get_employee(
     State(_state): State<Arc<AppState>>,
     Path(id): Path<i32>,
-    Extension(user): Extension<Authenticated>,
+    Extension(user): Extension<AuthenticatedTenant>,
 ) -> Result<Response, AppError> {
     let repo = PostgresHrRepo::new();
     let svc = HrService::new(repo);
@@ -62,7 +57,7 @@ async fn get_employee(
 async fn update_employee(
     State(_state): State<Arc<AppState>>,
     Path(id): Path<i32>,
-    Extension(user): Extension<Authenticated>,
+    Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<CreateEmployee>,
 ) -> Result<Response, AppError> {
     let repo = PostgresHrRepo::new();
@@ -74,7 +69,7 @@ async fn update_employee(
 async fn delete_employee(
     State(_state): State<Arc<AppState>>,
     Path(id): Path<i32>,
-    Extension(user): Extension<Authenticated>,
+    Extension(user): Extension<AuthenticatedTenant>,
 ) -> Result<Response, AppError> {
     let repo = PostgresHrRepo::new();
     let svc = HrService::new(repo);
@@ -84,7 +79,7 @@ async fn delete_employee(
 
 async fn create_and_post_payrun(
     State(_state): State<Arc<AppState>>,
-    Extension(user): Extension<Authenticated>,
+    Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<CreatePayrun>,
 ) -> Result<Response, AppError> {
     let repo = PostgresHrRepo::new();
@@ -96,7 +91,7 @@ async fn create_and_post_payrun(
 async fn get_payrun(
     State(_state): State<Arc<AppState>>,
     Path(id): Path<i32>,
-    Extension(user): Extension<Authenticated>,
+    Extension(user): Extension<AuthenticatedTenant>,
 ) -> Result<Response, AppError> {
     let repo = PostgresHrRepo::new();
     let svc = HrService::new(repo);

@@ -10,12 +10,7 @@ use std::sync::Arc;
 use sqlx::types::JsonValue;
 
 use crate::{
-    errors::AppError,
-    features::vendors::{repository::PostgresVendorRepo, service::VendorService},
-    infrastructure::responses::ApiResponse,
-    middleware::Authenticated,
-    models::{bills::CreateBill, vendor::CreateVendor},
-    state::AppState,
+    errors::AppError, features::vendors::{repository::PostgresVendorRepo, service::VendorService}, infrastructure::responses::ApiResponse, middleware::auth::AuthenticatedTenant, models::{bills::CreateBill, vendor::CreateVendor}, state::AppState
 };
 
 pub fn router() -> Router<Arc<AppState>> {
@@ -30,7 +25,7 @@ pub fn router() -> Router<Arc<AppState>> {
 
 async fn create_vendor(
     State(_state): State<Arc<AppState>>,
-    Extension(user): Extension<Authenticated>,
+    Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<CreateVendor>,
 ) -> Result<Response, AppError> {
     let repo = PostgresVendorRepo::new();
@@ -41,7 +36,7 @@ async fn create_vendor(
 
 async fn list_vendors(
     State(_state): State<Arc<AppState>>,
-    Extension(user): Extension<Authenticated>,
+    Extension(user): Extension<AuthenticatedTenant>,
 ) -> Result<Response, AppError> {
     let repo = PostgresVendorRepo::new();
     let svc = VendorService::new(repo);
@@ -52,7 +47,7 @@ async fn list_vendors(
 async fn get_vendor(
     State(_state): State<Arc<AppState>>,
     Path(id): Path<i64>,
-    Extension(user): Extension<Authenticated>,
+    Extension(user): Extension<AuthenticatedTenant>,
 ) -> Result<Response, AppError> {
     let repo = PostgresVendorRepo::new();
     let svc = VendorService::new(repo);
@@ -63,7 +58,7 @@ async fn get_vendor(
 async fn update_vendor(
     State(_state): State<Arc<AppState>>,
     Path(id): Path<i64>,
-    Extension(user): Extension<Authenticated>,
+    Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<CreateVendor>,
 ) -> Result<Response, AppError> {
     let repo = PostgresVendorRepo::new();
@@ -75,7 +70,7 @@ async fn update_vendor(
 async fn delete_vendor(
     State(_state): State<Arc<AppState>>,
     Path(id): Path<i64>,
-    Extension(user): Extension<Authenticated>,
+    Extension(user): Extension<AuthenticatedTenant>,
 ) -> Result<Response, AppError> {
     let repo = PostgresVendorRepo::new();
     let svc = VendorService::new(repo);
@@ -92,7 +87,7 @@ pub struct BillId {
 
 async fn create_bill(
     State(_state): State<Arc<AppState>>,
-    Extension(user): Extension<Authenticated>,
+    Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<CreateBill>,
 ) -> Result<Response, AppError> {
     let rows = sqlx::query_as::<_, BillId>(

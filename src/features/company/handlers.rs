@@ -3,12 +3,12 @@ use crate::{
     features::company::services::CompanyService,
     //errors::AppError,
     infrastructure::responses::AppError,
-    middleware::Authenticated,
+    middleware::auth::{AuthenticatedTenant, AuthenticatedUser},
     models::company::{Company, CreateCompanyDto, UpdateCompanyDto},
     state::AppState,
 };
 use axum::{
-    Json, Router,
+    Extension, Json, Router,
     extract::{Path, State},
     routing::{delete, get, post, put},
 };
@@ -20,31 +20,35 @@ use crate::features::company::repository::{CompanyRepository, PostgresCompanyRep
 
 pub fn router() -> Router<Arc<AppState>> {
     Router::new()
-        .route("/companies", post(create_company))
-        .route("/companies", get(list_companies))
-        .route("/companies/{id}", get(get_company))
-        .route("/companies/{id}", put(update_company))
-        .route("/companies/{id}", delete(delete_company))
+        .route("/create", post(create_company))
+        .route("/get", get(list_companies))
+        .route("/get/{id}", get(get_company))
+        .route("/update/{id}", put(update_company))
+        .route("/delete/{id}", delete(delete_company))
 }
 
 /// POST /companies
 async fn create_company(
     State(state): State<Arc<AppState>>,
-    Authenticated { user_id, .. }: Authenticated,
+    // AuthenticatedUser { user_id, .. }: AuthenticatedUser,
+    Extension(user): Extension<AuthenticatedUser>,
     Json(payload): Json<CreateCompanyDto>,
 ) -> Result<Json<Company>, AppError> {
-    let company: Company = CompanyService::create_company(state.clone(), user_id, payload).await?;
+    let company: Company =
+        CompanyService::create_company(state.clone(), user.user_id, payload).await?;
     Ok(Json(company))
 }
 
 /// GET /companies (user's companies)
 async fn list_companies(
     State(state): State<Arc<AppState>>,
-    Authenticated { user_id, .. }: Authenticated,
+    // Authenticated { user_id, .. }: Authenticated,
+    Extension(tenant): Extension<AuthenticatedTenant>,
 ) -> Result<Json<Vec<Company>>, AppError> {
-    let companies: Vec<Company> = CompanyService::list_user_companies(state.clone(), user_id)
-        .await
-        .map_err(|_| AppError::Internal("Failed to fetch companies".into()))?;
+    let companies: Vec<Company> =
+        CompanyService::list_user_companies(state.clone(), tenant.user_id)
+            .await
+            .map_err(|_| AppError::Internal("Failed to fetch companies".into()))?;
     Ok(Json(companies))
 }
 
@@ -52,7 +56,8 @@ async fn list_companies(
 async fn get_company(
     State(state): State<Arc<AppState>>,
     Path(company_id): Path<Uuid>,
-    Authenticated { user_id: _, .. }: Authenticated,
+    // Authenticated { user_id: _, .. }: Authenticated,
+    Extension(_tenant): Extension<AuthenticatedTenant>,
 ) -> Result<Json<Company>, AppError> {
     let repo = PostgresCompanyRepository;
     let company = repo
@@ -67,11 +72,12 @@ async fn get_company(
 async fn update_company(
     State(state): State<Arc<AppState>>,
     Path(company_id): Path<Uuid>,
-    Authenticated { user_id, .. }: Authenticated,
+    // Authenticated { user_id, .. }: Authenticated,
+    Extension(tenant): Extension<AuthenticatedTenant>,
     Json(payload): Json<UpdateCompanyDto>,
 ) -> Result<Json<Company>, AppError> {
     let company: Company =
-        CompanyService::update_company(state.clone(), user_id, company_id, payload)
+        CompanyService::update_company(state.clone(), tenant.user_id, company_id, payload)
             .await
             .map_err(|_| AppError::Internal("Failed to fetch companies".into()))?;
     Ok(Json(company))
@@ -81,9 +87,10 @@ async fn update_company(
 async fn delete_company(
     State(state): State<Arc<AppState>>,
     Path(company_id): Path<Uuid>,
-    Authenticated { user_id, .. }: Authenticated,
+    // Authenticated { user_id, .. }: Authenticated,
+    Extension(tenant): Extension<AuthenticatedTenant>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    CompanyService::delete_company(state.clone(), user_id, company_id).await?;
+    CompanyService::delete_company(state.clone(), tenant.user_id, company_id).await?;
     Ok(Json(serde_json::json!({
         "success": true,
         "message": "Company deleted successfully (soft delete)"

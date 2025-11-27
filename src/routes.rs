@@ -7,36 +7,45 @@ use axum::{
     routing::get,
 };
 
-use crate::AppState;
+use crate::{
+    AppState,
+    features::{accounts, company, customers, hr, inventory, transactions, vendors},
+    middleware::{auth::AuthenticatedUser, layer::auth_middleware},
+};
 
 use std::{sync::Arc, time::Duration};
 use tower_http::{classify::ServerErrorsFailureClass, cors::CorsLayer, trace::TraceLayer};
 
-use crate::middleware::{Authenticated, layer::auth_middleware};
-
 pub fn create_router(state: Arc<AppState>) -> Router {
     // Protected Routes
-    let company_routes =
-        crate::features::company::handlers::router().layer(middleware::from_fn(auth_middleware));
-    let vendor_routes: Router<Arc<AppState>> =
-        crate::features::vendors::handlers::router().layer(middleware::from_fn(auth_middleware));
-    let customer_routes: Router<Arc<AppState>> =
-        crate::features::customers::handlers::router().layer(middleware::from_fn(auth_middleware));
-    let employee_routes: Router<Arc<AppState>> =
-        crate::features::hr::handler::router().layer(middleware::from_fn(auth_middleware));
-    let transaction_routes: Router<Arc<AppState>> =
-        crate::features::transactions::handlers::router()
-            .layer(middleware::from_fn(auth_middleware));
-    let account_routes: Router<Arc<AppState>> =
-        crate::features::accounts::handlers::router().layer(middleware::from_fn(auth_middleware));
-    let inventory_routes: Router<Arc<AppState>> =
-        crate::features::inventory::handler::router().layer(middleware::from_fn(auth_middleware));
+    let company_routes: Router<Arc<AppState>> = company::handlers::router().layer(middleware::from_fn_with_state(
+        state.clone(),
+        auth_middleware,
+    ));
+    let vendor_routes: Router<Arc<AppState>> = vendors::handlers::router().layer(
+        middleware::from_fn_with_state(state.clone(), auth_middleware),
+    );
+    let customer_routes: Router<Arc<AppState>> = customers::handlers::router().layer(
+        middleware::from_fn_with_state(state.clone(), auth_middleware),
+    );
+    let employee_routes: Router<Arc<AppState>> = hr::handler::router().layer(
+        middleware::from_fn_with_state(state.clone(), auth_middleware),
+    );
+    let transaction_routes: Router<Arc<AppState>> = transactions::handlers::router().layer(
+        middleware::from_fn_with_state(state.clone(), auth_middleware),
+    );
+    let account_routes: Router<Arc<AppState>> = accounts::handlers::router().layer(
+        middleware::from_fn_with_state(state.clone(), auth_middleware),
+    );
+    let inventory_routes: Router<Arc<AppState>> = inventory::handler::router().layer(
+        middleware::from_fn_with_state(state.clone(), auth_middleware),
+    );
 
     Router::new()
         // CHECK THAT SERVER IS UP AND RUNING
         .route(
             "/",
-            get(|| async { "Yey! Service Up And Running Successfully!🇺🇬\n" }),
+            get(|| async { "Service Up And Running Successfully!\n" }),
         )
         // PUBLIC ROUTES (no auth required)
         .nest("/api/auth", crate::features::auth::handlers::router())
@@ -57,8 +66,8 @@ pub fn create_router(state: Arc<AppState>) -> Router {
                 .make_span_with(|request: &Request| {
                     let user_id = request
                         .extensions()
-                        .get::<Authenticated>()
-                        .map(|auth: &Authenticated| auth.user_id.to_string())
+                        .get::<AuthenticatedUser>()
+                        .map(|auth| auth.user_id.to_string())
                         .unwrap_or_else(|| "anonymous".to_string());
 
                     tracing::info_span!(

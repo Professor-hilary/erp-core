@@ -88,7 +88,7 @@ impl CompanyRepository for PostgresCompanyRepository {
         business_type: &str,
         created_by: Uuid,
     ) -> Result<Company, AppError> {
-        let company = sqlx::query_as::<_, Company>(
+        let company: Company = sqlx::query_as::<_, Company>(
             r#"
             INSERT INTO companies (
                 name, slug, tenant_db_name, tenant_db_uri,

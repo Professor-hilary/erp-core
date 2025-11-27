@@ -76,7 +76,7 @@ impl<R: UserRepository> AuthService<R> {
     }
 
     /// Pure function for generating login and signup tokens
-    fn generate_token(
+    pub fn generate_token(
         &self,
         user_id: Uuid,
         company_id: Option<Uuid>,

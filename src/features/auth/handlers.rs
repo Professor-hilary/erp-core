@@ -1,15 +1,10 @@
 // src/features/auth/handlers.rs
 use axum::{
-    Router, extract::{Json, State}, routing::post,
-    response::IntoResponse,
+    Extension, Router, extract::{Json, State}, response::IntoResponse, routing::post
 };
 use std::sync::Arc;
 use crate::{
-    errors::AppError,
-    features::auth::{AuthService, repository::PostgresUserRepo},
-    infrastructure::responses::ApiResponse,
-    models::{ user::{CreateUser, LoginUser}},
-    state::AppState,
+    errors::AppError, features::auth::{AuthService, repository::PostgresUserRepo}, infrastructure::responses::ApiResponse, middleware::auth::AuthenticatedUser, models::user::{CreateUser, LoginUser}, state::AppState
 };
 use uuid::Uuid;
 
@@ -45,7 +40,8 @@ async fn login(
 // POST /api/auth/switch-company { "company_id": "..." }
 async fn switch_company(
     State(state): State<Arc<AppState>>,
-    crate::middleware::Authenticated { user_id, .. }: crate::middleware::Authenticated,
+    // AuthenticatedUser { user_id, .. }: AuthenticatedUser,
+    Extension(user):Extension<AuthenticatedUser>,
     Json(payload): Json<serde_json::Value>,
 ) -> Result<impl IntoResponse, AppError> {
     let company_id: Uuid = payload["company_id"]
@@ -55,7 +51,7 @@ async fn switch_company(
 
     let repo = PostgresUserRepo::new(state.master_pool.clone());
     let service = AuthService::new(repo, state.clone());
-    let new_token = service.switch_company(user_id, company_id).await?;
+    let new_token = service.switch_company(user.user_id, company_id).await?;
 
     Ok(ApiResponse::success(new_token, "Company switched successfully"))
 }
