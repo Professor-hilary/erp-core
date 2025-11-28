@@ -43,8 +43,7 @@ impl CompanyService {
             &req.name,
             // &state.tenant_config.base_url, // e.g. "postgres://app_user:app_pass@localhost:5432/"
         )
-        .await
-        .map_err(|e| AppError::Internal(format!("Failed to provision tenant database: {}", e)))?;
+        .await?;
 
         let tenant_db_name: String = format!("tenant_{}_{}", user_id.simple(), slug);
         let tenant_url: String = format!("{}{}", state.tenant_config.base_url, tenant_db_name);

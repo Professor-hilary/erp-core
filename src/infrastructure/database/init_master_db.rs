@@ -40,7 +40,7 @@ pub async fn init_master(
     if !user_exists {
         println!("Creating role '{master_db_user}'...");
         sqlx::query(&format!(
-            "CREATE ROLE {master_db_user} WITH LOGIN PASSWORD '{master_db_pass}'"
+            "CREATE ROLE {master_db_user} WITH LOGIN PASSWORD '{master_db_pass}' CREATEDB CREATEROLE BYPASSRLS"
         ))
         .execute(&super_pool)
         .await?;
@@ -48,7 +48,7 @@ pub async fn init_master(
         // Safely update password on re-run (optional but nice)
         println!("Updating password for '{master_db_user}' (idempotent)...");
         sqlx::query(&format!(
-            "ALTER ROLE {master_db_user} WITH PASSWORD '{master_db_pass}'"
+            "ALTER ROLE {master_db_user} WITH PASSWORD '{master_db_pass}' CREATEDB CREATEROLE BYPASSRLS"
         ))
         .execute(&super_pool)
         .await?;
