@@ -6,13 +6,13 @@ use crate::{
     },
     infrastructure::{database::tenant_provisioner::TenantProvisioner, responses::AppError},
     models::{
-        coa_entry::ChartOfAccountsEntry,
+        coa_entry::{/* ChartOfAccountsEntry,  */ CoaTemplate},
         company::{Company, CreateCompanyDto},
     },
     state::AppState,
 };
 use sqlx::{PgPool, Pool, Postgres};
-use std::{fs, sync::Arc};
+use std::sync::Arc;
 use uuid::Uuid;
 
 pub struct CompanyService;
@@ -25,7 +25,7 @@ impl CompanyService {
         user_id: Uuid,
         req: CreateCompanyDto,
     ) -> Result<Company, AppError> {
-        let slug = Self::slugify(&req.name);
+        let slug: String = Self::slugify(&req.name);
 
         // Step 1: Start transaction on master DB (for company record + admin assignment)
         let mut tx: sqlx::Transaction<'_, Postgres> = state
@@ -49,7 +49,7 @@ impl CompanyService {
         let tenant_url: String = format!("{}{}", state.tenant_config.base_url, tenant_db_name);
 
         // Step 3: Seed Chart of Accounts
-        Self::seed_coa(&tenant_pool, &req.business_type)
+        Self::seed_coa(&tenant_pool, &req.industry, &state.coa_seed_path)
             .await
             .map_err(|_| AppError::Internal("Failed to seed Chart of Accounts".into()))?;
 
@@ -174,11 +174,14 @@ impl CompanyService {
         repo.find_by_user(&state.master_pool, user_id).await
     }
 
-    /// # COA seed
-    /// Seed default chart of accounts for a tenant based on company type
-    pub async fn seed_coa(tenant_pool: &PgPool, business_type: &str) -> Result<(), AppError> {
-        // Map business_type to file name (Adjust mapping as needed)
-        let file_name = match business_type {
+    /// DEBUG VERSION – prints real error, works with dynamic tenants
+    pub async fn seed_coa(
+        tenant_pool: &PgPool,
+        business_type: &str,
+        coa_seed_path: &str,
+    ) -> Result<(), AppError> {
+        // 1. Map business_type → file
+        let file_name: &str = match business_type {
             "agriculture" => "coa_agriculture.json",
             "energy" => "coa_energy.json",
             "infotech" => "coa_infotechnology.json",
@@ -193,38 +196,85 @@ impl CompanyService {
             "manufacturing" => "coa_manufacturing.json",
             "retail" => "coa_retail.json",
             _ => {
-                return Err(AppError::Unauthorized(format!(
-                    "Unknown business type: {}",
-                    business_type
+                eprintln!("Invalid business_type received: {business_type}");
+                return Err(AppError::BadRequest(format!(
+                    "Invalid business_type: {business_type}"
                 )));
             }
         };
 
-        let path: String = format!("./seed/{}", file_name);
-        let contents: String = fs::read_to_string(&path)
-            .map_err(|_| AppError::Internal(format!("Failed to reach COA file: {}", path)))?;
+        let path: String = format!("{coa_seed_path}/{file_name}");
+        println!("\nReading COA file: {path}");
 
-        let entries: Vec<ChartOfAccountsEntry> = serde_json::from_str(&contents)
-            .map_err(|_| AppError::Internal(format!("Invalid JSON in COA file: {}", path)))?;
+        // 2. Read file
+        let contents: String = std::fs::read_to_string(&path).map_err(|e| {
+            eprintln!("File not found or unreadable: {e}");
+            AppError::Internal(format!("COA seed file missing: {path}"))
+        })?;
 
-        // Insert into tenant DB
-        for entry in entries {
-            sqlx::query(
+        // 3. Parse the full template (this is the correct one now)
+        let template: CoaTemplate = serde_json::from_str(&contents).map_err(|e| {
+            eprintln!("JSON parsing failed: {e}");
+            eprintln!(
+                "First 500 chars of file:\n{}\n",
+                &contents[..contents.len().min(500)]
+            );
+            AppError::Internal(format!("Invalid COA template in {file_name}: {e}"))
+        })?;
+
+        println!(
+            "Loaded COA template: \"{}\" — {} accounts",
+            template.name,
+            template.accounts.len()
+        );
+
+        // 4. Insert each account from template.accounts
+        for (i, entry) in template.accounts.iter().enumerate() {
+            let result = sqlx::query(
                 r#"
-                INSERT INTO accounting.accounts (code, name, category, parent_code, normal_balance, is_contra)
-                VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (code) DO NOTHING
-                "#
+            INSERT INTO accounting.accounts (
+                code, name, category, parent_code, normal_balance, is_contra
+            ) VALUES ($1, $2, $3, $4, $5, $6)
+            ON CONFLICT (code) DO NOTHING
+            "#,
             )
             .bind(&entry.code)
             .bind(&entry.name)
             .bind(&entry.category)
-            .bind(&entry.parent_code)
+            .bind(&entry.parent_code) // Option<T> works fine with .bind()
             .bind(&entry.normal_balance)
-            .bind(&entry.is_contra)
+            .bind(entry.is_contra)
             .execute(tenant_pool)
-            .await
-            .map_err(|e| AppError::Internal(format!("Failed to insert COA entry: {}", e)))?;
+            .await;
+
+            match result {
+                Ok(_) => {
+                    if (i + 1) % 50 == 0 || i == template.accounts.len() - 1 {
+                        println!("→ Inserted {} accounts so far...", i + 1);
+                    }
+                }
+                Err(e) => {
+                    eprintln!("\nDATABASE INSERT FAILED at entry #{i}");
+                    eprintln!("Code: {}", entry.code);
+                    eprintln!("Name: {}", entry.name);
+                    eprintln!("Category: {}", entry.category);
+                    eprintln!("Parent code: {:?}", entry.parent_code);
+                    eprintln!("Error: {e}");
+                    eprintln!("Full sqlx error: {e:?}\n");
+                    return Err(AppError::Internal(format!(
+                        "Failed to seed COA at entry {i} (code: {}): {e}",
+                        entry.code
+                    )));
+                }
+            }
         }
+
+        println!(
+            "COA seeding completed successfully!\n→ Template: \"{}\"\n→ Industry: {}\n→ {} accounts inserted.\n",
+            template.name,
+            template.industry,
+            template.accounts.len()
+        );
 
         Ok(())
     }

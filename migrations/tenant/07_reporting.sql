@@ -47,21 +47,21 @@ CREATE MATERIALIZED VIEW IF NOT EXISTS reporting.balance_sheet AS
 WITH balances AS (
     SELECT
         a.type,
-        a.subtype,
+        a.code,
         COALESCE(SUM(te.debit), 0) - COALESCE(SUM(te.credit), 0) AS balance
     FROM accounting.accounts a
     LEFT JOIN accounting.transaction_entries te ON te.account_uuid = a.uuid
-    GROUP BY a.type, a.subtype
+    GROUP BY a.type, a.code
 )
 SELECT
     'ASSETS' AS section,
     COALESCE(SUM(balance) FILTER (WHERE type = 'Asset'), 0) AS total_assets,
-    COALESCE(SUM(balance) FILTER (WHERE type = 'Asset' AND subtype = 'Current'), 0) AS current_assets,
-    COALESCE(SUM(balance) FILTER (WHERE type = 'Asset' AND subtype = 'Non-current'), 0) AS non_current_assets,
+    COALESCE(SUM(balance) FILTER (WHERE type = 'Asset' AND code = '110000'), 0) AS current_assets,
+    COALESCE(SUM(balance) FILTER (WHERE type = 'Asset' AND code = '120000'), 0) AS non_current_assets,
     'LIABILITIES' AS section2,
     COALESCE(SUM(balance) FILTER (WHERE type = 'Liability'), 0) AS total_liabilities,
-    COALESCE(SUM(balance) FILTER (WHERE type = 'Liability' AND subtype = 'Current'), 0) AS current_liabilities,
-    COALESCE(SUM(balance) FILTER (WHERE type = 'Liability' AND subtype = 'Non-current'), 0) AS non_current_liabilities,
+    COALESCE(SUM(balance) FILTER (WHERE type = 'Liability' AND code = '210000'), 0) AS current_liabilities,
+    COALESCE(SUM(balance) FILTER (WHERE type = 'Liability' AND code = '220000'), 0) AS non_current_liabilities,
     'EQUITY' AS section3,
     COALESCE(SUM(balance) FILTER (WHERE type = 'Equity'), 0) AS total_equity
 FROM balances
@@ -80,13 +80,13 @@ cogs AS (
     SELECT COALESCE(SUM(te.debit - te.credit), 0) AS cogs
     FROM accounting.transaction_entries te
     JOIN accounting.accounts a ON a.uuid = te.account_uuid
-    WHERE a.code LIKE '5.2.%'
+    WHERE a.code LIKE '5%'
 ),
 opex AS (
     SELECT COALESCE(SUM(te.debit - te.credit), 0) AS opex
     FROM accounting.transaction_entries te
     JOIN accounting.accounts a ON a.uuid = te.account_uuid
-    WHERE a.type = 'Expense' AND a.code NOT LIKE '5.2.%'
+    WHERE a.type = 'Expense' AND a.code NOT LIKE '6%'
 ),
 payroll AS (
     SELECT COALESCE(SUM(ps.gross_pay), 0) AS payroll_expense
@@ -137,7 +137,7 @@ SELECT
 FROM accounting.transactions t
 JOIN accounting.transaction_entries te ON te.transaction_uuid = t.uuid
 JOIN accounting.accounts a ON a.uuid = te.account_uuid
-WHERE a.code LIKE '1.1.%'
+WHERE a.code LIKE '11%'
 ORDER BY t.txn_date DESC, t.serial_id
 WITH NO DATA;
 
@@ -154,7 +154,7 @@ dep AS (
     SELECT COALESCE(SUM(te.debit), 0) AS depreciation
     FROM accounting.transaction_entries te
     JOIN accounting.accounts a ON a.uuid = te.account_uuid
-    WHERE a.code = '5.3.1'
+    WHERE a.code = '63%'
 ),
 ar_change AS (
     SELECT COALESCE(SUM(i.total_amount - i.balance_due), 0) AS ar_increase
@@ -245,7 +245,7 @@ SELECT
     COUNT(ps.uuid) AS employees_paid,
     SUM(ps.gross_pay) AS total_gross,
     SUM(ps.tax_deducted) AS total_tax,
-    SUM(ps.nssf) AS total_nssf,
+    SUM(ps.social_security) AS total_social_security,
     SUM(ps.other_deductions) AS total_other_deductions,
     SUM(ps.net_pay) AS total_net,
     pr.status

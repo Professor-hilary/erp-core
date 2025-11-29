@@ -31,6 +31,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let master_db_url: String = env::var("DATABASE_URL").expect("Master url missing");
     let super_psql_url: String =
         env::var("POSTGRES_SUPER_URL").expect("POSTGRES_SUPER_URL missing");
+    let coa_seed_path =
+        std::env::var("COA_SEED_PATH").unwrap_or_else(|_| "./migrations/tenant/seed".to_string());
 
     // Ensure master DB exists -> Create if running first time
     let _ = init_master(
@@ -77,6 +79,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         master_pool,
         jwt_secret,
         tenant_pools: DashMap::new(),
+        coa_seed_path: coa_seed_path,
         tenant_config: TenantConfig {
             user: "".to_string(),
             password: "".to_string(),

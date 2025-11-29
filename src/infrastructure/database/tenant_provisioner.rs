@@ -10,7 +10,7 @@ pub struct TenantProvisioner;
 impl TenantProvisioner {
     pub async fn create_tenant_db(
         master_pool: &PgPool,
-        user_id: Uuid,
+        _user_id: Uuid,
         company_name: &str,
     ) -> Result<PgPool, AppError> {
         let slug = company_name
@@ -21,8 +21,10 @@ impl TenantProvisioner {
             .take(30)
             .collect::<String>();
 
-        let db_name = format!("tenant_{}_{}", user_id.simple(), slug);
-        let role_name = format!("role_{}_{}", user_id.simple(), slug);
+        // let db_name = format!("tenant_{}_{}", user_id.simple(), slug);
+        // let role_name = format!("role_{}_{}", user_id.simple(), slug);
+        let db_name = format!("tenant_{}", slug);
+        let role_name = format!("role_{}", slug);
         let password: String = rng()
             .sample_iter(&Alphanumeric)
             .take(32)

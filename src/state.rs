@@ -19,6 +19,7 @@ pub struct AppState {
     pub master_pool: PgPool,
     pub tenant_pools: DashMap<Uuid, PgPool>,
     pub jwt_secret: String,
+    pub coa_seed_path: String,
     pub tenant_config: TenantConfig,
 }
 

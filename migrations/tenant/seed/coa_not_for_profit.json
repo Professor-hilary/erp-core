@@ -437,7 +437,7 @@
         },
         {
             "code": "613000",
-            "audits": "Audit & Legal Fees",
+            "name": "Audit & Legal Fees",
             "category": "expense",
             "parent_code": "610000",
             "normal_balance": "dr",

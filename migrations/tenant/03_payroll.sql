@@ -144,13 +144,13 @@ BEGIN
 
     -- Build GL lines
     v_lines := jsonb_build_array(
-        jsonb_build_object('account_ref', '5.1.1', 'debit', v_total_gross, 'credit', 0,
+        jsonb_build_object('account_ref', '511000', 'debit', v_total_gross, 'credit', 0,
             'memo', format('Payroll Gross - Payrun %s', v_payrun.serial_id)),
-        jsonb_build_object('account_ref', '2.1.2', 'debit', 0, 'credit', v_total_tax,
+        jsonb_build_object('account_ref', '212000', 'debit', 0, 'credit', v_total_tax,
             'memo', 'PAYE Withholding'),
-        jsonb_build_object('account_ref', '2.1.3', 'debit', 0, 'credit', v_total_social_security,
+        jsonb_build_object('account_ref', '213000', 'debit', 0, 'credit', v_total_social_security,
             'memo', 'Social Security Contribution'),
-        jsonb_build_object('account_ref', '1.1.02', 'debit', 0, 'credit', v_total_net,
+        jsonb_build_object('account_ref', '110200', 'debit', 0, 'credit', v_total_net,
             'memo', format('Payroll Net Pay - Payrun %s', v_payrun.serial_id))
     );
 
