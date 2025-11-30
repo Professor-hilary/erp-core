@@ -26,21 +26,21 @@ impl<R: UserRepository> AuthService<R> {
             return Err(AppError::Validation("Email and password required".into()));
         }
 
-        let password_hash = hash(&user.password, DEFAULT_COST)
+        let password_hash: String = hash(&user.password, DEFAULT_COST)
             .map_err(|_| AppError::Internal("Failed to hash password".into()))?;
 
-        let created_user = self.repo.create(&user.email, &password_hash).await?;
+        let created_user: User = self.repo.create(&user.email, &password_hash).await?;
 
         let (company_id, tenant_db) = self.repo.get_user_company(created_user.uuid).await?;
 
-        let token = self.generate_token(created_user.uuid, company_id, tenant_db)?;
+        let token: String = self.generate_token(created_user.uuid, company_id, tenant_db)?;
 
         Ok((created_user, token))
     }
 
     /// Sign in user from master database, update tenant pools in state
     pub async fn login(&self, user: &LoginUser) -> Result<String, AppError> {
-        let db_user = self
+        let db_user: User = self
             .repo
             .find_by_email(&user.email)
             .await?
@@ -63,7 +63,7 @@ impl<R: UserRepository> AuthService<R> {
         user_id: Uuid,
         company_id: Uuid,
     ) -> Result<String, AppError> {
-        let tenant_db = self
+        let tenant_db: Option<String> = self
             .repo
             .get_company_for_switch(user_id, company_id)
             .await?;
@@ -82,7 +82,7 @@ impl<R: UserRepository> AuthService<R> {
         company_id: Option<Uuid>,
         tenant_db: Option<String>,
     ) -> Result<String, AppError> {
-        let claims = JwtClaims {
+        let claims: JwtClaims = JwtClaims {
             sub: user_id,
             company_id,
             tenant_db,

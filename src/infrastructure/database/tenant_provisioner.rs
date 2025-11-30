@@ -13,7 +13,7 @@ impl TenantProvisioner {
         _user_id: Uuid,
         company_name: &str,
     ) -> Result<PgPool, AppError> {
-        let slug = company_name
+        let slug: String = company_name
             .to_lowercase()
             .replace(' ', "_")
             .chars()
@@ -21,10 +21,8 @@ impl TenantProvisioner {
             .take(30)
             .collect::<String>();
 
-        // let db_name = format!("tenant_{}_{}", user_id.simple(), slug);
-        // let role_name = format!("role_{}_{}", user_id.simple(), slug);
-        let db_name = format!("tenant_{}", slug);
-        let role_name = format!("role_{}", slug);
+        let db_name: String = format!("tenant_{}", slug);
+        let role_name: String = format!("role_{}", slug);
         let password: String = rng()
             .sample_iter(&Alphanumeric)
             .take(32)
@@ -46,15 +44,19 @@ impl TenantProvisioner {
         // ---------------------------------------------------------
         // 1. Create database + role + privileges
         ignore_already_exists!(&format!("CREATE DATABASE \"{}\"", db_name))?;
+
         ignore_already_exists!(&format!(
             "CREATE ROLE \"{}\" WITH LOGIN PASSWORD '{}' INHERIT",
             role_name, password
         ))?;
+
         sqlx::query(&format!("ALTER ROLE \"{}\" INHERIT", role_name))
             .execute(master_pool)
             .await
             .map_err(|e| AppError::Internal(format!("Failed to alter role inherit: {}", e)))?;
+
         ignore_already_exists!(&format!("GRANT \"{}\" TO master_user", role_name))?;
+
         ignore_already_exists!(&format!(
             "ALTER DATABASE \"{}\" OWNER TO {}",
             db_name, role_name
@@ -67,11 +69,11 @@ impl TenantProvisioner {
 
         // ---------------------------------------------------------
         // 2. Connect directly as tenant role — no SET ROLE needed
-        let tenant_url = format!(
+        let tenant_url: String = format!(
             "postgres://{}:{}@localhost:5432/{}",
             role_name, password, db_name
         );
-        let tenant_pool = PgPoolOptions::new()
+        let tenant_pool: sqlx::Pool<sqlx::Postgres> = PgPoolOptions::new()
             .max_connections(10)
             .connect(&tenant_url)
             .await

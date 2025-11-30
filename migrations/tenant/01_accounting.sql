@@ -20,7 +20,7 @@ CREATE TABLE accounting.accounts (
     code       TEXT        NOT NULL UNIQUE,               -- e.g. "110100"
     name       TEXT        NOT NULL,
     type       TEXT        NOT NULL,                     -- Asset, Liability, Equity, Revenue, Expense
-    parent_uuid BIGSERIAL  REFERENCES accounting.accounts(serial_id)
+    parent_code TEXT        REFERENCES accounting.accounts(code)
                            ON DELETE SET NULL,           -- FK uses UUID
     normal_balance TEXT    NOT NULL,                     -- 'DR' or 'CR'
     is_contra  BOOLEAN     DEFAULT FALSE,

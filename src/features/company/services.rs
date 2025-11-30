@@ -45,7 +45,7 @@ impl CompanyService {
         )
         .await?;
 
-        let tenant_db_name: String = format!("tenant_{}_{}", user_id.simple(), slug);
+        let tenant_db_name: String = format!("tenant_{}", slug);
         let tenant_url: String = format!("{}{}", state.tenant_config.base_url, tenant_db_name);
 
         // Step 3: Seed Chart of Accounts
@@ -88,10 +88,10 @@ impl CompanyService {
         state.tenant_pools.insert(company.uuid, tenant_pool);
 
         // After caching tenant_pool and committing:
-        let repo = PostgresUserRepo::new(state.master_pool.clone());
-        let auth_service = AuthService::new(repo, state.clone());
+        let repo: PostgresUserRepo = PostgresUserRepo::new(state.master_pool.clone());
+        let auth_service: AuthService<PostgresUserRepo> = AuthService::new(repo, state.clone());
 
-        let _new_token = auth_service
+        let _new_token: String = auth_service
             .generate_token(user_id, Some(company.uuid), Some(tenant_db_name))
             .map_err(|_| AppError::Internal("Failed to generate new token".into()))?;
 
@@ -229,11 +229,11 @@ impl CompanyService {
         );
 
         // 4. Insert each account from template.accounts
-        for (i, entry) in template.accounts.iter().enumerate() {
-            let result = sqlx::query(
+        for (counter, entry) in template.accounts.iter().enumerate() {
+            let result: Result<sqlx::postgres::PgQueryResult, sqlx::Error> = sqlx::query(
                 r#"
             INSERT INTO accounting.accounts (
-                code, name, category, parent_code, normal_balance, is_contra
+                code, name, type, parent_code, normal_balance, is_contra
             ) VALUES ($1, $2, $3, $4, $5, $6)
             ON CONFLICT (code) DO NOTHING
             "#,
@@ -249,12 +249,12 @@ impl CompanyService {
 
             match result {
                 Ok(_) => {
-                    if (i + 1) % 50 == 0 || i == template.accounts.len() - 1 {
-                        println!("→ Inserted {} accounts so far...", i + 1);
+                    if (counter + 1) % 50 == 0 || counter == template.accounts.len() - 1 {
+                        println!("→ Inserted {} accounts so far...", counter + 1);
                     }
                 }
                 Err(e) => {
-                    eprintln!("\nDATABASE INSERT FAILED at entry #{i}");
+                    eprintln!("\nDATABASE INSERT FAILED at entry #{counter}");
                     eprintln!("Code: {}", entry.code);
                     eprintln!("Name: {}", entry.name);
                     eprintln!("Category: {}", entry.category);
@@ -262,7 +262,7 @@ impl CompanyService {
                     eprintln!("Error: {e}");
                     eprintln!("Full sqlx error: {e:?}\n");
                     return Err(AppError::Internal(format!(
-                        "Failed to seed COA at entry {i} (code: {}): {e}",
+                        "Failed to seed COA at entry {counter} (code: {}): {e}",
                         entry.code
                     )));
                 }
