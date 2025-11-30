@@ -10,6 +10,7 @@ use axum::{
 use crate::{
     AppState,
     features::{accounts, company, customers, hr, inventory, transactions, vendors},
+    infrastructure::errors::AppError,
     middleware::{auth::AuthenticatedUser, layer::auth_middleware},
 };
 
@@ -18,10 +19,9 @@ use tower_http::{classify::ServerErrorsFailureClass, cors::CorsLayer, trace::Tra
 
 pub fn create_router(state: Arc<AppState>) -> Router {
     // Protected Routes
-    let company_routes: Router<Arc<AppState>> = company::handlers::router().layer(middleware::from_fn_with_state(
-        state.clone(),
-        auth_middleware,
-    ));
+    let company_routes: Router<Arc<AppState>> = company::handlers::router().layer(
+        middleware::from_fn_with_state(state.clone(), auth_middleware),
+    );
     let vendor_routes: Router<Arc<AppState>> = vendors::handlers::router().layer(
         middleware::from_fn_with_state(state.clone(), auth_middleware),
     );
@@ -103,8 +103,7 @@ pub fn create_router(state: Arc<AppState>) -> Router {
 
 // 404 Fallback Handler
 async fn handler_404() -> impl IntoResponse {
-    let error: crate::errors::AppError = crate::errors::AppError::NotFound(
-        "Oops! The page you're looking for doesn't exist. CHECK THE URI".into(),
-    );
+    let error: AppError =
+        AppError::NotFound("Oops! The page you're looking for doesn't exist. CHECK THE URI".into());
     error.into_response()
 }

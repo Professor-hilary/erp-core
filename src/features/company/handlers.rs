@@ -1,11 +1,6 @@
 // src/features/company/handlers.rs
 use crate::{
-    features::company::services::CompanyService,
-    //errors::AppError,
-    infrastructure::responses::AppError,
-    middleware::auth::{AuthenticatedTenant, AuthenticatedUser},
-    models::company::{Company, CreateCompanyDto, UpdateCompanyDto},
-    state::AppState,
+    infrastructure::errors::AppError, features::company::services::CompanyService, middleware::auth::{AuthenticatedTenant, AuthenticatedUser}, models::company::{Company, CreateCompanyDto, UpdateCompanyDto}, state::AppState
 };
 use axum::{
     Extension, Json, Router,
@@ -64,7 +59,7 @@ async fn get_company(
         .find_by_id(&state.master_pool, company_id)
         .await
         .map_err(|_| AppError::Internal("Failed to fetch companies".into()))?
-        .ok_or(AppError::NotFound)?;
+        .ok_or(AppError::NotFound("Company not found".into()))?;
     Ok(Json(company))
 }
 

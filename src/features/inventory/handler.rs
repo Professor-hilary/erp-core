@@ -8,7 +8,7 @@ use axum::{
 use std::sync::Arc;
 
 use crate::{
-    errors::AppError, features::inventory::{repository::PostgresInventoryRepo, service::InventoryService}, infrastructure::responses::ApiResponse, middleware::auth::AuthenticatedTenant, models::{
+    infrastructure::errors::AppError, features::inventory::{repository::PostgresInventoryRepo, service::InventoryService}, infrastructure::responses::ApiResponse, middleware::auth::AuthenticatedTenant, models::{
         inventory_movement::{PostPurchase, PostSale},
         item::CreateItem,
     }, state::AppState

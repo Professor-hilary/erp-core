@@ -1,8 +1,8 @@
 // src/features/company/repository.rs
 use crate::{
-    infrastructure::responses::AppError,
-    models::company::{Company, UpdateCompanyDto},
+     models::company::{Company, UpdateCompanyDto}
 };
+use crate::infrastructure::errors::AppError;
 use async_trait::async_trait;
 use sqlx::{Executor, Postgres};
 use uuid::Uuid;

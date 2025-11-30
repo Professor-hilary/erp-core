@@ -10,7 +10,7 @@ use std::sync::Arc;
 use sqlx::types::JsonValue;
 
 use crate::{
-    errors::AppError, features::vendors::{repository::PostgresVendorRepo, service::VendorService}, infrastructure::responses::ApiResponse, middleware::auth::AuthenticatedTenant, models::{bills::CreateBill, vendor::CreateVendor}, state::AppState
+    infrastructure::errors::AppError, features::vendors::{repository::PostgresVendorRepo, service::VendorService}, infrastructure::responses::ApiResponse, middleware::auth::AuthenticatedTenant, models::{bills::CreateBill, vendor::CreateVendor}, state::AppState
 };
 
 pub fn router() -> Router<Arc<AppState>> {

@@ -1,6 +1,6 @@
 // src/features/accounts/handlers.rs
 use crate::{
-    errors::AppError, features::accounts::{repository::PostgresAccountRepo, service::AccountingService}, infrastructure::responses::ApiResponse, middleware::auth::AuthenticatedTenant, models::account::CreateAccount, state::AppState
+    infrastructure::errors::AppError, features::accounts::{repository::PostgresAccountRepo, service::AccountingService}, infrastructure::responses::ApiResponse, middleware::auth::AuthenticatedTenant, models::account::CreateAccount, state::AppState
 };
 use axum::{
     Extension, Router,

@@ -1,5 +1,5 @@
 use crate::{
-    errors::AppError,
+    infrastructure::errors::AppError,
     models::vendor::{CreateVendor, Vendor},
 };
 use async_trait::async_trait;

@@ -1,4 +1,4 @@
-use crate::{errors::AppError, models::customers::{CreateCustomer, Customer}};
+use crate::{infrastructure::errors::AppError, models::customers::{CreateCustomer, Customer}};
 use async_trait::async_trait;
 use sqlx::PgPool;
 use uuid::Uuid;

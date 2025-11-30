@@ -1,5 +1,4 @@
 // src/main.rs
-mod errors;
 mod features;
 mod infrastructure;
 mod middleware;

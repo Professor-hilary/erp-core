@@ -8,7 +8,7 @@ use axum::{
 use std::sync::Arc;
 
 use crate::{
-    errors::AppError, features::hr::{repository::PostgresHrRepo, service::HrService}, infrastructure::responses::ApiResponse, middleware::auth::AuthenticatedTenant, models::{employee::CreateEmployee, payrun::CreatePayrun}, state::AppState
+    infrastructure::errors::AppError, features::hr::{repository::PostgresHrRepo, service::HrService}, infrastructure::responses::ApiResponse, middleware::auth::AuthenticatedTenant, models::{employee::CreateEmployee, payrun::CreatePayrun}, state::AppState
 };
 
 pub fn router() -> Router<Arc<AppState>> {

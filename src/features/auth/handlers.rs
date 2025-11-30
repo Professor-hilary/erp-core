@@ -4,7 +4,7 @@ use axum::{
 };
 use std::sync::Arc;
 use crate::{
-    errors::AppError, features::auth::{AuthService, repository::PostgresUserRepo}, infrastructure::responses::ApiResponse, middleware::auth::AuthenticatedUser, models::user::{CreateUser, LoginUser}, state::AppState
+    infrastructure::errors::AppError, features::auth::{AuthService, repository::PostgresUserRepo}, infrastructure::responses::ApiResponse, middleware::auth::AuthenticatedUser, models::user::{CreateUser, LoginUser}, state::AppState
 };
 use uuid::Uuid;
 
@@ -47,7 +47,7 @@ async fn switch_company(
     let company_id: Uuid = payload["company_id"]
         .as_str()
         .and_then(|s| Uuid::parse_str(s).ok())
-        .ok_or(AppError::Validation("Invalid company_id".into()))?;
+        .ok_or(AppError::BadRequest("Invalid company_id".into()))?;
 
     let repo = PostgresUserRepo::new(state.master_pool.clone());
     let service = AuthService::new(repo, state.clone());

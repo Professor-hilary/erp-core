@@ -1,5 +1,5 @@
 // src/features/auth/repository.rs
-use crate::errors::AppError;
+use crate::infrastructure::errors::AppError;
 use crate::models::user::User;
 use async_trait::async_trait;
 use sqlx::PgPool;
@@ -47,7 +47,7 @@ impl UserRepository for PostgresUserRepo {
         .await
         .map_err(|e| match e {
             sqlx::Error::Database(db) if db.constraint() == Some("users_email_key") => {
-                AppError::Validation("Email already taken".into())
+                AppError::BadRequest("Email already taken".into())
             }
             _ => AppError::Database(e),
         })?;

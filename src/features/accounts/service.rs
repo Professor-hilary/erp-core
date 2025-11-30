@@ -1,5 +1,5 @@
 // src/features/accounts/service.rs
-use crate::errors::AppError;
+use crate::infrastructure::errors::AppError;
 use crate::features::accounts::repository::AccountRepository;
 use crate::models::account::{Account, CreateAccount};
 use sqlx::PgPool;
@@ -22,7 +22,7 @@ impl<R: AccountRepository> AccountingService<R> {
     ) -> Result<Account, AppError> {
         let valid_types = ["Asset", "Liability", "Equity", "Revenue", "Expense"];
         if !valid_types.contains(&acc.type_.as_str()) {
-            return Err(AppError::Validation("Invalid account type".into()));
+            return Err(AppError::BadRequest("Invalid account type".into()));
         }
         self.account_repo.create(tenant_pool, user_id, acc).await
     }
@@ -68,7 +68,7 @@ impl<R: AccountRepository> AccountingService<R> {
     ) -> Result<Account, AppError> {
         let valid_types = ["asset", "liability", "equity", "revenue", "expense"];
         if !valid_types.contains(&updates.type_.as_str()) {
-            return Err(AppError::Validation("Invalid account type".into()));
+            return Err(AppError::BadRequest("Invalid account type".into()));
         }
 
         // Now delegate to repo

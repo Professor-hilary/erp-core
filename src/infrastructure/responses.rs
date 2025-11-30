@@ -16,17 +16,6 @@ pub struct ApiResponse {
     pub meta: Option<Value>,
 }
 
-#[allow(dead_code)]
-pub enum AppError {
-    Unauthorized(String),
-    Forbidden(String),
-    #[allow(dead_code)]
-    BadRequest(String),
-    #[allow(dead_code)]
-    NotFound, /* (String) */
-    Internal(String),
-}
-
 impl ApiResponse {
     /// Construct generic json message body for subscribing response codes.
     fn build(
@@ -89,62 +78,5 @@ impl ApiResponse {
             "token_type": "Bearer"
         });
         Self::build(StatusCode::OK, message, Some(payload), None)
-    }
-
-    #[allow(unused)]
-    pub fn empty(status: StatusCode, message: &str) -> Response {
-        Self::build(status, message, None, None)
-    }
-
-    #[allow(unused)]
-    pub fn bad_request(message: &str) -> Response {
-        Self::empty(StatusCode::BAD_REQUEST, message)
-    }
-
-    #[allow(unused)]
-    pub fn unauthorized(message: &str) -> Response {
-        Self::empty(StatusCode::UNAUTHORIZED, message)
-    }
-
-    #[allow(unused)]
-    pub fn forbidden(message: &str) -> Response {
-        Self::empty(StatusCode::FORBIDDEN, message)
-    }
-}
-
-impl IntoResponse for AppError {
-    fn into_response(self) -> Response {
-        match self {
-            AppError::Unauthorized(message) => (
-                axum::http::StatusCode::UNAUTHORIZED,
-                Json(json!({"status":401, "error":"Unauthorized","message":message,}))
-                    .into_response(),
-            )
-                .into_response(),
-            AppError::Forbidden(message) => (
-                axum::http::StatusCode::FORBIDDEN,
-                Json(json!({"status":403, "error":"Forbidden","message":message,})).into_response(),
-            )
-                .into_response(),
-            AppError::BadRequest(message) => (
-                axum::http::StatusCode::BAD_REQUEST,
-                Json(json!({"status":400, "error":"Bad Request","message":message,}))
-                    .into_response(),
-            )
-                .into_response(),
-            AppError::NotFound/* (message) */ => (
-                axum::http::StatusCode::NOT_FOUND,
-                Json(json!({"status":404, "error":"Not Found","message": "Oops! Resource Not Found",}))
-                    .into_response(),
-            )
-                .into_response(),
-            AppError::Internal(message) => (
-                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({"status":500, "error":"Internal Server Error","message":message,}))
-                    .into_response(),
-            )
-                .into_response(),
-
-        }
     }
 }

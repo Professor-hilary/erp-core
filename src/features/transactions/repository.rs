@@ -1,4 +1,4 @@
-use crate::errors::AppError;
+use crate::infrastructure::errors::AppError;
 use crate::models::Transaction;
 use crate::models::transaction::CreateTransaction;
 use async_trait::async_trait;

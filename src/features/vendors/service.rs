@@ -1,6 +1,6 @@
 use crate::features::vendors::repository::VendorRepository;
 use crate::{
-    errors::AppError,
+    infrastructure::errors::AppError,
     models::vendor::{CreateVendor, Vendor},
 };
 use sqlx::PgPool;

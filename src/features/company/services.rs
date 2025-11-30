@@ -1,15 +1,12 @@
 // src/features/company/service.rs
 use crate::{
-    features::{
+    infrastructure::errors::AppError, features::{
         auth::{AuthService, repository::PostgresUserRepo},
         company::repository::{CompanyRepository, PostgresCompanyRepository},
-    },
-    infrastructure::{database::tenant_provisioner::TenantProvisioner, responses::AppError},
-    models::{
-        coa_entry::{/* ChartOfAccountsEntry,  */ CoaTemplate},
+    }, infrastructure::database::tenant_provisioner::TenantProvisioner, models::{
+        coa_entry::CoaTemplate,
         company::{Company, CreateCompanyDto},
-    },
-    state::AppState,
+    }, state::AppState
 };
 use sqlx::{PgPool, Pool, Postgres};
 use std::sync::Arc;
@@ -159,7 +156,7 @@ impl CompanyService {
         let company: Company = repo
             .update(&state.master_pool, company_id, req)
             .await
-            .map_err(|_| AppError::NotFound)?;
+            .map_err(|e| AppError::NotFound(e.to_string()))?;
 
         Ok(company)
     }

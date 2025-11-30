@@ -8,7 +8,7 @@ use std::sync::Arc;
 use sqlx::{FromRow, types::JsonValue};
 
 use crate::{
-    errors::AppError, features::customers::{repository::PostgresCustomerRepo, service::CustomerService}, infrastructure::responses::ApiResponse, middleware::auth::AuthenticatedTenant, models::{customers::CreateCustomer, invoice::CreateInvoice}, state::AppState
+    infrastructure::errors::AppError, features::customers::{repository::PostgresCustomerRepo, service::CustomerService}, infrastructure::responses::ApiResponse, middleware::auth::AuthenticatedTenant, models::{customers::CreateCustomer, invoice::CreateInvoice}, state::AppState
 };
 
 pub fn router() -> Router<Arc<AppState>> {

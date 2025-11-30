@@ -1,6 +1,6 @@
 // src/features/inventory/repository.rs
 use crate::{
-    errors::AppError,
+    infrastructure::errors::AppError,
     models::{
         inventory_movement::{PostPurchase, PostSale},
         item::{CreateItem, Item},

@@ -1,5 +1,5 @@
 // src/features/auth/services.rs
-use crate::errors::AppError;
+use crate::infrastructure::errors::AppError;
 use crate::features::auth::repository::UserRepository;
 use crate::models::dto::JwtClaims;
 use crate::models::user::{CreateUser, LoginUser, User};
@@ -23,7 +23,7 @@ impl<R: UserRepository> AuthService<R> {
     /// Sign up user into master database, update tenant pools in state
     pub async fn register(&self, user: &CreateUser) -> Result<(User, String), AppError> {
         if user.email.is_empty() || user.password.is_empty() {
-            return Err(AppError::Validation("Email and password required".into()));
+            return Err(AppError::BadRequest("Email and password required".into()));
         }
 
         let password_hash: String = hash(&user.password, DEFAULT_COST)
@@ -44,12 +44,12 @@ impl<R: UserRepository> AuthService<R> {
             .repo
             .find_by_email(&user.email)
             .await?
-            .ok_or(AppError::Auth("Invalid credentials".into()))?;
+            .ok_or(AppError::Unauthorized("Invalid credentials".into()))?;
 
         if !verify(&user.password, &db_user.password_hash)
-            .map_err(|_| AppError::Auth("Invalid credentials".into()))?
+            .map_err(|_| AppError::Unauthorized("Invalid credentials".into()))?
         {
-            return Err(AppError::Auth("Invalid credentials".into()));
+            return Err(AppError::Unauthorized("Invalid credentials".into()));
         }
 
         let (company_id, tenant_db) = self.repo.get_user_company(db_user.uuid).await?;
@@ -69,7 +69,7 @@ impl<R: UserRepository> AuthService<R> {
             .await?;
 
         if tenant_db.is_none() {
-            return Err(AppError::Auth("Not a member of this company".into()));
+            return Err(AppError::Unauthorized("Not a member of this company".into()));
         }
 
         self.generate_token(user_id, Some(company_id), tenant_db)

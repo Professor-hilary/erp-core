@@ -1,6 +1,6 @@
 // src/features/transactions/handlers.rs
 use crate::{
-    errors::AppError, features::{
+    infrastructure::errors::AppError, features::{
         accounts::repository::PostgresAccountRepo,
         transactions::{repository::PostgresTransactionRepo, services::TransactionService},
     }, infrastructure::responses::ApiResponse, middleware::auth::AuthenticatedTenant, models::transaction::CreateTransaction, state::AppState

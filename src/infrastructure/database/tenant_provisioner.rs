@@ -1,6 +1,6 @@
 // src/infrastructure/database/tenant_provisioner.rs
 
-use crate::infrastructure::responses::AppError;
+use crate::infrastructure::errors::AppError;
 use rand::{Rng, distr::Alphanumeric, rng};
 use sqlx::{PgPool, postgres::PgPoolOptions};
 use uuid::Uuid;

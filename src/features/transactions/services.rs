@@ -1,7 +1,7 @@
 // src/features/transactions/service.rs
-use crate::errors::AppError;
 use crate::features::accounts::repository::AccountRepository;
 use crate::features::transactions::repository::TransactionRepository;
+use crate::infrastructure::errors::AppError;
 use crate::models::transaction::{CreateTransaction, Transaction};
 use bigdecimal::{BigDecimal, Zero};
 use sqlx::PgPool;
@@ -43,7 +43,7 @@ impl<R: AccountRepository, T: TransactionRepository> TransactionService<R, T> {
         // }
 
         match tx.amount <= BigDecimal::zero() {
-            true => return Err(AppError::Validation("Amount must be positive".into())),
+            true => return Err(AppError::BadRequest("Amount must be positive".into())),
             false => (),
         }
 

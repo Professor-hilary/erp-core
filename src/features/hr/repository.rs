@@ -1,6 +1,6 @@
 // src/features/hr/repository.rs
 use crate::{
-    errors::AppError,
+    infrastructure::errors::AppError,
     models::{
         employee::{CreateEmployee, Employee},
         payrun::{CreatePayrun, CreatePayslip, Payrun},

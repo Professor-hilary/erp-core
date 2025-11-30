@@ -1,5 +1,5 @@
 // src/features/accounts/repositories.rs
-use crate::errors::AppError;
+use crate::infrastructure::errors::AppError;
 use crate::models::account::{Account, CreateAccount};
 use async_trait::async_trait;
 use bigdecimal::BigDecimal;
@@ -176,7 +176,7 @@ impl AccountRepository for PostgresAccountRepo {
                 .map(|c| c == "accounts_type_check")
                 .unwrap_or(false)
             {
-                AppError::Validation("Invalid account type".into())
+                AppError::BadRequest("Invalid account type".into())
             } else {
                 AppError::Database(e)
             }

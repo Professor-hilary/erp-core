@@ -1,6 +1,6 @@
 use crate::features::customers::repository::CustomerRepository;
 use crate::{
-    errors::AppError,
+    infrastructure::errors::AppError,
     models::customers::{CreateCustomer, Customer},
 };
 use sqlx::PgPool;
