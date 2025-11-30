@@ -21,14 +21,14 @@ impl<R: CustomerRepository> CustomerService<R> {
         user_id: Uuid,
         payload: &CreateCustomer,
     ) -> Result<Customer, AppError> {
-        self.repo.create(tenant_pool,user_id, payload).await
+        self.repo.create(tenant_pool, user_id, payload).await
     }
     pub async fn list(
         &self,
         tenant_pool: &PgPool,
         user_id: Uuid,
     ) -> Result<Vec<Customer>, AppError> {
-        self.repo.list(tenant_pool,user_id).await
+        self.repo.list(tenant_pool, user_id).await
     }
     pub async fn get(
         &self,
@@ -36,7 +36,7 @@ impl<R: CustomerRepository> CustomerService<R> {
         id: i64,
         user_id: Uuid,
     ) -> Result<Customer, AppError> {
-        self.repo.get(tenant_pool,id, user_id).await
+        self.repo.get(tenant_pool, id, user_id).await
     }
     pub async fn update(
         &self,
@@ -45,7 +45,7 @@ impl<R: CustomerRepository> CustomerService<R> {
         user_id: Uuid,
         payload: &CreateCustomer,
     ) -> Result<Customer, AppError> {
-        self.repo.update(tenant_pool,id, user_id, payload).await
+        self.repo.update(tenant_pool, id, user_id, payload).await
     }
     pub async fn delete(
         &self,
@@ -53,6 +53,6 @@ impl<R: CustomerRepository> CustomerService<R> {
         id: i64,
         user_id: Uuid,
     ) -> Result<(), AppError> {
-        self.repo.delete(tenant_pool,id, user_id).await
+        self.repo.delete(tenant_pool, id, user_id).await
     }
 }

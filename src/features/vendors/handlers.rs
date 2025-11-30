@@ -1,26 +1,31 @@
 use axum::{
+    Extension, Router,
     extract::{Json, Path, State},
     response::Response,
     routing::{delete, get, patch, post},
-    Extension, Router,
 };
 use sqlx::FromRow;
 
-use std::sync::Arc;
 use sqlx::types::JsonValue;
+use std::sync::Arc;
 
 use crate::{
-    infrastructure::errors::AppError, features::vendors::{repository::PostgresVendorRepo, service::VendorService}, infrastructure::responses::ApiResponse, middleware::auth::AuthenticatedTenant, models::{bills::CreateBill, vendor::CreateVendor}, state::AppState
+    features::vendors::{repository::PostgresVendorRepo, service::VendorService},
+    infrastructure::errors::AppError,
+    infrastructure::responses::ApiResponse,
+    middleware::auth::AuthenticatedTenant,
+    models::{bills::CreateBill, vendor::CreateVendor},
+    state::AppState,
 };
 
 pub fn router() -> Router<Arc<AppState>> {
     Router::new()
-        .route("/vendors", post(create_vendor))
-        .route("/vendors", get(list_vendors))
-        .route("/vendors/{id}", get(get_vendor))
-        .route("/vendors/{id}", patch(update_vendor))
-        .route("/vendors/{id}", delete(delete_vendor))
-        .route("/vendors/{cid}/bills", post(create_bill))
+        .route("/create", post(create_vendor))
+        .route("/list", get(list_vendors))
+        .route("/get/{id}", get(get_vendor))
+        .route("/update/{id}", patch(update_vendor))
+        .route("/delete/{id}", delete(delete_vendor))
+        .route("/create/{cid}/bills", post(create_bill))
 }
 
 async fn create_vendor(
@@ -30,7 +35,9 @@ async fn create_vendor(
 ) -> Result<Response, AppError> {
     let repo = PostgresVendorRepo::new();
     let svc = VendorService::new(repo);
-    let cust = svc.create(&user.tenant_pool,user.user_id, &payload).await?;
+    let cust = svc
+        .create(&user.tenant_pool, user.user_id, &payload)
+        .await?;
     Ok(ApiResponse::created(cust, "Vendor created"))
 }
 
@@ -40,7 +47,7 @@ async fn list_vendors(
 ) -> Result<Response, AppError> {
     let repo = PostgresVendorRepo::new();
     let svc = VendorService::new(repo);
-    let list = svc.list(&user.tenant_pool,user.user_id).await?;
+    let list = svc.list(&user.tenant_pool, user.user_id).await?;
     Ok(ApiResponse::success(list, "Vendors fetched"))
 }
 
@@ -51,7 +58,7 @@ async fn get_vendor(
 ) -> Result<Response, AppError> {
     let repo = PostgresVendorRepo::new();
     let svc = VendorService::new(repo);
-    let cust = svc.get(&user.tenant_pool,id, user.user_id).await?;
+    let cust = svc.get(&user.tenant_pool, id, user.user_id).await?;
     Ok(ApiResponse::success(cust, "Vendor fetched"))
 }
 
@@ -63,7 +70,9 @@ async fn update_vendor(
 ) -> Result<Response, AppError> {
     let repo = PostgresVendorRepo::new();
     let svc = VendorService::new(repo);
-    let cust = svc.update(&user.tenant_pool,id, user.user_id, &payload).await?;
+    let cust = svc
+        .update(&user.tenant_pool, id, user.user_id, &payload)
+        .await?;
     Ok(ApiResponse::success(cust, "Vendor updated"))
 }
 
@@ -74,7 +83,7 @@ async fn delete_vendor(
 ) -> Result<Response, AppError> {
     let repo = PostgresVendorRepo::new();
     let svc = VendorService::new(repo);
-    svc.delete(&user.tenant_pool,id, user.user_id).await?;
+    svc.delete(&user.tenant_pool, id, user.user_id).await?;
     Ok(ApiResponse::success((), "Vendor deleted"))
 }
 

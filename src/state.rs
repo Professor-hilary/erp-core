@@ -3,7 +3,6 @@ use dashmap::DashMap;
 use sqlx::PgPool;
 use uuid::Uuid;
 
-
 #[allow(unused)]
 #[derive(Clone)]
 pub struct TenantConfig {

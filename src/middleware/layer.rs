@@ -11,7 +11,9 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::{
-    infrastructure::errors::AppError, middleware::auth::{AuthenticatedTenant, AuthenticatedUser}, state::AppState
+    infrastructure::errors::AppError,
+    middleware::auth::{AuthenticatedTenant, AuthenticatedUser},
+    state::AppState,
 };
 
 #[allow(dead_code)]

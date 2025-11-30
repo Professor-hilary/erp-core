@@ -61,9 +61,14 @@ impl InventoryRepository for PostgresInventoryRepo {
     ) -> Result<Item, AppError> {
         let item = sqlx::query_as::<_, Item>(
             r#"
-            INSERT INTO inventory.items (sku, name, category_id, description, unit, cost_price, selling_price, track_quantity, reorder_level, asset_account, cogs_account, income_account)
-            VALUES ($1, $2, $3, $4, COALESCE($5, 'pcs'), COALESCE($6, 0), COALESCE($7, 0), COALESCE($8, TRUE), COALESCE($9, 0), COALESCE($10, '1.3.1'), COALESCE($11, '5.2.1'), COALESCE($12, '4.1.1'))
-            RETURNING *
+            INSERT INTO inventory.items (
+                sku, name, category_id, description, unit, cost_price, selling_price,
+                track_quantity, reorder_level, asset_account, cogs_account, income_account
+            )
+            VALUES (
+                $1, $2, $3, $4, COALESCE($5, 'pcs'), COALESCE($6, 0), COALESCE($7, 0),
+                COALESCE($8, TRUE), COALESCE($9, 0), COALESCE($10, '1.3.1'), COALESCE($11, '5.2.1'),
+                COALESCE($12, '4.1.1')) RETURNING *
             "#
         )
         .bind(&payload.sku)
@@ -109,10 +114,11 @@ impl InventoryRepository for PostgresInventoryRepo {
         let item = sqlx::query_as::<_, Item>(
             r#"
             UPDATE inventory.items
-            SET sku=$1, name=$2, category_id=$3, description=$4, unit=COALESCE($5, unit), cost_price=COALESCE($6, cost_price),
-                selling_price=COALESCE($7, selling_price), track_quantity=COALESCE($8, track_quantity), reorder_level=COALESCE($9, reorder_level),
-                asset_account=COALESCE($10, asset_account), cogs_account=COALESCE($11, cogs_account), income_account=COALESCE($12, income_account),
-                updated_at=now()
+            SET sku=$1, name=$2, category_id=$3, description=$4, unit=COALESCE($5, unit),
+                cost_price=COALESCE($6, cost_price), selling_price=COALESCE($7, selling_price),
+                track_quantity=COALESCE($8, track_quantity), reorder_level=COALESCE($9, reorder_level),
+                asset_account=COALESCE($10, asset_account), cogs_account=COALESCE($11, cogs_account),
+                income_account=COALESCE($12, income_account), updated_at=now()
             WHERE id=$13
             RETURNING *
             "#

@@ -13,7 +13,7 @@ pub struct ChartOfAccountsEntry {
 #[allow(dead_code)]
 #[derive(serde::Deserialize)]
 pub struct CoaTemplate {
-    // We don't need these, but must declare them so deserialization works
+    // We must declare them so deserialization works
     pub industry: String,
     pub name: String,
     pub description: String,

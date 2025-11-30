@@ -1,12 +1,16 @@
 // src/features/company/service.rs
 use crate::{
-    infrastructure::errors::AppError, features::{
+    features::{
         auth::{AuthService, repository::PostgresUserRepo},
         company::repository::{CompanyRepository, PostgresCompanyRepository},
-    }, infrastructure::database::tenant_provisioner::TenantProvisioner, models::{
+    },
+    infrastructure::database::tenant_provisioner::TenantProvisioner,
+    infrastructure::errors::AppError,
+    models::{
         coa_entry::CoaTemplate,
         company::{Company, CreateCompanyDto},
-    }, state::AppState
+    },
+    state::AppState,
 };
 use sqlx::{PgPool, Pool, Postgres};
 use std::sync::Arc;

@@ -1,6 +1,10 @@
 // src/features/company/handlers.rs
 use crate::{
-    infrastructure::errors::AppError, features::company::services::CompanyService, middleware::auth::{AuthenticatedTenant, AuthenticatedUser}, models::company::{Company, CreateCompanyDto, UpdateCompanyDto}, state::AppState
+    features::company::services::CompanyService,
+    infrastructure::errors::AppError,
+    middleware::auth::{AuthenticatedTenant, AuthenticatedUser},
+    models::company::{Company, CreateCompanyDto, UpdateCompanyDto},
+    state::AppState,
 };
 use axum::{
     Extension, Json, Router,
@@ -16,7 +20,7 @@ use crate::features::company::repository::{CompanyRepository, PostgresCompanyRep
 pub fn router() -> Router<Arc<AppState>> {
     Router::new()
         .route("/create", post(create_company))
-        .route("/get", get(list_companies))
+        .route("/list", get(list_companies))
         .route("/get/{id}", get(get_company))
         .route("/update/{id}", put(update_company))
         .route("/delete/{id}", delete(delete_company))
@@ -25,7 +29,6 @@ pub fn router() -> Router<Arc<AppState>> {
 /// POST /companies
 async fn create_company(
     State(state): State<Arc<AppState>>,
-    // AuthenticatedUser { user_id, .. }: AuthenticatedUser,
     Extension(user): Extension<AuthenticatedUser>,
     Json(payload): Json<CreateCompanyDto>,
 ) -> Result<Json<Company>, AppError> {
@@ -37,7 +40,6 @@ async fn create_company(
 /// GET /companies (user's companies)
 async fn list_companies(
     State(state): State<Arc<AppState>>,
-    // Authenticated { user_id, .. }: Authenticated,
     Extension(tenant): Extension<AuthenticatedTenant>,
 ) -> Result<Json<Vec<Company>>, AppError> {
     let companies: Vec<Company> =
@@ -51,7 +53,6 @@ async fn list_companies(
 async fn get_company(
     State(state): State<Arc<AppState>>,
     Path(company_id): Path<Uuid>,
-    // Authenticated { user_id: _, .. }: Authenticated,
     Extension(_tenant): Extension<AuthenticatedTenant>,
 ) -> Result<Json<Company>, AppError> {
     let repo = PostgresCompanyRepository;
@@ -67,7 +68,6 @@ async fn get_company(
 async fn update_company(
     State(state): State<Arc<AppState>>,
     Path(company_id): Path<Uuid>,
-    // Authenticated { user_id, .. }: Authenticated,
     Extension(tenant): Extension<AuthenticatedTenant>,
     Json(payload): Json<UpdateCompanyDto>,
 ) -> Result<Json<Company>, AppError> {
@@ -82,7 +82,6 @@ async fn update_company(
 async fn delete_company(
     State(state): State<Arc<AppState>>,
     Path(company_id): Path<Uuid>,
-    // Authenticated { user_id, .. }: Authenticated,
     Extension(tenant): Extension<AuthenticatedTenant>,
 ) -> Result<Json<serde_json::Value>, AppError> {
     CompanyService::delete_company(state.clone(), tenant.user_id, company_id).await?;

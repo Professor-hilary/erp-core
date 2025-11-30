@@ -1,26 +1,47 @@
-use crate::{infrastructure::errors::AppError, models::customers::{CreateCustomer, Customer}};
+use crate::{
+    infrastructure::errors::AppError,
+    models::customers::{CreateCustomer, Customer},
+};
 use async_trait::async_trait;
 use sqlx::PgPool;
 use uuid::Uuid;
 
 #[async_trait]
 pub trait CustomerRepository: Send + Sync {
-    async fn create(&self, pool: &PgPool, user_id: Uuid, payload: &CreateCustomer) -> Result<Customer, AppError>;
+    async fn create(
+        &self,
+        pool: &PgPool,
+        user_id: Uuid,
+        payload: &CreateCustomer,
+    ) -> Result<Customer, AppError>;
     async fn list(&self, pool: &PgPool, user_id: Uuid) -> Result<Vec<Customer>, AppError>;
     async fn get(&self, pool: &PgPool, id: i64, user_id: Uuid) -> Result<Customer, AppError>;
-    async fn update(&self, pool: &PgPool, id: i64, user_id: Uuid, payload: &CreateCustomer) -> Result<Customer, AppError>;
+    async fn update(
+        &self,
+        pool: &PgPool,
+        id: i64,
+        user_id: Uuid,
+        payload: &CreateCustomer,
+    ) -> Result<Customer, AppError>;
     async fn delete(&self, pool: &PgPool, id: i64, user_id: Uuid) -> Result<(), AppError>;
 }
 
 pub struct PostgresCustomerRepo;
 
 impl PostgresCustomerRepo {
-    pub fn new() -> Self { Self }
+    pub fn new() -> Self {
+        Self
+    }
 }
 
 #[async_trait]
 impl CustomerRepository for PostgresCustomerRepo {
-    async fn create(&self,pool: &PgPool, _user_id: Uuid, payload: &CreateCustomer) -> Result<Customer, AppError> {
+    async fn create(
+        &self,
+        pool: &PgPool,
+        _user_id: Uuid,
+        payload: &CreateCustomer,
+    ) -> Result<Customer, AppError> {
         let cust = sqlx::query_as::<_, Customer>(
             r#"
             INSERT INTO receivables.customers (name, email, phone, billing_address, credit_limit, current_balance)
@@ -38,7 +59,7 @@ impl CustomerRepository for PostgresCustomerRepo {
         Ok(cust)
     }
 
-    async fn list(&self,pool: &PgPool, _user_id: Uuid) -> Result<Vec<Customer>, AppError> {
+    async fn list(&self, pool: &PgPool, _user_id: Uuid) -> Result<Vec<Customer>, AppError> {
         let rows = sqlx::query_as::<_, Customer>("SELECT * FROM receivables.customers")
             .fetch_all(pool)
             .await?;
@@ -46,15 +67,22 @@ impl CustomerRepository for PostgresCustomerRepo {
     }
 
     async fn get(&self, pool: &PgPool, id: i64, _user_id: Uuid) -> Result<Customer, AppError> {
-        let cust = sqlx::query_as::<_, Customer>("SELECT * FROM receivables.customers WHERE id = $1")
-            .bind(id)
-            .fetch_optional(pool)
-            .await?
-            .ok_or(AppError::NotFound("Customer not found".into()))?;
+        let cust =
+            sqlx::query_as::<_, Customer>("SELECT * FROM receivables.customers WHERE id = $1")
+                .bind(id)
+                .fetch_optional(pool)
+                .await?
+                .ok_or(AppError::NotFound("Customer not found".into()))?;
         Ok(cust)
     }
 
-    async fn update(&self,pool: &PgPool, id: i64, _user_id: Uuid, payload: &CreateCustomer) -> Result<Customer, AppError> {
+    async fn update(
+        &self,
+        pool: &PgPool,
+        id: i64,
+        _user_id: Uuid,
+        payload: &CreateCustomer,
+    ) -> Result<Customer, AppError> {
         let cust = sqlx::query_as::<_, Customer>(
             r#"
             UPDATE receivables.customers
@@ -75,7 +103,7 @@ impl CustomerRepository for PostgresCustomerRepo {
         Ok(cust)
     }
 
-    async fn delete(&self,pool: &PgPool, id: i64, _user_id: Uuid) -> Result<(), AppError> {
+    async fn delete(&self, pool: &PgPool, id: i64, _user_id: Uuid) -> Result<(), AppError> {
         let res = sqlx::query("DELETE FROM receivables.customers WHERE id = $1")
             .bind(id)
             .execute(pool)

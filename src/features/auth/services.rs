@@ -1,6 +1,6 @@
 // src/features/auth/services.rs
-use crate::infrastructure::errors::AppError;
 use crate::features::auth::repository::UserRepository;
+use crate::infrastructure::errors::AppError;
 use crate::models::dto::JwtClaims;
 use crate::models::user::{CreateUser, LoginUser, User};
 use crate::state::AppState;
@@ -69,7 +69,9 @@ impl<R: UserRepository> AuthService<R> {
             .await?;
 
         if tenant_db.is_none() {
-            return Err(AppError::Unauthorized("Not a member of this company".into()));
+            return Err(AppError::Unauthorized(
+                "Not a member of this company".into(),
+            ));
         }
 
         self.generate_token(user_id, Some(company_id), tenant_db)

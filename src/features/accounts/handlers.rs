@@ -1,6 +1,11 @@
 // src/features/accounts/handlers.rs
 use crate::{
-    infrastructure::errors::AppError, features::accounts::{repository::PostgresAccountRepo, service::AccountingService}, infrastructure::responses::ApiResponse, middleware::auth::AuthenticatedTenant, models::account::CreateAccount, state::AppState
+    features::accounts::{repository::PostgresAccountRepo, service::AccountingService},
+    infrastructure::errors::AppError,
+    infrastructure::responses::ApiResponse,
+    middleware::auth::AuthenticatedTenant,
+    models::account::CreateAccount,
+    state::AppState,
 };
 use axum::{
     Extension, Router,
@@ -15,10 +20,10 @@ pub fn router() -> Router<Arc<AppState>> {
     Router::new()
         .route("/create", post(create_account))
         .route("/list", get(get_accounts))
-        .route("/uuid/{id}", get(get_account_by_uuid))
-        .route("/{id}", get(get_account_by_serial))
-        .route("/{id}", patch(update_account))
-        .route("/{id}", delete(delete_account))
+        .route("/get/uuid/{id}", get(get_account_by_uuid))
+        .route("/get/serial/{id}", get(get_account_by_serial))
+        .route("/update/{id}", patch(update_account))
+        .route("/delete/{id}", delete(delete_account))
 }
 
 async fn create_account(

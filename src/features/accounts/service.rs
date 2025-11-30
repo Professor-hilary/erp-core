@@ -1,6 +1,6 @@
 // src/features/accounts/service.rs
-use crate::infrastructure::errors::AppError;
 use crate::features::accounts::repository::AccountRepository;
+use crate::infrastructure::errors::AppError;
 use crate::models::account::{Account, CreateAccount};
 use sqlx::PgPool;
 use uuid::Uuid;

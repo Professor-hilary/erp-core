@@ -98,7 +98,7 @@ pub fn create_router(state: Arc<AppState>) -> Router {
                 ),
         )
         .with_state(state)
-        .fallback(handler_404) // ← ADD THIS
+        .fallback(handler_404)
 }
 
 // 404 Fallback Handler

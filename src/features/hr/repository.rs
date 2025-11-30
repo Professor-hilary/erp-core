@@ -41,7 +41,7 @@ pub trait HrRepository: Send + Sync {
     ) -> Result<(), AppError>;
     async fn post_payrun(&self, pool: &PgPool, payrun_id: i32) -> Result<(), AppError>;
     async fn get_payrun(&self, pool: &PgPool, id: i32, user_id: Uuid) -> Result<Payrun, AppError>;
-    // Add list_payruns if needed
+    // todo: Add list_payruns later
 }
 
 pub struct PostgresHrRepo;

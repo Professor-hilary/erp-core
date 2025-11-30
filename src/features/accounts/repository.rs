@@ -194,7 +194,7 @@ impl AccountRepository for PostgresAccountRepo {
         sqlx::query("DELETE FROM accounting.accounts WHERE id = $1 AND user_id = $2")
             .bind(uuid)
             .bind(user_id)
-            .execute( pool)
+            .execute(pool)
             .await?;
         Ok(())
     }

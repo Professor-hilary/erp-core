@@ -1,24 +1,29 @@
 use axum::{
+    Extension, Router,
     extract::{Json, Path, State},
     response::Response,
     routing::{delete, get, patch, post},
-    Extension, Router,
 };
-use std::sync::Arc;
 use sqlx::{FromRow, types::JsonValue};
+use std::sync::Arc;
 
 use crate::{
-    infrastructure::errors::AppError, features::customers::{repository::PostgresCustomerRepo, service::CustomerService}, infrastructure::responses::ApiResponse, middleware::auth::AuthenticatedTenant, models::{customers::CreateCustomer, invoice::CreateInvoice}, state::AppState
+    features::customers::{repository::PostgresCustomerRepo, service::CustomerService},
+    infrastructure::errors::AppError,
+    infrastructure::responses::ApiResponse,
+    middleware::auth::AuthenticatedTenant,
+    models::{customers::CreateCustomer, invoice::CreateInvoice},
+    state::AppState,
 };
 
 pub fn router() -> Router<Arc<AppState>> {
     Router::new()
-        .route("/customers", post(create_customer))
-        .route("/customers", get(list_customers))
-        .route("/customers/{id}", get(get_customer))
-        .route("/customers/{id}", patch(update_customer))
-        .route("/customers/{id}", delete(delete_customer))
-        .route("/customers/{cid}/invoices", post(create_invoice))
+        .route("/create", post(create_customer))
+        .route("/list", get(list_customers))
+        .route("/get/{id}", get(get_customer))
+        .route("/update/{id}", patch(update_customer))
+        .route("/delete/{id}", delete(delete_customer))
+        .route("/create/{cid}/invoices", post(create_invoice))
 }
 
 async fn create_customer(
@@ -28,7 +33,9 @@ async fn create_customer(
 ) -> Result<Response, AppError> {
     let repo = PostgresCustomerRepo::new();
     let service = CustomerService::new(repo);
-    let cust = service.create(&user.tenant_pool,user.user_id, &payload).await?;
+    let cust = service
+        .create(&user.tenant_pool, user.user_id, &payload)
+        .await?;
     Ok(ApiResponse::created(cust, "Customer created"))
 }
 
@@ -49,7 +56,7 @@ async fn get_customer(
 ) -> Result<Response, AppError> {
     let repo = PostgresCustomerRepo::new();
     let service = CustomerService::new(repo);
-    let cust = service.get(&user.tenant_pool,id, user.user_id).await?;
+    let cust = service.get(&user.tenant_pool, id, user.user_id).await?;
     Ok(ApiResponse::success(cust, "Customer fetched"))
 }
 
@@ -61,7 +68,9 @@ async fn update_customer(
 ) -> Result<Response, AppError> {
     let repo = PostgresCustomerRepo::new();
     let service = CustomerService::new(repo);
-    let cust = service.update(&user.tenant_pool,id, user.user_id, &payload).await?;
+    let cust = service
+        .update(&user.tenant_pool, id, user.user_id, &payload)
+        .await?;
     Ok(ApiResponse::success(cust, "Customer updated"))
 }
 
@@ -72,7 +81,7 @@ async fn delete_customer(
 ) -> Result<Response, AppError> {
     let repo = PostgresCustomerRepo::new();
     let service = CustomerService::new(repo);
-    service.delete(&user.tenant_pool,id, user.user_id).await?;
+    service.delete(&user.tenant_pool, id, user.user_id).await?;
     Ok(ApiResponse::success((), "Customer deleted"))
 }
 

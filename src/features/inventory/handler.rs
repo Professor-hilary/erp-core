@@ -8,18 +8,23 @@ use axum::{
 use std::sync::Arc;
 
 use crate::{
-    infrastructure::errors::AppError, features::inventory::{repository::PostgresInventoryRepo, service::InventoryService}, infrastructure::responses::ApiResponse, middleware::auth::AuthenticatedTenant, models::{
+    features::inventory::{repository::PostgresInventoryRepo, service::InventoryService},
+    infrastructure::errors::AppError,
+    infrastructure::responses::ApiResponse,
+    middleware::auth::AuthenticatedTenant,
+    models::{
         inventory_movement::{PostPurchase, PostSale},
         item::CreateItem,
-    }, state::AppState
+    },
+    state::AppState,
 };
 
 pub fn router() -> Router<Arc<AppState>> {
     Router::new()
-        .route("/items", post(create_item))
-        .route("/items", get(list_items))
-        .route("/items/{id}", get(get_item))
-        .route("/items/{id}", patch(update_item))
+        .route("/create", post(create_item))
+        .route("/list", get(list_items))
+        .route("/get/{id}", get(get_item))
+        .route("/update/{id}", patch(update_item))
         .route("/items/{id}", delete(delete_item))
         .route("/purchases", post(post_purchase))
         .route("/sales", post(post_sale))

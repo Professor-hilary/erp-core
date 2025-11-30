@@ -1,9 +1,14 @@
 // src/features/transactions/handlers.rs
 use crate::{
-    infrastructure::errors::AppError, features::{
+    features::{
         accounts::repository::PostgresAccountRepo,
         transactions::{repository::PostgresTransactionRepo, services::TransactionService},
-    }, infrastructure::responses::ApiResponse, middleware::auth::AuthenticatedTenant, models::transaction::CreateTransaction, state::AppState
+    },
+    infrastructure::errors::AppError,
+    infrastructure::responses::ApiResponse,
+    middleware::auth::AuthenticatedTenant,
+    models::transaction::CreateTransaction,
+    state::AppState,
 };
 use axum::{
     Extension, Router,
@@ -18,9 +23,9 @@ pub fn router() -> Router<Arc<AppState>> {
     Router::new()
         .route("/create", post(create_transaction))
         .route("/list", get(get_transactions))
-        .route("/{id}", get(get_transaction))
-        .route("/{id}", patch(update_transaction))
-        .route("/{id}", delete(delete_transaction))
+        .route("/get/{id}", get(get_transaction))
+        .route("/update/{id}", patch(update_transaction))
+        .route("/delete/{id}", delete(delete_transaction))
 }
 
 async fn create_transaction(

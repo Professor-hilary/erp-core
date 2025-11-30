@@ -7,9 +7,6 @@ use uuid::Uuid;
 
 #[async_trait]
 pub trait TransactionRepository: Send + Sync {
-    #[allow(dead_code)]
-    //fn pool(&self) -> &PgPool;
-
     async fn create(
         &self,
         pool: &PgPool,
@@ -52,10 +49,6 @@ impl PostgresTransactionRepo {
 
 #[async_trait]
 impl TransactionRepository for PostgresTransactionRepo {
-    // fn pool(&self) -> &PgPool {
-    //     pool
-    // }
-
     async fn create(
         &self,
         pool: &PgPool,

@@ -1,7 +1,7 @@
 // src/features/hr/service.rs
 use crate::{
-    infrastructure::errors::AppError,
     features::hr::repository::HrRepository,
+    infrastructure::errors::AppError,
     models::{
         employee::{CreateEmployee, Employee},
         payrun::{CreatePayrun, Payrun},
