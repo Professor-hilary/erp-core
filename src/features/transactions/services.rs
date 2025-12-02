@@ -1,152 +1,147 @@
-// src/features/transactions/service.rs
-use crate::features::accounts::repository::AccountRepository;
-use crate::features::transactions::repository::TransactionRepository;
-use crate::infrastructure::errors::AppError;
-use crate::models::transaction::{CreateTransaction, Transaction};
-use bigdecimal::{BigDecimal, Zero};
+// src/features/transaction/service.rs
+
+use bigdecimal::BigDecimal;
 use sqlx::PgPool;
 use uuid::Uuid;
 
-pub struct TransactionService<R: AccountRepository, T: TransactionRepository> {
-    account_repo: R,
-    tx_repo: T,
+use crate::features::transactions::repository::TransactionRepository;
+use crate::infrastructure::errors::AppError;
+use crate::models::account::{CreateJournalEntry, JournalEntry, JournalEntryWithLines, UpdateJournalEntry};
+
+pub struct TransactionService<R: TransactionRepository> {
+    repo: R,
 }
 
-impl<R: AccountRepository, T: TransactionRepository> TransactionService<R, T> {
-    pub fn new(account_repo: R, tx_repo: T) -> Self {
-        Self {
-            account_repo,
-            tx_repo,
-        }
+impl<R: TransactionRepository> TransactionService<R> {
+    pub fn new(repo: R) -> Self {
+        Self { repo }
     }
 
-    pub async fn create_transaction(
+    pub async fn create_journal_entry(
         &self,
-        tenant_pool: &PgPool,
+        pool: &PgPool,
         user_id: Uuid,
-        tx: &CreateTransaction,
-    ) -> Result<Transaction, AppError> {
-        // Validate accounts exist and belong to user
-        let _debit_acc = self
-            .account_repo
-            .find_by_uuid(tenant_pool, tx.debit_account_id, user_id)
-            .await?
-            .ok_or(AppError::NotFound("Debit account not found".into()))?;
-        let _credit_acc = self
-            .account_repo
-            .find_by_uuid(tenant_pool, tx.credit_account_id, user_id)
-            .await?
-            .ok_or(AppError::NotFound("Credit account not found".into()))?;
-
-        // if debit_acc.user_id != user_id || credit_acc.user_id != user_id {
-        //     return Err(AppError::Validation("Accounts must belong to user".into()));
-        // }
-
-        match tx.amount <= BigDecimal::zero() {
-            true => return Err(AppError::BadRequest("Amount must be positive".into())),
-            false => (),
+        input: CreateJournalEntry,
+    ) -> Result<JournalEntryWithLines, AppError> {
+        // Validate balance
+        let total_debit: BigDecimal = input.lines.iter().map(|l| l.debit.clone()).sum();
+        let total_credit: BigDecimal = input.lines.iter().map(|l| l.credit.clone()).sum();
+        if total_debit != total_credit {
+            return Err(AppError::BadRequest(format!(
+                "Unbalanced entry: debit {total_debit} ≠ credit {total_credit}"
+            )));
         }
 
-        // Create transaction
-        let transaction = self.tx_repo.create(tenant_pool, user_id, tx).await?;
+        if input.lines.len() < 2 {
+            return Err(AppError::BadRequest("Entry must have ≥2 lines".into()));
+        }
 
-        // Update account balances
-        self.account_repo
-            .update_balance(tenant_pool, tx.debit_account_id, -tx.amount.clone())
+        let header = self
+            .repo
+            .create_journal_entry(pool, user_id, &input)
             .await?;
-        self.account_repo
-            .update_balance(tenant_pool, tx.credit_account_id, tx.amount.clone())
-            .await?;
-
-        Ok(transaction)
+        self.repo
+            .get_journal_entry_with_lines(pool, header.uuid, user_id)
+            .await?
+            .ok_or(AppError::NotFound(
+                "Failed to retrieve created entry".into(),
+            ))
     }
 
-    pub async fn get_transaction(
+    pub async fn post_journal_entry(
         &self,
-        tenant_pool: &PgPool,
-        id: Uuid,
+        pool: &PgPool,
         user_id: Uuid,
-    ) -> Result<Transaction, AppError> {
-        self.tx_repo
-            .find_by_id(tenant_pool, id, user_id)
+        uuid: Uuid,
+    ) -> Result<JournalEntryWithLines, AppError> {
+        let header = self.repo.post_journal_entry(pool, uuid, user_id).await?;
+        self.repo
+            .get_journal_entry_with_lines(pool, header.uuid, user_id)
             .await?
-            .ok_or(AppError::NotFound("Transaction not found".into()))
+            .ok_or(AppError::NotFound("Failed to retrieve posted entry".into()))
     }
 
-    pub async fn get_transactions(
+    pub async fn update_unposted_journal_entry(
         &self,
-        tenant_pool: &PgPool,
+        pool: &PgPool,
         user_id: Uuid,
-    ) -> Result<Vec<Transaction>, AppError> {
-        self.tx_repo.find_by_user(tenant_pool, user_id).await
+        uuid: Uuid,
+        input: UpdateJournalEntry,
+    ) -> Result<JournalEntryWithLines, AppError> {
+        // Validate new lines if provided
+        if let Some(lines) = &input.lines {
+            let total_debit: BigDecimal = lines.iter().map(|l| l.debit.clone()).sum();
+            let total_credit: BigDecimal = lines.iter().map(|l| l.credit.clone()).sum();
+            if total_debit != total_credit {
+                return Err(AppError::BadRequest(format!(
+                    "Unbalanced entry: debit {total_debit} ≠ credit {total_credit}"
+                )));
+            }
+            if lines.len() < 2 {
+                return Err(AppError::BadRequest("Entry must have ≥2 lines".into()));
+            }
+        }
+
+        let header = self
+            .repo
+            .update_unposted_journal_entry(pool, uuid, user_id, &input)
+            .await?;
+        self.repo
+            .get_journal_entry_with_lines(pool, header.uuid, user_id)
+            .await?
+            .ok_or(AppError::NotFound(
+                "Failed to retrieve updated entry".into(),
+            ))
     }
 
-    pub async fn update_transaction(
+    pub async fn delete_unposted_journal_entry(
         &self,
-        tenant_pool: &PgPool,
-        id: Uuid,
+        pool: &PgPool,
         user_id: Uuid,
-        tx: &CreateTransaction,
-    ) -> Result<Transaction, AppError> {
-        // Get old transaction to reverse balances
-        let old = self
-            .tx_repo
-            .find_by_id(tenant_pool, id, user_id)
-            .await?
-            .ok_or(AppError::NotFound("Transaction not found".into()))?;
-
-        // Validate new accounts
-        let _debit_acc = self
-            .account_repo
-            .find_by_uuid(tenant_pool, tx.debit_account_id, user_id)
-            .await?
-            .ok_or(AppError::NotFound("New debit account not found".into()))?;
-        let _credit_acc = self
-            .account_repo
-            .find_by_uuid(tenant_pool, tx.credit_account_id, user_id)
-            .await?
-            .ok_or(AppError::NotFound("New credit account not found".into()))?;
-
-        // Reverse old balances
-        self.account_repo
-            .update_balance(tenant_pool, old.debit_account_id, old.amount.clone())
-            .await?;
-        self.account_repo
-            .update_balance(tenant_pool, old.credit_account_id, -old.amount.clone())
-            .await?;
-
-        // Apply new balances
-        self.account_repo
-            .update_balance(tenant_pool, tx.debit_account_id, -tx.amount.clone())
-            .await?;
-        self.account_repo
-            .update_balance(tenant_pool, tx.credit_account_id, tx.amount.clone())
-            .await?;
-
-        // Update transaction
-        self.tx_repo.update(tenant_pool, id, user_id, tx).await
-    }
-
-    pub async fn delete_transaction(
-        &self,
-        tenant_pool: &PgPool,
-        id: Uuid,
-        user_id: Uuid,
+        uuid: Uuid,
     ) -> Result<(), AppError> {
-        let tx = self
-            .tx_repo
-            .find_by_id(tenant_pool, id, user_id)
-            .await?
-            .ok_or(AppError::NotFound("Transaction not found".into()))?;
+        self.repo
+            .delete_unposted_journal_entry(pool, uuid, user_id)
+            .await
+    }
 
-        // Reverse balances
-        self.account_repo
-            .update_balance(tenant_pool, tx.debit_account_id, tx.amount.clone())
-            .await?;
-        self.account_repo
-            .update_balance(tenant_pool, tx.credit_account_id, -tx.amount.clone())
-            .await?;
+    pub async fn void_journal_entry(
+        &self,
+        pool: &PgPool,
+        user_id: Uuid,
+        uuid: Uuid,
+        reason: String,
+    ) -> Result<(), AppError> {
+        self.repo
+            .void_journal_entry(pool, uuid, user_id, &reason)
+            .await
+    }
 
-        self.tx_repo.delete(tenant_pool, id, user_id).await
+    #[allow(unused)]
+    pub async fn get_account_balance(
+        &self,
+        pool: &PgPool,
+        account_uuid: Uuid,
+    ) -> Result<BigDecimal, AppError> {
+        self.repo.get_account_balance(pool, account_uuid).await
+    }
+
+    pub async fn list_journal_entries(
+        &self,
+        pool: &PgPool,
+        user_id: Uuid,
+        limit: i64,
+        offset: i64,
+    ) -> Result<Vec<JournalEntry>, AppError> {
+        self.repo.list_journal_entries(pool, user_id, limit, offset).await
+    }
+
+    pub async fn get_journal_entry_with_lines(
+        &self,
+        pool: &PgPool,
+        uuid: Uuid,
+        user_id: Uuid,
+    ) -> Result<Option<JournalEntryWithLines>, AppError> {
+        self.repo.get_journal_entry_with_lines(pool, uuid, user_id).await
     }
 }

@@ -92,9 +92,7 @@ pub async fn auth_middleware(
         // Try to insert tenant context — silently fail (it's optional)
         match (token_data.claims.company_id, token_data.claims.tenant_db) {
             (Some(company_id), Some(tenant_db)) => {
-                println!("-> Company id and db set successfully");
                 if let Some(pool) = state.tenant_pools.get(&company_id) {
-                    println!("-> Company token set successfully");
                     request.extensions_mut().insert(AuthenticatedTenant {
                         user_id,
                         company_id,

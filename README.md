@@ -276,6 +276,9 @@ curl -X POST http://localhost:8080/api/transactions/create \
 curl -H "Authorization: Bearer $TOKEN" \
   http://localhost:8080/api/transactions/list | jq
 
+curl -G http://localhost:8080/api/transactions/list \
+  -H "Authorization: Bearer YOUR_JWT_HERE" | jq
+
 # Get a transaction ID from /list first
 curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/transactions/list
 
@@ -288,3 +291,94 @@ curl -i http://localhost:8080/api/whatever
 
 # Get Backend Server Log
   RUST_LOG=info cargo run
+
+# Create a transaction (unposted)
+
+```json
+curl -X POST http://localhost:8080/api/
+transactions/create \
+  -H "Authorization: Bearer YOUR_JWT_HERE" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "txn_date": "2025-04-01",
+    "reference": "TEST-001",
+    "description": "Test sale - draft",
+    "module": "journal",
+    "posted": false,
+    "lines": [
+      {
+        "account_uuid": "11111111-1111-1111-1111-111111111111",
+        "debit": "500.00",
+        "credit": "0.00",
+        "memo": "Cash received"
+      },
+      {
+        "account_uuid": "22222222-2222-2222-2222-222222222222",
+        "debit": "0.00",
+        "credit": "500.00",
+        "memo": "Sales revenue"
+      }
+    ]
+  }' | jq
+```
+
+```json
+curl -X POST http://localhost:8080/api/transactions/create -H "$AUTH" -H "Content-Type: application/json" -d '{
+  "txn_date": "2025-12-05",
+  "reference": "PO-500",
+  "description": "Inventory purchase from Supplier Ltd",
+  "posted": true,
+  "lines": [
+    { "account_uuid": "44444444-4444-4444-4444-444444444444", "debit": "3000.00", "credit": "0",     "memo": "Inventory" },
+    { "account_uuid": "55555555-5555-5555-5555-555555555555", "debit": "0",      "credit": "3000.00", "memo": "Accounts Payable" }
+  ]
+}' | jq
+```
+
+# Create a transaction (posted)
+```json
+curl -X POST http://localhost:3000/accounting/create -H "$AUTH" -H "Content-Type: application/json" -d '{
+  "txn_date": "2025-12-02",
+  "reference": "CASH-001",
+  "description": "Cash sale to walk-in customer",
+  "module": "sales",
+  "posted": true,
+  "lines": [
+    { "account_uuid": "11111111-1111-1111-1111-111111111111", "debit": "1200.00", "credit": "0",    "memo": "Cash received" },
+    { "account_uuid": "66666666-6666-6666-6666-666666666666", "debit": "0",      "credit": "1200.00", "memo": "Sales revenue" }
+  ]
+}' | jq
+```
+
+# Post transactions - makes transactions immutable
+curl -X PUT http://localhost:8080/api/transactions/post/THE_UUID \
+  -H "Authorization: Bearer YOUR_JWT_HERE" | jq
+
+# Try to update a posted transaction - possible before posting
+curl -X PUT http://localhost:8080/api/transactions/update/NEW_UUID_HERE \
+  -H "Authorization: Bearer YOUR_JWT_HERE" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "description": "Updated description - still draft!",
+    "lines": [
+      { "account_uuid": "11111111-1111-1111-1111-111111111111", "debit": "1500.00", "credit": "0.00", "memo": "More cash" },
+      { "account_uuid": "22222222-2222-2222-2222-222222222222", "debit": "0.00", "credit": "1500.00", "memo": "More revenue" }
+    ]
+  }' | jq
+
+
+# Delete an unposted transaction
+curl -X DELETE http://localhost:8080/api/transactions/delete/NEW_UUID_HERE \
+  -H "Authorization: Bearer YOUR_JWT_HERE" | jq
+
+# Make posted transaction void
+curl -X POST http://localhost:8080/api/transactions/void/THE_UUID \
+  -H "Authorization: Bearer YOUR_JWT_HERE" \
+  -H "Content-Type: application/json" \
+  -d '{"reason": "Customer returned the goods"}' | jq
+
+# Check balance of transaction
+```json
+curl -G http://localhost:8080/api/transactions/balance/UUID \
+  -H "Authorization: Bearer YOUR_JWT_HERE" | jq
+```

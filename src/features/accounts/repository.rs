@@ -34,6 +34,7 @@ pub trait AccountRepository: Send + Sync {
         pool: &PgPool,
         user_id: sqlx::types::Uuid,
     ) -> Result<Vec<Account>, AppError>;
+    #[allow(unused)]
     async fn update_balance(
         &self,
         pool: &PgPool,
@@ -86,7 +87,7 @@ impl AccountRepository for PostgresAccountRepo {
             ) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *",
         )
         .bind(&acc.name)
-        .bind(&acc.type_)
+        .bind(&acc.type_.to_lowercase())
         // .bind(&acc.subtype)
         .bind(&acc.code)
         .bind(&acc.parent_code)

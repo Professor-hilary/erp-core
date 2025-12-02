@@ -24,7 +24,7 @@ impl<R: AccountRepository> AccountingService<R> {
         user_id: Uuid,
         acc: &CreateAccount,
     ) -> Result<Account, AppError> {
-        let valid_types: [&str; 5] = ["Asset", "Liability", "Equity", "Revenue", "Expense"];
+        let valid_types: [&str; 5] = ["asset", "liability", "equity", "revenue", "expense"];
         if !valid_types.contains(&acc.type_.as_str()) {
             return Err(AppError::BadRequest("Invalid account type".into()));
         }
@@ -58,7 +58,7 @@ impl<R: AccountRepository> AccountingService<R> {
         self.account_repo
             .find_by_uuid(tenant_pool, uuid, user_id)
             .await?
-            .ok_or(AppError::NotFound("Account not found".into()))
+            .ok_or(AppError::NotFound("This item does not exist, create it or try searching different a serial number or id!".into()))
     }
 
     pub async fn get_account_by_serial(

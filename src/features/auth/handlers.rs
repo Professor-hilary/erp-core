@@ -35,6 +35,7 @@ async fn register(
         user,
         token,
         "Registered successfully",
+        "user",
     ))
 }
 

@@ -54,7 +54,7 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         // CHECK THAT SERVER IS UP AND RUNING
         .route(
             "/",
-            get(|| async { "Service Up And Running Successfully!\n" }),
+            get(|| async { "[Howdy]: Smart accountant is up and Running!\n" }),
         )
         // .route("/debug/state", get(debug_state))
         // PUBLIC ROUTES (no auth required)

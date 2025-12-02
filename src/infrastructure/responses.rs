@@ -58,12 +58,13 @@ impl ApiResponse {
     }
 
     pub fn created_with_token(
-        user: impl serde::Serialize,
+        data: impl serde::Serialize,
         token: String,
         message: &str,
+        title: &str,
     ) -> Response {
         let payload = json!({
-            "user": user,
+            title: data,
             "access_token": token,
             "token_type": "Bearer"
         });

@@ -44,7 +44,7 @@ CREATE TABLE accounting.transactions (
     txn_date   DATE        NOT NULL,
     reference  TEXT,
     description TEXT,
-    created_by BIGINT,                                 -- fk to system.users (keep your own PK type)
+    created_by UUID,                                 -- fk to system.users (keep your own PK type)
     created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
     posted     BOOLEAN     DEFAULT TRUE,                -- drafts/approval
     module     TEXT                                    -- e.g., 'invoice', 'payment', 'journal'

@@ -32,13 +32,14 @@ async fn create_company(
     Extension(user): Extension<AuthenticatedUser>,
     Json(payload): Json<CreateCompanyDto>,
 ) -> Result</* Json<(Company, String)> */impl IntoResponse, AppError> {
-    let (company, token) =
+    let (company, token_str) =
         CompanyService::create_company(state.clone(), user.user_id, payload).await?;
 
     Ok(ApiResponse::created_with_token(
         company,
-        token,
+        token_str,
         "Company Created Successfully",
+        "company"
     ))
 }
 

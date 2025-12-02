@@ -14,4 +14,3 @@ pub mod transaction;
 pub mod user;
 pub mod vendor;
 
-pub use transaction::Transaction;
