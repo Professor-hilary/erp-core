@@ -35,6 +35,7 @@ pub trait CompanyRepository: Send + Sync {
     async fn update_company_secret<'e, E: Executor<'e, Database = Postgres>>(
         &self,
         executor: E,
+        user_id: Uuid,
         tenant_db_uri: &str,
         company_id: Uuid,
     ) -> Result<(), AppError>;
@@ -142,15 +143,17 @@ impl CompanyRepository for PostgresCompanyRepository {
     async fn update_company_secret<'e, E: Executor<'e, Database = Postgres>>(
         &self,
         executor: E,
+        user_id: Uuid,
         tenant_db_uri: &str,
         company_id: Uuid,
     ) -> Result<(), AppError> {
         // assume `company_id` is known and `tenant_url` is built
         sqlx::query(
-            "INSERT INTO tenant_secrets (company_id, secret) VALUES ($1, $2) ON CONFLICT (company_id) DO NOTHING"
+            "INSERT INTO tenant_secrets (company_id, secret, created_by) VALUES ($1, $2, $3) ON CONFLICT (company_id) DO NOTHING"
         )
         .bind(company_id)
         .bind(serde_json::json!({ "tenant_url": tenant_db_uri }))
+        .bind(user_id)
         .execute(executor)
         .await.map_err(|e| AppError::Internal(e.to_string()))?;
 

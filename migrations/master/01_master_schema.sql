@@ -2,7 +2,6 @@
 -- master_schema.db
 --
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
 CREATE TABLE IF NOT EXISTS users (
     uuid uuid PRIMARY KEY DEFAULT uuid_generate_v4() NOT NULL,
     email text UNIQUE NOT NULL,
@@ -24,12 +23,19 @@ CREATE TABLE IF NOT EXISTS companies (
     is_deleted boolean DEFAULT false,
     created_at timestamptz DEFAULT now(),
     UNIQUE(created_by, name),
-    CHECK (status IN ('provisioning', 'active', 'error', 'suspended', 'deleted'))
+    CHECK (
+        status IN (
+            'provisioning',
+            'active',
+            'error',
+            'suspended',
+            'deleted'
+        )
+    )
 );
 CREATE INDEX companies_created_by_idx ON companies(created_by);
 CREATE INDEX companies_tenant_db_name_idx ON companies(tenant_db_name);
 CREATE INDEX companies_status_idx ON companies(status);
-
 CREATE TABLE IF NOT EXISTS industry_coa_templates (
     industry text PRIMARY KEY,
     template jsonb NOT NULL,
@@ -45,5 +51,6 @@ CREATE TABLE IF NOT EXISTS user_companies(
 CREATE TABLE IF NOT EXISTS tenant_secrets(
     company_id uuid PRIMARY KEY REFERENCES companies(uuid),
     secret jsonb NOT NULL,
+    created_by uuid REFERENCES users(uuid),
     created_at timestamptz DEFAULT now()
 );

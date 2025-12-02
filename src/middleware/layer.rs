@@ -1,6 +1,7 @@
 // src/middleware/auth.rs
 use axum::{
     extract::{Request, State},
+    http::Method,
     middleware::Next,
     response::Response,
 };
@@ -21,11 +22,14 @@ pub async fn auth_middleware(
     mut request: Request,
     next: Next,
 ) -> Result<Response, AppError> {
-    let path = request.uri().path().to_string();
-    let method = request.method().clone();
+    let path: String = request.uri().path().to_string();
+    let method: Method = request.method().clone();
+
+    let is_company_create: bool = method == Method::POST
+        && (path.ends_with("/create") && path.contains("/companies") || path == "/companies");
 
     // Skip tenant context for company creation
-    if path == "/companies" && method == axum::http::Method::POST {
+    if is_company_create {
         // Middleware only for create company route
         let auth_header = request
             .headers()
@@ -80,25 +84,26 @@ pub async fn auth_middleware(
         let user_id = Uuid::parse_str(&token_data.claims.sub.to_string())
             .map_err(|_| AppError::Unauthorized("Invalid user ID in token".into()))?;
 
-        // // Always insert the basic user
+        // Always insert the basic user
         request
             .extensions_mut()
             .insert(AuthenticatedUser { user_id });
 
         // Try to insert tenant context — silently fail (it's optional)
-        if let (Some(company_id), Some(tenant_db)) =
-            (token_data.claims.company_id, token_data.claims.tenant_db)
-        {
-            println!("-> Company id and db set successfully");
-            if let Some(pool) = state.tenant_pools.get(&company_id) {
-                println!("-> Company token set successfully");
-                request.extensions_mut().insert(AuthenticatedTenant {
-                    user_id,
-                    company_id,
-                    tenant_db,
-                    tenant_pool: pool.value().clone(),
-                });
+        match (token_data.claims.company_id, token_data.claims.tenant_db) {
+            (Some(company_id), Some(tenant_db)) => {
+                println!("-> Company id and db set successfully");
+                if let Some(pool) = state.tenant_pools.get(&company_id) {
+                    println!("-> Company token set successfully");
+                    request.extensions_mut().insert(AuthenticatedTenant {
+                        user_id,
+                        company_id,
+                        tenant_db,
+                        tenant_pool: pool.value().clone(),
+                    });
+                }
             }
+            _ => (),
         }
         Ok(next.run(request).await)
     }

@@ -84,7 +84,7 @@ impl CompanyService {
             .await
             .map_err(|_| AppError::Internal("Failed to activate company".into()))?;
 
-        repo.update_company_secret(&mut *tx, &tenant_url, company.uuid)
+        repo.update_company_secret(&mut *tx, user_id, &tenant_url, company.uuid)
             .await
             .map_err(|_| AppError::Internal("Failed to update company secrets tables".into()))?;
 

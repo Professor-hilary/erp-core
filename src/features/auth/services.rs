@@ -36,6 +36,7 @@ impl<R: UserRepository> AuthService<R> {
 
         let created_user: User = self.repo.create(&user.email, &password_hash).await?;
 
+        // this will automatically return None because at registration, no company is created
         let (company_id, tenant_db) = self.repo.get_user_company(created_user.uuid).await?;
 
         let token: String =
@@ -45,7 +46,11 @@ impl<R: UserRepository> AuthService<R> {
     }
 
     /// Sign in user from master database, update tenant pools in state
-    pub async fn login(&self, user: &LoginUser, _state: Arc<AppState>) -> Result<(User, String), AppError> {
+    pub async fn login(
+        &self,
+        user: &LoginUser,
+        _state: Arc<AppState>,
+    ) -> Result<(User, String), AppError> {
         let db_user: User = self
             .repo
             .find_by_email(&user.email)
@@ -60,19 +65,16 @@ impl<R: UserRepository> AuthService<R> {
 
         let (company_id, tenant_db) = self.repo.get_user_company(db_user.uuid).await?;
 
+        // only attempt to load tenant/pool if company_id is Some
+        if let Some(company_uuid) = company_id {
+            let tenant_url_option: Option<String> =
+                self.repo.get_tenant_url(Some(company_uuid)).await?;
+            let tenant_url = tenant_url_option
+                .as_deref()
+                .ok_or(AppError::Internal("Tenant Url missing".to_string()))?;
+            Self::ensure_tenant_pool(&_state, company_uuid, tenant_url).await?;
+        }
         let token = self.generate_token(db_user.uuid, company_id, tenant_db.clone())?;
-
-        // Get Tenant Secret From Secrets Table
-        let tenant_url_option: Option<String> = self.repo.get_tenant_url(company_id).await?;
-        let tenant_url: &str = tenant_url_option
-            .as_deref()
-            .ok_or(AppError::Internal("Tenant Url missing".to_string()))?;
-
-        // Lazy Load ensures company database is loaded
-        let company_uuid: Uuid =
-            company_id.ok_or_else(|| AppError::Internal("Company ID missing".into()))?;
-
-        Self::ensure_tenant_pool(&_state, company_uuid, tenant_url.as_ref()).await?;
 
         Ok((db_user, token))
     }
