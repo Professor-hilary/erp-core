@@ -17,6 +17,9 @@ use crate::{
 use std::{sync::Arc, time::Duration};
 use tower_http::{classify::ServerErrorsFailureClass, cors::CorsLayer, trace::TraceLayer};
 
+#[cfg(debug_assertions)]
+use crate::middleware::debug_state::debug_app_state_middleware;
+
 pub fn create_router(state: Arc<AppState>) -> Router {
     // Protected Routes
     let company_routes: Router<Arc<AppState>> = company::handlers::router().layer(
@@ -31,9 +34,15 @@ pub fn create_router(state: Arc<AppState>) -> Router {
     let employee_routes: Router<Arc<AppState>> = hr::handler::router().layer(
         middleware::from_fn_with_state(state.clone(), auth_middleware),
     );
-    let transaction_routes: Router<Arc<AppState>> = transactions::handlers::router().layer(
-        middleware::from_fn_with_state(state.clone(), auth_middleware),
-    );
+    let transaction_routes: Router<Arc<AppState>> = transactions::handlers::router()
+        .layer(middleware::from_fn_with_state(
+            state.clone(),
+            debug_app_state_middleware,
+        ))
+        .layer(middleware::from_fn_with_state(
+            state.clone(),
+            auth_middleware,
+        ));
     let account_routes: Router<Arc<AppState>> = accounts::handlers::router().layer(
         middleware::from_fn_with_state(state.clone(), auth_middleware),
     );
@@ -47,6 +56,7 @@ pub fn create_router(state: Arc<AppState>) -> Router {
             "/",
             get(|| async { "Service Up And Running Successfully!\n" }),
         )
+        // .route("/debug/state", get(debug_state))
         // PUBLIC ROUTES (no auth required)
         .nest("/api/auth", crate::features::auth::handlers::router())
         // PROTECTED ROUTES (require auth)

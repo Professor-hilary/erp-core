@@ -30,6 +30,15 @@ pub trait CompanyRepository: Send + Sync {
         company_id: Uuid,
     ) -> Result<(), AppError>;
 
+    /// # Assign Admin Privilege
+    /// Make current user the admin for created company
+    async fn update_company_secret<'e, E: Executor<'e, Database = Postgres>>(
+        &self,
+        executor: E,
+        tenant_db_uri: &str,
+        company_id: Uuid,
+    ) -> Result<(), AppError>;
+
     /// # Find By Id
     /// Find company by id provided in master database
     async fn find_by_id<'e, E: Executor<'e, Database = Postgres>>(
@@ -127,6 +136,24 @@ impl CompanyRepository for PostgresCompanyRepository {
         .execute(executor)
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
+        Ok(())
+    }
+
+    async fn update_company_secret<'e, E: Executor<'e, Database = Postgres>>(
+        &self,
+        executor: E,
+        tenant_db_uri: &str,
+        company_id: Uuid,
+    ) -> Result<(), AppError> {
+        // assume `company_id` is known and `tenant_url` is built
+        sqlx::query(
+            "INSERT INTO tenant_secrets (company_id, secret) VALUES ($1, $2) ON CONFLICT (company_id) DO NOTHING"
+        )
+        .bind(company_id)
+        .bind(serde_json::json!({ "tenant_url": tenant_db_uri }))
+        .execute(executor)
+        .await.map_err(|e| AppError::Internal(e.to_string()))?;
+
         Ok(())
     }
 

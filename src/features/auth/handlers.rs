@@ -27,9 +27,9 @@ async fn register(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<CreateUser>,
 ) -> Result<impl IntoResponse, AppError> {
-    let repo = PostgresUserRepo::new(state.master_pool.clone());
-    let service = AuthService::new(repo, state.clone());
-    let (user, token) = service.register(&payload).await?;
+    let repo: PostgresUserRepo = PostgresUserRepo::new(state.master_pool.clone());
+    let service: AuthService<PostgresUserRepo> = AuthService::new(repo, state.clone());
+    let (user, token) = service.register(&payload, state).await?;
 
     Ok(ApiResponse::created_with_token(
         user,
@@ -42,11 +42,15 @@ async fn login(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<LoginUser>,
 ) -> Result<impl IntoResponse, AppError> {
-    let repo = PostgresUserRepo::new(state.master_pool.clone());
-    let service = AuthService::new(repo, state.clone());
-    let token = service.login(&payload).await?;
+    let repo: PostgresUserRepo = PostgresUserRepo::new(state.master_pool.clone());
+    let service: AuthService<PostgresUserRepo> = AuthService::new(repo, state.clone());
+    let (user, token) = service.login(&payload, state).await?;
 
-    Ok(ApiResponse::success(token, "Login successful"))
+    Ok(ApiResponse::success_with_meta(
+        user,
+        "Login successful",
+        &token,
+    ))
 }
 
 // POST /api/auth/switch-company { "company_id": "..." }
@@ -60,9 +64,11 @@ async fn switch_company(
         .and_then(|s| Uuid::parse_str(s).ok())
         .ok_or(AppError::BadRequest("Invalid company_id".into()))?;
 
-    let repo = PostgresUserRepo::new(state.master_pool.clone());
-    let service = AuthService::new(repo, state.clone());
-    let new_token = service.switch_company(user.user_id, company_id).await?;
+    let repo: PostgresUserRepo = PostgresUserRepo::new(state.master_pool.clone());
+    let service: AuthService<PostgresUserRepo> = AuthService::new(repo, state.clone());
+    let new_token: String = service
+        .switch_company(user.user_id, company_id, state)
+        .await?;
 
     Ok(ApiResponse::success(
         new_token,

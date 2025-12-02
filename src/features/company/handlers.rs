@@ -1,15 +1,15 @@
 // src/features/company/handlers.rs
 use crate::{
     features::company::services::CompanyService,
-    infrastructure::errors::AppError,
+    infrastructure::{errors::AppError, responses::ApiResponse},
     middleware::auth::{AuthenticatedTenant, AuthenticatedUser},
-    models::company::{Company, CreateCompanyDto, UpdateCompanyDto},
+    models::{
+        company::{Company, CreateCompanyDto, UpdateCompanyDto},
+    },
     state::AppState,
 };
 use axum::{
-    Extension, Json, Router,
-    extract::{Path, State},
-    routing::{delete, get, post, put},
+    Extension, Json, Router, extract::{Path, State}, response::IntoResponse, routing::{delete, get, post, put}
 };
 use std::sync::Arc;
 use uuid::Uuid;
@@ -31,10 +31,15 @@ async fn create_company(
     State(state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedUser>,
     Json(payload): Json<CreateCompanyDto>,
-) -> Result<Json<Company>, AppError> {
-    let company: Company =
+) -> Result</* Json<(Company, String)> */impl IntoResponse, AppError> {
+    let (company, token) =
         CompanyService::create_company(state.clone(), user.user_id, payload).await?;
-    Ok(Json(company))
+
+    Ok(ApiResponse::created_with_token(
+        company,
+        token,
+        "Company Created Successfully",
+    ))
 }
 
 /// GET /companies (user's companies)

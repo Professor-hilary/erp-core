@@ -4,15 +4,15 @@ use crate::{
         auth::{AuthService, repository::PostgresUserRepo},
         company::repository::{CompanyRepository, PostgresCompanyRepository},
     },
-    infrastructure::database::tenant_provisioner::TenantProvisioner,
-    infrastructure::errors::AppError,
+    infrastructure::{database::tenant_provisioner::TenantProvisioner, errors::AppError},
     models::{
         coa_entry::CoaTemplate,
         company::{Company, CreateCompanyDto},
     },
     state::AppState,
 };
-use sqlx::{PgPool, Pool, Postgres};
+
+use sqlx::{PgPool, Postgres};
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -25,7 +25,7 @@ impl CompanyService {
         state: Arc<AppState>,
         user_id: Uuid,
         req: CreateCompanyDto,
-    ) -> Result<Company, AppError> {
+    ) -> Result<(Company, String), AppError> {
         let slug: String = Self::slugify(&req.name);
 
         // Step 1: Start transaction on master DB (for company record + admin assignment)
@@ -38,7 +38,7 @@ impl CompanyService {
         // Step 2: Provision tenant database (this commits independently)
         // Note: We cannot keep this inside the same tx as master operations
         // because CREATE DATABASE cannot run inside a transaction block in PostgreSQL
-        let tenant_pool: Pool<Postgres> = TenantProvisioner::create_tenant_db(
+        let (tenant_pool, tenant_url) = TenantProvisioner::create_tenant_db(
             &state.master_pool,
             user_id,
             &req.name,
@@ -47,7 +47,11 @@ impl CompanyService {
         .await?;
 
         let tenant_db_name: String = format!("tenant_{}", slug);
-        let tenant_url: String = format!("{}{}", state.tenant_config.base_url, tenant_db_name);
+        // let tenant_url: String = format!("{}{}", state.tenant_config.base_url, tenant_db_name);
+        // state
+        //     .tenant_config
+        //     .base_url
+        //     .insert(tenant_url.len(), tenant_url);
 
         // Step 3: Seed Chart of Accounts
         Self::seed_coa(&tenant_pool, &req.industry, &state.coa_seed_path)
@@ -71,7 +75,7 @@ impl CompanyService {
             .await
             .map_err(|_| AppError::Internal("Failed to create company record".into()))?;
 
-        // Step 5: Assign user as admin + activate
+        // Step 5: Assign user as admin + activate + update the secrets table
         repo.assign_user_as_admin(&mut *tx, user_id, company.uuid)
             .await
             .map_err(|_| AppError::Internal("Failed to assign admin role".into()))?;
@@ -80,10 +84,16 @@ impl CompanyService {
             .await
             .map_err(|_| AppError::Internal("Failed to activate company".into()))?;
 
+        repo.update_company_secret(&mut *tx, &tenant_url, company.uuid)
+            .await
+            .map_err(|_| AppError::Internal("Failed to update company secrets tables".into()))?;
+
         // Step 6: Commit master transaction
         tx.commit()
             .await
             .map_err(|_| AppError::Internal("Failed to commit transaction".into()))?;
+
+        println!("Pool Size: {}", tenant_pool.size());
 
         // Step 7: Cache the tenant pool only after everything succeeds
         state.tenant_pools.insert(company.uuid, tenant_pool);
@@ -92,12 +102,12 @@ impl CompanyService {
         let repo: PostgresUserRepo = PostgresUserRepo::new(state.master_pool.clone());
         let auth_service: AuthService<PostgresUserRepo> = AuthService::new(repo, state.clone());
 
-        let _new_token: String = auth_service
+        let new_token: String = auth_service
             .generate_token(user_id, Some(company.uuid), Some(tenant_db_name))
             .map_err(|_| AppError::Internal("Failed to generate new token".into()))?;
 
         // Return both company + new token
-        Ok(company)
+        Ok((company, new_token))
     }
 
     fn slugify(name: &str) -> String {

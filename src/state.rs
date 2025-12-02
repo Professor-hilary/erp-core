@@ -4,7 +4,7 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 #[allow(unused)]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct TenantConfig {
     pub user: String,
     pub password: String,
@@ -13,7 +13,7 @@ pub struct TenantConfig {
     pub base_url: String,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct AppState {
     pub master_pool: PgPool,
     pub tenant_pools: DashMap<Uuid, PgPool>,

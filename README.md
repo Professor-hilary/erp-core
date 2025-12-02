@@ -244,8 +244,10 @@ curl -X POST http://localhost:8080/api/accounts/create \
   -d '{"name": "Cash", "type_": "asset"}'
 
 # List Accounts
+```python
 curl -H "Authorization: Bearer $TOKEN" \
   http://localhost:8080/api/accounts/list
+```
 
 # Update
 curl -X PATCH http://localhost:8080/api/accounts/<id> \
@@ -254,8 +256,10 @@ curl -X PATCH http://localhost:8080/api/accounts/<id> \
   -d '{"name": "Petty Cash", "type_": "asset"}'
 
 # Delete
+```python
 curl -X DELETE http://localhost:8080/api/accounts/<id> \
   -H "Authorization: Bearer $TOKEN"
+```
 
 # Create
 curl -X POST http://localhost:8080/api/transactions/create \

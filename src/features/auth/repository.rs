@@ -11,6 +11,8 @@ pub trait UserRepository: Send + Sync {
 
     async fn find_by_email(&self, email: &str) -> Result<Option<User>, AppError>;
 
+    async fn get_tenant_url(&self, company_id: Option<Uuid>) -> Result<Option<String>, AppError>;
+
     async fn get_user_company(
         &self,
         user_id: Uuid,
@@ -64,13 +66,28 @@ impl UserRepository for PostgresUserRepo {
         Ok(user)
     }
 
+    // # Get Url
+    async fn get_tenant_url(&self, company_id: Option<Uuid>) -> Result<Option<String>, AppError> {
+        // Get Tenant Secret From Secrets Table
+        let secret: Option<(serde_json::Value,)> =
+            sqlx::query_as("SELECT secret FROM tenant_secrets WHERE company_id = $1")
+                .bind(company_id)
+                .fetch_optional(&self.pool)
+                .await?;
+
+        let tenant_url =
+            secret.and_then(|(value,)| value["tenant_url"].as_str().map(|s| s.to_string()));
+
+        Ok(tenant_url)
+    }
+
     /// # Get Company
     /// This function returns company for a particular company.
     async fn get_user_company(
         &self,
         user_id: Uuid,
     ) -> Result<(Option<Uuid>, Option<String>), AppError> {
-        let row = sqlx::query_as::<_, (Uuid, String)>(
+        let row: Option<(Uuid, String)> = sqlx::query_as::<_, (Uuid, String)>(
             r#"
             SELECT c.uuid, c.tenant_db_name
             FROM companies c

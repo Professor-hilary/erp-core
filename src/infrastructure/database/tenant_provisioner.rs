@@ -11,7 +11,7 @@ impl TenantProvisioner {
         master_pool: &PgPool,
         _user_id: Uuid,
         company_name: &str,
-    ) -> Result<PgPool, AppError> {
+    ) -> Result<(PgPool, String), AppError> {
         let slug: String = company_name
             .to_lowercase()
             .replace(' ', "_")
@@ -87,6 +87,6 @@ impl TenantProvisioner {
             .await
             .map_err(|e| AppError::Internal(format!("Tenant migrations failed: {}", e)))?;
 
-        Ok(tenant_pool)
+        Ok((tenant_pool, tenant_url))
     }
 }

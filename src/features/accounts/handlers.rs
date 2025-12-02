@@ -40,13 +40,13 @@ async fn create_account(
 }
 
 async fn get_accounts(
-    State(_state): State<Arc<AppState>>,
+    State(state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
 ) -> Result<Response, AppError> {
     let repo = PostgresAccountRepo::new();
     let service = AccountingService::new(repo);
     let accounts = service
-        .get_accounts(&user.tenant_pool, user.user_id)
+        .get_accounts(&user.tenant_pool, user.user_id, state)
         .await?;
     Ok(ApiResponse::success(accounts, "Accounts fetched"))
 }

@@ -40,7 +40,6 @@ impl ApiResponse {
         Self::build(StatusCode::OK, message, Some(json!(data)), None)
     }
 
-    #[allow(unused)]
     pub fn success_with_meta(
         data: impl serde::Serialize,
         message: &str,

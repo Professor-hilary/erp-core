@@ -59,11 +59,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             host: "",
             port: "",
             base_url: format!(
-                "TENANT_DB_USER",    // USER   set within company module
-                "TENANT_DB_PASSWORD" // PASSWD set within company module
-                "TENANT_HOST"        // Default = localhost, for desktop
-                "SERVER_PORT"        // Default = 5432 setup dynamically
-                "postgres://{}:{}@{}:{}/", // Full tenant connection URL
+                "TENANT_DB_USER",           // USER   set within company module
+                "TENANT_DB_PASSWORD"        // PASSWD set within company module
+                "TENANT_HOST"               // Default = localhost, for desktop
+                "SERVER_PORT"               // Default = 5432 setup dynamically
+                "postgres://{}:{}@{}:{}/",  // Full tenant connection URL Strng
             ),
         };
     *********************************************************************************/

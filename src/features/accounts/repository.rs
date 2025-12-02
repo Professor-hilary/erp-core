@@ -82,14 +82,14 @@ impl AccountRepository for PostgresAccountRepo {
     ) -> Result<Account, AppError> {
         let account = sqlx::query_as::<_, Account>(
             "INSERT INTO accounting.accounts (
-                name, type, code, parent_uuid, normal_balance, is_contra
+                name, type, code, parent_code, normal_balance, is_contra
             ) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *",
         )
         .bind(&acc.name)
         .bind(&acc.type_)
         // .bind(&acc.subtype)
         .bind(&acc.code)
-        .bind(&acc.parent_uuid)
+        .bind(&acc.parent_code)
         .bind(&acc.normal_balance)
         .bind(&acc.is_contra)
         .fetch_one(pool)
