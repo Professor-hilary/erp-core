@@ -5,7 +5,7 @@
 -- ========================================
 
 -- Enable UUID extension
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- CREATE EXTENSION IF NOT EXISTS pg_uuidv7;
 
 -- Create schema
 CREATE SCHEMA IF NOT EXISTS system;
@@ -19,7 +19,7 @@ CREATE SEQUENCE IF NOT EXISTS system.audit_logs_serial_id_seq;
 -- TABLE: audit_logs
 -- ========================================
 CREATE TABLE IF NOT EXISTS system.audit_logs (
-    uuid uuid DEFAULT uuid_generate_v4() NOT NULL,
+    uuid uuid DEFAULT uuidv7() NOT NULL,
     serial_id bigint DEFAULT nextval('system.audit_logs_serial_id_seq') NOT NULL,
     schema_name text NOT NULL,
     table_name text NOT NULL,

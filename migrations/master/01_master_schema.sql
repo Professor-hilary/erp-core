@@ -1,9 +1,9 @@
 --
 -- master_schema.db
 --
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- CREATE EXTENSION IF NOT EXISTSS pg_uuidv7;
 CREATE TABLE IF NOT EXISTS users (
-    uuid uuid PRIMARY KEY DEFAULT uuid_generate_v4() NOT NULL,
+    uuid uuid PRIMARY KEY DEFAULT uuidv7() NOT NULL,
     email text UNIQUE NOT NULL,
     password_hash text NOT NULL,
     created_at timestamptz DEFAULT now(),
@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS users (
     is_deleted boolean DEFAULT false
 );
 CREATE TABLE IF NOT EXISTS companies (
-    uuid uuid PRIMARY KEY DEFAULT uuid_generate_v4() NOT NULL,
+    uuid uuid PRIMARY KEY DEFAULT uuidv7() NOT NULL,
     name text NOT NULL,
     slug text UNIQUE NOT NULL,
     tenant_db_name text NOT NULL,

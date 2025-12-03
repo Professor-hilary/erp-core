@@ -5,7 +5,7 @@
 -- ========================================
 
 -- Enable UUID extension (if not already)
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- CREATE EXTENSION IF NOT EXISTS pg_uuidv7;
 
 -- Create schema
 CREATE SCHEMA IF NOT EXISTS reporting;

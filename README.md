@@ -382,3 +382,20 @@ curl -X POST http://localhost:8080/api/transactions/void/THE_UUID \
 curl -G http://localhost:8080/api/transactions/balance/UUID \
   -H "Authorization: Bearer YOUR_JWT_HERE" | jq
 ```
+
+IF jsonb_typeof(v_line.account_ref) = 'string' THEN
+    IF v_line.account_ref ~* '^[0-9a-fA-F-]{36}$' THEN
+        -- Looks like UUID
+        v_account_uuid := (v_line.account_ref)::UUID;
+        IF NOT EXISTS (SELECT 1 FROM accounting.accounts WHERE uuid = v_account_uuid) THEN
+            RAISE EXCEPTION 'Account with uuid % not found', v_account_uuid;
+        END IF;
+    ELSE
+        -- Treat as code
+        SELECT uuid INTO v_account_uuid
+        FROM accounting.accounts
+        WHERE code = (v_line.account_ref)::TEXT;
+        IF v_account_uuid IS NULL THEN
+            RAISE EXCEPTION 'Account with code % not found', v_line.account_ref;
+        END IF;
+    END IF;

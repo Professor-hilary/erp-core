@@ -28,6 +28,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let master_db_pass: String = env::var("MASTER_DB_PASS").expect("Master database pass missing");
     let master_db_user: String = env::var("MASTER_DB_USER").expect("Master database user missing");
     let master_db_url: String = env::var("DATABASE_URL").expect("Master url missing");
+    let postgres_port: String = env::var("DATABASE_PORT").expect("Postgres port missing");
     let super_psql_url: String =
         env::var("POSTGRES_SUPER_URL").expect("POSTGRES_SUPER_URL missing");
     let coa_seed_path =
@@ -39,6 +40,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         &master_db_name,
         &master_db_user,
         &master_db_pass,
+        &postgres_port,
     )
     .await
     .expect("Master DB initialization failed");

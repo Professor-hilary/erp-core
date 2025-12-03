@@ -1,4 +1,4 @@
-// src/features/accounting/repository.rs
+// src/features/transactions/repository.rs
 
 use async_trait::async_trait;
 use bigdecimal::{BigDecimal, Zero};
@@ -119,7 +119,7 @@ impl TransactionRepository for PostgresTransactionRepo {
         .await
         .map_err(|e| AppError::Database(e))?;
 
-        let header = sqlx::query_as::<_, JournalEntry>(
+        let header: JournalEntry = sqlx::query_as::<_, JournalEntry>(
             "SELECT * FROM accounting.transactions WHERE serial_id = $1",
         )
         .bind(serial_id.0)
@@ -128,7 +128,7 @@ impl TransactionRepository for PostgresTransactionRepo {
         .map_err(|e| AppError::Database(e))?;
 
         // Override posted status if input specifies draft
-        let final_header = if !input.posted {
+        let final_header: JournalEntry = if !input.posted {
             sqlx::query_as::<_, JournalEntry>(
                 "UPDATE accounting.transactions SET posted = false WHERE uuid = $1 RETURNING *",
             )
@@ -233,7 +233,7 @@ impl TransactionRepository for PostgresTransactionRepo {
                 .bind(uuid)
                 .bind(line.account_uuid)
                 .bind(line_no)
-                .bind(&line.debit + &line.credit)
+                .bind(&line.debit - &line.credit)
                 .bind(&line.debit)
                 .bind(&line.credit)
                 .bind(&line.memo)
@@ -377,8 +377,8 @@ impl TransactionRepository for PostgresTransactionRepo {
             })
             .collect();
 
-        let reversing = CreateJournalEntry {
-            txn_date: Utc::now(),
+        let reversing: CreateJournalEntry = CreateJournalEntry {
+            txn_date: Utc::now().date_naive(),
             reference: original.header.reference.clone(),
             description: Some(format!(
                 "Reversal of #{} - {}",

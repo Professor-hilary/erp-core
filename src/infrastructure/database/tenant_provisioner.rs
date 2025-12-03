@@ -69,7 +69,7 @@ impl TenantProvisioner {
         // ---------------------------------------------------------
         // 2. Connect directly as tenant role — no SET ROLE needed
         let tenant_url: String = format!(
-            "postgres://{}:{}@localhost:5432/{}",
+            "postgres://{}:{}@localhost:5433/{}",
             role_name, password, db_name
         );
         let tenant_pool: sqlx::Pool<sqlx::Postgres> = PgPoolOptions::new()

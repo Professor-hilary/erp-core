@@ -8,6 +8,7 @@ pub async fn init_master(
     master_db_name: &str,
     master_db_user: &str,
     master_db_pass: &str,
+    postgres_port: &str
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
     println!("Connecting to PostgreSQL as superuser...");
     let super_pool: PgPool = PgPool::connect(super_psql_url)
@@ -73,10 +74,10 @@ pub async fn init_master(
 
     // 4. Connect as the app user and run migrations
     let master_url: String =
-        format!("postgres://{master_db_user}:{master_db_pass}@localhost:5432/{master_db_name}");
+        format!("postgres://{master_db_user}:{master_db_pass}@localhost:{postgres_port}/{master_db_name}");
 
     println!("Connecting as '{master_db_user}' to run migrations...");
-    let master_pool = PgPoolOptions::new()
+    let master_pool: sqlx::Pool<sqlx::Postgres> = PgPoolOptions::new()
         .max_connections(10)
         .connect(&master_url)
         .await

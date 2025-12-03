@@ -4,7 +4,7 @@
 -- ========================================
 
 -- Enable UUID extension
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- CREATE EXTENSION IF NOT EXISTS pg_uuidv7;
 
 -- Create schema
 CREATE SCHEMA IF NOT EXISTS inventory;
@@ -23,7 +23,7 @@ CREATE SEQUENCE IF NOT EXISTS inventory.item_valuation_serial_id_seq;
 -- TABLE: warehouses
 -- ========================================
 CREATE TABLE IF NOT EXISTS inventory.warehouses (
-    uuid uuid DEFAULT uuid_generate_v4() NOT NULL,
+    uuid uuid DEFAULT uuidv7() NOT NULL,
     serial_id bigint DEFAULT nextval('inventory.warehouses_serial_id_seq') NOT NULL,
     code text NOT NULL,
     name text NOT NULL,
@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS inventory.warehouses (
 -- TABLE: item_categories
 -- ========================================
 CREATE TABLE IF NOT EXISTS inventory.item_categories (
-    uuid uuid DEFAULT uuid_generate_v4() NOT NULL,
+    uuid uuid DEFAULT uuidv7() NOT NULL,
     serial_id bigint DEFAULT nextval('inventory.item_categories_serial_id_seq') NOT NULL,
     code text NOT NULL,
     name text NOT NULL,
@@ -55,7 +55,7 @@ CREATE TABLE IF NOT EXISTS inventory.item_categories (
 -- TABLE: items
 -- ========================================
 CREATE TABLE IF NOT EXISTS inventory.items (
-    uuid uuid DEFAULT uuid_generate_v4() NOT NULL,
+    uuid uuid DEFAULT uuidv7() NOT NULL,
     serial_id bigint DEFAULT nextval('inventory.items_serial_id_seq') NOT NULL,
     sku text NOT NULL,
     name text NOT NULL,
@@ -84,7 +84,7 @@ CREATE TABLE IF NOT EXISTS inventory.items (
 -- TABLE: movements
 -- ========================================
 CREATE TABLE IF NOT EXISTS inventory.movements (
-    uuid uuid DEFAULT uuid_generate_v4() NOT NULL,
+    uuid uuid DEFAULT uuidv7() NOT NULL,
     serial_id bigint DEFAULT nextval('inventory.movements_serial_id_seq') NOT NULL,
     item_uuid uuid NOT NULL,
     warehouse_uuid uuid,
@@ -111,7 +111,7 @@ CREATE TABLE IF NOT EXISTS inventory.movements (
 -- TABLE: adjustments
 -- ========================================
 CREATE TABLE IF NOT EXISTS inventory.adjustments (
-    uuid uuid DEFAULT uuid_generate_v4() NOT NULL,
+    uuid uuid DEFAULT uuidv7() NOT NULL,
     serial_id bigint DEFAULT nextval('inventory.adjustments_serial_id_seq') NOT NULL,
     adjustment_number text NOT NULL,
     adjustment_date date NOT NULL,
@@ -139,7 +139,7 @@ CREATE TABLE IF NOT EXISTS inventory.adjustments (
 -- TABLE: item_valuation
 -- ========================================
 CREATE TABLE IF NOT EXISTS inventory.item_valuation (
-    uuid uuid DEFAULT uuid_generate_v4() NOT NULL,
+    uuid uuid DEFAULT uuidv7() NOT NULL,
     serial_id bigint DEFAULT nextval('inventory.item_valuation_serial_id_seq') NOT NULL,
     item_uuid uuid NOT NULL,
     movement_uuid uuid,

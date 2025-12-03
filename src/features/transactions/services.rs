@@ -1,4 +1,4 @@
-// src/features/transaction/service.rs
+// src/features/transactions/service.rs
 
 use bigdecimal::BigDecimal;
 use sqlx::PgPool;
@@ -36,7 +36,7 @@ impl<R: TransactionRepository> TransactionService<R> {
             return Err(AppError::BadRequest("Entry must have ≥2 lines".into()));
         }
 
-        let header = self
+        let header: JournalEntry = self
             .repo
             .create_journal_entry(pool, user_id, &input)
             .await?;

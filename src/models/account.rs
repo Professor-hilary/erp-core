@@ -1,6 +1,6 @@
-use bigdecimal::BigDecimal;
 // src/models/account.rs
-use chrono::{DateTime, Utc};
+use bigdecimal::BigDecimal;
+use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
@@ -42,7 +42,7 @@ pub struct TransactionLineInput {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateJournalEntry {
-    pub txn_date: DateTime<Utc>,
+    pub txn_date: NaiveDate,
     pub reference: Option<String>,
     pub description: Option<String>,
     pub module: Option<String>, // "journal", "invoice", "payment", etc.
@@ -54,7 +54,7 @@ pub struct CreateJournalEntry {
 pub struct JournalEntry {
     pub uuid: Uuid,
     pub serial_id: i64,
-    pub txn_date: DateTime<Utc>,
+    pub txn_date: NaiveDate,
     pub reference: Option<String>,
     pub description: Option<String>,
     pub created_by: Uuid,
@@ -83,7 +83,7 @@ pub struct JournalEntryWithLines {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UpdateJournalEntry {
-    pub txn_date: Option<DateTime<Utc>>,
+    pub txn_date: NaiveDate,
     pub reference: Option<String>,
     pub description: Option<String>,
     pub module: Option<String>,

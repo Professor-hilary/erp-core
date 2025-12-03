@@ -20,7 +20,7 @@ pub fn router() -> Router<Arc<AppState>> {
     Router::new()
         .route("/register", post(register))
         .route("/login", post(login))
-        .route("/switch-company", post(switch_company))
+        .route("/switch-company/{uuid}", post(switch_company))
 }
 
 async fn register(

@@ -4,7 +4,7 @@
 -- ========================================
 
 -- Enable UUID extension
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- CREATE EXTENSION IF NOT EXISTS pg_uuidv7;
 
 -- Create schema
 CREATE SCHEMA IF NOT EXISTS receivables;
@@ -23,7 +23,7 @@ CREATE SEQUENCE IF NOT EXISTS receivables.credit_notes_serial_id_seq;
 -- TABLE: customers
 -- ========================================
 CREATE TABLE IF NOT EXISTS receivables.customers (
-    uuid uuid DEFAULT uuid_generate_v4() NOT NULL,
+    uuid uuid DEFAULT uuidv7() NOT NULL,
     serial_id bigint DEFAULT nextval('receivables.customers_serial_id_seq') NOT NULL,
     code text NOT NULL,
     name text NOT NULL,
@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS receivables.customers (
 -- TABLE: invoices
 -- ========================================
 CREATE TABLE IF NOT EXISTS receivables.invoices (
-    uuid uuid DEFAULT uuid_generate_v4() NOT NULL,
+    uuid uuid DEFAULT uuidv7() NOT NULL,
     serial_id bigint DEFAULT nextval('receivables.invoices_serial_id_seq') NOT NULL,
     invoice_number text NOT NULL,
     customer_uuid uuid NOT NULL,
@@ -73,7 +73,7 @@ CREATE TABLE IF NOT EXISTS receivables.invoices (
 -- TABLE: invoice_items
 -- ========================================
 CREATE TABLE IF NOT EXISTS receivables.invoice_items (
-    uuid uuid DEFAULT uuid_generate_v4() NOT NULL,
+    uuid uuid DEFAULT uuidv7() NOT NULL,
     serial_id bigint DEFAULT nextval('receivables.invoice_items_serial_id_seq') NOT NULL,
     invoice_uuid uuid NOT NULL,
     item_code text,
@@ -92,7 +92,7 @@ CREATE TABLE IF NOT EXISTS receivables.invoice_items (
 -- TABLE: payments
 -- ========================================
 CREATE TABLE IF NOT EXISTS receivables.payments (
-    uuid uuid DEFAULT uuid_generate_v4() NOT NULL,
+    uuid uuid DEFAULT uuidv7() NOT NULL,
     serial_id bigint DEFAULT nextval('receivables.payments_serial_id_seq') NOT NULL,
     payment_number text NOT NULL,
     customer_uuid uuid NOT NULL,
@@ -119,7 +119,7 @@ CREATE TABLE IF NOT EXISTS receivables.payments (
 -- TABLE: payment_applications
 -- ========================================
 CREATE TABLE IF NOT EXISTS receivables.payment_applications (
-    uuid uuid DEFAULT uuid_generate_v4() NOT NULL,
+    uuid uuid DEFAULT uuidv7() NOT NULL,
     serial_id bigint DEFAULT nextval('receivables.payment_applications_serial_id_seq') NOT NULL,
     payment_uuid uuid NOT NULL,
     invoice_uuid uuid NOT NULL,
@@ -138,7 +138,7 @@ CREATE TABLE IF NOT EXISTS receivables.payment_applications (
 -- TABLE: credit_notes
 -- ========================================
 CREATE TABLE IF NOT EXISTS receivables.credit_notes (
-    uuid uuid DEFAULT uuid_generate_v4() NOT NULL,
+    uuid uuid DEFAULT uuidv7() NOT NULL,
     serial_id bigint DEFAULT nextval('receivables.credit_notes_serial_id_seq') NOT NULL,
     credit_number text NOT NULL,
     customer_uuid uuid NOT NULL,

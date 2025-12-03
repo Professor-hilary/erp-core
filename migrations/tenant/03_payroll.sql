@@ -4,7 +4,7 @@
 -- ========================================
 
 -- Enable UUID extension
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- CREATE EXTENSION IF NOT EXISTS pg_uuidv7;
 
 -- Create schema
 CREATE SCHEMA IF NOT EXISTS payroll;
@@ -20,7 +20,7 @@ CREATE SEQUENCE IF NOT EXISTS payroll.payslip_items_serial_id_seq;
 -- TABLE: payruns
 -- ========================================
 CREATE TABLE IF NOT EXISTS payroll.payruns (
-    uuid uuid DEFAULT uuid_generate_v4() NOT NULL,
+    uuid uuid DEFAULT uuidv7() NOT NULL,
     serial_id bigint DEFAULT nextval('payroll.payruns_serial_id_seq') NOT NULL,
     pay_period_start date NOT NULL,
     pay_period_end date NOT NULL,
@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS payroll.payruns (
 -- TABLE: payslips
 -- ========================================
 CREATE TABLE IF NOT EXISTS payroll.payslips (
-    uuid uuid DEFAULT uuid_generate_v4() NOT NULL,
+    uuid uuid DEFAULT uuidv7() NOT NULL,
     serial_id bigint DEFAULT nextval('payroll.payslips_serial_id_seq') NOT NULL,
     payrun_uuid uuid NOT NULL,
     employee_uuid uuid NOT NULL,
@@ -66,7 +66,7 @@ CREATE TABLE IF NOT EXISTS payroll.payslips (
 -- TABLE: payslip_items
 -- ========================================
 CREATE TABLE IF NOT EXISTS payroll.payslip_items (
-    uuid uuid DEFAULT uuid_generate_v4() NOT NULL,
+    uuid uuid DEFAULT uuidv7() NOT NULL,
     serial_id bigint DEFAULT nextval('payroll.payslip_items_serial_id_seq') NOT NULL,
     payslip_uuid uuid NOT NULL,
     item_type varchar(20) CHECK (item_type IN ('Allowance', 'Deduction')),

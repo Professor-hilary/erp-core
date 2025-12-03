@@ -1,5 +1,5 @@
 -- Enable required extension
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- CREATE EXTENSION IF NOT EXISTS pg_uuidv7;
 
 -- Create schema
 CREATE SCHEMA IF NOT EXISTS hr;
@@ -15,7 +15,7 @@ CREATE SEQUENCE IF NOT EXISTS hr.employees_serial_id_seq;
 -- TABLE: departments
 -- ========================================
 CREATE TABLE IF NOT EXISTS hr.departments (
-    uuid uuid DEFAULT uuid_generate_v4() NOT NULL,
+    uuid uuid DEFAULT uuidv7() NOT NULL,
     serial_id bigint DEFAULT nextval('hr.departments_serial_id_seq') NOT NULL,
     name varchar(100) NOT NULL,
     description text,
@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS hr.departments (
 -- TABLE: job_titles
 -- ========================================
 CREATE TABLE IF NOT EXISTS hr.job_titles (
-    uuid uuid DEFAULT uuid_generate_v4() NOT NULL,
+    uuid uuid DEFAULT uuidv7() NOT NULL,
     serial_id bigint DEFAULT nextval('hr.job_titles_serial_id_seq') NOT NULL,
     title varchar(100) NOT NULL,
     description text,
@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS hr.job_titles (
 -- TABLE: employees
 -- ========================================
 CREATE TABLE IF NOT EXISTS hr.employees (
-    uuid uuid DEFAULT uuid_generate_v4() NOT NULL,
+    uuid uuid DEFAULT uuidv7() NOT NULL,
     serial_id bigint DEFAULT nextval('hr.employees_serial_id_seq') NOT NULL,
     first_name varchar(50) NOT NULL,
     last_name varchar(50) NOT NULL,
