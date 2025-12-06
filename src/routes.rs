@@ -74,10 +74,10 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .layer(
             TraceLayer::new_for_http()
                 .make_span_with(|request: &Request| {
-                    let user_id = request
+                    let user_id: String = request
                         .extensions()
                         .get::<AuthenticatedUser>()
-                        .map(|auth| auth.user_id.to_string())
+                        .map(|auth: &AuthenticatedUser| auth.user_id.to_string())
                         .unwrap_or_else(|| "anonymous".to_string());
 
                     tracing::info_span!(

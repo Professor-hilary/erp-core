@@ -1,10 +1,12 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
+use uuid::Uuid;
 
 #[derive(Debug, FromRow, Serialize, Deserialize, Clone)]
 pub struct Customer {
-    pub id: i64,
+    pub uuid: Uuid,
+    pub code: String,
     pub name: String,
     pub email: Option<String>,
     pub phone: Option<String>,
@@ -17,6 +19,7 @@ pub struct Customer {
 #[derive(Debug, Deserialize)]
 pub struct CreateCustomer {
     pub name: String,
+    pub code: String,
     pub email: Option<String>,
     pub phone: Option<String>,
     pub billing_address: Option<String>,

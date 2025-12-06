@@ -29,26 +29,26 @@ impl<R: VendorRepository> VendorService<R> {
     pub async fn get(
         &self,
         tenant_pool: &PgPool,
-        id: i64,
+        uuid: Uuid,
         user_id: Uuid,
     ) -> Result<Vendor, AppError> {
-        self.repo.get(tenant_pool, id, user_id).await
+        self.repo.get(tenant_pool, uuid, user_id).await
     }
     pub async fn update(
         &self,
         tenant_pool: &PgPool,
-        id: i64,
+        uuid: Uuid,
         user_id: Uuid,
         payload: &CreateVendor,
     ) -> Result<Vendor, AppError> {
-        self.repo.update(tenant_pool, id, user_id, payload).await
+        self.repo.update(tenant_pool, uuid, user_id, payload).await
     }
     pub async fn delete(
         &self,
         tenant_pool: &PgPool,
-        id: i64,
+        uuid: Uuid,
         user_id: Uuid,
     ) -> Result<(), AppError> {
-        self.repo.delete(tenant_pool, id, user_id).await
+        self.repo.delete(tenant_pool, uuid, user_id).await
     }
 }
