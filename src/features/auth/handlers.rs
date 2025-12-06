@@ -20,6 +20,7 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/login", post(login))
 }
 
+/// POST /auth/register
 async fn register(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<CreateUser>,
@@ -36,6 +37,7 @@ async fn register(
     ))
 }
 
+/// POST /auth/login
 async fn login(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<LoginUser>,

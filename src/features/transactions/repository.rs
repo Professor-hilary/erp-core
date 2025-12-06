@@ -1,5 +1,4 @@
 // src/features/transactions/repository.rs
-
 use async_trait::async_trait;
 use bigdecimal::{BigDecimal, Zero};
 use chrono::Utc;
@@ -149,7 +148,7 @@ impl TransactionRepository for PostgresTransactionRepo {
         uuid: Uuid,
         user_id: Uuid,
     ) -> Result<JournalEntry, AppError> {
-        let entry = sqlx::query_as::<_, JournalEntry>(
+        let entry: Option<JournalEntry> = sqlx::query_as::<_, JournalEntry>(
             r#"
             UPDATE accounting.transactions
             SET posted = true
@@ -176,10 +175,11 @@ impl TransactionRepository for PostgresTransactionRepo {
         input: &UpdateJournalEntry,
     ) -> Result<JournalEntry, AppError> {
         // Start a transaction
-        let mut tx = pool.begin().await.map_err(|e| AppError::Database(e))?;
+        let mut tx: sqlx::Transaction<'_, sqlx::Postgres> =
+            pool.begin().await.map_err(|e| AppError::Database(e))?;
 
         // Verify entry exists and is unposted
-        let _entry = sqlx::query_as::<_, JournalEntry>(
+        let _entry: JournalEntry = sqlx::query_as::<_, JournalEntry>(
             "SELECT * FROM accounting.transactions WHERE uuid = $1 AND created_by = $2 AND posted = false"
         )
         .bind(uuid)
@@ -221,7 +221,7 @@ impl TransactionRepository for PostgresTransactionRepo {
             }
 
             // Insert new lines (mimic post_transaction logic)
-            let mut line_no = 1;
+            let mut line_no: i32 = 1;
             for line in lines {
                 sqlx::query(
                     r#"
@@ -245,7 +245,7 @@ impl TransactionRepository for PostgresTransactionRepo {
         }
 
         // Update header fields if provided
-        let updated_entry = sqlx::query_as::<_, JournalEntry>(
+        let updated_entry: JournalEntry = sqlx::query_as::<_, JournalEntry>(
             r#"
             UPDATE accounting.transactions
             SET
@@ -277,7 +277,7 @@ impl TransactionRepository for PostgresTransactionRepo {
         uuid: Uuid,
         user_id: Uuid,
     ) -> Result<(), AppError> {
-        let result = sqlx::query(
+        let result: sqlx::postgres::PgQueryResult = sqlx::query(
             "DELETE FROM accounting.transactions WHERE uuid = $1 AND created_by = $2 AND posted = false"
         )
         .bind(uuid)
@@ -301,7 +301,7 @@ impl TransactionRepository for PostgresTransactionRepo {
         uuid: Uuid,
         user_id: Uuid,
     ) -> Result<Option<JournalEntryWithLines>, AppError> {
-        let header = sqlx::query_as::<_, JournalEntry>(
+        let header: Option<JournalEntry> = sqlx::query_as::<_, JournalEntry>(
             "SELECT * FROM accounting.transactions WHERE uuid = $1 AND created_by = $2",
         )
         .bind(uuid)
@@ -314,7 +314,7 @@ impl TransactionRepository for PostgresTransactionRepo {
             return Ok(None);
         };
 
-        let lines = sqlx::query_as::<_, JournalEntryLine>(
+        let lines: Vec<JournalEntryLine> = sqlx::query_as::<_, JournalEntryLine>(
             "SELECT * FROM accounting.transaction_entries WHERE transaction_uuid = $1 ORDER BY line_no"
         )
         .bind(uuid)
@@ -332,7 +332,7 @@ impl TransactionRepository for PostgresTransactionRepo {
         limit: i64,
         offset: i64,
     ) -> Result<Vec<JournalEntry>, AppError> {
-        let entries = sqlx::query_as::<_, JournalEntry>(
+        let entries: Vec<JournalEntry> = sqlx::query_as::<_, JournalEntry>(
             r#"
             SELECT * FROM accounting.transactions
             WHERE created_by = $1
@@ -357,12 +357,12 @@ impl TransactionRepository for PostgresTransactionRepo {
         user_id: Uuid,
         reason: &str,
     ) -> Result<(), AppError> {
-        let original = self
+        let original: JournalEntryWithLines = self
             .get_journal_entry_with_lines(pool, uuid, user_id)
             .await?
             .ok_or(AppError::NotFound("Entry not found".into()))?;
 
-        let reversing_lines = original
+        let reversing_lines: Vec<TransactionLineInput> = original
             .lines
             .iter()
             .map(|line| TransactionLineInput {

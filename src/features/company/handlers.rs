@@ -31,12 +31,12 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/delete/{id}", delete(delete_company))
 }
 
-/// POST /companies
+/// POST /companies/create
 async fn create_company(
     State(state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedUser>,
     Json(payload): Json<CreateCompanyDto>,
-) -> Result</* Json<(Company, String)> */ impl IntoResponse, AppError> {
+) -> Result<impl IntoResponse, AppError> {
     let (company, token_str) =
         CompanyService::create_company(state.clone(), user.user_id, payload).await?;
 
@@ -48,7 +48,7 @@ async fn create_company(
     ))
 }
 
-/// GET /companies (user's companies)
+/// GET /companies/list (user's companies)
 async fn list_companies(
     State(state): State<Arc<AppState>>,
     Extension(tenant): Extension<AuthenticatedTenant>,
@@ -60,14 +60,14 @@ async fn list_companies(
     Ok(Json(companies))
 }
 
-/// GET /companies/:id
+/// GET /companies/get/:id
 async fn get_company(
     State(state): State<Arc<AppState>>,
     Path(company_id): Path<Uuid>,
     Extension(_tenant): Extension<AuthenticatedTenant>,
 ) -> Result<Json<Company>, AppError> {
-    let repo = PostgresCompanyRepository;
-    let company = repo
+    let repo: PostgresCompanyRepository = PostgresCompanyRepository;
+    let company: Company = repo
         .find_by_id(&state.master_pool, company_id)
         .await
         .map_err(|_| AppError::Internal("Failed to fetch companies".into()))?
@@ -75,7 +75,7 @@ async fn get_company(
     Ok(Json(company))
 }
 
-/// PUT /companies/:id
+/// PUT /companies/update/:id
 async fn update_company(
     State(state): State<Arc<AppState>>,
     Path(company_id): Path<Uuid>,
@@ -89,7 +89,7 @@ async fn update_company(
     Ok(Json(company))
 }
 
-/// DELETE /companies/:id (soft delete)
+/// DELETE /companies/delete/:id (soft delete)
 async fn delete_company(
     State(state): State<Arc<AppState>>,
     Path(company_id): Path<Uuid>,
@@ -108,19 +108,26 @@ async fn switch_company(
     Extension(user): Extension<AuthenticatedUser>,
     Json(payload): Json<serde_json::Value>,
 ) -> Result<impl IntoResponse, AppError> {
+    let repo: PostgresUserRepo = PostgresUserRepo::new(state.master_pool.clone());
+
     let company_id: Uuid = payload["company_id"]
         .as_str()
         .and_then(|s| Uuid::parse_str(s).ok())
         .ok_or(AppError::BadRequest("Invalid company_id".into()))?;
 
-    let repo: PostgresUserRepo = PostgresUserRepo::new(state.master_pool.clone());
+    let company: Company = PostgresCompanyRepository
+        .find_by_id(&state.master_pool, company_id)
+        .await
+        .map_err(|_| AppError::Internal("Failed to fetch companies".into()))?
+        .ok_or(AppError::NotFound("Company not found".into()))?;
+
     let service: AuthService<PostgresUserRepo> = AuthService::new(repo, state.clone());
     let new_token: String = service
         .switch_company(user.user_id, company_id, state)
         .await?;
 
     Ok(ApiResponse::created_with_token(
-        payload,
+        company,
         new_token,
         "Company switched successfully",
         "company",

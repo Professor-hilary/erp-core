@@ -38,20 +38,10 @@ impl CompanyService {
         // Step 2: Provision tenant database (this commits independently)
         // Note: We cannot keep this inside the same tx as master operations
         // because CREATE DATABASE cannot run inside a transaction block in PostgreSQL
-        let (tenant_pool, tenant_url) = TenantProvisioner::create_tenant_db(
-            &state.master_pool,
-            user_id,
-            &req.name,
-            // &state.tenant_config.base_url, // e.g. "postgres://app_user:app_pass@localhost:5432/"
-        )
-        .await?;
+        let (tenant_pool, tenant_url) =
+            TenantProvisioner::create_tenant_db(&state.master_pool, user_id, &req.name).await?;
 
         let tenant_db_name: String = format!("tenant_{}", slug);
-        // let tenant_url: String = format!("{}{}", state.tenant_config.base_url, tenant_db_name);
-        // state
-        //     .tenant_config
-        //     .base_url
-        //     .insert(tenant_url.len(), tenant_url);
 
         // Step 3: Seed Chart of Accounts
         Self::seed_coa(&tenant_pool, &req.industry, &state.coa_seed_path)
@@ -115,22 +105,6 @@ impl CompanyService {
             .replace(|c: char| !c.is_ascii_alphanumeric(), "-")
             .trim_matches('-')
             .replace("--", "-")
-    }
-
-    #[allow(dead_code)]
-    fn generate_secure_password(size: usize) -> String {
-        use rand::Rng;
-        const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ\
-                             abcdefghijklmnopqrstuvwxyz\
-                             0123456789";
-
-        let mut rng: rand::prelude::ThreadRng = rand::rng();
-        (0..size)
-            .map(|_| {
-                let idx: usize = rng.random_range(0..CHARSET.len());
-                CHARSET[idx] as char
-            })
-            .collect()
     }
 
     /// # Delete Company

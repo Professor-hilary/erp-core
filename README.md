@@ -322,7 +322,7 @@ transactions/create \
   }' | jq
 ```
 
-curl -sX POST http://localhost:8080/api/transactions/create -H\ "Authorization : Bearer $TOKEN" -H
+`curl -sX POST http://localhost:8080/api/transactions/create -H\ "Authorization : Bearer $TOKEN" -H
  "Content-Type: application/json" -d '{
   "txn_date": "2025-02-28",
   "reference": "PO-980",
@@ -332,10 +332,9 @@ curl -sX POST http://localhost:8080/api/transactions/create -H\ "Authorization :
     { "account_uuid": "019ae5bb-9664-7d64-b478-2ce17f26069d", "debit": "122000.00", "credit": "0", "memo": "Cash at Bank" }, {"account_uuid": "019ae5
 bb-9ac7-7943-aa2a-9097ed62f516", "debit": "33000.00", "credit":"0", "memo": "Land"}, { "account_uuid": "019ae5bb-a229-79ae-b5f4-0354b80ef94e", "debit
 ": "0", "credit": "155000.00", "memo": "Shareholder's net ownership" }
-  ]}' | jq
+  ]}' | jq`
 
-```json
-curl -X POST http://localhost:8080/api/transactions/create -H "$AUTH" -H "Content-Type: application/json" -d '{
+`curl -X POST http://localhost:8080/api/transactions/create -H "$AUTH" -H "Content-Type: application/json" -d '{
   "txn_date": "2025-12-05",
   "reference": "PO-500",
   "description": "Inventory purchase from Supplier Ltd",
@@ -344,12 +343,10 @@ curl -X POST http://localhost:8080/api/transactions/create -H "$AUTH" -H "Conten
     { "account_uuid": "44444444-4444-4444-4444-444444444444", "debit": "3000.00", "credit": "0",     "memo": "Inventory" },
     { "account_uuid": "55555555-5555-5555-5555-555555555555", "debit": "0",      "credit": "3000.00", "memo": "Accounts Payable" }
   ]
-}' | jq
-```
+}' | jq`
 
 # Create a transaction (posted)
-```json
-curl -X POST http://localhost:3000/accounting/create -H "$AUTH" -H "Content-Type: application/json" -d '{
+`curl -X POST http://localhost:3000/accounting/create -H "$AUTH" -H "Content-Type: application/json" -d '{
   "txn_date": "2025-12-02",
   "reference": "CASH-001",
   "description": "Cash sale to walk-in customer",
@@ -360,7 +357,7 @@ curl -X POST http://localhost:3000/accounting/create -H "$AUTH" -H "Content-Type
     { "account_uuid": "66666666-6666-6666-6666-666666666666", "debit": "0",      "credit": "1200.00", "memo": "Sales revenue" }
   ]
 }' | jq
-```
+`
 
 # Post transactions - makes transactions immutable
 curl -X PUT http://localhost:8080/api/transactions/post/THE_UUID \
@@ -378,7 +375,6 @@ curl -X PUT http://localhost:8080/api/transactions/update/NEW_UUID_HERE \
     ]
   }' | jq
 
-
 # Delete an unposted transaction
 curl -X DELETE http://localhost:8080/api/transactions/delete/NEW_UUID_HERE \
   -H "Authorization: Bearer YOUR_JWT_HERE" | jq
@@ -390,24 +386,5 @@ curl -X POST http://localhost:8080/api/transactions/void/THE_UUID \
   -d '{"reason": "Customer returned the goods"}' | jq
 
 # Check balance of transaction
-```json
-curl -G http://localhost:8080/api/transactions/balance/UUID \
-  -H "Authorization: Bearer YOUR_JWT_HERE" | jq
-```
-
-IF jsonb_typeof(v_line.account_ref) = 'string' THEN
-    IF v_line.account_ref ~* '^[0-9a-fA-F-]{36}$' THEN
-        -- Looks like UUID
-        v_account_uuid := (v_line.account_ref)::UUID;
-        IF NOT EXISTS (SELECT 1 FROM accounting.accounts WHERE uuid = v_account_uuid) THEN
-            RAISE EXCEPTION 'Account with uuid % not found', v_account_uuid;
-        END IF;
-    ELSE
-        -- Treat as code
-        SELECT uuid INTO v_account_uuid
-        FROM accounting.accounts
-        WHERE code = (v_line.account_ref)::TEXT;
-        IF v_account_uuid IS NULL THEN
-            RAISE EXCEPTION 'Account with code % not found', v_line.account_ref;
-        END IF;
-    END IF;
+`curl -G http://localhost:8080/api/transactions/balance/UUID \
+  -H "Authorization: Bearer YOUR_JWT_HERE" | jq`

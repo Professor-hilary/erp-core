@@ -18,6 +18,7 @@ use crate::{
     },
     state::AppState,
 };
+
 pub fn router() -> Router<Arc<AppState>> {
     Router::new()
         .route("/create", post(create_entry))

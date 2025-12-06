@@ -31,9 +31,9 @@ async fn create_account(
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<CreateAccount>,
 ) -> Result<Response, AppError> {
-    let repo = PostgresAccountRepo::new();
-    let service = AccountingService::new(repo);
-    let account = service
+    let repo: PostgresAccountRepo = PostgresAccountRepo::new();
+    let service: AccountingService<PostgresAccountRepo> = AccountingService::new(repo);
+    let account: crate::models::account::Account = service
         .create_account(&user.tenant_pool, user.user_id, &payload)
         .await?;
     Ok(ApiResponse::created(account, "Account created"))
@@ -43,9 +43,9 @@ async fn get_accounts(
     State(state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
 ) -> Result<Response, AppError> {
-    let repo = PostgresAccountRepo::new();
-    let service = AccountingService::new(repo);
-    let accounts = service
+    let repo: PostgresAccountRepo = PostgresAccountRepo::new();
+    let service: AccountingService<PostgresAccountRepo> = AccountingService::new(repo);
+    let accounts: Vec<crate::models::account::Account> = service
         .get_accounts(&user.tenant_pool, user.user_id, state)
         .await?;
     Ok(ApiResponse::success(accounts, "Accounts fetched"))
@@ -56,9 +56,9 @@ async fn get_account_by_uuid(
     Path(id): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
 ) -> Result<Response, AppError> {
-    let repo = PostgresAccountRepo::new();
-    let service = AccountingService::new(repo);
-    let account = service
+    let repo: PostgresAccountRepo = PostgresAccountRepo::new();
+    let service: AccountingService<PostgresAccountRepo> = AccountingService::new(repo);
+    let account: crate::models::account::Account = service
         .get_account_by_uuid(&user.tenant_pool, id, user.user_id)
         .await?;
     Ok(ApiResponse::success(account, "Account fetched"))
@@ -69,9 +69,9 @@ async fn get_account_by_serial(
     Path(id): Path<i64>,
     Extension(user): Extension<AuthenticatedTenant>,
 ) -> Result<Response, AppError> {
-    let repo = PostgresAccountRepo::new();
-    let service = AccountingService::new(repo);
-    let account = service
+    let repo: PostgresAccountRepo = PostgresAccountRepo::new();
+    let service: AccountingService<PostgresAccountRepo> = AccountingService::new(repo);
+    let account: crate::models::account::Account = service
         .get_account_by_serial(&user.tenant_pool, id, user.user_id)
         .await?;
     Ok(ApiResponse::success(account, "Account fetched"))
@@ -83,9 +83,9 @@ async fn update_account(
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<CreateAccount>,
 ) -> Result<Response, AppError> {
-    let repo = PostgresAccountRepo::new();
-    let service = AccountingService::new(repo);
-    let account = service
+    let repo: PostgresAccountRepo = PostgresAccountRepo::new();
+    let service: AccountingService<PostgresAccountRepo> = AccountingService::new(repo);
+    let account: crate::models::account::Account = service
         .update_account(&user.tenant_pool, id, user.user_id, &payload)
         .await?;
     Ok(ApiResponse::success(account, "Account updated"))
@@ -96,8 +96,8 @@ async fn delete_account(
     Path(id): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
 ) -> Result<Response, AppError> {
-    let repo = PostgresAccountRepo::new();
-    let service = AccountingService::new(repo);
+    let repo: PostgresAccountRepo = PostgresAccountRepo::new();
+    let service: AccountingService<PostgresAccountRepo> = AccountingService::new(repo);
     service
         .delete_account(&user.tenant_pool, id, user.user_id)
         .await?;
