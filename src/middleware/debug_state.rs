@@ -8,6 +8,7 @@ use axum::{
 use std::sync::Arc;
 use tracing::info;
 
+#[allow(unused)]
 pub async fn debug_app_state_middleware(
     State(state): State<Arc<AppState>>,
     request: Request,

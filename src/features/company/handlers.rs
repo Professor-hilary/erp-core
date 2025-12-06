@@ -1,15 +1,19 @@
 // src/features/company/handlers.rs
 use crate::{
-    features::company::services::CompanyService,
+    features::{
+        auth::{AuthService, repository::PostgresUserRepo},
+        company::services::CompanyService,
+    },
     infrastructure::{errors::AppError, responses::ApiResponse},
     middleware::auth::{AuthenticatedTenant, AuthenticatedUser},
-    models::{
-        company::{Company, CreateCompanyDto, UpdateCompanyDto},
-    },
+    models::company::{Company, CreateCompanyDto, UpdateCompanyDto},
     state::AppState,
 };
 use axum::{
-    Extension, Json, Router, extract::{Path, State}, response::IntoResponse, routing::{delete, get, post, put}
+    Extension, Json, Router,
+    extract::{Path, State},
+    response::IntoResponse,
+    routing::{delete, get, post, put},
 };
 use std::sync::Arc;
 use uuid::Uuid;
@@ -20,6 +24,7 @@ use crate::features::company::repository::{CompanyRepository, PostgresCompanyRep
 pub fn router() -> Router<Arc<AppState>> {
     Router::new()
         .route("/create", post(create_company))
+        .route("/switch-company", post(switch_company))
         .route("/list", get(list_companies))
         .route("/get/{id}", get(get_company))
         .route("/update/{id}", put(update_company))
@@ -31,7 +36,7 @@ async fn create_company(
     State(state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedUser>,
     Json(payload): Json<CreateCompanyDto>,
-) -> Result</* Json<(Company, String)> */impl IntoResponse, AppError> {
+) -> Result</* Json<(Company, String)> */ impl IntoResponse, AppError> {
     let (company, token_str) =
         CompanyService::create_company(state.clone(), user.user_id, payload).await?;
 
@@ -39,7 +44,7 @@ async fn create_company(
         company,
         token_str,
         "Company Created Successfully",
-        "company"
+        "company",
     ))
 }
 
@@ -95,4 +100,29 @@ async fn delete_company(
         "success": true,
         "message": "Company deleted successfully (soft delete)"
     })))
+}
+
+// POST /api/companies/switch-company { "company_id": "..." }
+async fn switch_company(
+    State(state): State<Arc<AppState>>,
+    Extension(user): Extension<AuthenticatedUser>,
+    Json(payload): Json<serde_json::Value>,
+) -> Result<impl IntoResponse, AppError> {
+    let company_id: Uuid = payload["company_id"]
+        .as_str()
+        .and_then(|s| Uuid::parse_str(s).ok())
+        .ok_or(AppError::BadRequest("Invalid company_id".into()))?;
+
+    let repo: PostgresUserRepo = PostgresUserRepo::new(state.master_pool.clone());
+    let service: AuthService<PostgresUserRepo> = AuthService::new(repo, state.clone());
+    let new_token: String = service
+        .switch_company(user.user_id, company_id, state)
+        .await?;
+
+    Ok(ApiResponse::created_with_token(
+        payload,
+        new_token,
+        "Company switched successfully",
+        "company",
+    ))
 }

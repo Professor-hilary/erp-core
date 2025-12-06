@@ -28,8 +28,10 @@ pub async fn auth_middleware(
     let is_company_create: bool = method == Method::POST
         && (path.ends_with("/create") && path.contains("/companies") || path == "/companies");
 
+    let is_switch_company: bool = method == Method::POST && path.contains("/switch-company");
+
     // Skip tenant context for company creation
-    if is_company_create {
+    if is_company_create || is_switch_company {
         // Middleware only for create company route
         let auth_header = request
             .headers()
@@ -37,7 +39,7 @@ pub async fn auth_middleware(
             .and_then(|h| h.to_str().ok())
             .and_then(|h| h.strip_prefix("Bearer "))
             .ok_or(AppError::Unauthorized(
-                "Missing or invalid Authorization header".into(),
+                "You need to log in to perform this action".into(),
             ))?;
 
         println!("RAW TOKEN RECEIVED: {}", auth_header);
@@ -64,7 +66,7 @@ pub async fn auth_middleware(
             .and_then(|h| h.to_str().ok())
             .and_then(|h| h.strip_prefix("Bearer "))
             .ok_or(AppError::Unauthorized(
-                "Missing or invalid Authorization header".into(),
+                "You have no valid authorization to perform this action!".into(),
             ))?;
 
         println!("RAW TOKEN RECEIVED: {}", auth_header);
