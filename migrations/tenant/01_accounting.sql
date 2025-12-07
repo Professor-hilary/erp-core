@@ -1,14 +1,10 @@
 -- Create schema
 CREATE SCHEMA accounting;
--- Enable UUID extension (required for uuidv7())
--- CREATE EXTENSION IF NOT EXISTS pg_uuidv7;
+-- UUID extension Enabled automatically (required for uuidv7())
 -- Sequences
 CREATE SEQUENCE accounting.accounts_serial_id_seq;
 CREATE SEQUENCE accounting.transactions_serial_id_seq;
 CREATE SEQUENCE accounting.transaction_entries_serial_id_seq;
-
--- Enable the extension once (if not already enabled)
--- CREATE EXTENSION IF NOT EXISTS uuidv7();
 
 -----------------------------------------------------------------
 -- accounts: chart of accounts
@@ -16,7 +12,7 @@ CREATE SEQUENCE accounting.transaction_entries_serial_id_seq;
 CREATE TABLE accounting.accounts (
     uuid       UUID        DEFAULT uuidv7() PRIMARY KEY,
     serial_id  BIGSERIAL   NOT NULL UNIQUE,               -- front-end id
-
+    current_balance NUMERIC(18, 2) DEFAULT 0.00 NOT NULL,
     code       TEXT        NOT NULL UNIQUE,               -- e.g. "110100"
     name       TEXT        NOT NULL,
     type       TEXT        NOT NULL,                     -- Asset, Liability, Equity, Revenue, Expense
@@ -167,6 +163,42 @@ BEGIN
     RETURN v_txn_serial_id;
 END;
 $$;
+
+-- Createe trigger function
+CREATE OR REPLACE FUNCTION accounting.update_account_balance()
+RETURNS TRIGGER LANGUAGE plpgsql AS $$
+BEGIN
+    -- Only update if the transaction is posted (skip drafts)
+    IF EXISTS (SELECT 1 FROM accounting.transactions WHERE uuid = NEW.transaction_uuid AND posted = TRUE) THEN
+        UPDATE accounting.accounts
+        SET current_balance = current_balance + NEW.amount -- amount is already signed (debit - credit)
+        WHERE uuid = NEW.account_uuid;
+    END IF;
+    RETURN NEW;
+END;
+$$;
+
+-- Attach trigger to transaction_entries (after insert, for each row)
+CREATE TRIGGER trig_update_balance
+AFTER INSERT ON accounting.transaction_entries
+FOR EACH ROW EXECUTE FUNCTION accounting.update_account_balance();
+
+-- Handle deletes (e.g. for unposted drafts or rare voids - subtract the amount)
+CREATE OR REPLACE FUNCTION accounting.revert_account_balance()
+RETURNS TRIGGER LANGUAGE plpgsql AS $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM accounting.transactions WHERE uuid = OLD.transaction_uuid AND posted = TRUE) THEN
+        UPDATE accounting.accounts
+        SET current_balance = current_balance - OLD.amount
+        WHERE uuid = OLD.account_uuid;
+    END IF;
+    RETURN OLD;
+END;
+$$;
+
+CREATE TRIGGER trig_revert_balance
+AFTER DELETE ON accounting.transaction_entries
+FOR EACH ROW EXECUTE FUNCTION accounting.revert_account_balance();
 
 --
 --SELECT accounting.post_transaction(

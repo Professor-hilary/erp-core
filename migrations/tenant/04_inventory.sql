@@ -3,9 +3,6 @@
 -- Run this ONCE in a fresh DB with `accounting` schema already present
 -- ========================================
 
--- Enable UUID extension
--- CREATE EXTENSION IF NOT EXISTS pg_uuidv7;
-
 -- Create schema
 CREATE SCHEMA IF NOT EXISTS inventory;
 
@@ -67,9 +64,9 @@ CREATE TABLE IF NOT EXISTS inventory.items (
     track_quantity boolean DEFAULT true,
     quantity_on_hand numeric(18, 4) DEFAULT 0,
     reorder_level numeric(18, 4) DEFAULT 0,
-    asset_account text DEFAULT '1.3.1',
-    cogs_account text DEFAULT '5.2.1',
-    income_account text DEFAULT '4.1.1',
+    asset_account text,
+    cogs_account text,
+    income_account text,
     status text DEFAULT 'Active',
     created_at timestamptz DEFAULT now(),
     updated_at timestamptz DEFAULT now(),
@@ -209,7 +206,9 @@ CREATE OR REPLACE FUNCTION inventory.post_purchase(
     p_unit_cost numeric,
     p_reference_type text,
     p_reference_serial_id bigint,
-    p_user bigint
+    p_user uuid,
+    p_payables_uuid uuid
+    -- p_data JSONB
 ) RETURNS void
 LANGUAGE plpgsql
 AS $$
@@ -247,7 +246,7 @@ BEGIN
     -- Post to GL: Debit Inventory, Credit A/P
     v_lines := jsonb_build_array(
         jsonb_build_object('account_ref', v_item.asset_account, 'debit', v_total, 'credit', 0, 'memo', format('Stock In - %s', v_item.sku)),
-        jsonb_build_object('account_ref', '2.1.1', 'debit', 0, 'credit', v_total, 'memo', 'Accounts Payable')
+        jsonb_build_object('account_ref', p_payables_uuid, 'debit', 0, 'credit', v_total, 'memo', 'Accounts Payable')
     );
 
     v_txn_serial_id := accounting.post_transaction(
@@ -262,7 +261,7 @@ BEGIN
     INSERT INTO inventory.item_valuation (
         item_uuid, movement_uuid, debit_account, credit_account, amount, gl_transaction_uuid, description
     ) VALUES (
-        v_item.uuid, v_movement_uuid, v_item.asset_account, '2.1.1', v_total, v_txn_uuid, 'Purchase'
+        v_item.uuid, v_movement_uuid, v_item.asset_account, v_item.category_uuid, v_total, v_txn_uuid, 'Purchase'
     );
 
     -- Update item
