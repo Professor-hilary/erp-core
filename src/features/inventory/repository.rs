@@ -1,13 +1,10 @@
 // src/features/inventory/repository.rs
 use crate::{
     infrastructure::errors::AppError,
-    models::{
-        inventory_movement::{PostPurchase, PostSale},
-        item::{CreateItem, Item},
-    },
+    models::item::{CreateItem, Item, PostPurchase, PostSale},
 };
 use async_trait::async_trait;
-use sqlx::PgPool;
+use sqlx::{PgPool, postgres::PgQueryResult};
 use uuid::Uuid;
 
 #[async_trait]
@@ -19,15 +16,15 @@ pub trait InventoryRepository: Send + Sync {
         payload: &CreateItem,
     ) -> Result<Item, AppError>;
     async fn list_items(&self, pool: &PgPool, user_id: Uuid) -> Result<Vec<Item>, AppError>;
-    async fn get_item(&self, pool: &PgPool, id: i64, user_id: Uuid) -> Result<Item, AppError>;
+    async fn get_item(&self, pool: &PgPool, uuid: Uuid, user_id: Uuid) -> Result<Item, AppError>;
     async fn update_item(
         &self,
         pool: &PgPool,
-        id: i64,
+        uuid: Uuid,
         user_id: Uuid,
         payload: &CreateItem,
     ) -> Result<Item, AppError>;
-    async fn delete_item(&self, pool: &PgPool, id: i64, user_id: Uuid) -> Result<(), AppError>;
+    async fn delete_item(&self, pool: &PgPool, uuid: Uuid, user_id: Uuid) -> Result<(), AppError>;
 
     async fn post_purchase(
         &self,
@@ -59,21 +56,21 @@ impl InventoryRepository for PostgresInventoryRepo {
         _user_id: Uuid,
         payload: &CreateItem,
     ) -> Result<Item, AppError> {
-        let item = sqlx::query_as::<_, Item>(
+        let item: Item = sqlx::query_as::<_, Item>(
             r#"
             INSERT INTO inventory.items (
-                sku, name, category_id, description, unit, cost_price, selling_price,
+                sku, name, category_uuid, description, unit, cost_price, selling_price,
                 track_quantity, reorder_level, asset_account, cogs_account, income_account
             )
             VALUES (
                 $1, $2, $3, $4, COALESCE($5, 'pcs'), COALESCE($6, 0), COALESCE($7, 0),
-                COALESCE($8, TRUE), COALESCE($9, 0), COALESCE($10, '1.3.1'), COALESCE($11, '5.2.1'),
-                COALESCE($12, '4.1.1')) RETURNING *
-            "#
+                COALESCE($8, TRUE), COALESCE($9, 0), $10, $11, $12
+            ) RETURNING *
+            "#,
         )
         .bind(&payload.sku)
         .bind(&payload.name)
-        .bind(payload.category_id)
+        .bind(payload.category_uuid)
         .bind(&payload.description)
         .bind(&payload.unit)
         .bind(payload.cost_price.as_ref())
@@ -95,9 +92,9 @@ impl InventoryRepository for PostgresInventoryRepo {
         Ok(rows)
     }
 
-    async fn get_item(&self, pool: &PgPool, id: i64, _user_id: Uuid) -> Result<Item, AppError> {
-        let item = sqlx::query_as::<_, Item>("SELECT * FROM inventory.items WHERE id = $1")
-            .bind(id)
+    async fn get_item(&self, pool: &PgPool, uuid: Uuid, _user_id: Uuid) -> Result<Item, AppError> {
+        let item = sqlx::query_as::<_, Item>("SELECT * FROM inventory.items WHERE uuid = $1")
+            .bind(uuid)
             .fetch_optional(pool)
             .await?
             .ok_or(AppError::NotFound("Item not found".into()))?;
@@ -107,25 +104,25 @@ impl InventoryRepository for PostgresInventoryRepo {
     async fn update_item(
         &self,
         pool: &PgPool,
-        id: i64,
+        uuid: Uuid,
         _user_id: Uuid,
         payload: &CreateItem,
     ) -> Result<Item, AppError> {
         let item = sqlx::query_as::<_, Item>(
             r#"
             UPDATE inventory.items
-            SET sku=$1, name=$2, category_id=$3, description=$4, unit=COALESCE($5, unit),
+            SET sku=$1, name=$2, category_uuid=$3, description=$4, unit=COALESCE($5, unit),
                 cost_price=COALESCE($6, cost_price), selling_price=COALESCE($7, selling_price),
                 track_quantity=COALESCE($8, track_quantity), reorder_level=COALESCE($9, reorder_level),
                 asset_account=COALESCE($10, asset_account), cogs_account=COALESCE($11, cogs_account),
                 income_account=COALESCE($12, income_account), updated_at=now()
-            WHERE id=$13
+            WHERE uuid=$13
             RETURNING *
             "#
         )
         .bind(&payload.sku)
         .bind(&payload.name)
-        .bind(payload.category_id)
+        .bind(payload.category_uuid)
         .bind(&payload.description)
         .bind(&payload.unit)
         .bind(payload.cost_price.as_ref())
@@ -135,15 +132,15 @@ impl InventoryRepository for PostgresInventoryRepo {
         .bind(&payload.asset_account)
         .bind(&payload.cogs_account)
         .bind(&payload.income_account)
-        .bind(id)
+        .bind(uuid)
         .fetch_one(pool)
         .await?;
         Ok(item)
     }
 
-    async fn delete_item(&self, pool: &PgPool, id: i64, _user_id: Uuid) -> Result<(), AppError> {
-        let res = sqlx::query("DELETE FROM inventory.items WHERE id = $1")
-            .bind(id)
+    async fn delete_item(&self, pool: &PgPool, uuid: Uuid, _user_id: Uuid) -> Result<(), AppError> {
+        let res: PgQueryResult = sqlx::query("DELETE FROM inventory.items WHERE uuid = $1")
+            .bind(uuid)
             .execute(pool)
             .await?;
         if res.rows_affected() == 0 {

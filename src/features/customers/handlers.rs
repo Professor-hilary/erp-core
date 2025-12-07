@@ -12,10 +12,7 @@ use crate::{
     features::customers::{repository::PostgresCustomerRepo, service::CustomerService},
     infrastructure::{errors::AppError, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,
-    models::{
-        customers::{CreateCustomer, Customer},
-        invoice::CreateInvoice,
-    },
+    models::customers::{CreateCustomer, CreateInvoice, Customer},
     state::AppState,
 };
 

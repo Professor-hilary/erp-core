@@ -119,7 +119,7 @@ impl<R: UserRepository> AuthService<R> {
             sub: user_id,
             company_id: company_uuid,
             tenant_db: tenant_db_name.clone(),
-            exp: (Utc::now() + Duration::weeks(24)).timestamp() as usize,
+            exp: (Utc::now() + Duration::weeks(54)).timestamp() as usize,
         };
 
         println!("Company ID in Gen Token: {:?}", claims.company_id);

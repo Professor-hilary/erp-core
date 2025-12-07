@@ -6,16 +6,13 @@ use axum::{
     routing::{delete, get, patch, post},
 };
 use std::sync::Arc;
+use uuid::Uuid;
 
 use crate::{
     features::inventory::{repository::PostgresInventoryRepo, service::InventoryService},
-    infrastructure::errors::AppError,
-    infrastructure::responses::ApiResponse,
+    infrastructure::{errors::AppError, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,
-    models::{
-        inventory_movement::{PostPurchase, PostSale},
-        item::CreateItem,
-    },
+    models::item::{CreateItem, Item, PostPurchase, PostSale},
     state::AppState,
 };
 
@@ -23,9 +20,9 @@ pub fn router() -> Router<Arc<AppState>> {
     Router::new()
         .route("/create", post(create_item))
         .route("/list", get(list_items))
-        .route("/get/{id}", get(get_item))
-        .route("/update/{id}", patch(update_item))
-        .route("/items/{id}", delete(delete_item))
+        .route("/get/{uuid}", get(get_item))
+        .route("/update/{uuid}", patch(update_item))
+        .route("/items/{uuid}", delete(delete_item))
         .route("/purchases", post(post_purchase))
         .route("/sales", post(post_sale))
 }
@@ -35,9 +32,9 @@ async fn create_item(
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<CreateItem>,
 ) -> Result<Response, AppError> {
-    let repo = PostgresInventoryRepo::new();
-    let service = InventoryService::new(repo);
-    let item = service
+    let repo: PostgresInventoryRepo = PostgresInventoryRepo::new();
+    let service: InventoryService<PostgresInventoryRepo> = InventoryService::new(repo);
+    let item: Item = service
         .create_item(&user.tenant_pool, user.user_id, &payload)
         .await?;
     Ok(ApiResponse::created(item, "Item created"))
@@ -47,48 +44,48 @@ async fn list_items(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
 ) -> Result<Response, AppError> {
-    let repo = PostgresInventoryRepo::new();
-    let service = InventoryService::new(repo);
-    let list = service.list_items(&user.tenant_pool, user.user_id).await?;
+    let repo: PostgresInventoryRepo = PostgresInventoryRepo::new();
+    let service: InventoryService<PostgresInventoryRepo> = InventoryService::new(repo);
+    let list: Vec<Item> = service.list_items(&user.tenant_pool, user.user_id).await?;
     Ok(ApiResponse::success(list, "Items fetched"))
 }
 
 async fn get_item(
     State(_state): State<Arc<AppState>>,
-    Path(id): Path<i64>,
+    Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
 ) -> Result<Response, AppError> {
-    let repo = PostgresInventoryRepo::new();
-    let service = InventoryService::new(repo);
-    let item = service
-        .get_item(&user.tenant_pool, id, user.user_id)
+    let repo: PostgresInventoryRepo = PostgresInventoryRepo::new();
+    let service: InventoryService<PostgresInventoryRepo> = InventoryService::new(repo);
+    let item: Item = service
+        .get_item(&user.tenant_pool, uuid, user.user_id)
         .await?;
     Ok(ApiResponse::success(item, "Item fetched"))
 }
 
 async fn update_item(
     State(_state): State<Arc<AppState>>,
-    Path(id): Path<i64>,
+    Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<CreateItem>,
 ) -> Result<Response, AppError> {
-    let repo = PostgresInventoryRepo::new();
-    let service = InventoryService::new(repo);
-    let item = service
-        .update_item(&user.tenant_pool, id, user.user_id, &payload)
+    let repo: PostgresInventoryRepo = PostgresInventoryRepo::new();
+    let service: InventoryService<PostgresInventoryRepo> = InventoryService::new(repo);
+    let item: Item = service
+        .update_item(&user.tenant_pool, uuid, user.user_id, &payload)
         .await?;
     Ok(ApiResponse::success(item, "Item updated"))
 }
 
 async fn delete_item(
     State(_state): State<Arc<AppState>>,
-    Path(id): Path<i64>,
+    Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
 ) -> Result<Response, AppError> {
-    let repo = PostgresInventoryRepo::new();
-    let service = InventoryService::new(repo);
+    let repo: PostgresInventoryRepo = PostgresInventoryRepo::new();
+    let service: InventoryService<PostgresInventoryRepo> = InventoryService::new(repo);
     service
-        .delete_item(&user.tenant_pool, id, user.user_id)
+        .delete_item(&user.tenant_pool, uuid, user.user_id)
         .await?;
     Ok(ApiResponse::success((), "Item deleted"))
 }
@@ -98,8 +95,8 @@ async fn post_purchase(
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<PostPurchase>,
 ) -> Result<Response, AppError> {
-    let repo = PostgresInventoryRepo::new();
-    let service = InventoryService::new(repo);
+    let repo: PostgresInventoryRepo = PostgresInventoryRepo::new();
+    let service: InventoryService<PostgresInventoryRepo> = InventoryService::new(repo);
     service
         .post_purchase(&user.tenant_pool, user.user_id, &payload)
         .await?;
@@ -114,8 +111,8 @@ async fn post_sale(
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<PostSale>,
 ) -> Result<Response, AppError> {
-    let repo = PostgresInventoryRepo::new();
-    let service = InventoryService::new(repo);
+    let repo: PostgresInventoryRepo = PostgresInventoryRepo::new();
+    let service: InventoryService<PostgresInventoryRepo> = InventoryService::new(repo);
     service
         .post_sale(&user.tenant_pool, user.user_id, &payload)
         .await?;

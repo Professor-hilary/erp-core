@@ -2,10 +2,7 @@
 use crate::{
     features::inventory::repository::InventoryRepository,
     infrastructure::errors::AppError,
-    models::{
-        inventory_movement::{PostPurchase, PostSale},
-        item::{CreateItem, Item},
-    },
+    models::item::{CreateItem, Item, PostPurchase, PostSale},
 };
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -39,31 +36,31 @@ impl<R: InventoryRepository> InventoryService<R> {
     pub async fn get_item(
         &self,
         tenant_pool: &PgPool,
-        id: i64,
+        uuid: Uuid,
         user_id: Uuid,
     ) -> Result<Item, AppError> {
-        self.repo.get_item(tenant_pool, id, user_id).await
+        self.repo.get_item(tenant_pool, uuid, user_id).await
     }
 
     pub async fn update_item(
         &self,
         tenant_pool: &PgPool,
-        id: i64,
+        uuid: Uuid,
         user_id: Uuid,
         payload: &CreateItem,
     ) -> Result<Item, AppError> {
         self.repo
-            .update_item(tenant_pool, id, user_id, payload)
+            .update_item(tenant_pool, uuid, user_id, payload)
             .await
     }
 
     pub async fn delete_item(
         &self,
         tenant_pool: &PgPool,
-        id: i64,
+        uuid: Uuid,
         user_id: Uuid,
     ) -> Result<(), AppError> {
-        self.repo.delete_item(tenant_pool, id, user_id).await
+        self.repo.delete_item(tenant_pool, uuid, user_id).await
     }
 
     pub async fn post_purchase(

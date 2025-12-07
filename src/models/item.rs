@@ -2,13 +2,14 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
+use uuid::Uuid;
 
 #[derive(Debug, FromRow, Serialize, Deserialize, Clone)]
 pub struct Item {
-    pub id: i64,
+    pub uuid: Uuid,
     pub sku: String,
     pub name: String,
-    pub category_id: Option<i64>,
+    pub category_uuid: Option<Uuid>,
     pub description: Option<String>,
     pub unit: String,
     pub cost_price: bigdecimal::BigDecimal,
@@ -28,7 +29,7 @@ pub struct Item {
 pub struct CreateItem {
     pub sku: String,
     pub name: String,
-    pub category_id: Option<i64>,
+    pub category_uuid: Option<Uuid>,
     pub description: Option<String>,
     pub unit: Option<String>,
     pub cost_price: Option<bigdecimal::BigDecimal>,
@@ -38,4 +39,22 @@ pub struct CreateItem {
     pub asset_account: Option<String>,
     pub cogs_account: Option<String>,
     pub income_account: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct PostPurchase {
+    pub item_id: Uuid,
+    pub quantity: bigdecimal::BigDecimal,
+    pub unit_cost: bigdecimal::BigDecimal,
+    pub reference_type: String,
+    pub reference_id: Uuid,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct PostSale {
+    pub item_id: Uuid,
+    pub quantity: bigdecimal::BigDecimal,
+    pub unit_cost: bigdecimal::BigDecimal,
+    pub reference_type: String,
+    pub reference_id: Uuid,
 }

@@ -14,10 +14,7 @@ use crate::{
     features::vendors::{repository::PostgresVendorRepo, service::VendorService},
     infrastructure::{errors::AppError, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,
-    models::{
-        bills::CreateBill,
-        vendor::{CreateVendor, Vendor},
-    },
+    models::vendor::{CreateBill, CreateVendor, Vendor},
     state::AppState,
 };
 

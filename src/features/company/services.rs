@@ -6,7 +6,7 @@ use crate::{
     },
     infrastructure::{database::tenant_provisioner::TenantProvisioner, errors::AppError},
     models::{
-        coa_entry::CoaTemplate,
+        account::CoaTemplate,
         company::{Company, CreateCompanyDto},
     },
     state::AppState,
