@@ -28,12 +28,23 @@ pub struct Item {
 #[derive(Debug, FromRow, Serialize, Deserialize, Clone)]
 pub struct ItemCategory {
     pub uuid: Uuid,
-    // pub serial_id: bigdecimal::BigDecimal,
     pub code: String,
     pub name: String,
     pub description: String,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, FromRow, Serialize, Deserialize, Clone)]
+pub struct Warehouse {
+    pub uuid: Uuid,
+    pub serial_id: bigdecimal::BigDecimal,
+    pub code: String,
+    pub name: String,
+    pub description: String,
+    pub location: String,
+    pub created_at: DateTime<Utc>,
+    // pub updated_at: DateTime<Utc>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -60,12 +71,23 @@ pub struct CreateItem {
 }
 
 #[derive(Debug, Deserialize)]
+pub struct CreateWarehouse {
+    pub code: String,
+    pub name: String,
+    pub description: String,
+    pub location: String,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct PostPurchase {
-    pub item_id: Uuid,
-    pub quantity: bigdecimal::BigDecimal,
-    pub unit_cost: bigdecimal::BigDecimal,
-    pub reference_type: String,
-    pub reference_id: Uuid,
+    pub serial_id: bigdecimal::BigDecimal,
+    pub warehouse_serial_id: bigdecimal::BigDecimal,
+    pub quantity: i32,
+    pub unit_cost: i32,
+    pub reference_type: Option<String>,
+    pub reference_serial_id: bigdecimal::BigDecimal,
+    pub _user_uuid: Uuid,
+    pub payables_uuid: Uuid,
 }
 
 #[derive(Debug, Deserialize)]
@@ -73,6 +95,6 @@ pub struct PostSale {
     pub item_id: Uuid,
     pub quantity: bigdecimal::BigDecimal,
     pub unit_cost: bigdecimal::BigDecimal,
-    pub reference_type: String,
-    pub reference_id: Uuid,
+    pub reference_type: Option<String>,
+    pub reference_id: Option<Uuid>,
 }

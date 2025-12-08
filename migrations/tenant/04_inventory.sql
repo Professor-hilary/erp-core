@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS inventory.warehouses (
     location text,
     description text,
     created_at timestamptz DEFAULT now(),
+    updated_at timestamptz DEFAULT now(),
     CONSTRAINT warehouses_pkey PRIMARY KEY (uuid),
     CONSTRAINT warehouses_serial_id_key UNIQUE (serial_id),
     CONSTRAINT warehouses_code_key UNIQUE (code)
@@ -216,8 +217,8 @@ DECLARE
     v_item inventory.items%ROWTYPE;
     v_warehouse_uuid UUID;
     v_movement_uuid UUID;
-    v_movement_serial_id BIGINT;
-    v_txn_serial_id BIGINT;
+    v_movement_serial_id BIGSERIAL;
+    v_txn_serial_id BIGSERIAL;
     v_txn_uuid UUID;
     v_total NUMERIC(18, 2);
     v_lines JSONB;
@@ -289,8 +290,8 @@ DECLARE
     v_item inventory.items%ROWTYPE;
     v_warehouse_uuid UUID;
     v_movement_uuid UUID;
-    v_movement_serial_id BIGINT;
-    v_txn_serial_id BIGINT;
+    v_movement_serial_id BIGSERIAL;
+    v_txn_serial_id BIGSERIAL;
     v_txn_uuid UUID;
     v_total NUMERIC(18, 2);
     v_lines JSONB;

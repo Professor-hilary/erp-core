@@ -12,7 +12,10 @@ use crate::{
     features::inventory::{repository::PostgresInventoryRepo, service::InventoryService},
     infrastructure::{errors::AppError, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,
-    models::item::{CreateItem, CreateItemCategory, Item, ItemCategory, PostPurchase, PostSale},
+    models::item::{
+        CreateItem, CreateItemCategory, CreateWarehouse, Item, ItemCategory, PostPurchase,
+        PostSale, Warehouse,
+    },
     state::AppState,
 };
 
@@ -20,13 +23,19 @@ pub fn router() -> Router<Arc<AppState>> {
     Router::new()
         .route("/create/item", post(create_item))
         .route("/create/category", post(create_item_category))
+        .route("/create/warehouse", post(create_warehouse))
         .route("/list/items", get(list_items))
         .route("/list/categories", get(list_item_categories))
-        .route("/get/{uuid}", get(get_item))
+        .route("/list/warehouses", get(list_warehouses))
+        .route("/get/item/{uuid}", get(get_item))
         .route("/get/category/{uuid}", get(get_item_category))
-        .route("/update/{uuid}", patch(update_item))
+        .route("/get/warehouse/{uuid}", get(get_warehouse))
+        .route("/update/item/{uuid}", patch(update_item))
+        .route("/update/category/{uuid}", patch(update_item_category))
+        .route("/update/warehouse/{uuid}", patch(update_warehouse))
         .route("/delete/item/{uuid}", delete(delete_item))
         .route("/delete/category/{uuid}", delete(delete_item_category))
+        .route("/delete/warehouse/{uuid}", delete(delete_warehouse))
         .route("/purchases", post(post_purchase))
         .route("/sales", post(post_sale))
 }
@@ -42,6 +51,19 @@ async fn create_item(
         .create_item(&user.tenant_pool, user.user_id, &payload)
         .await?;
     Ok(ApiResponse::created(item, "Item created"))
+}
+
+async fn create_warehouse(
+    State(_state): State<Arc<AppState>>,
+    Extension(user): Extension<AuthenticatedTenant>,
+    Json(payload): Json<CreateWarehouse>,
+) -> Result<Response, AppError> {
+    let repo: PostgresInventoryRepo = PostgresInventoryRepo::new();
+    let service: InventoryService<PostgresInventoryRepo> = InventoryService::new(repo);
+    let category: Warehouse = service
+        .create_warehouse(&user.tenant_pool, user.user_id, &payload)
+        .await?;
+    Ok(ApiResponse::created(category, "Warehouse created"))
 }
 
 async fn create_item_category(
@@ -79,6 +101,18 @@ async fn list_item_categories(
     Ok(ApiResponse::success(list, "Item categories fetched"))
 }
 
+async fn list_warehouses(
+    State(_state): State<Arc<AppState>>,
+    Extension(user): Extension<AuthenticatedTenant>,
+) -> Result<Response, AppError> {
+    let repo: PostgresInventoryRepo = PostgresInventoryRepo::new();
+    let service: InventoryService<PostgresInventoryRepo> = InventoryService::new(repo);
+    let list: Vec<Warehouse> = service
+        .list_warehouse(&user.tenant_pool, user.user_id)
+        .await?;
+    Ok(ApiResponse::success(list, "Warehouses fetched"))
+}
+
 async fn get_item(
     State(_state): State<Arc<AppState>>,
     Path(uuid): Path<Uuid>,
@@ -105,6 +139,19 @@ async fn get_item_category(
     Ok(ApiResponse::success(item, "Item category fetched"))
 }
 
+async fn get_warehouse(
+    State(_state): State<Arc<AppState>>,
+    Path(uuid): Path<Uuid>,
+    Extension(user): Extension<AuthenticatedTenant>,
+) -> Result<Response, AppError> {
+    let repo: PostgresInventoryRepo = PostgresInventoryRepo::new();
+    let service: InventoryService<PostgresInventoryRepo> = InventoryService::new(repo);
+    let item: Warehouse = service
+        .get_warehouse(&user.tenant_pool, uuid, user.user_id)
+        .await?;
+    Ok(ApiResponse::success(item, "Warehouse fetched"))
+}
+
 async fn update_item(
     State(_state): State<Arc<AppState>>,
     Path(uuid): Path<Uuid>,
@@ -117,6 +164,34 @@ async fn update_item(
         .update_item(&user.tenant_pool, uuid, user.user_id, &payload)
         .await?;
     Ok(ApiResponse::success(item, "Item updated"))
+}
+
+async fn update_item_category(
+    State(_state): State<Arc<AppState>>,
+    Path(uuid): Path<Uuid>,
+    Extension(user): Extension<AuthenticatedTenant>,
+    Json(payload): Json<CreateItemCategory>,
+) -> Result<Response, AppError> {
+    let repo: PostgresInventoryRepo = PostgresInventoryRepo::new();
+    let service: InventoryService<PostgresInventoryRepo> = InventoryService::new(repo);
+    let item: ItemCategory = service
+        .update_item_category(&user.tenant_pool, uuid, user.user_id, &payload)
+        .await?;
+    Ok(ApiResponse::success(item, "Item category updated"))
+}
+
+async fn update_warehouse(
+    State(_state): State<Arc<AppState>>,
+    Path(uuid): Path<Uuid>,
+    Extension(user): Extension<AuthenticatedTenant>,
+    Json(payload): Json<CreateWarehouse>,
+) -> Result<Response, AppError> {
+    let repo: PostgresInventoryRepo = PostgresInventoryRepo::new();
+    let service: InventoryService<PostgresInventoryRepo> = InventoryService::new(repo);
+    let warehouse: Warehouse = service
+        .update_warehouse(&user.tenant_pool, uuid, user.user_id, &payload)
+        .await?;
+    Ok(ApiResponse::success(warehouse, "Warehouse updated"))
 }
 
 async fn delete_item(
@@ -143,6 +218,19 @@ async fn delete_item_category(
         .delete_item_category(&user.tenant_pool, uuid, user.user_id)
         .await?;
     Ok(ApiResponse::success((), "Item category deleted"))
+}
+
+async fn delete_warehouse(
+    State(_state): State<Arc<AppState>>,
+    Path(uuid): Path<Uuid>,
+    Extension(user): Extension<AuthenticatedTenant>,
+) -> Result<Response, AppError> {
+    let repo: PostgresInventoryRepo = PostgresInventoryRepo::new();
+    let service: InventoryService<PostgresInventoryRepo> = InventoryService::new(repo);
+    service
+        .delete_warehouse(&user.tenant_pool, uuid, user.user_id)
+        .await?;
+    Ok(ApiResponse::success((), "Warehouse deleted"))
 }
 
 async fn post_purchase(

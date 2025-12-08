@@ -2,7 +2,10 @@
 use crate::{
     features::inventory::repository::InventoryRepository,
     infrastructure::errors::AppError,
-    models::item::{CreateItem, CreateItemCategory, Item, ItemCategory, PostPurchase, PostSale},
+    models::item::{
+        CreateItem, CreateItemCategory, CreateWarehouse, Item, ItemCategory, PostPurchase,
+        PostSale, Warehouse,
+    },
 };
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -36,6 +39,17 @@ impl<R: InventoryRepository> InventoryService<R> {
             .await
     }
 
+    pub async fn create_warehouse(
+        &self,
+        tenant_pool: &PgPool,
+        user_id: Uuid,
+        payload: &CreateWarehouse,
+    ) -> Result<Warehouse, AppError> {
+        self.repo
+            .create_warehouse(tenant_pool, user_id, payload)
+            .await
+    }
+
     pub async fn list_items(
         &self,
         tenant_pool: &PgPool,
@@ -50,6 +64,14 @@ impl<R: InventoryRepository> InventoryService<R> {
         user_id: Uuid,
     ) -> Result<Vec<ItemCategory>, AppError> {
         self.repo.list_item_categories(tenant_pool, user_id).await
+    }
+
+    pub async fn list_warehouse(
+        &self,
+        tenant_pool: &PgPool,
+        user_id: Uuid,
+    ) -> Result<Vec<Warehouse>, AppError> {
+        self.repo.list_warehouse(tenant_pool, user_id).await
     }
 
     pub async fn get_item(
@@ -72,6 +94,15 @@ impl<R: InventoryRepository> InventoryService<R> {
             .await
     }
 
+    pub async fn get_warehouse(
+        &self,
+        tenant_pool: &PgPool,
+        uuid: Uuid,
+        user_id: Uuid,
+    ) -> Result<Warehouse, AppError> {
+        self.repo.get_warehouse(tenant_pool, uuid, user_id).await
+    }
+
     pub async fn update_item(
         &self,
         tenant_pool: &PgPool,
@@ -81,6 +112,30 @@ impl<R: InventoryRepository> InventoryService<R> {
     ) -> Result<Item, AppError> {
         self.repo
             .update_item(tenant_pool, uuid, user_id, payload)
+            .await
+    }
+
+    pub async fn update_item_category(
+        &self,
+        tenant_pool: &PgPool,
+        uuid: Uuid,
+        user_id: Uuid,
+        payload: &CreateItemCategory,
+    ) -> Result<ItemCategory, AppError> {
+        self.repo
+            .update_item_category(tenant_pool, uuid, user_id, payload)
+            .await
+    }
+
+    pub async fn update_warehouse(
+        &self,
+        tenant_pool: &PgPool,
+        uuid: Uuid,
+        user_id: Uuid,
+        payload: &CreateWarehouse,
+    ) -> Result<Warehouse, AppError> {
+        self.repo
+            .update_warehouse(tenant_pool, uuid, user_id, payload)
             .await
     }
 
@@ -102,6 +157,15 @@ impl<R: InventoryRepository> InventoryService<R> {
         self.repo
             .delete_item_category(tenant_pool, uuid, user_id)
             .await
+    }
+
+    pub async fn delete_warehouse(
+        &self,
+        tenant_pool: &PgPool,
+        uuid: Uuid,
+        user_id: Uuid,
+    ) -> Result<(), AppError> {
+        self.repo.delete_warehouse(tenant_pool, uuid, user_id).await
     }
 
     pub async fn post_purchase(
