@@ -2,7 +2,7 @@
 use crate::{
     features::inventory::repository::InventoryRepository,
     infrastructure::errors::AppError,
-    models::item::{CreateItem, Item, PostPurchase, PostSale},
+    models::item::{CreateItem, CreateItemCategory, Item, ItemCategory, PostPurchase, PostSale},
 };
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -25,12 +25,31 @@ impl<R: InventoryRepository> InventoryService<R> {
         self.repo.create_item(tenant_pool, user_id, payload).await
     }
 
+    pub async fn create_item_category(
+        &self,
+        tenant_pool: &PgPool,
+        user_id: Uuid,
+        payload: &CreateItemCategory,
+    ) -> Result<ItemCategory, AppError> {
+        self.repo
+            .create_item_category(tenant_pool, user_id, payload)
+            .await
+    }
+
     pub async fn list_items(
         &self,
         tenant_pool: &PgPool,
         user_id: Uuid,
     ) -> Result<Vec<Item>, AppError> {
         self.repo.list_items(tenant_pool, user_id).await
+    }
+
+    pub async fn list_item_categories(
+        &self,
+        tenant_pool: &PgPool,
+        user_id: Uuid,
+    ) -> Result<Vec<ItemCategory>, AppError> {
+        self.repo.list_item_categories(tenant_pool, user_id).await
     }
 
     pub async fn get_item(
@@ -40,6 +59,17 @@ impl<R: InventoryRepository> InventoryService<R> {
         user_id: Uuid,
     ) -> Result<Item, AppError> {
         self.repo.get_item(tenant_pool, uuid, user_id).await
+    }
+
+    pub async fn get_item_category(
+        &self,
+        tenant_pool: &PgPool,
+        uuid: Uuid,
+        user_id: Uuid,
+    ) -> Result<ItemCategory, AppError> {
+        self.repo
+            .get_item_category(tenant_pool, uuid, user_id)
+            .await
     }
 
     pub async fn update_item(
@@ -61,6 +91,17 @@ impl<R: InventoryRepository> InventoryService<R> {
         user_id: Uuid,
     ) -> Result<(), AppError> {
         self.repo.delete_item(tenant_pool, uuid, user_id).await
+    }
+
+    pub async fn delete_item_category(
+        &self,
+        tenant_pool: &PgPool,
+        uuid: Uuid,
+        user_id: Uuid,
+    ) -> Result<(), AppError> {
+        self.repo
+            .delete_item_category(tenant_pool, uuid, user_id)
+            .await
     }
 
     pub async fn post_purchase(

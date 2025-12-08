@@ -21,7 +21,7 @@ CREATE SEQUENCE IF NOT EXISTS inventory.item_valuation_serial_id_seq;
 -- ========================================
 CREATE TABLE IF NOT EXISTS inventory.warehouses (
     uuid uuid DEFAULT uuidv7() NOT NULL,
-    serial_id bigint DEFAULT nextval('inventory.warehouses_serial_id_seq') NOT NULL,
+    serial_id BIGSERIAL DEFAULT nextval('inventory.warehouses_serial_id_seq') NOT NULL,
     code text NOT NULL,
     name text NOT NULL,
     location text,
@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS inventory.warehouses (
 -- ========================================
 CREATE TABLE IF NOT EXISTS inventory.item_categories (
     uuid uuid DEFAULT uuidv7() NOT NULL,
-    serial_id bigint DEFAULT nextval('inventory.item_categories_serial_id_seq') NOT NULL,
+    serial_id BIGSERIAL DEFAULT nextval('inventory.item_categories_serial_id_seq') NOT NULL,
     code text NOT NULL,
     name text NOT NULL,
     description text,
@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS inventory.item_categories (
 -- ========================================
 CREATE TABLE IF NOT EXISTS inventory.items (
     uuid uuid DEFAULT uuidv7() NOT NULL,
-    serial_id bigint DEFAULT nextval('inventory.items_serial_id_seq') NOT NULL,
+    serial_id BIGSERIAL DEFAULT nextval('inventory.items_serial_id_seq') NOT NULL,
     sku text NOT NULL,
     name text NOT NULL,
     category_uuid uuid,
@@ -82,12 +82,12 @@ CREATE TABLE IF NOT EXISTS inventory.items (
 -- ========================================
 CREATE TABLE IF NOT EXISTS inventory.movements (
     uuid uuid DEFAULT uuidv7() NOT NULL,
-    serial_id bigint DEFAULT nextval('inventory.movements_serial_id_seq') NOT NULL,
+    serial_id BIGSERIAL DEFAULT nextval('inventory.movements_serial_id_seq') NOT NULL,
     item_uuid uuid NOT NULL,
     warehouse_uuid uuid,
     movement_date timestamptz DEFAULT now(),
     reference_type text,
-    reference_id bigint,
+    reference_id BIGSERIAL,
     quantity numeric(18, 4) NOT NULL,
     unit_cost numeric(18, 4) DEFAULT 0,
     total_cost numeric(18, 2) GENERATED ALWAYS AS (quantity * unit_cost) STORED,
@@ -109,7 +109,7 @@ CREATE TABLE IF NOT EXISTS inventory.movements (
 -- ========================================
 CREATE TABLE IF NOT EXISTS inventory.adjustments (
     uuid uuid DEFAULT uuidv7() NOT NULL,
-    serial_id bigint DEFAULT nextval('inventory.adjustments_serial_id_seq') NOT NULL,
+    serial_id BIGSERIAL DEFAULT nextval('inventory.adjustments_serial_id_seq') NOT NULL,
     adjustment_number text NOT NULL,
     adjustment_date date NOT NULL,
     warehouse_uuid uuid,
@@ -137,7 +137,7 @@ CREATE TABLE IF NOT EXISTS inventory.adjustments (
 -- ========================================
 CREATE TABLE IF NOT EXISTS inventory.item_valuation (
     uuid uuid DEFAULT uuidv7() NOT NULL,
-    serial_id bigint DEFAULT nextval('inventory.item_valuation_serial_id_seq') NOT NULL,
+    serial_id BIGSERIAL DEFAULT nextval('inventory.item_valuation_serial_id_seq') NOT NULL,
     item_uuid uuid NOT NULL,
     movement_uuid uuid,
     valuation_date timestamptz DEFAULT now(),
@@ -200,12 +200,12 @@ ORDER BY m.movement_date DESC;
 -- FUNCTIONS
 -- ========================================
 CREATE OR REPLACE FUNCTION inventory.post_purchase(
-    p_item_serial_id bigint,
-    p_warehouse_serial_id bigint,
+    p_item_serial_id BIGSERIAL,
+    p_warehouse_serial_id BIGSERIAL,
     p_quantity numeric,
     p_unit_cost numeric,
     p_reference_type text,
-    p_reference_serial_id bigint,
+    p_reference_serial_id BIGSERIAL,
     p_user uuid,
     p_payables_uuid uuid
     -- p_data JSONB
@@ -275,13 +275,13 @@ END;
 $$;
 
 CREATE OR REPLACE FUNCTION inventory.post_sale(
-    p_item_serial_id bigint,
-    p_warehouse_serial_id bigint,
+    p_item_serial_id BIGSERIAL,
+    p_warehouse_serial_id BIGSERIAL,
     p_quantity numeric,
     p_unit_cost numeric,
     p_reference_type text,
-    p_reference_serial_id bigint,
-    p_user bigint
+    p_reference_serial_id BIGSERIAL,
+    p_user UUID
 ) RETURNS void
 LANGUAGE plpgsql
 AS $$

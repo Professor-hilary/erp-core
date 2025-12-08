@@ -18,11 +18,29 @@ pub struct Item {
     pub quantity_on_hand: bigdecimal::BigDecimal,
     pub reorder_level: bigdecimal::BigDecimal,
     pub asset_account: String,
-    pub cogs_account: String,
+    pub cogs_account: Option<String>,
     pub income_account: String,
     pub status: String,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, FromRow, Serialize, Deserialize, Clone)]
+pub struct ItemCategory {
+    pub uuid: Uuid,
+    // pub serial_id: bigdecimal::BigDecimal,
+    pub code: String,
+    pub name: String,
+    pub description: String,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CreateItemCategory {
+    pub code: String,
+    pub name: String,
+    pub description: String,
 }
 
 #[derive(Debug, Deserialize)]

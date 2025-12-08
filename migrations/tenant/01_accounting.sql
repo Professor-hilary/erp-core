@@ -164,7 +164,7 @@ BEGIN
 END;
 $$;
 
--- Createe trigger function
+-- Create trigger function
 CREATE OR REPLACE FUNCTION accounting.update_account_balance()
 RETURNS TRIGGER LANGUAGE plpgsql AS $$
 BEGIN
