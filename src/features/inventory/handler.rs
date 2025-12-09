@@ -12,7 +12,7 @@ use crate::{
     features::inventory::{repository::PostgresInventoryRepo, service::InventoryService},
     infrastructure::{errors::AppError, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,
-    models::item::{
+    models::inventory::{
         CreateItem, CreateItemCategory, CreateWarehouse, Item, ItemCategory, PostPurchase,
         PostSale, Warehouse,
     },
@@ -36,8 +36,8 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/delete/item/{uuid}", delete(delete_item))
         .route("/delete/category/{uuid}", delete(delete_item_category))
         .route("/delete/warehouse/{uuid}", delete(delete_warehouse))
-        .route("/purchases", post(post_purchase))
-        .route("/sales", post(post_sale))
+        .route("/purchase", post(post_purchase))
+        .route("/sale", post(post_sale))
 }
 
 async fn create_item(
@@ -240,11 +240,11 @@ async fn post_purchase(
 ) -> Result<Response, AppError> {
     let repo: PostgresInventoryRepo = PostgresInventoryRepo::new();
     let service: InventoryService<PostgresInventoryRepo> = InventoryService::new(repo);
-    service
+    let purchase = service
         .post_purchase(&user.tenant_pool, user.user_id, &payload)
         .await?;
     Ok(ApiResponse::success(
-        (),
+        purchase,
         "Purchase posted to inventory and GL",
     ))
 }

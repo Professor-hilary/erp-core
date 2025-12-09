@@ -85,7 +85,7 @@ impl TenantProvisioner {
         sqlx::migrate!("./migrations/tenant")
             .run(&tenant_pool)
             .await
-            .map_err(|e| AppError::Internal(format!("Tenant migrations failed: {}", e)))?;
+            .map_err(|e| AppError::Internal(format!("Tenant migrations failed: <{}>", e)))?;
 
         Ok((tenant_pool, tenant_url))
     }
