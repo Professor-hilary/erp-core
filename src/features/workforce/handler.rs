@@ -9,7 +9,7 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::{
-    features::hr::{repository::PostgresHrRepo, service::HrService},
+    features::workforce::{repository::PostgresHrRepo, service::HrService},
     infrastructure::{errors::AppError, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,
     models::{

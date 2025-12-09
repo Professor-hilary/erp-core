@@ -9,7 +9,7 @@ use axum::{
 
 use crate::{
     AppState,
-    features::{accounts, company, customers, hr, inventory, transactions, vendors},
+    features::{accounts, company, customers, inventory, transactions, vendors, workforce},
     infrastructure::errors::AppError,
     middleware::{auth::AuthenticatedUser, layer::auth_middleware},
 };
@@ -31,7 +31,7 @@ pub fn create_router(state: Arc<AppState>) -> Router {
     let customer_routes: Router<Arc<AppState>> = customers::handlers::router().layer(
         middleware::from_fn_with_state(state.clone(), auth_middleware),
     );
-    let employee_routes: Router<Arc<AppState>> = hr::handler::router().layer(
+    let employee_routes: Router<Arc<AppState>> = workforce::handler::router().layer(
         middleware::from_fn_with_state(state.clone(), auth_middleware),
     );
     let transaction_routes: Router<Arc<AppState>> = transactions::handlers::router()

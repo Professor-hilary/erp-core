@@ -3,7 +3,7 @@ use crate::models::employee::{
     CreateDepartment, CreateEmployee, CreateJobTitle, Department, Employee, JobTitle,
 };
 use crate::{
-    features::hr::repository::HrRepository,
+    features::workforce::repository::HrRepository,
     infrastructure::errors::AppError,
     models::payrun::{CreatePayrun, Payrun},
 };
