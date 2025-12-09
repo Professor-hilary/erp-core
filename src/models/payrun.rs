@@ -2,15 +2,17 @@
 use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
+use uuid::Uuid;
 
 #[derive(Debug, FromRow, Serialize, Deserialize, Clone)]
 pub struct Payrun {
-    pub payrun_id: i32,
+    pub uuid: Uuid,
+    pub serial_id: i64,
     pub pay_period_start: NaiveDate,
     pub pay_period_end: NaiveDate,
     pub payment_date: NaiveDate,
     pub status: String,
-    pub gl_transaction_id: Option<i32>,
+    pub gl_transaction_id: Option<Uuid>,
     pub notes: Option<String>,
     pub created_at: DateTime<Utc>,
 }
@@ -26,12 +28,12 @@ pub struct CreatePayrun {
 
 #[derive(Debug, FromRow, Serialize, Deserialize, Clone)]
 pub struct Payslip {
-    pub payslip_id: i32,
-    pub payrun_id: i32,
-    pub employee_id: i32,
+    pub uuid: Uuid,
+    pub payrun_id: Uuid,
+    pub employee_id: Uuid,
     pub gross_pay: bigdecimal::BigDecimal,
     pub tax_deducted: bigdecimal::BigDecimal,
-    pub nssf: bigdecimal::BigDecimal,
+    pub social_security: bigdecimal::BigDecimal,
     pub other_deductions: bigdecimal::BigDecimal,
     pub net_pay: bigdecimal::BigDecimal,
     pub payment_method: String,
@@ -42,10 +44,10 @@ pub struct Payslip {
 
 #[derive(Debug, Deserialize)]
 pub struct CreatePayslip {
-    pub employee_id: i32,
+    pub uuid: Uuid,
     pub gross_pay: bigdecimal::BigDecimal,
     pub tax_deducted: Option<bigdecimal::BigDecimal>,
-    pub nssf: Option<bigdecimal::BigDecimal>,
+    pub social_security: Option<bigdecimal::BigDecimal>,
     pub other_deductions: Option<bigdecimal::BigDecimal>,
     pub payment_method: Option<String>,
     pub bank_account: Option<String>,
