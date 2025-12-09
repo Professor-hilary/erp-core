@@ -407,7 +407,7 @@ impl InventoryRepository for PostgresInventoryRepo {
         payload: &PostPurchase,
     ) -> Result<(), AppError> {
         sqlx::query("SELECT inventory.post_purchase($1, $2, $3, $4, $5, $6, $7, $8)")
-            .bind(&payload.serial_id)
+            .bind(&payload.item_serial_id)
             .bind(&payload.warehouse_serial_id)
             .bind(&payload.quantity)
             .bind(&payload.unit_cost)
@@ -426,12 +426,13 @@ impl InventoryRepository for PostgresInventoryRepo {
         user_id: Uuid,
         payload: &PostSale,
     ) -> Result<(), AppError> {
-        sqlx::query("SELECT inventory.post_sale($1, $2, $3, $4, $5, $6)")
-            .bind(payload.item_id)
+        sqlx::query("SELECT inventory.post_sale($1, $2, $3, $4, $5, $6, $7)")
+            .bind(payload.item_serial_id)
+            .bind(payload.warehouse_serial_id)
             .bind(&payload.quantity)
             .bind(&payload.unit_cost)
             .bind(&payload.reference_type)
-            .bind(payload.reference_id)
+            .bind(payload.reference_serial_id)
             .bind(user_id)
             .execute(pool)
             .await?;

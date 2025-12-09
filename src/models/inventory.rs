@@ -93,7 +93,7 @@ pub struct CreateWarehouse {
 
 #[derive(Debug, Deserialize)]
 pub struct PostPurchase {
-    pub serial_id: i64,
+    pub item_serial_id: i64,
     pub warehouse_serial_id: i64,
     pub quantity: bigdecimal::BigDecimal,
     pub unit_cost: bigdecimal::BigDecimal,
@@ -104,9 +104,11 @@ pub struct PostPurchase {
 
 #[derive(Debug, Deserialize)]
 pub struct PostSale {
-    pub item_id: Uuid,
+    pub item_serial_id: i64,
+    pub warehouse_serial_id: i64,
     pub quantity: bigdecimal::BigDecimal,
     pub unit_cost: bigdecimal::BigDecimal,
     pub reference_type: Option<String>,
-    pub reference_id: Option<Uuid>,
+    pub reference_serial_id: i64,
+    pub _receivables:Option<Uuid>,
 }
