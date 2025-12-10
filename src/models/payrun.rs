@@ -26,6 +26,15 @@ pub struct CreatePayrun {
     pub payslips: Vec<CreatePayslip>,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct PostPayrun {
+    pub pay_serial_id: i64,
+    pub labor_expense_id: Uuid,
+    pub income_tax_id: Uuid,
+    pub social_security_id: Uuid,
+    pub cash_account_uuid: Uuid,
+}
+
 #[derive(Debug, FromRow, Serialize, Deserialize, Clone)]
 pub struct Payslip {
     pub uuid: Uuid,

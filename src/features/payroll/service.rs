@@ -1,6 +1,8 @@
 // src/features/payroll/service.rs
 use crate::{
-    features::payroll::repository::PayrollRepository, infrastructure::errors::AppError, models::payrun::{CreatePayrun, Payrun, Payslip}
+    features::payroll::repository::PayrollRepository,
+    infrastructure::errors::AppError,
+    models::payrun::{CreatePayrun, Payrun, Payslip, PostPayrun},
 };
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -39,8 +41,12 @@ impl<R: PayrollRepository> PayrollService<R> {
         self.repo.process_payrun(tenant_pool, payrun_id).await
     }
 
-    pub async fn post_payrun(&self, tenant_pool: &PgPool, payrun_id: i64) -> Result<(), AppError> {
-        self.repo.post_payrun(tenant_pool, payrun_id).await?;
+    pub async fn post_payrun(
+        &self,
+        tenant_pool: &PgPool,
+        payload: &PostPayrun,
+    ) -> Result<(), AppError> {
+        self.repo.post_payrun(tenant_pool, payload).await?;
         Ok(())
     }
 
@@ -53,11 +59,11 @@ impl<R: PayrollRepository> PayrollService<R> {
         self.repo.get_payrun(tenant_pool, id, user_id).await
     }
 
-    pub async fn get_payruns(&self, tenant_pool: &PgPool) -> Result<Payrun, AppError> {
+    pub async fn get_payruns(&self, tenant_pool: &PgPool) -> Result<Vec<Payrun>, AppError> {
         self.repo.get_all_payruns(tenant_pool).await
     }
 
-    pub async fn get_payslips(&self, tenant_pool: &PgPool) -> Result<Payslip, AppError> {
+    pub async fn get_payslips(&self, tenant_pool: &PgPool) -> Result<Vec<Payslip>, AppError> {
         self.repo.get_all_payslips(tenant_pool).await
     }
 }

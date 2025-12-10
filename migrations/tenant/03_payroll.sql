@@ -101,7 +101,13 @@ GROUP BY pr.uuid, pr.serial_id;
 -- ========================================
 -- FUNCTION: post_payrun
 -- ========================================
-CREATE OR REPLACE FUNCTION payroll.post_payrun(p_payrun_serial_id bigint)
+CREATE OR REPLACE FUNCTION payroll.post_payrun(
+    p_payrun_serial_id bigint,
+    p_payrun_labor_expense_id uuid,
+    p_payrun_tax_id uuid,
+    p_payrun_social_sec_id uuid,
+    p_payrun_cash_id uuid
+)
 RETURNS void LANGUAGE plpgsql AS $$
 DECLARE
     v_payrun payroll.payruns%ROWTYPE;
@@ -144,13 +150,13 @@ BEGIN
 
     -- Build GL lines
     v_lines := jsonb_build_array(
-        jsonb_build_object('account_ref', '511000', 'debit', v_total_gross, 'credit', 0,
+        jsonb_build_object('account_ref', p_payrun_labor_expense_id, 'debit', v_total_gross, 'credit', 0,
             'memo', format('Payroll Gross - Payrun %s', v_payrun.serial_id)),
-        jsonb_build_object('account_ref', '212000', 'debit', 0, 'credit', v_total_tax,
+        jsonb_build_object('account_ref', p_payrun_tax_id, 'debit', 0, 'credit', v_total_tax,
             'memo', 'PAYE Withholding'),
-        jsonb_build_object('account_ref', '213000', 'debit', 0, 'credit', v_total_social_security,
+        jsonb_build_object('account_ref', p_payrun_social_sec_id, 'debit', 0, 'credit', v_total_social_security,
             'memo', 'Social Security Contribution'),
-        jsonb_build_object('account_ref', '110200', 'debit', 0, 'credit', v_total_net,
+        jsonb_build_object('account_ref', p_payrun_cash_id, 'debit', 0, 'credit', v_total_net,
             'memo', format('Payroll Net Pay - Payrun %s', v_payrun.serial_id))
     );
 
