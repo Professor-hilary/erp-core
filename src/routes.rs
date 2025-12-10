@@ -66,7 +66,7 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .nest("/api/customers", customer_routes)
         .nest("/api/inventory", inventory_routes)
         .nest("/api/vendors", vendor_routes)
-        .nest("/api/employees", employee_routes)
+        .nest("/api/workforce", employee_routes)
         // CORS & global state
         .layer(Extension(state.clone()))
         .layer(CorsLayer::permissive())

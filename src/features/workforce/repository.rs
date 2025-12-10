@@ -1,14 +1,13 @@
 // src/features/hr/repository.rs
+use crate::models::employee::{
+    CreateDepartment, CreateEmployee, CreateJobTitle, Department, Employee, JobTitle,
+};
 use crate::{
     infrastructure::errors::AppError,
-    models::{
-        employee::{
-            CreateDepartment, CreateEmployee, CreateJobTitle, Department, Employee, JobTitle,
-        },
-        payrun::{CreatePayrun, CreatePayslip, Payrun},
-    },
+    models::payrun::{CreatePayrun, CreatePayslip, Payrun},
 };
 use async_trait::async_trait;
+use bigdecimal::BigDecimal;
 use sqlx::{PgPool, Transaction};
 use uuid::Uuid;
 
@@ -118,9 +117,10 @@ pub trait HrRepository: Send + Sync {
         payslips: &[CreatePayslip],
         tx: &mut Transaction<'_, sqlx::Postgres>,
     ) -> Result<(), AppError>;
-    async fn post_payrun(&self, pool: &PgPool, payrun_id: Uuid) -> Result<(), AppError>;
+    async fn post_payrun(&self, pool: &PgPool, payrun_id: i64) -> Result<(), AppError>;
+    async fn process_payrun(&self, pool: &PgPool, payrun_id: i64) -> Result<Payrun, AppError>;
     async fn get_payrun(&self, pool: &PgPool, id: Uuid, user_id: Uuid) -> Result<Payrun, AppError>;
-    // todo: Add list_payruns later
+    async fn get_all_payruns(&self, pool: &PgPool) -> Result<Payrun, AppError>;
 }
 
 pub struct PostgresHrRepo;
@@ -141,7 +141,7 @@ impl HrRepository for PostgresHrRepo {
     ) -> Result<Employee, AppError> {
         let emp: Employee = sqlx::query_as::<_, Employee>(
             r#"
-            INSERT INTO hr.employees (first_name, last_name, email, phone_number, hire_date, termination_date, job_title, department_id, supervisor_id, employment_type, salary, pay_frequency)
+            INSERT INTO hr.employees (first_name, last_name, email, phone_number, hire_date, termination_date, job_title, department_uuid, supervisor_uuid, employment_type, salary, pay_frequency)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
             RETURNING *
             "#
@@ -153,8 +153,8 @@ impl HrRepository for PostgresHrRepo {
         .bind(payload.hire_date)
         .bind(payload.termination_date)
         .bind(&payload.job_title)
-        .bind(payload.department_id)
-        .bind(payload.supervisor_id)
+        .bind(payload.department_uuid)
+        .bind(payload.supervisor_uuid)
         .bind(&payload.employment_type)
         .bind(&payload.salary)
         .bind(&payload.pay_frequency)
@@ -186,7 +186,7 @@ impl HrRepository for PostgresHrRepo {
         payload: &CreateJobTitle,
     ) -> Result<JobTitle, AppError> {
         let jobtitle: JobTitle = sqlx::query_as::<_, JobTitle>(
-            r#"INSERT INTO hr.job_titles (name, description)VALUES ($1, $2) RETURNING *"#,
+            r#"INSERT INTO hr.job_titles (title, description)VALUES ($1, $2) RETURNING *"#,
         )
         .bind(&payload.title)
         .bind(&payload.description)
@@ -283,8 +283,8 @@ impl HrRepository for PostgresHrRepo {
         let emp: Employee = sqlx::query_as::<_, Employee>(
             r#"
             UPDATE hr.employees
-            SET first_name=$1, last_name=$2, email=$3, phone_number=$4, hire_date=$5, termination_date=$6,
-                job_title=$7, department_id=$8, supervisor_id=$9, employment_type=$10, salary=$11, pay_frequency=$12,
+            SET first_name=COALESCE($1, first_name), last_name=COALESCE($2, last_name), email=COALESCE($3,email), phone_number=COALESCE($4, phone_number), hire_date=COALESCE($5, hire_date), termination_date=COALESCE($6, termination_date),
+                job_title=COALESCE($7, job_title), department_uuid=COALESCE($8, department_uuid), supervisor_uuid=COALESCE($9, supervisor_uuid), employment_type=COALESCE($10, employment_type), salary=COALESCE($11,salary), pay_frequency=COALESCE($12, pay_frequency),
                 updated_at=now()
             WHERE uuid=$13
             RETURNING *
@@ -297,8 +297,8 @@ impl HrRepository for PostgresHrRepo {
         .bind(payload.hire_date)
         .bind(payload.termination_date)
         .bind(&payload.job_title)
-        .bind(payload.department_id)
-        .bind(payload.supervisor_id)
+        .bind(payload.department_uuid)
+        .bind(payload.supervisor_uuid)
         .bind(&payload.employment_type)
         .bind(&payload.salary)
         .bind(&payload.pay_frequency)
@@ -420,14 +420,14 @@ impl HrRepository for PostgresHrRepo {
     async fn create_payslips(
         &self,
         _pool: &PgPool,
-        payrun_id: Uuid,
+        payrun_uuid: Uuid,
         payslips: &[CreatePayslip],
         tx: &mut Transaction<'_, sqlx::Postgres>,
     ) -> Result<(), AppError> {
         for slip in payslips {
-            let tax: bigdecimal::BigDecimal = slip.tax_deducted.clone().unwrap_or_default();
-            let nssf: bigdecimal::BigDecimal = slip.social_security.clone().unwrap_or_default();
-            let other: bigdecimal::BigDecimal = slip.other_deductions.clone().unwrap_or_default();
+            let tax: BigDecimal = slip.tax_deducted.clone().unwrap_or_default();
+            let social_security: BigDecimal = slip.social_security.clone().unwrap_or_default();
+            let other: BigDecimal = slip.other_deductions.clone().unwrap_or_default();
             let method: String = slip
                 .payment_method
                 .clone()
@@ -435,35 +435,35 @@ impl HrRepository for PostgresHrRepo {
 
             let _ = sqlx::query(
                 r#"
-                INSERT INTO payroll.payslips (uuid, employee_uuid, gross_pay, tax_deducted, social_security, other_deductions, payment_method, bank_account)
+                INSERT INTO payroll.payslips (payrun_uuid, employee_uuid, gross_pay, tax_deducted, social_security, other_deductions, payment_method, bank_account)
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
                 "#
             )
-            .bind(payrun_id)
-            .bind(slip.uuid)
+            .bind(payrun_uuid)
+            .bind(slip.employee_uuid)
             .bind(&slip.gross_pay)
             .bind(tax)
-            .bind(nssf)
+            .bind(social_security)
             .bind(other)
             .bind(method)
             .bind(&slip.bank_account)
             .execute(&mut **tx)
             .await?;
 
-            if let Some(items) = &slip.items {
+            if let Some(items) = &slip.benefits {
                 for item in items {
                     sqlx::query(
                         r#"
                             INSERT INTO payroll.payslip_items (uuid, item_type, description, amount)
                             SELECT uuid, $1, $2, $3 FROM payroll.payslips WHERE payrun_uuid = $4
                             AND employee_id = $5 ORDER BY payslip_id DESC LIMIT 1
-                        "#
+                        "#,
                     )
                     .bind(&item.item_type)
                     .bind(&item.description)
                     .bind(&item.amount)
-                    .bind(payrun_id)
-                    .bind(slip.uuid)
+                    .bind(payrun_uuid)
+                    .bind(slip.employee_uuid)
                     .execute(&mut **tx)
                     .await?;
                 }
@@ -472,12 +472,22 @@ impl HrRepository for PostgresHrRepo {
         Ok(())
     }
 
-    async fn post_payrun(&self, pool: &PgPool, payrun_id: Uuid) -> Result<(), AppError> {
+    async fn post_payrun(&self, pool: &PgPool, payrun_id: i64) -> Result<(), AppError> {
         sqlx::query("SELECT payroll.post_payrun($1)")
             .bind(payrun_id)
             .execute(pool)
             .await?;
         Ok(())
+    }
+
+    async fn process_payrun(&self, pool: &PgPool, payrun_id: i64) -> Result<Payrun, AppError> {
+        let payrun: Payrun = sqlx::query_as::<_, Payrun>(
+            r#"UPDATE hr.payruns SET status='Processed' WHERE uuid=$1 RETURNING *"#,
+        )
+        .bind(payrun_id)
+        .fetch_one(pool)
+        .await?;
+        Ok(payrun)
     }
 
     async fn get_payrun(
@@ -492,6 +502,14 @@ impl HrRepository for PostgresHrRepo {
                 .fetch_optional(pool)
                 .await?
                 .ok_or(AppError::NotFound("Payrun not found".into()))?;
+        Ok(payrun)
+    }
+
+    async fn get_all_payruns(&self, pool: &PgPool) -> Result<Payrun, AppError> {
+        let payrun: Payrun = sqlx::query_as::<_, Payrun>("SELECT * FROM payroll.payruns")
+            .fetch_optional(pool)
+            .await?
+            .ok_or(AppError::NotFound("Payrun not found".into()))?;
         Ok(payrun)
     }
 }

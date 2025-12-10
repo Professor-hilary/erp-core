@@ -12,7 +12,7 @@ pub struct Payrun {
     pub pay_period_end: NaiveDate,
     pub payment_date: NaiveDate,
     pub status: String,
-    pub gl_transaction_id: Option<Uuid>,
+    pub gl_transaction_uuid: Option<Uuid>,
     pub notes: Option<String>,
     pub created_at: DateTime<Utc>,
 }
@@ -29,8 +29,8 @@ pub struct CreatePayrun {
 #[derive(Debug, FromRow, Serialize, Deserialize, Clone)]
 pub struct Payslip {
     pub uuid: Uuid,
-    pub payrun_id: Uuid,
-    pub employee_id: Uuid,
+    pub payrun_uuid: Uuid,
+    pub employee_uuid: Uuid,
     pub gross_pay: bigdecimal::BigDecimal,
     pub tax_deducted: bigdecimal::BigDecimal,
     pub social_security: bigdecimal::BigDecimal,
@@ -44,14 +44,14 @@ pub struct Payslip {
 
 #[derive(Debug, Deserialize)]
 pub struct CreatePayslip {
-    pub uuid: Uuid,
+    pub employee_uuid: Uuid,
     pub gross_pay: bigdecimal::BigDecimal,
     pub tax_deducted: Option<bigdecimal::BigDecimal>,
     pub social_security: Option<bigdecimal::BigDecimal>,
     pub other_deductions: Option<bigdecimal::BigDecimal>,
     pub payment_method: Option<String>,
     pub bank_account: Option<String>,
-    pub items: Option<Vec<PayslipItem>>,
+    pub benefits: Option<Vec<PayslipItem>>,
 }
 
 #[derive(Debug, Deserialize)]
