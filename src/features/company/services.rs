@@ -1,14 +1,14 @@
 // src/features/company/service.rs
+use crate::features::{
+    auth::{AuthService, repository::PostgresUserRepo},
+    company::repository::{CompanyRepository, PostgresCompanyRepository},
+};
+use crate::models::{
+    account::CoaTemplate,
+    company::{Company, CreateCompanyDto},
+};
 use crate::{
-    features::{
-        auth::{AuthService, repository::PostgresUserRepo},
-        company::repository::{CompanyRepository, PostgresCompanyRepository},
-    },
     infrastructure::{database::tenant_provisioner::TenantProvisioner, errors::AppError},
-    models::{
-        account::CoaTemplate,
-        company::{Company, CreateCompanyDto},
-    },
     state::AppState,
 };
 
@@ -38,7 +38,7 @@ impl CompanyService {
         // Step 2: Provision tenant database (this commits independently)
         // Note: We cannot keep this inside the same tx as master operations
         // because CREATE DATABASE cannot run inside a transaction block in PostgreSQL
-        let (tenant_pool, tenant_url) =
+        let (tenant_pool, tenant_db_uri) =
             TenantProvisioner::create_tenant_db(&state.master_pool, user_id, &req.name).await?;
 
         let tenant_db_name: String = format!("tenant_{}", slug);
@@ -57,7 +57,7 @@ impl CompanyService {
                 &req.name,
                 &slug,
                 &tenant_db_name,
-                &tenant_url,
+                &tenant_db_uri,
                 &req.industry,
                 &req.business_type,
                 user_id,
@@ -74,7 +74,7 @@ impl CompanyService {
             .await
             .map_err(|_| AppError::Internal("Failed to activate company".into()))?;
 
-        repo.update_company_secret(&mut *tx, user_id, &tenant_url, company.uuid)
+        repo.update_company_secret(&mut *tx, user_id, &tenant_db_uri, company.uuid)
             .await
             .map_err(|_| AppError::Internal("Failed to update company secrets tables".into()))?;
 
@@ -159,7 +159,7 @@ impl CompanyService {
         repo.find_by_user(&state.master_pool, user_id).await
     }
 
-    /// DEBUG VERSION – prints real error, works with dynamic tenants
+    /// Generate chart of accounts for selected company type
     pub async fn seed_coa(
         tenant_pool: &PgPool,
         business_type: &str,
@@ -167,19 +167,20 @@ impl CompanyService {
     ) -> Result<(), AppError> {
         // 1. Map business_type → file
         let file_name: &str = match business_type {
-            "agriculture" => "coa_agriculture.json",
-            "energy" => "coa_energy.json",
+            "manufacturing" => "coa_manufacturing.json",
+            "hospitality" => "coa_hospitality.json",
+            "education" => "coa_education.json",
+            "finance" => "coa_finance.json",
+            "retail" => "coa_retail.json",
             "infotech" => "coa_infotechnology.json",
-            "non_profit" => "coa_not_for_profit.json",
             "wholesome" => "coa_wholesale.json",
+            "non_profit" => "coa_not_for_profit.json",
+            "agriculture" => "coa_agriculture.json",
             "construction" => "coa_construction.json",
             "healthcare" => "coa_healthcare.json",
             "logistics" => "coa_logistics.json",
             "services" => "coa_professional_services.json",
-            "education" => "coa_education.json",
-            "hospitality" => "coa_hospitality.json",
-            "manufacturing" => "coa_manufacturing.json",
-            "retail" => "coa_retail.json",
+            "energy" => "coa_energy.json",
             _ => {
                 eprintln!("Invalid business_type received: {business_type}");
                 return Err(AppError::BadRequest(format!(
@@ -226,7 +227,7 @@ impl CompanyService {
             .bind(&entry.code)
             .bind(&entry.name)
             .bind(&entry.category)
-            .bind(&entry.parent_code) // Option<T> works fine with .bind()
+            .bind(&entry.parent_code)
             .bind(&entry.normal_balance)
             .bind(entry.is_contra)
             .execute(tenant_pool)

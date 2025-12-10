@@ -23,6 +23,7 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/payrun/post/{uuid}", post(post_payrun))
         .route("/get/payrun/{uuid}", get(get_payrun))
         .route("/get/payruns", get(list_payruns))
+        .route("/get/payslips", get(list_payslips))
 }
 
 async fn create_payrun(
@@ -67,6 +68,16 @@ async fn list_payruns(
     let repo = PostgresPayrollRepo::new();
     let svc = PayrollService::new(repo);
     let payrun = svc.get_payruns(&user.tenant_pool).await?;
+    Ok(ApiResponse::success(payrun, "Payrun list fetched"))
+}
+
+async fn list_payslips(
+    State(_state): State<Arc<AppState>>,
+    Extension(user): Extension<AuthenticatedTenant>,
+) -> Result<Response, AppError> {
+    let repo = PostgresPayrollRepo::new();
+    let svc = PayrollService::new(repo);
+    let payrun = svc.get_payslips(&user.tenant_pool).await?;
     Ok(ApiResponse::success(payrun, "Payrun list fetched"))
 }
 

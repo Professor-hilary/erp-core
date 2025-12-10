@@ -420,6 +420,14 @@
             "is_contra": true
         },
         {
+            "code": "450000",
+            "name": "Interest Income",
+            "category": "income",
+            "parent_code": "600000",
+            "normal_balance": "cr",
+            "is_contra": false
+        },
+        {
             "code": "500000",
             "name": "Cost of Services",
             "category": "expense",
@@ -564,26 +572,18 @@
             "is_contra": false
         },
         {
-            "code": "700000",
-            "name": "Other Income & Expense",
-            "category": "income",
-            "parent_code": null,
+            "code": "670000",
+            "name": "Other Expense",
+            "category": "expense",
+            "parent_code": "600000",
             "normal_balance": "cr",
             "is_contra": false
         },
         {
-            "code": "710000",
-            "name": "Interest Income",
-            "category": "income",
-            "parent_code": "700000",
-            "normal_balance": "cr",
-            "is_contra": false
-        },
-        {
-            "code": "720000",
+            "code": "680000",
             "name": "Interest Expense",
             "category": "expense",
-            "parent_code": "700000",
+            "parent_code": "600000",
             "normal_balance": "dr",
             "is_contra": false
         }

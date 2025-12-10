@@ -1,0 +1,839 @@
+{
+    "industry": "finance",
+    "name": "Finance & Banking",
+    "description": "Standard chart of accounts for banks, microfinance, credit unions, or investment firms.",
+    "accounts": [
+        {
+            "code": "100000",
+            "name": "Assets",
+            "category": "asset",
+            "parent_code": null,
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "110000",
+            "name": "Current Assets",
+            "category": "asset",
+            "parent_code": "100000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "110100",
+            "name": "Cash on Hand",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "110200",
+            "name": "Cash in Transit",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "110300",
+            "name": "Loans to Customers - Short Term",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "110310",
+            "name": "Allowance for Loan Losses",
+            "category": "asset",
+            "parent_code": "110300",
+            "normal_balance": "cr",
+            "is_contra": true
+        },
+        {
+            "code": "110400",
+            "name": "Interest Receivable on Loans",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "110500",
+            "name": "Investment Securities – Trading",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "110600",
+            "name": "Investment Securities – Available for Sale",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "110700",
+            "name": "Derivative Assets",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "110800",
+            "name": "Prepaid Expenses",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "110900",
+            "name": "Other Receivables",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "111000",
+            "name": "Fixed Deposits with Other Banks - Short Term",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "112000",
+            "name": "Treasury Bills & Government Securities - Short Term",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "113000",
+            "name": "Equity Investments - Short Term",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "111400",
+            "name": "Receivables from Brokers",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "111500",
+            "name": "Accounts Receivable – Fees & Commissions",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "111600",
+            "name": "Suspense Account",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "111700",
+            "name": "Accrued Interest Income",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "111800",
+            "name": "Other Current Assets",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "120000",
+            "name": "Non-Current Assets",
+            "category": "asset",
+            "parent_code": "100000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "120100",
+            "name": "Property and Equipment",
+            "category": "asset",
+            "parent_code": "120000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "120200",
+            "name": "Accumulated Depreciation",
+            "category": "asset",
+            "parent_code": "120000",
+            "normal_balance": "cr",
+            "is_contra": true
+        },
+        {
+            "code": "120300",
+            "name": "Intangible Assets",
+            "category": "asset",
+            "parent_code": "120000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "120400",
+            "name": "Loans to Customers - Long Term",
+            "category": "asset",
+            "parent_code": "120000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "120500",
+            "name": "Central Bank Reserves",
+            "category": "asset",
+            "parent_code": "120000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "120600",
+            "name": "Fixed Deposits with Other Banks - Long Term",
+            "category": "asset",
+            "parent_code": "120000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "120700",
+            "name": "Investment Securities – Held to Maturity",
+            "category": "asset",
+            "parent_code": "120000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "120800",
+            "name": "Bank Deposits",
+            "category": "asset",
+            "parent_code": "120000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "120900",
+            "name": "Treasury Bills & Government Securities - Long Term",
+            "category": "asset",
+            "parent_code": "120000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "121000",
+            "name": "Equity Investments - Long Term",
+            "category": "asset",
+            "parent_code": "120000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "121100",
+            "name": "Other Non-Current Assets",
+            "category": "asset",
+            "parent_code": "120000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "200000",
+            "name": "Liabilities",
+            "category": "liability",
+            "parent_code": null,
+            "normal_balance": "cr",
+            "is_contra": false
+        },
+        {
+            "code": "210000",
+            "name": "Current Liabilities",
+            "category": "liability",
+            "parent_code": "200000",
+            "normal_balance": "cr",
+            "is_contra": false
+        },
+        {
+            "code": "210100",
+            "name": "Customer Deposits – Demand",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "cr",
+            "is_contra": false
+        },
+        {
+            "code": "210200",
+            "name": "Customer Deposits – Savings",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "cr",
+            "is_contra": false
+        },
+        {
+            "code": "210300",
+            "name": "Customer Deposits – Short Term",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "cr",
+            "is_contra": false
+        },
+        {
+            "code": "220100",
+            "name": "Customer Deposits – Long Term",
+            "category": "liability",
+            "parent_code": "220000",
+            "normal_balance": "cr",
+            "is_contra": false
+        },
+        {
+            "code": "210400",
+            "name": "Interbank Borrowings - Short Term",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "cr",
+            "is_contra": false
+        },
+        {
+            "code": "220200",
+            "name": "Interbank Borrowings - Long Term",
+            "category": "liability",
+            "parent_code": "220000",
+            "normal_balance": "cr",
+            "is_contra": false
+        },
+        {
+            "code": "210500",
+            "name": "Short Term Loans from Central Bank",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "cr",
+            "is_contra": false
+        },
+        {
+            "code": "220300",
+            "name": "Long Term Loans from Central Bank",
+            "category": "liability",
+            "parent_code": "220000",
+            "normal_balance": "cr",
+            "is_contra": false
+        },
+        {
+            "code": "210600",
+            "name": "Interest Payable on Deposits",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "cr",
+            "is_contra": false
+        },
+        {
+            "code": "220700",
+            "name": "Debt Securities Issued",
+            "category": "liability",
+            "parent_code": "220000",
+            "normal_balance": "cr",
+            "is_contra": false
+        },
+        {
+            "code": "220800",
+            "name": "Derivative Liabilities",
+            "category": "liability",
+            "parent_code": "220000",
+            "normal_balance": "cr",
+            "is_contra": false
+        },
+        {
+            "code": "210900",
+            "name": "Accounts Payable – Trade & Services",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "cr",
+            "is_contra": false
+        },
+        {
+            "code": "211000",
+            "name": "Accrued Expenses",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "cr",
+            "is_contra": false
+        },
+        {
+            "code": "211100",
+            "name": "Payroll Payable",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "cr",
+            "is_contra": false
+        },
+        {
+            "code": "211200",
+            "name": "Tax Payable",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "cr",
+            "is_contra": false
+        },
+        {
+            "code": "211300",
+            "name": "Dividends Payable",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "cr",
+            "is_contra": false
+        },
+        {
+            "code": "211400",
+            "name": "Provisions – Loan Losses",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "cr",
+            "is_contra": false
+        },
+        {
+            "code": "211500",
+            "name": "Provisions – Legal/Contingent",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "cr",
+            "is_contra": false
+        },
+        {
+            "code": "211600",
+            "name": "Unearned Revenue (Fees Received in Advance)",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "cr",
+            "is_contra": false
+        },
+        {
+            "code": "221700",
+            "name": "Lease Liabilities",
+            "category": "liability",
+            "parent_code": "220000",
+            "normal_balance": "cr",
+            "is_contra": false
+        },
+        {
+            "code": "2118000",
+            "name": "Other Current Liabilities",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "cr",
+            "is_contra": false
+        },
+        {
+            "code": "2219000",
+            "name": "Other Non-Current Liabilities",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "cr",
+            "is_contra": false
+        },
+        {
+            "code": "2220000",
+            "name": "Suspense Liabilities",
+            "category": "liability",
+            "parent_code": "220000",
+            "normal_balance": "cr",
+            "is_contra": false
+        },
+        {
+            "code": "300000",
+            "name": "Equity",
+            "category": "equity",
+            "parent_code": null,
+            "normal_balance": "cr",
+            "is_contra": false
+        },
+        {
+            "code": "301000",
+            "name": "Share Capital",
+            "category": "equity",
+            "parent_code": "300000",
+            "normal_balance": "cr",
+            "is_contra": false
+        },
+        {
+            "code": "302000",
+            "name": "Retained Earnings",
+            "category": "equity",
+            "parent_code": "300000",
+            "normal_balance": "cr",
+            "is_contra": false
+        },
+        {
+            "code": "303000",
+            "name": "Reserves – Statutory",
+            "category": "equity",
+            "parent_code": "300000",
+            "normal_balance": "cr",
+            "is_contra": false
+        },
+        {
+            "code": "304000",
+            "name": "Reserves – Regulatory",
+            "category": "equity",
+            "parent_code": "300000",
+            "normal_balance": "cr",
+            "is_contra": false
+        },
+        {
+            "code": "305000",
+            "name": "Other Comprehensive Income",
+            "category": "equity",
+            "parent_code": "300000",
+            "normal_balance": "cr",
+            "is_contra": false
+        },
+        {
+            "code": "400000",
+            "name": "Revenue",
+            "category": "income",
+            "parent_code": null,
+            "normal_balance": "cr",
+            "is_contra": false
+        },
+        {
+            "code": "401000",
+            "name": "Interest Income – Loans",
+            "category": "income",
+            "parent_code": "400000",
+            "normal_balance": "cr",
+            "is_contra": false
+        },
+        {
+            "code": "402000",
+            "name": "Interest Income – Investments",
+            "category": "income",
+            "parent_code": "400000",
+            "normal_balance": "cr",
+            "is_contra": false
+        },
+        {
+            "code": "403000",
+            "name": "Fee & Commission Income",
+            "category": "income",
+            "parent_code": "400000",
+            "normal_balance": "cr",
+            "is_contra": false
+        },
+        {
+            "code": "404000",
+            "name": "Trading & Investment Gains",
+            "category": "income",
+            "parent_code": "400000",
+            "normal_balance": "cr",
+            "is_contra": false
+        },
+        {
+            "code": "405000",
+            "name": "Foreign Exchange Gains",
+            "category": "income",
+            "parent_code": "400000",
+            "normal_balance": "cr",
+            "is_contra": false
+        },
+        {
+            "code": "406000",
+            "name": "Dividend Income",
+            "category": "income",
+            "parent_code": "400000",
+            "normal_balance": "cr",
+            "is_contra": false
+        },
+        {
+            "code": "407000",
+            "name": "Other Operating Income",
+            "category": "income",
+            "parent_code": "400000",
+            "normal_balance": "cr",
+            "is_contra": false
+        },
+        {
+            "code": "408000",
+            "name": "Loan Recovery Income",
+            "category": "income",
+            "parent_code": "400000",
+            "normal_balance": "cr",
+            "is_contra": false
+        },
+        {
+            "code": "409000",
+            "name": "Rental Income",
+            "category": "income",
+            "parent_code": "400000",
+            "normal_balance": "cr",
+            "is_contra": false
+        },
+        {
+            "code": "410000",
+            "name": "Other Non-Operating Income",
+            "category": "income",
+            "parent_code": "400000",
+            "normal_balance": "cr",
+            "is_contra": false
+        },
+        {
+            "code": "500000",
+            "name": "Cost of Financial Service",
+            "category": "expense",
+            "parent_code": null,
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "501000",
+            "name": "Interest Expense - Customer Deposits",
+            "category": "expense",
+            "parent_code": "500000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "502000",
+            "name": "Interest Expense - Borrowings",
+            "category": "expense",
+            "parent_code": "500000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "503000",
+            "name": "Interest Expense - Debt Securities",
+            "category": "expense",
+            "parent_code": "500000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "504000",
+            "name": "Loan Loss Expense (Direct)",
+            "category": "expense",
+            "parent_code": "500000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "505000",
+            "name": "Fees Paid to Intermediaries (Direct)",
+            "category": "expense",
+            "parent_code": "500000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "506000",
+            "name": "Transaction Costs (Direct - Trading)",
+            "category": "expense",
+            "parent_code": "500000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "507000",
+            "name": "Commission Paid on Loans",
+            "category": "expense",
+            "parent_code": "500000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "508000",
+            "name": "Other Direct Costs",
+            "category": "expense",
+            "parent_code": "500000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "600000",
+            "name": "Operating Expenses",
+            "category": "expense",
+            "parent_code": null,
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "601000",
+            "name": "Salaries & Wages",
+            "category": "expense",
+            "parent_code": "600000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "602000",
+            "name": "Employee Benefits",
+            "category": "expense",
+            "parent_code": "600000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "603000",
+            "name": "Rent & Lease Expense",
+            "category": "expense",
+            "parent_code": "600000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "604000",
+            "name": "Utilities",
+            "category": "expense",
+            "parent_code": "600000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "605000",
+            "name": "Depreciation & Amortization",
+            "category": "expense",
+            "parent_code": "600000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "606000",
+            "name": "IT & Software maintanance",
+            "category": "expense",
+            "parent_code": "600000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "607000",
+            "name": "Professional Fees",
+            "category": "expense",
+            "parent_code": "600000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "608000",
+            "name": "Marketing & Advertisement",
+            "category": "expense",
+            "parent_code": "600000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "609000",
+            "name": "Insurance",
+            "category": "expense",
+            "parent_code": "600000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "610000",
+            "name": "Office Supplies",
+            "category": "expense",
+            "parent_code": "600000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "611000",
+            "name": "Security & Safety",
+            "category": "expense",
+            "parent_code": "600000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "612000",
+            "name": "Postage & Communication",
+            "category": "expense",
+            "parent_code": "600000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "613000",
+            "name": "Other Administrative Expenses",
+            "category": "expense",
+            "parent_code": "600000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "614000",
+            "name": "Provision - Contigent Liabilities",
+            "category": "expense",
+            "parent_code": "600000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "615000",
+            "name": "Bank Charges & Fees",
+            "category": "expense",
+            "parent_code": "600000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "616000",
+            "name": "Regulatory & Licensing Fees",
+            "category": "expense",
+            "parent_code": "600000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "617000",
+            "name": "CSR Expense",
+            "category": "expense",
+            "parent_code": "600000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "618000",
+            "name": "Bad Debts Expense",
+            "category": "expense",
+            "parent_code": "600000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "619000",
+            "name": "Other Non-Operating Expenses",
+            "category": "expense",
+            "parent_code": "600000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "620000",
+            "name": "Suspense Account",
+            "category": "expense",
+            "parent_code": "600000",
+            "normal_balance": "dr",
+            "is_contra": false
+        }
+    ]
+}

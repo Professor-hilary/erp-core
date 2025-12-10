@@ -317,6 +317,14 @@
         },
         {
             "code": "530000",
+            "name": "Direct Expense",
+            "category": "expense",
+            "parent_code": "500000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "540000",
             "name": "Manufacturing Overhead",
             "category": "expense",
             "parent_code": "500000",
@@ -324,26 +332,26 @@
             "is_contra": false
         },
         {
-            "code": "531000",
+            "code": "541000",
             "name": "Factory Rent",
             "category": "expense",
-            "parent_code": "530000",
+            "parent_code": "540000",
             "normal_balance": "dr",
             "is_contra": false
         },
         {
-            "code": "532000",
+            "code": "542000",
             "name": "Utilities - Factory",
             "category": "expense",
-            "parent_code": "530000",
+            "parent_code": "540000",
             "normal_balance": "dr",
             "is_contra": false
         },
         {
-            "code": "533000",
+            "code": "543000",
             "name": "Depreciation - Machinery",
             "category": "expense",
-            "parent_code": "530000",
+            "parent_code": "540000",
             "normal_balance": "dr",
             "is_contra": false
         },
@@ -396,26 +404,18 @@
             "is_contra": false
         },
         {
-            "code": "700000",
-            "name": "Other Income & Expense",
-            "category": "income",
+            "code": "640000",
+            "name": "Other Expense",
+            "category": "expense",
             "parent_code": null,
-            "normal_balance": "cr",
+            "normal_balance": "dr",
             "is_contra": false
         },
         {
-            "code": "710000",
-            "name": "Scrap Sales",
-            "category": "income",
-            "parent_code": "700000",
-            "normal_balance": "cr",
-            "is_contra": false
-        },
-        {
-            "code": "720000",
+            "code": "641000",
             "name": "Interest Expense",
             "category": "expense",
-            "parent_code": "700000",
+            "parent_code": "640000",
             "normal_balance": "dr",
             "is_contra": false
         }

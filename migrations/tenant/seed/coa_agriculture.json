@@ -444,26 +444,18 @@
       "is_contra": false
     },
     {
-      "code": "700000",
-      "name": "Other Income & Expense",
-      "category": "income",
+      "code": "640000",
+      "name": "Other Expense",
+      "category": "expense",
       "parent_code": null,
-      "normal_balance": "cr",
+      "normal_balance": "dr",
       "is_contra": false
     },
     {
-      "code": "710000",
-      "name": "Sale of Farm Byproducts",
-      "category": "income",
-      "parent_code": "700000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "720000",
+      "code": "641000",
       "name": "Interest Expense",
       "category": "expense",
-      "parent_code": "700000",
+      "parent_code": "640000",
       "normal_balance": "dr",
       "is_contra": false
     }

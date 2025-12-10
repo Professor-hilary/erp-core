@@ -1,7 +1,7 @@
 // src/features/payroll/repository.rs
 use crate::{
     infrastructure::errors::AppError,
-    models::payrun::{CreatePayrun, CreatePayslip, Payrun},
+    models::payrun::{CreatePayrun, CreatePayslip, Payrun, Payslip},
 };
 use async_trait::async_trait;
 use bigdecimal::BigDecimal;
@@ -29,6 +29,7 @@ pub trait PayrollRepository: Send + Sync {
     async fn process_payrun(&self, pool: &PgPool, payrun_id: i64) -> Result<Payrun, AppError>;
     async fn get_payrun(&self, pool: &PgPool, id: Uuid, user_id: Uuid) -> Result<Payrun, AppError>;
     async fn get_all_payruns(&self, pool: &PgPool) -> Result<Payrun, AppError>;
+    async fn get_all_payslips(&self, pool: &PgPool) -> Result<Payslip, AppError>;
 }
 
 pub struct PostgresPayrollRepo;
@@ -153,10 +154,18 @@ impl PayrollRepository for PostgresPayrollRepo {
     }
 
     async fn get_all_payruns(&self, pool: &PgPool) -> Result<Payrun, AppError> {
-        let payrun: Payrun = sqlx::query_as::<_, Payrun>("SELECT * FROM payroll.payruns")
+        let payruns: Payrun = sqlx::query_as::<_, Payrun>("SELECT * FROM payroll.payruns")
             .fetch_optional(pool)
             .await?
             .ok_or(AppError::NotFound("Payrun not found".into()))?;
-        Ok(payrun)
+        Ok(payruns)
+    }
+
+    async fn get_all_payslips(&self, pool: &PgPool) -> Result<Payslip, AppError>{
+        let payslips: Payslip = sqlx::query_as::<_, Payslip>("SELECT * FROM payroll.payslips")
+            .fetch_optional(pool)
+            .await?
+            .ok_or(AppError::NotFound("Payrun not found".into()))?;
+        Ok(payslips)
     }
 }

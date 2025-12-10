@@ -1,6 +1,6 @@
 // src/features/payroll/service.rs
 use crate::{
-    features::payroll::repository::PayrollRepository, infrastructure::errors::AppError, models::payrun::{CreatePayrun, Payrun}
+    features::payroll::repository::PayrollRepository, infrastructure::errors::AppError, models::payrun::{CreatePayrun, Payrun, Payslip}
 };
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -55,5 +55,9 @@ impl<R: PayrollRepository> PayrollService<R> {
 
     pub async fn get_payruns(&self, tenant_pool: &PgPool) -> Result<Payrun, AppError> {
         self.repo.get_all_payruns(tenant_pool).await
+    }
+
+    pub async fn get_payslips(&self, tenant_pool: &PgPool) -> Result<Payslip, AppError> {
+        self.repo.get_all_payslips(tenant_pool).await
     }
 }
