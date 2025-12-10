@@ -2,11 +2,7 @@
 use crate::models::employee::{
     CreateDepartment, CreateEmployee, CreateJobTitle, Department, Employee, JobTitle,
 };
-use crate::{
-    features::workforce::repository::HrRepository,
-    infrastructure::errors::AppError,
-    models::payrun::{CreatePayrun, Payrun},
-};
+use crate::{features::workforce::repository::HrRepository, infrastructure::errors::AppError};
 use sqlx::PgPool;
 use uuid::Uuid;
 
@@ -159,49 +155,5 @@ impl<R: HrRepository> HrService<R> {
         user_id: Uuid,
     ) -> Result<(), AppError> {
         self.repo.delete_job_title(tenant_pool, id, user_id).await
-    }
-
-    pub async fn create_payrun(
-        &self,
-        tenant_pool: &PgPool,
-        user_id: Uuid,
-        payload: &CreatePayrun,
-    ) -> Result<Payrun, AppError> {
-        let mut tx: sqlx::Transaction<'_, sqlx::Postgres> = tenant_pool.begin().await?;
-        let payrun: Payrun = self
-            .repo
-            .create_payrun(tenant_pool, user_id, payload, &mut tx)
-            .await?;
-        self.repo
-            .create_payslips(tenant_pool, payrun.uuid, &payload.payslips, &mut tx)
-            .await?;
-        tx.commit().await?;
-        Ok(payrun)
-    }
-
-    pub async fn process_payrun(
-        &self,
-        tenant_pool: &PgPool,
-        payrun_id: i64,
-    ) -> Result<Payrun, AppError> {
-        self.repo.process_payrun(tenant_pool, payrun_id).await
-    }
-
-    pub async fn post_payrun(&self, tenant_pool: &PgPool, payrun_id: i64) -> Result<(), AppError> {
-        self.repo.post_payrun(tenant_pool, payrun_id).await?;
-        Ok(())
-    }
-
-    pub async fn get_payrun(
-        &self,
-        tenant_pool: &PgPool,
-        id: Uuid,
-        user_id: Uuid,
-    ) -> Result<Payrun, AppError> {
-        self.repo.get_payrun(tenant_pool, id, user_id).await
-    }
-
-    pub async fn get_payruns(&self, tenant_pool: &PgPool) -> Result<Payrun, AppError> {
-        self.repo.get_all_payruns(tenant_pool).await
     }
 }
