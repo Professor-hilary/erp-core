@@ -200,6 +200,15 @@ CREATE TRIGGER trig_revert_balance
 AFTER DELETE ON accounting.transaction_entries
 FOR EACH ROW EXECUTE FUNCTION accounting.revert_account_balance();
 
+-- Triggers on tables that affect reports
+CREATE TRIGGER tr_accounting_transactions_notify
+AFTER INSERT OR UPDATE OR DELETE ON accounting.transactions
+FOR EACH ROW EXECUTE FUNCTION reporting.notify_reporting_changes();
+
+CREATE TRIGGER tr_accounting_entries_notify
+AFTER INSERT OR UPDATE OR DELETE ON accounting.transaction_entries
+FOR EACH ROW EXECUTE FUNCTION reporting.notify_reporting_changes();
+
 --
 --SELECT accounting.post_transaction(
 --    '2025-04-01',

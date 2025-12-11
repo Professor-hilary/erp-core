@@ -42,6 +42,25 @@ $$;
 -- MATERIALIZED VIEWS
 -- ========================================
 
+-- Optional helper view: transactions with txn_date for easy filtering
+CREATE OR REPLACE VIEW reporting.transactions_for_reporting AS
+SELECT t.uuid, t.serial_id, t.txn_date, te.account_uuid, te.debit, te.credit, t.reference, te.memo
+FROM accounting.transactions t
+JOIN accounting.transaction_entries te ON te.transaction_uuid = t.uuid;
+
+-- trigger function that NOTIFYs
+CREATE OR REPLACE FUNCTION reporting.notify_reporting_changes()
+RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+    PERFORM pg_notify('reporting_changes', TG_TABLE_NAME || ':' || TG_OP || ':' || NEW::text);
+    RETURN NEW;
+EXCEPTION WHEN others THEN
+    -- keep DB changes robust; swallow notify errors but log
+    RAISE NOTICE 'notify failure: %', SQLERRM;
+    RETURN NEW;
+END;
+$$;
+
 -- 1. Balance Sheet
 CREATE MATERIALIZED VIEW IF NOT EXISTS reporting.balance_sheet AS
 WITH balances AS (
@@ -105,6 +124,32 @@ SELECT
     (r.revenue - c.cogs - o.opex - p.payroll_expense) AS net_income
 FROM rev r, cogs c, opex o, payroll p
 WITH NO DATA;
+
+
+-- Optional income statement by date range (non-materialized) for dynamic queries
+CREATE OR REPLACE VIEW reporting.income_statement_by_period AS
+WITH
+rev AS (
+    SELECT COALESCE(SUM(te.debit - te.credit), 0) AS revenue
+    FROM reporting.transactions_for_reporting tr
+    JOIN accounting.accounts a ON a.uuid = tr.account_uuid
+    WHERE a.type = 'revenue'
+),
+cogs AS (
+    SELECT COALESCE(SUM(te.debit - te.credit), 0) AS cogs
+    FROM reporting.transactions_for_reporting tr
+    JOIN accounting.accounts a ON a.uuid = tr.account_uuid
+    WHERE a.code LIKE '5%'
+),
+opex AS (
+    SELECT COALESCE(SUM(te.debit - te.credit), 0) AS opex
+    FROM reporting.transactions_for_reporting tr
+    JOIN accounting.accounts a ON a.uuid = tr.account_uuid
+    WHERE a.type = 'expense' AND a.code NOT LIKE '6%'
+)
+SELECT r.revenue, c.cogs, (r.revenue - c.cogs) AS gross_profit, o.opex AS operating_expenses,
+       (r.revenue - c.cogs - o.opex) AS net_income
+FROM rev r, cogs c, opex o;
 
 -- 3. Trial Balance
 CREATE MATERIALIZED VIEW IF NOT EXISTS reporting.trial_balance AS

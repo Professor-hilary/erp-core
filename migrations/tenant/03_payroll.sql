@@ -190,6 +190,12 @@ BEGIN
 END;
 $$;
 
+
+-- Triggers on tables that affect reports
+CREATE TRIGGER tr_payroll_payruns_notify
+AFTER INSERT OR UPDATE OR DELETE ON payroll.payruns
+FOR EACH ROW EXECUTE FUNCTION reporting.notify_reporting_changes();
+
 -- ========================================
 -- INDEXES
 -- ========================================

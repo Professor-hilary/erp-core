@@ -10,7 +10,7 @@ use axum::{
 use crate::{
     AppState,
     features::{
-        accounts, company, customers, inventory, payroll, transactions, vendors, workforce, reports
+        accounts, company, customers, inventory, payroll, reports, transactions, vendors, workforce,
     },
     infrastructure::errors::AppError,
     middleware::{auth::AuthenticatedUser, layer::auth_middleware},

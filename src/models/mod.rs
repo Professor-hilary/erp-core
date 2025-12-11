@@ -6,6 +6,7 @@ pub mod dto;
 pub mod employee;
 pub mod inventory;
 pub mod payrun;
+pub mod reports;
 pub mod transaction;
 pub mod user;
 pub mod vendor;

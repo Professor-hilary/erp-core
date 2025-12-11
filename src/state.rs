@@ -21,10 +21,3 @@ pub struct AppState {
     pub coa_seed_path: String,
     pub tenant_config: TenantConfig,
 }
-
-impl AppState {
-    #[allow(unused)]
-    pub fn tenant_db_url(&self, db_name: &str) -> String {
-        format!("{}{}", self.tenant_config.base_url, db_name)
-    }
-}
