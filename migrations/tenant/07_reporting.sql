@@ -74,7 +74,7 @@ rev AS (
     SELECT COALESCE(SUM(te.debit - te.credit), 0) AS revenue
     FROM accounting.transaction_entries te
     JOIN accounting.accounts a ON a.uuid = te.account_uuid
-    WHERE a.type = 'Revenue'
+    WHERE a.type = 'revenue'
 ),
 cogs AS (
     SELECT COALESCE(SUM(te.debit - te.credit), 0) AS cogs
@@ -86,7 +86,7 @@ opex AS (
     SELECT COALESCE(SUM(te.debit - te.credit), 0) AS opex
     FROM accounting.transaction_entries te
     JOIN accounting.accounts a ON a.uuid = te.account_uuid
-    WHERE a.type = 'Expense' AND a.code NOT LIKE '6%'
+    WHERE a.type = 'expense' AND a.code NOT LIKE '6%'
 ),
 payroll AS (
     SELECT COALESCE(SUM(ps.gross_pay), 0) AS payroll_expense
@@ -148,7 +148,7 @@ op AS (
     SELECT COALESCE(SUM(te.debit - te.credit), 0) AS net_income
     FROM accounting.transaction_entries te
     JOIN accounting.accounts a ON a.uuid = te.account_uuid
-    WHERE a.type IN ('Revenue', 'Expense')
+    WHERE a.type IN ('revenue', 'expense')
 ),
 dep AS (
     SELECT COALESCE(SUM(te.debit), 0) AS depreciation
