@@ -106,7 +106,8 @@ CREATE OR REPLACE FUNCTION payroll.post_payrun(
     p_payrun_labor_expense_id uuid,
     p_payrun_tax_id uuid,
     p_payrun_social_sec_id uuid,
-    p_payrun_cash_id uuid
+    p_payrun_cash_id uuid,
+    p_payrun_user_uuid uuid
 )
 RETURNS void LANGUAGE plpgsql AS $$
 DECLARE
@@ -153,7 +154,7 @@ BEGIN
         jsonb_build_object('account_ref', p_payrun_labor_expense_id, 'debit', v_total_gross, 'credit', 0,
             'memo', format('Payroll Gross - Payrun %s', v_payrun.serial_id)),
         jsonb_build_object('account_ref', p_payrun_tax_id, 'debit', 0, 'credit', v_total_tax,
-            'memo', 'PAYE Withholding'),
+            'memo', 'Income Tax Withholding'),
         jsonb_build_object('account_ref', p_payrun_social_sec_id, 'debit', 0, 'credit', v_total_social_security,
             'memo', 'Social Security Contribution'),
         jsonb_build_object('account_ref', p_payrun_cash_id, 'debit', 0, 'credit', v_total_net,
@@ -165,7 +166,7 @@ BEGIN
         v_payrun.payment_date,
         format('Payroll - %s to %s', v_payrun.pay_period_start, v_payrun.pay_period_end),
         'Payroll Posting',
-        NULL,
+        p_payrun_user_uuid,
         'payroll',
         v_lines
     );

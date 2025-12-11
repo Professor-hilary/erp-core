@@ -96,7 +96,7 @@ DECLARE
     v_line_no INT := 0;
     v_ref_text TEXT;
 BEGIN
-    -- Validate balance from JSON (unchanged)
+    -- Validate balance from JSON - they should equal
     FOR v_line IN SELECT * FROM jsonb_to_recordset(p_lines) AS t(account_ref JSONB, debit NUMERIC, credit NUMERIC, memo TEXT)
     LOOP
         v_total_debits := v_total_debits + COALESCE(v_line.debit, 0);
@@ -106,7 +106,7 @@ BEGIN
         RAISE EXCEPTION 'Unbalanced transaction: debits (%) != credits (%)', v_total_debits, v_total_credits;
     END IF;
 
-    -- Insert transaction header (unchanged)
+    -- Insert transaction header
     INSERT INTO accounting.transactions(txn_date, reference, description, created_by, module)
     VALUES (p_txn_date, p_reference, p_description, p_created_by, p_module)
     RETURNING uuid, serial_id INTO v_txn_uuid, v_txn_serial_id;

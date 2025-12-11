@@ -193,16 +193,6 @@ impl TransactionRepository for PostgresTransactionRepo {
         .await
         .map_err(|e: Error| AppError::Database(e))?;
 
-        // // Manually apply balance updates
-        // for line in &entry_with_lines.unwrap().lines {
-        //     sqlx::query("UPDATE accounting.accounts SET current_balance = current_balance + $1 WHERE uuid = $2")
-        //         .bind(&line.amount)
-        //         .bind(line.account_uuid)
-        //         .execute(pool)
-        //         .await
-        //         .map_err(|e: Error|AppError::Database(e))?;
-        // }
-
         entry.ok_or(AppError::NotFound(
             "Draft entry not found or already posted".into(),
         ))
