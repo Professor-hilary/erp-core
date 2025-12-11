@@ -1,4 +1,4 @@
 // src/features/inventory/mod.rs
-pub mod handler;
-pub mod service;
+pub mod handlers;
+pub mod services;
 pub mod repository;

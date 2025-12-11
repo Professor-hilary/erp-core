@@ -9,7 +9,7 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::{
-    features::customers::{repository::PostgresCustomerRepo, service::CustomerService},
+    features::customers::{repository::PostgresCustomerRepo, services::CustomerService},
     infrastructure::{errors::AppError, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,
     models::customers::{CreateCustomer, CreateInvoice, Customer},

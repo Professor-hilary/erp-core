@@ -8,7 +8,7 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::{
-    features::reports::{repository::PostgresReportRepo, service::ReportService},
+    features::reports::{repository::PostgresReportRepo, services::ReportService},
     infrastructure::{errors::AppError, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,
     state::AppState,

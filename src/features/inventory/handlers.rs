@@ -9,7 +9,7 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::{
-    features::inventory::{repository::PostgresInventoryRepo, service::InventoryService},
+    features::inventory::{repository::PostgresInventoryRepo, services::InventoryService},
     infrastructure::{errors::AppError, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,
     models::inventory::{

@@ -1,6 +1,6 @@
 // src/features/accounts/handlers.rs
 use crate::{
-    features::accounts::{repository::PostgresAccountRepo, service::AccountingService},
+    features::accounts::{repository::PostgresAccountRepo, services::AccountingService},
     infrastructure::errors::AppError,
     infrastructure::responses::ApiResponse,
     middleware::auth::AuthenticatedTenant,

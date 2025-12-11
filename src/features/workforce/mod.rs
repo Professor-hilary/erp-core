@@ -1,4 +1,4 @@
 // src/features/workforce/mod.rs
-pub mod handler;
-pub mod service;
+pub mod handlers;
 pub mod repository;
+pub mod services;

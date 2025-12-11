@@ -9,7 +9,7 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::{
-    features::payroll::{repository::PostgresPayrollRepo, service::PayrollService},
+    features::payroll::{repository::PostgresPayrollRepo, services::PayrollService},
     infrastructure::{errors::AppError, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,
     models::payrun::{CreatePayrun, Payrun, Payslip, PostPayrun},

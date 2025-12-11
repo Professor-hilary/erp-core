@@ -11,7 +11,7 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::{
-    features::vendors::{repository::PostgresVendorRepo, service::VendorService},
+    features::vendors::{repository::PostgresVendorRepo, services::VendorService},
     infrastructure::{errors::AppError, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,
     models::vendor::{CreateBill, CreateVendor, Vendor},

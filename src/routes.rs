@@ -33,7 +33,7 @@ pub fn create_router(state: Arc<AppState>) -> Router {
     let customer_routes: Router<Arc<AppState>> = customers::handlers::router().layer(
         middleware::from_fn_with_state(state.clone(), auth_middleware),
     );
-    let employee_routes: Router<Arc<AppState>> = workforce::handler::router().layer(
+    let employee_routes: Router<Arc<AppState>> = workforce::handlers::router().layer(
         middleware::from_fn_with_state(state.clone(), auth_middleware),
     );
     let transaction_routes: Router<Arc<AppState>> = transactions::handlers::router()
@@ -48,7 +48,7 @@ pub fn create_router(state: Arc<AppState>) -> Router {
     let account_routes: Router<Arc<AppState>> = accounts::handlers::router().layer(
         middleware::from_fn_with_state(state.clone(), auth_middleware),
     );
-    let inventory_routes: Router<Arc<AppState>> = inventory::handler::router().layer(
+    let inventory_routes: Router<Arc<AppState>> = inventory::handlers::router().layer(
         middleware::from_fn_with_state(state.clone(), auth_middleware),
     );
     let payroll_routes: Router<Arc<AppState>> = payroll::handlers::router().layer(
