@@ -15,7 +15,7 @@ CREATE TABLE accounting.accounts (
     current_balance NUMERIC(18, 2) DEFAULT 0.00 NOT NULL,
     code       TEXT        NOT NULL UNIQUE,               -- e.g. "110100"
     name       TEXT        NOT NULL,
-    type       TEXT        NOT NULL,                     -- Asset, Liability, Equity, Revenue, Expense
+    category   TEXT        NOT NULL,                     -- Asset, Liability, Equity, Revenue, Expense
     parent_code TEXT        REFERENCES accounting.accounts(code)
                            ON DELETE SET NULL,           -- FK uses UUID
     normal_balance TEXT    NOT NULL,                     -- 'DR' or 'CR'
@@ -26,7 +26,7 @@ CREATE TABLE accounting.accounts (
 );
 
 -- Indexes (keep the ones you need)
-CREATE INDEX ON accounting.accounts (type);
+CREATE INDEX ON accounting.accounts (category);
 CREATE INDEX ON accounting.accounts (code);
 CREATE INDEX ON accounting.accounts (serial_id);   -- handy for front-end look-ups
 

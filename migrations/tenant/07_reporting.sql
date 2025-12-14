@@ -66,25 +66,25 @@ CREATE MATERIALIZED VIEW IF NOT EXISTS reporting.balance_sheet AS
 WITH balances AS (
     SELECT
         a.code,
-        a.type,
+        a.category,
         a.parent_code,
         COALESCE(SUM(te.debit), 0) - COALESCE(SUM(te.credit), 0) AS balance
     FROM accounting.accounts a
     LEFT JOIN accounting.transaction_entries te ON te.account_uuid = a.uuid
-    GROUP BY a.code, a.type, a.parent_code
+    GROUP BY a.code, a.category, a.parent_code
 )
 SELECT
 	1 as id,
     'ASSETS' AS section,
-    COALESCE(SUM(balance) FILTER (WHERE type = 'Asset'), 0) AS total_assets,
-    COALESCE(SUM(balance) FILTER (WHERE type = 'Asset' AND parent_code = '110000'), 0) AS current_assets,
-    COALESCE(SUM(balance) FILTER (WHERE type = 'Asset' AND parent_code = '120000'), 0) AS non_current_assets,
+    COALESCE(SUM(balance) FILTER (WHERE category = 'Asset'), 0) AS total_assets,
+    COALESCE(SUM(balance) FILTER (WHERE category = 'Asset' AND parent_code = '110000'), 0) AS current_assets,
+    COALESCE(SUM(balance) FILTER (WHERE category = 'Asset' AND parent_code = '120000'), 0) AS non_current_assets,
     'LIABILITIES' AS section2,
-    COALESCE(SUM(balance) FILTER (WHERE type = 'Liability'), 0) AS total_liabilities,
-    COALESCE(SUM(balance) FILTER (WHERE type = 'Liability' AND parent_code = '210000'), 0) AS current_liabilities,
-    COALESCE(SUM(balance) FILTER (WHERE type = 'Liability' AND parent_code = '220000'), 0) AS non_current_liabilities,
+    COALESCE(SUM(balance) FILTER (WHERE category = 'Liability'), 0) AS total_liabilities,
+    COALESCE(SUM(balance) FILTER (WHERE category = 'Liability' AND parent_code = '210000'), 0) AS current_liabilities,
+    COALESCE(SUM(balance) FILTER (WHERE category = 'Liability' AND parent_code = '220000'), 0) AS non_current_liabilities,
     'EQUITY' AS section3,
-    COALESCE(SUM(balance) FILTER (WHERE type = 'Equity'), 0) AS total_equity
+    COALESCE(SUM(balance) FILTER (WHERE category = 'Equity'), 0) AS total_equity
 FROM balances
 WITH NO DATA;
 
@@ -95,7 +95,7 @@ rev AS (
     SELECT COALESCE(SUM(te.debit - te.credit), 0) AS revenue
     FROM accounting.transaction_entries te
     JOIN accounting.accounts a ON a.uuid = te.account_uuid
-    WHERE a.type = 'revenue'
+    WHERE a.category = 'revenue'
 ),
 cogs AS (
     SELECT COALESCE(SUM(te.debit - te.credit), 0) AS cogs
@@ -107,7 +107,7 @@ opex AS (
     SELECT COALESCE(SUM(te.debit - te.credit), 0) AS opex
     FROM accounting.transaction_entries te
     JOIN accounting.accounts a ON a.uuid = te.account_uuid
-    WHERE a.type = 'expense' AND a.code NOT LIKE '6%'
+    WHERE a.category = 'expense' AND a.code NOT LIKE '6%'
 ),
 payroll AS (
     SELECT COALESCE(SUM(ps.gross_pay), 0) AS payroll_expense
@@ -135,7 +135,7 @@ rev AS (
     SELECT COALESCE(SUM(te.debit - te.credit), 0) AS revenue
     FROM reporting.transactions_for_reporting tr
     JOIN accounting.accounts a ON a.uuid = tr.account_uuid
-    WHERE a.type = 'revenue'
+    WHERE a.category = 'revenue'
 ),
 cogs AS (
     SELECT COALESCE(SUM(te.debit - te.credit), 0) AS cogs
@@ -147,7 +147,7 @@ opex AS (
     SELECT COALESCE(SUM(te.debit - te.credit), 0) AS opex
     FROM reporting.transactions_for_reporting tr
     JOIN accounting.accounts a ON a.uuid = tr.account_uuid
-    WHERE a.type = 'expense' AND a.code NOT LIKE '6%'
+    WHERE a.category = 'expense' AND a.code NOT LIKE '6%'
 )
 SELECT r.revenue, c.cogs, (r.revenue - c.cogs) AS gross_profit, o.opex AS operating_expenses,
        (r.revenue - c.cogs - o.opex) AS net_income
@@ -159,13 +159,13 @@ SELECT
     a.serial_id AS account_serial_id,
     a.code,
     a.name,
-    a.type,
+    a.category,
     COALESCE(SUM(te.debit), 0) AS total_debit,
     COALESCE(SUM(te.credit), 0) AS total_credit,
     COALESCE(SUM(te.debit - te.credit), 0) AS balance
 FROM accounting.accounts a
 LEFT JOIN accounting.transaction_entries te ON te.account_uuid = a.uuid
-GROUP BY a.serial_id, a.code, a.name, a.type
+GROUP BY a.serial_id, a.code, a.name, a.category
 ORDER BY a.code
 WITH NO DATA;
 
@@ -195,7 +195,7 @@ op AS (
     SELECT COALESCE(SUM(te.debit - te.credit), 0) AS net_income
     FROM accounting.transaction_entries te
     JOIN accounting.accounts a ON a.uuid = te.account_uuid
-    WHERE a.type IN ('revenue', 'expense')
+    WHERE a.category IN ('revenue', 'expense')
 ),
 dep AS (
     SELECT COALESCE(SUM(te.debit), 0) AS depreciation
@@ -389,7 +389,7 @@ account_balances AS (
         acc.uuid,
         acc.code,
         acc.name,
-        acc.type,
+        acc.category,
         acc.parent_code,
         acc.normal_balance,
         acc.is_contra,
@@ -398,8 +398,8 @@ account_balances AS (
     FROM accounting.accounts acc
     LEFT JOIN accounting.transaction_entries te
         ON te.account_uuid = acc.uuid
-    WHERE acc.type IN ('asset', 'equity', 'liability')
-    GROUP BY acc.uuid, acc.code, acc.name, acc.type, acc.parent_code, acc.normal_balance, acc.is_contra
+    WHERE acc.category IN ('asset', 'equity', 'liability')
+    GROUP BY acc.uuid, acc.code, acc.name, acc.category, acc.parent_code, acc.normal_balance, acc.is_contra
 ),
 
 -- 2. Include parent accounts that may have zero balances
@@ -410,7 +410,7 @@ all_relevant_accounts AS (
         acc.uuid,
         acc.code,
         acc.name,
-        acc.type,
+        acc.category,
         acc.parent_code,
         acc.normal_balance,
         acc.is_contra,
@@ -427,7 +427,7 @@ signed_accounts AS (
     SELECT
         code,
         name,
-        type,
+        category,
         parent_code,
         CASE
             WHEN is_contra THEN -raw_balance
@@ -442,7 +442,7 @@ tree AS (
     SELECT
         code,
         name,
-        type,
+        category,
         parent_code,
         balance,
         balance AS total_balance,
@@ -455,7 +455,7 @@ tree AS (
     SELECT
         p.code,
         p.name,
-        p.type,
+        p.category,
         p.parent_code,
         p.balance,
         p.balance + c.total_balance,
@@ -470,7 +470,7 @@ tree AS (
 SELECT DISTINCT ON (code)
     code,
     name,
-    type AS category,
+    category,
     depth,
     path,
     total_balance AS balance
@@ -485,7 +485,7 @@ CREATE OR REPLACE FUNCTION reporting.get_trial_balance(as_of DATE)
 RETURNS TABLE (
     code TEXT,
     name TEXT,
-    type TEXT,
+    category TEXT,
     debit NUMERIC,
     credit NUMERIC,
     balance NUMERIC
@@ -495,7 +495,7 @@ WITH signed AS (
     SELECT
         acc.code,
         acc.name,
-        acc.type,
+        acc.category,
 
         -- Universal signed balance: + means debit, - means credit
         COALESCE(SUM(te.debit) FILTER (WHERE te.created_at <= as_of), 0)
@@ -504,13 +504,13 @@ WITH signed AS (
     FROM accounting.accounts acc
     LEFT JOIN accounting.transaction_entries te
         ON te.account_uuid = acc.uuid
-    GROUP BY acc.code, acc.name, acc.type
+    GROUP BY acc.code, acc.name, acc.category
 )
 
 SELECT
     code,
     name,
-    type,
+    category,
     GREATEST(balance, 0) AS debit,
     GREATEST(-balance, 0) AS credit,
     balance
@@ -529,7 +529,7 @@ CREATE OR REPLACE FUNCTION reporting.get_income_statement_v2(
 RETURNS TABLE (
     code TEXT,
     name TEXT,
-    type TEXT,
+    category TEXT,
     depth INT,
     path TEXT[],
     balance NUMERIC
@@ -542,7 +542,7 @@ account_balances AS (
         acc.uuid,
         acc.code,
         acc.name,
-        acc.type,
+        acc.category,
         acc.parent_code,
         acc.normal_balance,
         acc.is_contra,
@@ -559,8 +559,8 @@ account_balances AS (
     FROM accounting.accounts acc
     LEFT JOIN accounting.transaction_entries te
         ON te.account_uuid = acc.uuid
-    WHERE acc.type IN ('income', 'expense')
-    GROUP BY acc.uuid, acc.code, acc.name, acc.type,
+    WHERE acc.category IN ('income', 'expense')
+    GROUP BY acc.uuid, acc.code, acc.name, acc.category,
              acc.parent_code, acc.normal_balance, acc.is_contra
 ),
 
@@ -573,7 +573,7 @@ all_relevant_accounts AS (
         acc.uuid,
         acc.code,
         acc.name,
-        acc.type,
+        acc.category,
         acc.parent_code,
         acc.normal_balance,
         acc.is_contra,
@@ -593,7 +593,7 @@ signed_accounts AS (
     SELECT
         code,
         name,
-        type,
+        category,
         parent_code,
         CASE
             WHEN is_contra THEN -raw_balance
@@ -607,7 +607,7 @@ tree AS (
     SELECT
         code,
         name,
-        type,
+        category,
         parent_code,
         balance,
         balance AS total_balance,
@@ -620,7 +620,7 @@ tree AS (
     SELECT
         p.code,
         p.name,
-        p.type,
+        p.category,
         p.parent_code,
         p.balance,
         p.balance + c.total_balance,
@@ -634,7 +634,7 @@ tree AS (
 SELECT DISTINCT ON (code)
     code,
     name,
-    type,
+    category,
     depth,
     path,
     total_balance AS balance
@@ -669,7 +669,7 @@ account_changes AS (
     SELECT
         acc.code,
         acc.name,
-        acc.type,
+        acc.category,
         COALESCE(SUM(te.debit) FILTER (WHERE te.created_at <= end_date), 0)
       - COALESCE(SUM(te.credit) FILTER (WHERE te.created_at <= end_date), 0)
         -
@@ -680,7 +680,7 @@ account_changes AS (
     FROM accounting.accounts acc
     LEFT JOIN accounting.transaction_entries te
         ON te.account_uuid = acc.uuid
-    GROUP BY acc.code, acc.name, acc.type
+    GROUP BY acc.code, acc.name, acc.category
 ),
 
 -- Operating adjustments (working capital)
@@ -689,11 +689,11 @@ working_capital AS (
         'Operating Activities' AS section,
         name AS description,
         CASE
-            WHEN type = 'asset' THEN -delta   -- increase in assets = cash out
-            WHEN type = 'liability' THEN delta  -- increase in liability = cash in
+            WHEN category = 'asset' THEN -delta   -- increase in assets = cash out
+            WHEN category = 'liability' THEN delta  -- increase in liability = cash in
         END AS amount
     FROM account_changes
-    WHERE type IN ('asset', 'liability')
+    WHERE category IN ('asset', 'liability')
       AND code NOT LIKE '12%'   -- exclude non-current assets? optional
 ),
 
@@ -704,7 +704,7 @@ investing AS (
         name,
         -delta AS amount
     FROM account_changes
-    WHERE type = 'asset'
+    WHERE category = 'asset'
       AND code LIKE '12%'       -- long-term assets by code pattern
 ),
 
@@ -715,7 +715,7 @@ financing AS (
         name,
         delta AS amount
     FROM account_changes
-    WHERE type IN ('equity', 'liability')
+    WHERE category IN ('equity', 'liability')
       AND code LIKE '22%'       -- long-term liabilities & equity
 )
 
@@ -761,7 +761,7 @@ cash_txns AS (
         CASE
             WHEN acc.code LIKE '11%' THEN 'Operating'
             WHEN acc.code LIKE '12%' THEN 'Investing'
-            WHEN acc.code LIKE '21%' OR acc.code LIKE '22%' OR acc.type IN ('equity') THEN 'Financing'
+            WHEN acc.code LIKE '21%' OR acc.code LIKE '22%' OR acc.category IN ('equity') THEN 'Financing'
             ELSE 'Other'
         END AS activity_group,
         SUM(te.debit) AS total_debit,
@@ -770,8 +770,8 @@ cash_txns AS (
     JOIN accounting.accounts acc ON acc.uuid = te.account_uuid
     WHERE te.created_at BETWEEN start_date AND end_date
       -- Include all accounts that actually affect cash
-      AND (acc.code LIKE '11%' OR acc.code LIKE '12%' OR acc.code LIKE '21%' OR acc.code LIKE '22%' OR acc.type = 'equity')
-    GROUP BY acc.uuid, acc.code, acc.name, acc.parent_code, acc.type
+      AND (acc.code LIKE '11%' OR acc.code LIKE '12%' OR acc.code LIKE '21%' OR acc.code LIKE '22%' OR acc.category = 'equity')
+    GROUP BY acc.uuid, acc.code, acc.name, acc.parent_code, acc.category
 ),
 
 -- Step 2: Include parent accounts for roll-up
@@ -788,7 +788,7 @@ all_relevant_accounts AS (
         CASE
             WHEN acc.code LIKE '11%' THEN 'Operating'
             WHEN acc.code LIKE '12%' THEN 'Investing'
-            WHEN acc.code LIKE '21%' OR acc.code LIKE '22%' OR acc.type IN ('equity') THEN 'Financing'
+            WHEN acc.code LIKE '21%' OR acc.code LIKE '22%' OR acc.category IN ('equity') THEN 'Financing'
             ELSE 'Other'
         END AS activity_group,
         0 AS total_debit,
@@ -868,7 +868,7 @@ WITH opening AS (
     FROM accounting.accounts acc
     LEFT JOIN accounting.transaction_entries te
         ON te.account_uuid = acc.uuid
-    WHERE acc.type = 'equity'
+    WHERE acc.category = 'equity'
     GROUP BY acc.code, acc.name
 ),
 
@@ -883,7 +883,7 @@ changes AS (
     FROM accounting.accounts acc
     LEFT JOIN accounting.transaction_entries te
         ON te.account_uuid = acc.uuid
-    WHERE acc.type = 'equity'
+    WHERE acc.category = 'equity'
     GROUP BY acc.code, acc.name
 ),
 

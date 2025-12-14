@@ -83,12 +83,11 @@ impl AccountRepository for PostgresAccountRepo {
     ) -> Result<Account, AppError> {
         let account = sqlx::query_as::<_, Account>(
             "INSERT INTO accounting.accounts (
-                name, type, code, parent_code, normal_balance, is_contra
+                name, category, code, parent_code, normal_balance, is_contra
             ) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *",
         )
         .bind(&acc.name)
-        .bind(&acc.type_.to_lowercase())
-        // .bind(&acc.subtype)
+        .bind(&acc.category.to_lowercase())
         .bind(&acc.code)
         .bind(&acc.parent_code)
         .bind(&acc.normal_balance)
@@ -163,10 +162,10 @@ impl AccountRepository for PostgresAccountRepo {
         updates: &CreateAccount,
     ) -> Result<Account, AppError> {
         let account = sqlx::query_as::<_, Account>(
-            "UPDATE accounting.accounts SET name = $1, type = $2 WHERE id = $3 AND user_id = $4 RETURNING *",
+            "UPDATE accounting.accounts SET name = $1, category = $2 WHERE id = $3 AND user_id = $4 RETURNING *",
         )
         .bind(&updates.name)
-        .bind(&updates.type_)
+        .bind(&updates.category)
         .bind(id)
         .bind(user_id)
         .fetch_one(pool)

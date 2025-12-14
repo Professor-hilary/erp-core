@@ -219,7 +219,7 @@ impl CompanyService {
             let result: Result<sqlx::postgres::PgQueryResult, sqlx::Error> = sqlx::query(
                 r#"
             INSERT INTO accounting.accounts (
-                code, name, type, parent_code, normal_balance, is_contra
+                code, name, category, parent_code, normal_balance, is_contra
             ) VALUES ($1, $2, $3, $4, $5, $6)
             ON CONFLICT (code) DO NOTHING
             "#,

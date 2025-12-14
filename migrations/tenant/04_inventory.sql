@@ -87,7 +87,6 @@ CREATE TABLE IF NOT EXISTS inventory.movements (
     item_uuid uuid NOT NULL,
     warehouse_uuid uuid,
     movement_date timestamptz DEFAULT now(),
-    -- reference_type text,
     reference_id bigint,
     quantity numeric(18, 4) NOT NULL,
     unit_cost numeric(18, 4) DEFAULT 0,

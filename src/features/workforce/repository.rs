@@ -117,7 +117,11 @@ impl HrRepository for PostgresHrRepo {
     ) -> Result<Employee, AppError> {
         let emp: Employee = sqlx::query_as::<_, Employee>(
             r#"
-            INSERT INTO hr.employees (first_name, last_name, email, phone_number, hire_date, termination_date, job_title, department_uuid, supervisor_uuid, employment_type, salary, pay_frequency)
+            INSERT INTO hr.employees (
+                first_name, last_name, email, phone_number, hire_date, termination_date,
+                job_title, department_uuid, supervisor_uuid, employment_type, salary,
+                pay_frequency
+            )
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
             RETURNING *
             "#

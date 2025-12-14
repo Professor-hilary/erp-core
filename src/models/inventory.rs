@@ -49,17 +49,6 @@ pub struct Warehouse {
     pub updated_at: DateTime<Utc>,
 }
 
-// #[derive(Debug, FromRow, Serialize, Deserialize, Clone)]
-// pub struct Purchase {
-//     pub serial_id: i64,
-//     pub warehouse_serial_id: i64,
-//     pub quantity: bigdecimal::BigDecimal,
-//     pub unit_cost: bigdecimal::BigDecimal,
-//     pub reference_type: Option<String>,
-//     pub reference_serial_id: i64,
-//     pub payables_uuid: Uuid,
-// }
-
 #[derive(Debug, Deserialize)]
 pub struct CreateItemCategory {
     pub code: String,

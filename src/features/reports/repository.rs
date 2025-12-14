@@ -9,7 +9,6 @@ use crate::{
 };
 
 use async_trait::async_trait;
-// use bigdecimal::{BigDecimal, Zero};
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
@@ -200,7 +199,7 @@ impl ReportRepository for PostgresReportRepo {
             r#"SELECT
                 code,
                 name,
-                type,
+                category,
                 depth,
                 path,
                 balance

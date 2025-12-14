@@ -466,7 +466,7 @@ impl TransactionRepository for PostgresTransactionRepo {
         // Fetch current balances and account types in one entry
         let account_ids: Vec<Uuid> = net_impacts.keys().cloned().collect();
         let accounts: Vec<(Uuid, BigDecimal, String)> = sqlx::query_as(
-            "SELECT uuid, current_balance, type FROM accounting.accounts WHERE uuid = ANY($1",
+            "SELECT uuid, current_balance, category FROM accounting.accounts WHERE uuid = ANY($1",
         )
         .bind(&account_ids)
         .fetch_all(pool)

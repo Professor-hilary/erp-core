@@ -22,9 +22,9 @@ pub struct BalanceSheetCompareRow {
     pub category: String,
     pub depth: i32,
     pub path: Vec<String>,
-    pub balance_1: f64,
-    pub balance_2: f64,
-    pub delta: f64,
+    pub balance_1: BigDecimal,
+    pub balance_2: BigDecimal,
+    pub delta: BigDecimal,
 }
 
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
@@ -165,8 +165,7 @@ pub struct CustomerStatementDto {
 pub struct TrialBalanceRow {
     pub code: String,
     pub name: String,
-    #[sqlx(rename = "type")] // Required
-    pub type_: String,
+    pub category: String,
     pub debit: BigDecimal,
     pub credit: BigDecimal,
     pub balance: BigDecimal,
@@ -184,8 +183,7 @@ pub struct SimpleReportRow {
 pub struct IncomeStatementRow {
     pub code: String,
     pub name: String,
-    #[sqlx(rename = "type")] // Required
-    pub type_: String,
+    pub category: String,
     pub depth: i64,
     pub path: Vec<String>,
     pub balance: f64,

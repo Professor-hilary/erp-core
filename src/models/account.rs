@@ -18,15 +18,13 @@ pub struct Account {
     pub is_active: bool,             // Optional, False Default
     pub created_at: DateTime<Utc>,   // Required, Auto_gen
     pub updated_at: DateTime<Utc>,   // Required, Auto_gen
-    #[sqlx(rename = "type")] // Required
-    pub type_: String,
+    pub category: String,            // Required
 }
 
 #[derive(Debug, Deserialize, FromRow)]
 pub struct CreateAccount {
     pub name: String,
-    #[sqlx(rename = "type")]
-    pub type_: String,
+    pub category: String,
     pub code: String,
     pub normal_balance: String,
     pub parent_code: String,

@@ -25,7 +25,7 @@ impl<R: AccountRepository> AccountingService<R> {
         acc: &CreateAccount,
     ) -> Result<Account, AppError> {
         let valid_types: [&str; 5] = ["asset", "liability", "equity", "revenue", "expense"];
-        if !valid_types.contains(&acc.type_.as_str()) {
+        if !valid_types.contains(&acc.category.as_str()) {
             return Err(AppError::BadRequest("Invalid account type".into()));
         }
         self.account_repo.create(tenant_pool, user_id, acc).await
@@ -81,7 +81,7 @@ impl<R: AccountRepository> AccountingService<R> {
         updates: &CreateAccount,
     ) -> Result<Account, AppError> {
         let valid_types: [&str; 5] = ["asset", "liability", "equity", "revenue", "expense"];
-        if !valid_types.contains(&updates.type_.as_str()) {
+        if !valid_types.contains(&updates.category.as_str()) {
             return Err(AppError::BadRequest("Invalid account type".into()));
         }
 
