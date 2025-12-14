@@ -1,11 +1,12 @@
 // src/features/reports/services.rs
+use crate::models::reports::{
+    ApAgingDto, ArAgingDto, BalanceSheetCompareRow, BalanceSheetRow, CashFlowRow, CashbookRowDto,
+    CashflowGroup, CustomerStatementDto, EquityChangeRow, IncomeStatementRow,
+    InventoryValuationDto, PayrollSummaryDto, TrialBalanceRow,
+};
 use crate::{
-    features::reports::repository::ReportRepository,
+    features::reports::repository::{ForceReload, ReportRepository},
     infrastructure::errors::AppError,
-    models::reports::{
-        ApAgingDto, ArAgingDto, BalanceSheetDto, CashFlowDto, CashbookRowDto, CustomerStatementDto,
-        IncomeStatementDto, InventoryValuationDto, PayrollSummaryDto, TrialBalanceDto,
-    },
 };
 use chrono::NaiveDate;
 use sqlx::PgPool;
@@ -23,41 +24,52 @@ impl<R: ReportRepository> ReportService<R> {
     pub async fn balancesheet(
         &self,
         tenant_pool: &PgPool,
-        user_id: Uuid,
-    ) -> Result<BalanceSheetDto, AppError> {
-        self.repo.get_balancesheet(tenant_pool, user_id).await
+        as_of: NaiveDate,
+    ) -> Result<Vec<BalanceSheetRow>, AppError> {
+        self.repo.get_balancesheet(tenant_pool, as_of).await
+    }
+    pub async fn balancesheet_compare(
+        &self,
+        tenant_pool: &PgPool,
+        as_of_1: NaiveDate,
+        as_of_2: NaiveDate,
+    ) -> Result<Vec<BalanceSheetCompareRow>, AppError> {
+        self.repo
+            .get_balancesheet_comparison(tenant_pool, as_of_1, as_of_2)
+            .await
     }
     pub async fn income_statement(
         &self,
         tenant_pool: &PgPool,
-        user_id: Uuid,
-        from: Option<NaiveDate>,
-        to: Option<NaiveDate>,
-    ) -> Result<IncomeStatementDto, AppError> {
-        self.repo.get_income(tenant_pool, user_id, from, to).await
+        start: NaiveDate,
+        end: NaiveDate,
+    ) -> Result<Vec<IncomeStatementRow>, AppError> {
+        self.repo.get_income(tenant_pool, start, end).await
     }
     pub async fn cf_direct(
         &self,
         tenant_pool: &PgPool,
-        uuid: Uuid,
-        user_id: Uuid,
-        from: Option<NaiveDate>,
-        to: Option<NaiveDate>,
-    ) -> Result<CashFlowDto, AppError> {
-        self.repo
-            .get_cf_direct(tenant_pool, uuid, user_id, from, to)
-            .await
+        start: NaiveDate,
+        end: NaiveDate,
+    ) -> Result<Vec<CashflowGroup>, AppError> {
+        self.repo.get_cf_direct(tenant_pool, start, end).await
     }
     pub async fn cf_indirect(
         &self,
         tenant_pool: &PgPool,
-        uuid: Uuid,
-        user_id: Uuid,
-        from: Option<NaiveDate>,
-        to: Option<NaiveDate>,
-    ) -> Result<CashFlowDto, AppError> {
+        start: NaiveDate,
+        end: NaiveDate,
+    ) -> Result<Vec<CashFlowRow>, AppError> {
+        self.repo.get_cf_indirect(tenant_pool, start, end).await
+    }
+    pub async fn change_of_equity(
+        &self,
+        tenant_pool: &PgPool,
+        start: NaiveDate,
+        end: NaiveDate,
+    ) -> Result<Vec<EquityChangeRow>, AppError> {
         self.repo
-            .get_cf_indirect(tenant_pool, uuid, user_id, from, to)
+            .get_change_of_equity(tenant_pool, start, end)
             .await
     }
     pub async fn aging_ar(
@@ -111,9 +123,9 @@ impl<R: ReportRepository> ReportService<R> {
     pub async fn trial_balance(
         &self,
         tenant_pool: &PgPool,
-        user_id: Uuid,
-    ) -> Result<TrialBalanceDto, AppError> {
-        self.repo.get_trial_balance(tenant_pool, user_id).await
+        as_of: NaiveDate,
+    ) -> Result<Vec<TrialBalanceRow>, AppError> {
+        self.repo.get_trial_balance(tenant_pool, as_of).await
     }
 
     pub async fn inventory_valuation(
@@ -140,5 +152,13 @@ impl<R: ReportRepository> ReportService<R> {
         user_id: Uuid,
     ) -> Result<PayrollSummaryDto, AppError> {
         self.repo.get_payroll(tenant_pool, user_id).await
+    }
+
+    pub async fn refresh_all(
+        &self,
+        tenant_pool: &PgPool,
+        payload: &ForceReload,
+    ) -> Result<(), AppError> {
+        self.repo.refresh_reports(tenant_pool, payload).await
     }
 }

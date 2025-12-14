@@ -107,7 +107,8 @@ CREATE OR REPLACE FUNCTION payroll.post_payrun(
     p_payrun_tax_id uuid,
     p_payrun_social_sec_id uuid,
     p_payrun_cash_id uuid,
-    p_payrun_user_uuid uuid
+    p_payrun_user_uuid uuid,
+    p_payrun_payroll_payable_id uuid
 )
 RETURNS void LANGUAGE plpgsql AS $$
 DECLARE
@@ -150,15 +151,61 @@ BEGIN
     END IF;
 
     -- Build GL lines
+    -- v_lines := jsonb_build_array(
+    --     jsonb_build_object('account_ref', p_payrun_labor_expense_id, 'debit', v_total_gross, 'credit', 0,
+    --         'memo', format('Payroll Gross - Payrun %s', v_payrun.serial_id)),
+    --     jsonb_build_object('account_ref', p_payrun_tax_id, 'debit', 0, 'credit', v_total_tax,
+    --         'memo', 'Income Tax Withholding'),
+    --     jsonb_build_object('account_ref', p_payrun_social_sec_id, 'debit', 0, 'credit', v_total_social_security,
+    --         'memo', 'Social Security Contribution'),
+    --     jsonb_build_object('account_ref', p_payrun_cash_id, 'debit', 0, 'credit', v_total_net,
+    --         'memo', format('Payroll Net Pay - Payrun %s', v_payrun.serial_id))
+    -- );
     v_lines := jsonb_build_array(
-        jsonb_build_object('account_ref', p_payrun_labor_expense_id, 'debit', v_total_gross, 'credit', 0,
-            'memo', format('Payroll Gross - Payrun %s', v_payrun.serial_id)),
-        jsonb_build_object('account_ref', p_payrun_tax_id, 'debit', 0, 'credit', v_total_tax,
-            'memo', 'Income Tax Withholding'),
-        jsonb_build_object('account_ref', p_payrun_social_sec_id, 'debit', 0, 'credit', v_total_social_security,
-            'memo', 'Social Security Contribution'),
-        jsonb_build_object('account_ref', p_payrun_cash_id, 'debit', 0, 'credit', v_total_net,
-            'memo', format('Payroll Net Pay - Payrun %s', v_payrun.serial_id))
+        -- 1. Recognize gross payroll
+        jsonb_build_object(
+            'account_ref', p_payrun_labor_expense_id,
+            'debit', v_total_gross,
+            'credit', 0,
+            'memo', format('Payroll Gross - Payrun %s', v_payrun.serial_id)
+        ),
+
+        -- 2. Create payroll payable (control)
+        jsonb_build_object(
+            'account_ref', p_payrun_payroll_payable_id,
+            'debit', 0,
+            'credit', v_total_gross,
+            'memo', 'Payroll Payable'
+        ),
+
+        -- 3. Settle payroll payable into components <- this can go into a seperate function/transaction
+        jsonb_build_object(
+            'account_ref', p_payrun_payroll_payable_id,
+            'debit', v_total_gross,
+            'credit', 0,
+            'memo', 'Payroll Payable Settlement'
+        ),
+
+        jsonb_build_object(
+            'account_ref', p_payrun_tax_id,
+            'debit', 0,
+            'credit', v_total_tax,
+            'memo', 'Income Tax Withholding'
+        ),
+
+        jsonb_build_object(
+            'account_ref', p_payrun_social_sec_id,
+            'debit', 0,
+            'credit', v_total_social_security,
+            'memo', 'Social Security Withholding'
+        ),
+
+        jsonb_build_object(
+            'account_ref', p_payrun_cash_id,
+            'debit', 0,
+            'credit', v_total_net,
+            'memo', format('Payroll Net Pay - Payrun %s', v_payrun.serial_id)
+        )
     );
 
     -- Post to GL

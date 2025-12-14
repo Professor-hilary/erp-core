@@ -13,6 +13,7 @@ pub struct Account {
     pub code: String,                // Required
     pub parent_code: Option<String>, // Optional, Null Default
     pub normal_balance: String,      // Required
+    pub current_balance: BigDecimal, // Required
     pub is_contra: bool,             // Optional, False Default
     pub is_active: bool,             // Optional, False Default
     pub created_at: DateTime<Utc>,   // Required, Auto_gen

@@ -1,33 +1,8 @@
+use bigdecimal::BigDecimal;
 use chrono::NaiveDate;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
-
-#[derive(sqlx::FromRow, serde::Serialize)]
-pub struct BalanceSheetDto {
-    pub section: String,
-    pub total_assets: f64, // sqlx::types::BigDecimal or f64 or i64
-    pub current_assets: f64,
-    pub non_current_assets: f64,
-    pub section2: String,
-    pub total_liabilities: f64,
-    pub current_liabilities: f64,
-    pub non_current_liabilities: f64,
-    pub section3: String,
-    pub total_equity: f64,
-}
-
-#[derive(FromRow, Serialize, Debug)]
-pub struct IncomeStatementDto {
-    pub revenue: sqlx::types::BigDecimal,
-    pub cogs: sqlx::types::BigDecimal,
-    pub gross_profit: sqlx::types::BigDecimal,
-    pub operating_expenses: sqlx::types::BigDecimal,
-    pub operating_income: sqlx::types::BigDecimal,
-    pub other_income: sqlx::types::BigDecimal,
-    pub other_expense: sqlx::types::BigDecimal,
-    pub net_income: sqlx::types::BigDecimal,
-}
 
 #[allow(unused)]
 #[derive(sqlx::FromRow, serde::Serialize)]
@@ -40,27 +15,61 @@ pub struct AgingEntry {
     pub days_120_plus: i64,
 }
 
-#[derive(FromRow, Serialize, Debug)]
-pub struct CashFlowDto {
-    pub cash_from_operations: sqlx::types::BigDecimal,
-    pub add_back_depreciation: sqlx::types::BigDecimal,
-    pub decrease_in_ar: sqlx::types::BigDecimal,
-    pub increase_in_ap: sqlx::types::BigDecimal,
-    pub increase_in_inventory: sqlx::types::BigDecimal,
-    pub capex: sqlx::types::BigDecimal,
-    pub financing: sqlx::types::BigDecimal,
-    pub net_cash_flow: sqlx::types::BigDecimal,
-}
-
-#[derive(FromRow, Serialize, Debug)]
-pub struct TrialBalanceDto {
-    pub account_serial_id: i64,
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+pub struct BalanceSheetCompareRow {
     pub code: String,
     pub name: String,
-    pub r#type: String,
-    pub total_debit: sqlx::types::BigDecimal,
-    pub total_credit: sqlx::types::BigDecimal,
-    pub balance: sqlx::types::BigDecimal,
+    pub category: String,
+    pub depth: i32,
+    pub path: Vec<String>,
+    pub balance_1: f64,
+    pub balance_2: f64,
+    pub delta: f64,
+}
+
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+pub struct BalanceSheetRow {
+    pub code: String,
+    pub name: String,
+    pub category: String,  // asset | liability | equity
+    pub depth: i32,        // for indentation
+    pub path: Vec<String>, // for ordering + tree logic
+    pub balance: BigDecimal,
+}
+
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+pub struct CashFlowRow {
+    pub section: String,
+    pub description: String,
+    pub amount: f64,
+}
+
+// Leaf-level row
+#[derive(Debug, Serialize)]
+pub struct CashflowItem {
+    pub code: String,
+    pub name: String,
+    pub inflow: f64,
+    pub outflow: f64,
+    pub net_cash: f64,
+}
+
+// Top-level activity group (Operating, Investing, Financing)
+#[derive(Debug, Serialize)]
+pub struct CashflowGroup {
+    pub group_name: String,
+    pub accounts: Vec<CashflowItem>,
+    pub total_inflow: f64,
+    pub total_outflow: f64,
+    pub total_net_cash: f64,
+}
+
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+pub struct EquityChangeRow {
+    pub code: String,
+    pub name: String,
+    pub description: String,
+    pub amount: f64,
 }
 
 #[derive(FromRow, Serialize, Debug)]
@@ -150,4 +159,34 @@ pub struct CustomerStatementDto {
     pub payment_number: Option<String>,
     pub payment_amount: Option<sqlx::types::BigDecimal>,
     pub payment_date: Option<NaiveDate>,
+}
+
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+pub struct TrialBalanceRow {
+    pub code: String,
+    pub name: String,
+    #[sqlx(rename = "type")] // Required
+    pub type_: String,
+    pub debit: BigDecimal,
+    pub credit: BigDecimal,
+    pub balance: BigDecimal,
+}
+
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+pub struct SimpleReportRow {
+    pub code: String,
+    pub name: String,
+    pub category: String,
+    pub balance: f64,
+}
+
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+pub struct IncomeStatementRow {
+    pub code: String,
+    pub name: String,
+    #[sqlx(rename = "type")] // Required
+    pub type_: String,
+    pub depth: i64,
+    pub path: Vec<String>,
+    pub balance: f64,
 }

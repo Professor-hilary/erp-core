@@ -65,22 +65,24 @@ $$;
 CREATE MATERIALIZED VIEW IF NOT EXISTS reporting.balance_sheet AS
 WITH balances AS (
     SELECT
-        a.type,
         a.code,
+        a.type,
+        a.parent_code,
         COALESCE(SUM(te.debit), 0) - COALESCE(SUM(te.credit), 0) AS balance
     FROM accounting.accounts a
     LEFT JOIN accounting.transaction_entries te ON te.account_uuid = a.uuid
-    GROUP BY a.type, a.code
+    GROUP BY a.code, a.type, a.parent_code
 )
 SELECT
+	1 as id,
     'ASSETS' AS section,
     COALESCE(SUM(balance) FILTER (WHERE type = 'Asset'), 0) AS total_assets,
-    COALESCE(SUM(balance) FILTER (WHERE type = 'Asset' AND code = '110000'), 0) AS current_assets,
-    COALESCE(SUM(balance) FILTER (WHERE type = 'Asset' AND code = '120000'), 0) AS non_current_assets,
+    COALESCE(SUM(balance) FILTER (WHERE type = 'Asset' AND parent_code = '110000'), 0) AS current_assets,
+    COALESCE(SUM(balance) FILTER (WHERE type = 'Asset' AND parent_code = '120000'), 0) AS non_current_assets,
     'LIABILITIES' AS section2,
     COALESCE(SUM(balance) FILTER (WHERE type = 'Liability'), 0) AS total_liabilities,
-    COALESCE(SUM(balance) FILTER (WHERE type = 'Liability' AND code = '210000'), 0) AS current_liabilities,
-    COALESCE(SUM(balance) FILTER (WHERE type = 'Liability' AND code = '220000'), 0) AS non_current_liabilities,
+    COALESCE(SUM(balance) FILTER (WHERE type = 'Liability' AND parent_code = '210000'), 0) AS current_liabilities,
+    COALESCE(SUM(balance) FILTER (WHERE type = 'Liability' AND parent_code = '220000'), 0) AS non_current_liabilities,
     'EQUITY' AS section3,
     COALESCE(SUM(balance) FILTER (WHERE type = 'Equity'), 0) AS total_equity
 FROM balances
@@ -342,6 +344,20 @@ LEFT JOIN receivables.payment_applications pa ON pa.invoice_uuid = i.uuid
 LEFT JOIN receivables.payments p ON p.uuid = pa.payment_uuid
 WITH NO DATA;
 
+-- ===============================================================
+-- MATERIALIZE VIEWS BEFORE ANY REFRESH MATERIALIZED VIEW COMMAND
+-- ===============================================================
+REFRESH MATERIALIZED VIEW reporting.balance_sheet;
+REFRESH MATERIALIZED VIEW reporting.income_statement;
+REFRESH MATERIALIZED VIEW reporting.trial_balance;
+REFRESH MATERIALIZED VIEW reporting.cashbook;
+REFRESH MATERIALIZED VIEW reporting.cash_flow;
+REFRESH MATERIALIZED VIEW reporting.ar_aging_detailed;
+REFRESH MATERIALIZED VIEW reporting.ap_aging_detailed;
+REFRESH MATERIALIZED VIEW reporting.payroll_summary;
+REFRESH MATERIALIZED VIEW reporting.inventory_valuation;
+REFRESH MATERIALIZED VIEW reporting.customer_statement;
+
 -- ========================================
 -- INDEXES ON MATERIALIZED VIEWS
 -- ========================================
@@ -349,3 +365,590 @@ CREATE INDEX IF NOT EXISTS idx_ar_aging_customer ON reporting.ar_aging_detailed(
 CREATE INDEX IF NOT EXISTS idx_ap_aging_vendor ON reporting.ap_aging_detailed(vendor_serial_id);
 CREATE INDEX IF NOT EXISTS idx_cashbook_date ON reporting.cashbook(txn_date DESC);
 CREATE INDEX IF NOT EXISTS idx_trial_balance_code ON reporting.trial_balance(code);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_balance_sheet_code ON reporting.balance_sheet(id);
+
+-- ==========================================
+-- FUNCTIONS FOR BUILDING REPORTS DYNAMICALLY
+-- ==========================================
+-- 1 Balancesheet function
+CREATE OR REPLACE FUNCTION reporting.get_balance_sheet(as_of DATE)
+RETURNS TABLE (
+    code TEXT,
+    name TEXT,
+    category TEXT,
+    depth INT,
+    path TEXT[],
+    balance NUMERIC
+) AS
+$$
+WITH RECURSIVE
+
+-- 1. Compute raw balances for all relevant accounts
+account_balances AS (
+    SELECT
+        acc.uuid,
+        acc.code,
+        acc.name,
+        acc.type,
+        acc.parent_code,
+        acc.normal_balance,
+        acc.is_contra,
+        COALESCE(SUM(te.debit) FILTER (WHERE te.created_at <= as_of), 0)
+      - COALESCE(SUM(te.credit) FILTER (WHERE te.created_at <= as_of), 0) AS raw_balance
+    FROM accounting.accounts acc
+    LEFT JOIN accounting.transaction_entries te
+        ON te.account_uuid = acc.uuid
+    WHERE acc.type IN ('asset', 'equity', 'liability')
+    GROUP BY acc.uuid, acc.code, acc.name, acc.type, acc.parent_code, acc.normal_balance, acc.is_contra
+),
+
+-- 2. Include parent accounts that may have zero balances
+all_relevant_accounts AS (
+    SELECT * FROM account_balances
+    UNION
+    SELECT
+        acc.uuid,
+        acc.code,
+        acc.name,
+        acc.type,
+        acc.parent_code,
+        acc.normal_balance,
+        acc.is_contra,
+        0 AS raw_balance
+    FROM accounting.accounts acc
+    WHERE acc.code IN (
+        SELECT parent_code FROM account_balances WHERE parent_code IS NOT NULL
+    )
+    AND acc.code NOT IN (SELECT code FROM account_balances)
+),
+
+-- 3. Normalize signs: positive for assets/expenses, negative for liabilities/equity
+signed_accounts AS (
+    SELECT
+        code,
+        name,
+        type,
+        parent_code,
+        CASE
+            WHEN is_contra THEN -raw_balance
+            WHEN normal_balance = 'cr' THEN -raw_balance
+            ELSE raw_balance
+        END AS balance
+    FROM all_relevant_accounts
+),
+
+-- 4. Recursive roll-up tree
+tree AS (
+    SELECT
+        code,
+        name,
+        type,
+        parent_code,
+        balance,
+        balance AS total_balance,
+        0 AS depth,
+        ARRAY[code] AS path
+    FROM signed_accounts
+
+    UNION ALL
+
+    SELECT
+        p.code,
+        p.name,
+        p.type,
+        p.parent_code,
+        p.balance,
+        p.balance + c.total_balance,
+        c.depth + 1,
+        p.code || c.path
+    FROM tree c
+    JOIN signed_accounts p
+        ON p.code = c.parent_code
+)
+
+-- 5. Select one row per account with rolled-up total balance
+SELECT DISTINCT ON (code)
+    code,
+    name,
+    type AS category,
+    depth,
+    path,
+    total_balance AS balance
+FROM tree
+ORDER BY code, depth DESC;
+$$ LANGUAGE sql STABLE;
+
+-- ===================================================
+-- 2 Trial Balance Statement v1
+-- ===================================================
+CREATE OR REPLACE FUNCTION reporting.get_trial_balance(as_of DATE)
+RETURNS TABLE (
+    code TEXT,
+    name TEXT,
+    type TEXT,
+    debit NUMERIC,
+    credit NUMERIC,
+    balance NUMERIC
+) AS
+$$
+WITH signed AS (
+    SELECT
+        acc.code,
+        acc.name,
+        acc.type,
+
+        -- Universal signed balance: + means debit, - means credit
+        COALESCE(SUM(te.debit) FILTER (WHERE te.created_at <= as_of), 0)
+      - COALESCE(SUM(te.credit) FILTER (WHERE te.created_at <= as_of), 0)
+        AS balance
+    FROM accounting.accounts acc
+    LEFT JOIN accounting.transaction_entries te
+        ON te.account_uuid = acc.uuid
+    GROUP BY acc.code, acc.name, acc.type
+)
+
+SELECT
+    code,
+    name,
+    type,
+    GREATEST(balance, 0) AS debit,
+    GREATEST(-balance, 0) AS credit,
+    balance
+FROM signed
+WHERE balance <> 0
+ORDER BY code;
+$$ LANGUAGE sql STABLE;
+
+-- ===================================================
+-- 3 Income Statement
+-- ===================================================
+CREATE OR REPLACE FUNCTION reporting.get_income_statement_v2(
+    period_start DATE,
+    period_end   DATE
+)
+RETURNS TABLE (
+    code TEXT,
+    name TEXT,
+    type TEXT,
+    depth INT,
+    path TEXT[],
+    balance NUMERIC
+) AS
+$$
+WITH RECURSIVE
+
+account_balances AS (
+    SELECT
+        acc.uuid,
+        acc.code,
+        acc.name,
+        acc.type,
+        acc.parent_code,
+        acc.normal_balance,
+        acc.is_contra,
+        COALESCE(
+            SUM(te.debit) FILTER (
+                WHERE te.created_at BETWEEN period_start AND period_end
+            ), 0
+        )
+      - COALESCE(
+            SUM(te.credit) FILTER (
+                WHERE te.created_at BETWEEN period_start AND period_end
+            ), 0
+        ) AS raw_balance
+    FROM accounting.accounts acc
+    LEFT JOIN accounting.transaction_entries te
+        ON te.account_uuid = acc.uuid
+    WHERE acc.type IN ('income', 'expense')
+    GROUP BY acc.uuid, acc.code, acc.name, acc.type,
+             acc.parent_code, acc.normal_balance, acc.is_contra
+),
+
+all_relevant_accounts AS (
+    SELECT * FROM account_balances
+
+    UNION
+
+    SELECT
+        acc.uuid,
+        acc.code,
+        acc.name,
+        acc.type,
+        acc.parent_code,
+        acc.normal_balance,
+        acc.is_contra,
+        0 AS raw_balance
+    FROM accounting.accounts acc
+    WHERE acc.code IN (
+        SELECT parent_code
+        FROM account_balances
+        WHERE parent_code IS NOT NULL
+    )
+    AND acc.code NOT IN (
+        SELECT code FROM account_balances
+    )
+),
+
+signed_accounts AS (
+    SELECT
+        code,
+        name,
+        type,
+        parent_code,
+        CASE
+            WHEN is_contra THEN -raw_balance
+            WHEN normal_balance = 'cr' THEN -raw_balance
+            ELSE raw_balance
+        END AS balance
+    FROM all_relevant_accounts
+),
+
+tree AS (
+    SELECT
+        code,
+        name,
+        type,
+        parent_code,
+        balance,
+        balance AS total_balance,
+        0 AS depth,
+        ARRAY[code] AS path
+    FROM signed_accounts
+
+    UNION ALL
+
+    SELECT
+        p.code,
+        p.name,
+        p.type,
+        p.parent_code,
+        p.balance,
+        p.balance + c.total_balance,
+        c.depth + 1,
+        p.code || c.path
+    FROM tree c
+    JOIN signed_accounts p
+        ON p.code = c.parent_code
+)
+
+SELECT DISTINCT ON (code)
+    code,
+    name,
+    type,
+    depth,
+    path,
+    total_balance AS balance
+FROM tree
+ORDER BY code, depth DESC;
+
+$$ LANGUAGE sql STABLE;
+
+-- ===================================================
+-- 4 Cash Flow Statement - Indirect
+-- ===================================================
+CREATE OR REPLACE FUNCTION reporting.get_cash_flow_statement(
+    start_date DATE,
+    end_date DATE
+)
+RETURNS TABLE (
+    section TEXT,
+    description TEXT,
+    amount NUMERIC
+) AS
+$$
+WITH
+
+-- Net Income pulled from income statement
+net_income AS (
+    SELECT SUM(balance) AS ni
+    FROM reporting.get_income_statement(start_date, end_date)
+),
+
+-- Account changes in the period
+account_changes AS (
+    SELECT
+        acc.code,
+        acc.name,
+        acc.type,
+        COALESCE(SUM(te.debit) FILTER (WHERE te.created_at <= end_date), 0)
+      - COALESCE(SUM(te.credit) FILTER (WHERE te.created_at <= end_date), 0)
+        -
+        (
+            COALESCE(SUM(te.debit) FILTER (WHERE te.created_at < start_date), 0)
+          - COALESCE(SUM(te.credit) FILTER (WHERE te.created_at < start_date), 0)
+        ) AS delta
+    FROM accounting.accounts acc
+    LEFT JOIN accounting.transaction_entries te
+        ON te.account_uuid = acc.uuid
+    GROUP BY acc.code, acc.name, acc.type
+),
+
+-- Operating adjustments (working capital)
+working_capital AS (
+    SELECT
+        'Operating Activities' AS section,
+        name AS description,
+        CASE
+            WHEN type = 'asset' THEN -delta   -- increase in assets = cash out
+            WHEN type = 'liability' THEN delta  -- increase in liability = cash in
+        END AS amount
+    FROM account_changes
+    WHERE type IN ('asset', 'liability')
+      AND code NOT LIKE '12%'   -- exclude non-current assets? optional
+),
+
+-- Investing activities (usually long-term assets)
+investing AS (
+    SELECT
+        'Investing Activities',
+        name,
+        -delta AS amount
+    FROM account_changes
+    WHERE type = 'asset'
+      AND code LIKE '12%'       -- long-term assets by code pattern
+),
+
+-- Financing (equity + long-term liabilities)
+financing AS (
+    SELECT
+        'Financing Activities',
+        name,
+        delta AS amount
+    FROM account_changes
+    WHERE type IN ('equity', 'liability')
+      AND code LIKE '22%'       -- long-term liabilities & equity
+)
+
+SELECT * FROM (
+    SELECT 'Operating Activities', 'Net Income', ni FROM net_income
+    UNION ALL
+    SELECT * FROM working_capital
+    UNION ALL
+    SELECT * FROM investing
+    UNION ALL
+    SELECT * FROM financing
+) x;
+-- WHERE amount IS NOT NULL;
+$$ LANGUAGE sql STABLE;
+
+-- ===================================================
+-- 4 Statement of Cash Flow - v2
+-- ===================================================
+CREATE OR REPLACE FUNCTION reporting.get_cashflow_direct_full(
+    start_date DATE,
+    end_date DATE
+)
+RETURNS TABLE (
+    code TEXT,
+    name TEXT,
+    activity_group TEXT,
+    depth INT,
+    path TEXT[],
+    inflow NUMERIC,
+    outflow NUMERIC,
+    net_cash NUMERIC
+) AS
+$$
+WITH RECURSIVE
+
+-- Step 1: Select all cash-impacting transactions
+cash_txns AS (
+    SELECT
+        acc.uuid,
+        acc.code,
+        acc.name,
+        acc.parent_code,
+        CASE
+            WHEN acc.code LIKE '11%' THEN 'Operating'
+            WHEN acc.code LIKE '12%' THEN 'Investing'
+            WHEN acc.code LIKE '21%' OR acc.code LIKE '22%' OR acc.type IN ('equity') THEN 'Financing'
+            ELSE 'Other'
+        END AS activity_group,
+        SUM(te.debit) AS total_debit,
+        SUM(te.credit) AS total_credit
+    FROM accounting.transaction_entries te
+    JOIN accounting.accounts acc ON acc.uuid = te.account_uuid
+    WHERE te.created_at BETWEEN start_date AND end_date
+      -- Include all accounts that actually affect cash
+      AND (acc.code LIKE '11%' OR acc.code LIKE '12%' OR acc.code LIKE '21%' OR acc.code LIKE '22%' OR acc.type = 'equity')
+    GROUP BY acc.uuid, acc.code, acc.name, acc.parent_code, acc.type
+),
+
+-- Step 2: Include parent accounts for roll-up
+all_relevant_accounts AS (
+    SELECT * FROM cash_txns
+
+    UNION
+
+    SELECT
+        acc.uuid,
+        acc.code,
+        acc.name,
+        acc.parent_code,
+        CASE
+            WHEN acc.code LIKE '11%' THEN 'Operating'
+            WHEN acc.code LIKE '12%' THEN 'Investing'
+            WHEN acc.code LIKE '21%' OR acc.code LIKE '22%' OR acc.type IN ('equity') THEN 'Financing'
+            ELSE 'Other'
+        END AS activity_group,
+        0 AS total_debit,
+        0 AS total_credit
+    FROM accounting.accounts acc
+    WHERE acc.code IN (
+        SELECT parent_code FROM cash_txns WHERE parent_code IS NOT NULL
+    )
+    AND acc.code NOT IN (SELECT code FROM cash_txns)
+),
+
+-- Step 3: Recursive roll-up
+tree AS (
+    SELECT
+        code,
+        name,
+        activity_group,
+        parent_code,
+        total_debit AS inflow,
+        total_credit AS outflow,
+        total_debit - total_credit AS net_cash,
+        0 AS depth,
+        ARRAY[code] AS path
+    FROM all_relevant_accounts
+
+    UNION ALL
+
+    SELECT
+        p.code,
+        p.name,
+        p.activity_group,
+        p.parent_code,
+        p.total_debit + c.inflow,
+        p.total_credit + c.outflow,
+        (p.total_debit + c.inflow) - (p.total_credit + c.outflow),
+        c.depth + 1,
+        p.code || c.path
+    FROM tree c
+    JOIN all_relevant_accounts p ON p.code = c.parent_code
+)
+
+SELECT DISTINCT ON (code)
+    code,
+    name,
+    activity_group,
+    depth,
+    path,
+    inflow,
+    outflow,
+    net_cash
+FROM tree
+ORDER BY code, depth DESC;
+$$ LANGUAGE sql STABLE;
+
+-- ===================================================
+-- 5 Statement of Change of Equity
+-- ===================================================
+CREATE OR REPLACE FUNCTION reporting.get_statement_of_changes_in_equity(
+    start_date DATE,
+    end_date DATE
+)
+RETURNS TABLE (
+    code TEXT,
+    name TEXT,
+    description TEXT,
+    amount NUMERIC
+) AS
+$$
+WITH opening AS (
+    SELECT
+        acc.code,
+        acc.name,
+        'Opening Balance' AS description,
+        COALESCE(SUM(te.debit) FILTER (WHERE te.created_at < start_date), 0)
+      - COALESCE(SUM(te.credit) FILTER (WHERE te.created_at < start_date), 0)
+        AS amount
+    FROM accounting.accounts acc
+    LEFT JOIN accounting.transaction_entries te
+        ON te.account_uuid = acc.uuid
+    WHERE acc.type = 'equity'
+    GROUP BY acc.code, acc.name
+),
+
+changes AS (
+    SELECT
+        acc.code,
+        acc.name,
+        'Movements During Period' AS description,
+        COALESCE(SUM(te.debit) FILTER (WHERE te.created_at BETWEEN start_date AND end_date), 0)
+      - COALESCE(SUM(te.credit) FILTER (WHERE te.created_at BETWEEN start_date AND end_date), 0)
+        AS amount
+    FROM accounting.accounts acc
+    LEFT JOIN accounting.transaction_entries te
+        ON te.account_uuid = acc.uuid
+    WHERE acc.type = 'equity'
+    GROUP BY acc.code, acc.name
+),
+
+net_income AS (
+    SELECT
+        '999999'::text AS code,
+        'Net Income' AS name,
+        'Net Income for Period' AS description,
+        SUM(balance) AS amount
+    FROM reporting.get_income_statement(start_date, end_date)
+)
+
+SELECT * FROM opening
+UNION ALL
+SELECT * FROM changes
+UNION ALL
+SELECT * FROM net_income
+ORDER BY code, description;
+$$ LANGUAGE sql STABLE;
+
+-- ===================================================
+-- 6 Balancesheet Compare Multiple Periods
+-- ===================================================
+CREATE OR REPLACE FUNCTION reporting.get_balance_sheet_compare(
+    as_of_1 DATE,
+    as_of_2 DATE
+)
+RETURNS TABLE (
+    code TEXT,
+    name TEXT,
+    category TEXT,
+    depth INT,
+    path TEXT[],
+    balance_1 NUMERIC,
+    balance_2 NUMERIC,
+    delta NUMERIC
+) AS
+$$
+WITH
+bs1 AS (
+    SELECT * FROM reporting.get_balance_sheet(as_of_1)
+),
+bs2 AS (
+    SELECT * FROM reporting.get_balance_sheet(as_of_2)
+)
+SELECT
+    COALESCE(bs1.code, bs2.code) AS code,
+    COALESCE(bs1.name, bs2.name) AS name,
+    COALESCE(bs1.category, bs2.category) AS category,
+    COALESCE(bs1.depth, bs2.depth) AS depth,
+    COALESCE(bs1.path, bs2.path) AS path,
+    COALESCE(bs1.balance, 0) AS balance_1,
+    COALESCE(bs2.balance, 0) AS balance_2,
+    COALESCE(bs2.balance, 0) - COALESCE(bs1.balance, 0) AS delta
+FROM bs1
+FULL OUTER JOIN bs2 USING (code)
+ORDER BY path;
+$$ LANGUAGE sql STABLE;
+
+
+-- Example of uses
+-- SELECT * FROM reporting.get_balance_sheet('2024-12-31');
+-- SELECT * FROM reporting.get_trial_balance('2025-12-31') ORDER BY code;
+-- SELECT * FROM reporting.get_income_statement('2025-01-01', '2025-12-31');
+-- SELECT * FROM reporting.get_cash_flow_statement('2025-01-01', '2025-12-31');
+-- SELECT * FROM reporting.get_statement_of_changes_in_equity('2025-01-01', '2025-12-31');
+-- SELECT * FROM reporting.get_income_statement_v2('2025-01-01', '2025-12-31');
+-- SELECT * FROM reporting.get_cashflow_direct_v2('2025-01-01', '2025-12-31');
