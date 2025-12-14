@@ -298,11 +298,6 @@ BEGIN
 END;
 $$;
 
--- Triggers on tables that affect reports
-CREATE TRIGGER tr_receivables_invoices_notify
-AFTER INSERT OR UPDATE OR DELETE ON receivables.invoices
-FOR EACH ROW EXECUTE FUNCTION reporting.notify_reporting_changes();
-
 -- ========================================
 -- INDEXES
 -- ========================================

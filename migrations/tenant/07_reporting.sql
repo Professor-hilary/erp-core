@@ -22,11 +22,7 @@ BEGIN
 
     -- Only refresh if data exists OR force is true
     IF p_force OR EXISTS (SELECT 1 FROM accounting.accounts LIMIT 1) THEN
-        REFRESH MATERIALIZED VIEW CONCURRENTLY reporting.balance_sheet;
-        REFRESH MATERIALIZED VIEW CONCURRENTLY reporting.income_statement;
-        REFRESH MATERIALIZED VIEW CONCURRENTLY reporting.trial_balance;
         REFRESH MATERIALIZED VIEW CONCURRENTLY reporting.cashbook;
-        REFRESH MATERIALIZED VIEW CONCURRENTLY reporting.cash_flow;
         REFRESH MATERIALIZED VIEW CONCURRENTLY reporting.ar_aging_detailed;
         REFRESH MATERIALIZED VIEW CONCURRENTLY reporting.ap_aging_detailed;
         REFRESH MATERIALIZED VIEW CONCURRENTLY reporting.payroll_summary;
@@ -61,114 +57,6 @@ EXCEPTION WHEN others THEN
 END;
 $$;
 
--- 1. Balance Sheet
-CREATE MATERIALIZED VIEW IF NOT EXISTS reporting.balance_sheet AS
-WITH balances AS (
-    SELECT
-        a.code,
-        a.category,
-        a.parent_code,
-        COALESCE(SUM(te.debit), 0) - COALESCE(SUM(te.credit), 0) AS balance
-    FROM accounting.accounts a
-    LEFT JOIN accounting.transaction_entries te ON te.account_uuid = a.uuid
-    GROUP BY a.code, a.category, a.parent_code
-)
-SELECT
-	1 as id,
-    'ASSETS' AS section,
-    COALESCE(SUM(balance) FILTER (WHERE category = 'Asset'), 0) AS total_assets,
-    COALESCE(SUM(balance) FILTER (WHERE category = 'Asset' AND parent_code = '110000'), 0) AS current_assets,
-    COALESCE(SUM(balance) FILTER (WHERE category = 'Asset' AND parent_code = '120000'), 0) AS non_current_assets,
-    'LIABILITIES' AS section2,
-    COALESCE(SUM(balance) FILTER (WHERE category = 'Liability'), 0) AS total_liabilities,
-    COALESCE(SUM(balance) FILTER (WHERE category = 'Liability' AND parent_code = '210000'), 0) AS current_liabilities,
-    COALESCE(SUM(balance) FILTER (WHERE category = 'Liability' AND parent_code = '220000'), 0) AS non_current_liabilities,
-    'EQUITY' AS section3,
-    COALESCE(SUM(balance) FILTER (WHERE category = 'Equity'), 0) AS total_equity
-FROM balances
-WITH NO DATA;
-
--- 2. Income Statement
-CREATE MATERIALIZED VIEW IF NOT EXISTS reporting.income_statement AS
-WITH
-rev AS (
-    SELECT COALESCE(SUM(te.debit - te.credit), 0) AS revenue
-    FROM accounting.transaction_entries te
-    JOIN accounting.accounts a ON a.uuid = te.account_uuid
-    WHERE a.category = 'revenue'
-),
-cogs AS (
-    SELECT COALESCE(SUM(te.debit - te.credit), 0) AS cogs
-    FROM accounting.transaction_entries te
-    JOIN accounting.accounts a ON a.uuid = te.account_uuid
-    WHERE a.code LIKE '5%'
-),
-opex AS (
-    SELECT COALESCE(SUM(te.debit - te.credit), 0) AS opex
-    FROM accounting.transaction_entries te
-    JOIN accounting.accounts a ON a.uuid = te.account_uuid
-    WHERE a.category = 'expense' AND a.code NOT LIKE '6%'
-),
-payroll AS (
-    SELECT COALESCE(SUM(ps.gross_pay), 0) AS payroll_expense
-    FROM payroll.payslips ps
-    JOIN payroll.payruns pr ON pr.uuid = ps.payrun_uuid
-    WHERE pr.status = 'Posted'
-)
-SELECT
-    r.revenue,
-    c.cogs,
-    (r.revenue - c.cogs) AS gross_profit,
-    (o.opex + p.payroll_expense) AS operating_expenses,
-    (r.revenue - c.cogs - o.opex - p.payroll_expense) AS operating_income,
-    0::numeric AS other_income,
-    0::numeric AS other_expense,
-    (r.revenue - c.cogs - o.opex - p.payroll_expense) AS net_income
-FROM rev r, cogs c, opex o, payroll p
-WITH NO DATA;
-
-
--- Optional income statement by date range (non-materialized) for dynamic queries
-CREATE OR REPLACE VIEW reporting.income_statement_by_period AS
-WITH
-rev AS (
-    SELECT COALESCE(SUM(te.debit - te.credit), 0) AS revenue
-    FROM reporting.transactions_for_reporting tr
-    JOIN accounting.accounts a ON a.uuid = tr.account_uuid
-    WHERE a.category = 'revenue'
-),
-cogs AS (
-    SELECT COALESCE(SUM(te.debit - te.credit), 0) AS cogs
-    FROM reporting.transactions_for_reporting tr
-    JOIN accounting.accounts a ON a.uuid = tr.account_uuid
-    WHERE a.code LIKE '5%'
-),
-opex AS (
-    SELECT COALESCE(SUM(te.debit - te.credit), 0) AS opex
-    FROM reporting.transactions_for_reporting tr
-    JOIN accounting.accounts a ON a.uuid = tr.account_uuid
-    WHERE a.category = 'expense' AND a.code NOT LIKE '6%'
-)
-SELECT r.revenue, c.cogs, (r.revenue - c.cogs) AS gross_profit, o.opex AS operating_expenses,
-       (r.revenue - c.cogs - o.opex) AS net_income
-FROM rev r, cogs c, opex o;
-
--- 3. Trial Balance
-CREATE MATERIALIZED VIEW IF NOT EXISTS reporting.trial_balance AS
-SELECT
-    a.serial_id AS account_serial_id,
-    a.code,
-    a.name,
-    a.category,
-    COALESCE(SUM(te.debit), 0) AS total_debit,
-    COALESCE(SUM(te.credit), 0) AS total_credit,
-    COALESCE(SUM(te.debit - te.credit), 0) AS balance
-FROM accounting.accounts a
-LEFT JOIN accounting.transaction_entries te ON te.account_uuid = a.uuid
-GROUP BY a.serial_id, a.code, a.name, a.category
-ORDER BY a.code
-WITH NO DATA;
-
 -- 4. Cashbook
 CREATE MATERIALIZED VIEW IF NOT EXISTS reporting.cashbook AS
 SELECT
@@ -186,48 +74,6 @@ JOIN accounting.transaction_entries te ON te.transaction_uuid = t.uuid
 JOIN accounting.accounts a ON a.uuid = te.account_uuid
 WHERE a.code LIKE '11%'
 ORDER BY t.txn_date DESC, t.serial_id
-WITH NO DATA;
-
--- 5. Cash Flow (Simplified)
-CREATE MATERIALIZED VIEW IF NOT EXISTS reporting.cash_flow AS
-WITH
-op AS (
-    SELECT COALESCE(SUM(te.debit - te.credit), 0) AS net_income
-    FROM accounting.transaction_entries te
-    JOIN accounting.accounts a ON a.uuid = te.account_uuid
-    WHERE a.category IN ('revenue', 'expense')
-),
-dep AS (
-    SELECT COALESCE(SUM(te.debit), 0) AS depreciation
-    FROM accounting.transaction_entries te
-    JOIN accounting.accounts a ON a.uuid = te.account_uuid
-    WHERE a.code = '63%'
-),
-ar_change AS (
-    SELECT COALESCE(SUM(i.total_amount - i.balance_due), 0) AS ar_increase
-    FROM receivables.invoices i
-    WHERE i.status NOT IN ('Paid', 'Cancelled')
-),
-ap_change AS (
-    SELECT COALESCE(SUM(b.total_amount - b.balance_due), 0) AS ap_increase
-    FROM payables.bills b
-    WHERE b.status NOT IN ('Paid', 'Cancelled')
-),
-inv_change AS (
-    SELECT COALESCE(SUM(i.quantity_on_hand * i.cost_price), 0) AS inventory_value
-    FROM inventory.items i
-    WHERE i.track_quantity = true
-)
-SELECT
-    (o.net_income + d.depreciation) AS cash_from_operations,
-    d.depreciation AS add_back_depreciation,
-    (-ar_change.ar_increase) AS decrease_in_ar,
-    ap_change.ap_increase AS increase_in_ap,
-    (-inv_change.inventory_value) AS increase_in_inventory,
-    0::numeric AS capex,
-    0::numeric AS financing,
-    (o.net_income + d.depreciation - ar_change.ar_increase + ap_change.ap_increase - inv_change.inventory_value) AS net_cash_flow
-FROM op o, dep d, ar_change, ap_change, inv_change
 WITH NO DATA;
 
 -- 6. AR Aging Detailed
@@ -347,11 +193,7 @@ WITH NO DATA;
 -- ===============================================================
 -- MATERIALIZE VIEWS BEFORE ANY REFRESH MATERIALIZED VIEW COMMAND
 -- ===============================================================
-REFRESH MATERIALIZED VIEW reporting.balance_sheet;
-REFRESH MATERIALIZED VIEW reporting.income_statement;
-REFRESH MATERIALIZED VIEW reporting.trial_balance;
 REFRESH MATERIALIZED VIEW reporting.cashbook;
-REFRESH MATERIALIZED VIEW reporting.cash_flow;
 REFRESH MATERIALIZED VIEW reporting.ar_aging_detailed;
 REFRESH MATERIALIZED VIEW reporting.ap_aging_detailed;
 REFRESH MATERIALIZED VIEW reporting.payroll_summary;
@@ -364,8 +206,6 @@ REFRESH MATERIALIZED VIEW reporting.customer_statement;
 CREATE INDEX IF NOT EXISTS idx_ar_aging_customer ON reporting.ar_aging_detailed(customer_serial_id);
 CREATE INDEX IF NOT EXISTS idx_ap_aging_vendor ON reporting.ap_aging_detailed(vendor_serial_id);
 CREATE INDEX IF NOT EXISTS idx_cashbook_date ON reporting.cashbook(txn_date DESC);
-CREATE INDEX IF NOT EXISTS idx_trial_balance_code ON reporting.trial_balance(code);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_balance_sheet_code ON reporting.balance_sheet(id);
 
 -- ==========================================
 -- FUNCTIONS FOR BUILDING REPORTS DYNAMICALLY
@@ -479,7 +319,7 @@ ORDER BY code, depth DESC;
 $$ LANGUAGE sql STABLE;
 
 -- ===================================================
--- 2 Trial Balance Statement v1
+-- 2 Trial Balance Statement
 -- ===================================================
 CREATE OR REPLACE FUNCTION reporting.get_trial_balance(as_of DATE)
 RETURNS TABLE (
@@ -522,7 +362,7 @@ $$ LANGUAGE sql STABLE;
 -- ===================================================
 -- 3 Income Statement
 -- ===================================================
-CREATE OR REPLACE FUNCTION reporting.get_income_statement_v2(
+CREATE OR REPLACE FUNCTION reporting.get_income_statement(
     period_start DATE,
     period_end   DATE
 )

@@ -87,6 +87,7 @@ CREATE TABLE IF NOT EXISTS inventory.movements (
     item_uuid uuid NOT NULL,
     warehouse_uuid uuid,
     movement_date timestamptz DEFAULT now(),
+    reference_type TEXT,
     reference_id bigint,
     quantity numeric(18, 4) NOT NULL,
     unit_cost numeric(18, 4) DEFAULT 0,
@@ -341,11 +342,6 @@ BEGIN
     WHERE uuid = v_item.uuid;
 END;
 $$;
-
--- Triggers on tables that affect reports
-CREATE TRIGGER tr_inventory_items_notify
-AFTER INSERT OR UPDATE OR DELETE ON inventory.items
-FOR EACH ROW EXECUTE FUNCTION reporting.notify_reporting_changes();
 
 -- ========================================
 -- INDEXES (Performance)

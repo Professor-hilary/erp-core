@@ -307,11 +307,6 @@ BEGIN
 END;
 $$;
 
--- Triggers on tables that affect reports
-CREATE TRIGGER tr_payables_bills_notify
-AFTER INSERT OR UPDATE OR DELETE ON payables.bills
-FOR EACH ROW EXECUTE FUNCTION reporting.notify_reporting_changes();
-
 -- ========================================
 -- INDEXES
 -- ========================================
