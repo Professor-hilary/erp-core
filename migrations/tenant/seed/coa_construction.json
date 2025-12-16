@@ -100,6 +100,30 @@
             "is_contra": false
         },
         {
+"code": "119000",
+"name": "Prepaid Expenses",
+"category": "asset",
+"parent_code": "110000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "119100",
+"name": "Prepaid Rent",
+"category": "asset",
+"parent_code": "119000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "119200",
+"name": "Prepaid Taxes",
+"category": "asset",
+"parent_code": "119000",
+"normal_balance": "dr",
+"is_contra": false
+},
+        {
             "code": "120000",
             "name": "Non-Current Assets",
             "category": "asset",
@@ -131,6 +155,23 @@
             "normal_balance": "dr",
             "is_contra": false
         },
+        {
+"code": "121300",
+"name": "Tools and Small Equipment",
+"category": "asset",
+"parent_code": "121000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "121400",
+"name": "Cranes and Lifting Equipment",
+"category": "asset",
+"parent_code": "121000",
+"normal_balance": "dr",
+"is_contra": false
+},
+
         {
             "code": "122000",
             "name": "Office Equipment",
@@ -164,13 +205,85 @@
             "is_contra": true
         },
         {
-            "code": "12400",
-            "name": "Long Term Investments",
-            "category": "asset",
-            "parent_code": "123000",
-            "normal_balance": "cr",
-            "is_contra": true
-        },
+"code": "123300",
+"name": "Acc. Dep. - Tools",
+"category": "asset",
+"parent_code": "123000",
+"normal_balance": "cr",
+"is_contra": true
+},
+        {
+"code": "124000",
+"name": "Long-Term Investments",
+"category": "asset",
+"parent_code": "120000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "125000",
+"name": "Land and Buildings",
+"category": "asset",
+"parent_code": "120000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "125100",
+"name": "Office Building",
+"category": "asset",
+"parent_code": "125000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "125200",
+"name": "Yard and Storage Facilities",
+"category": "asset",
+"parent_code": "125000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "126000",
+"name": "Accumulated Depreciation - Buildings",
+"category": "asset",
+"parent_code": "123000",
+"normal_balance": "cr",
+"is_contra": true
+},
+{
+"code": "127000",
+"name": "Intangible Assets",
+"category": "asset",
+"parent_code": "120000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "127100",
+"name": "Goodwill",
+"category": "asset",
+"parent_code": "127000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "127200",
+"name": "Software and Licenses",
+"category": "asset",
+"parent_code": "127000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "128000",
+"name": "Accumulated Amortization",
+"category": "asset",
+"parent_code": "120000",
+"normal_balance": "cr",
+"is_contra": true
+},
         {
             "code": "200000",
             "name": "Liabilities",
@@ -260,6 +373,30 @@
             "is_contra": false
         },
         {
+"code": "219000",
+"name": "Accrued Expenses",
+"category": "liability",
+"parent_code": "210000",
+"normal_balance": "cr",
+"is_contra": false
+},
+{
+"code": "219100",
+"name": "Accrued Interest",
+"category": "liability",
+"parent_code": "219000",
+"normal_balance": "cr",
+"is_contra": false
+},
+{
+"code": "219200",
+"name": "Accrued Utilities",
+"category": "liability",
+"parent_code": "219000",
+"normal_balance": "cr",
+"is_contra": false
+},
+        {
             "code": "220000",
             "name": "Non-Current Liabilities",
             "category": "liability",
@@ -267,6 +404,7 @@
             "normal_balance": "cr",
             "is_contra": false
         },
+        
         {
             "code": "221000",
             "name": "Long-Term Loan",
@@ -291,6 +429,30 @@
             "normal_balance": "cr",
             "is_contra": false
         },
+        {
+"code": "221100",
+"name": "Mortgage Payable",
+"category": "liability",
+"parent_code": "220000",
+"normal_balance": "cr",
+"is_contra": false
+},
+{
+"code": "221200",
+"name": "Equipment Financing Long-Term",
+"category": "liability",
+"parent_code": "220000",
+"normal_balance": "cr",
+"is_contra": false
+},
+{
+"code": "224000",
+"name": "Deferred Tax Liability",
+"category": "liability",
+"parent_code": "220000",
+"normal_balance": "cr",
+"is_contra": false
+},
         {
             "code": "300000",
             "name": "Equity",
@@ -331,6 +493,14 @@
             "normal_balance": "cr",
             "is_contra": false
         },
+        {
+"code": "314000",
+"name": "Revaluation Surplus",
+"category": "equity",
+"parent_code": "310000",
+"normal_balance": "cr",
+"is_contra": false
+},
         {
             "code": "400000",
             "name": "Revenue",
@@ -404,6 +574,30 @@
             "is_contra": false
         },
         {
+"code": "431000",
+"name": "Interest Income",
+"category": "income",
+"parent_code": "430000",
+"normal_balance": "cr",
+"is_contra": false
+},
+{
+"code": "432000",
+"name": "Gain on Sale of Equipment",
+"category": "income",
+"parent_code": "430000",
+"normal_balance": "cr",
+"is_contra": false
+},
+{
+"code": "433000",
+"name": "Rental Income",
+"category": "income",
+"parent_code": "430000",
+"normal_balance": "cr",
+"is_contra": false
+},
+        {
             "code": "500000",
             "name": "Cost of Construction",
             "category": "expense",
@@ -420,6 +614,54 @@
             "is_contra": false
         },
         {
+"code": "511000",
+"name": "Concrete and Cement",
+"category": "expense",
+"parent_code": "510000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "512000",
+"name": "Steel and Rebar",
+"category": "expense",
+"parent_code": "510000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "513000",
+"name": "Lumber and Timber",
+"category": "expense",
+"parent_code": "510000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "514000",
+"name": "Electrical Supplies",
+"category": "expense",
+"parent_code": "510000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "515000",
+"name": "Plumbing Supplies",
+"category": "expense",
+"parent_code": "510000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "516000",
+"name": "Consumables and Fasteners",
+"category": "expense",
+"parent_code": "510000",
+"normal_balance": "dr",
+"is_contra": false
+},
+        {
             "code": "520000",
             "name": "Labor Costs",
             "category": "expense",
@@ -428,6 +670,38 @@
             "is_contra": false
         },
         {
+"code": "521000",
+"name": "Direct Labor Wages",
+"category": "expense",
+"parent_code": "520000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "522000",
+"name": "Overtime Wages",
+"category": "expense",
+"parent_code": "520000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "523000",
+"name": "Payroll Taxes - Direct Labor",
+"category": "expense",
+"parent_code": "520000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "524000",
+"name": "Workers Compensation Insurance",
+"category": "expense",
+"parent_code": "520000",
+"normal_balance": "dr",
+"is_contra": false
+},
+        {
             "code": "530000",
             "name": "Subcontractor Costs",
             "category": "expense",
@@ -435,6 +709,70 @@
             "normal_balance": "dr",
             "is_contra": false
         },
+        {
+"code": "531000",
+"name": "Subcontractor - Electrical",
+"category": "expense",
+"parent_code": "530000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "532000",
+"name": "Subcontractor - Plumbing",
+"category": "expense",
+"parent_code": "530000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "533000",
+"name": "Subcontractor - HVAC",
+"category": "expense",
+"parent_code": "530000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "534000",
+"name": "Subcontractor - Masonry",
+"category": "expense",
+"parent_code": "530000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "535000",
+"name": "Other Subcontractors",
+"category": "expense",
+"parent_code": "530000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "536000",
+"name": "Equipment Rental",
+"category": "expense",
+"parent_code": "530000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "537000",
+"name": "Fuel and Lubricants",
+"category": "expense",
+"parent_code": "530000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "538000",
+"name": "Repairs and Maintenance - Equipment",
+"category": "expense",
+"parent_code": "530000",
+"normal_balance": "dr",
+"is_contra": false
+},
         {
             "code": "530000",
             "name": "Equipment Costs",
@@ -516,6 +854,30 @@
             "is_contra": false
         },
         {
+"code": "546000",
+"name": "Permits and Licenses",
+"category": "expense",
+"parent_code": "540000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "547000",
+"name": "Safety Equipment and Training",
+"category": "expense",
+"parent_code": "540000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "548000",
+"name": "Temporary Facilities",
+"category": "expense",
+"parent_code": "540000",
+"normal_balance": "dr",
+"is_contra": false
+},
+        {
             "code": "600000",
             "name": "Operating Expenses",
             "category": "expense",
@@ -570,6 +932,183 @@
             "parent_code": "600000",
             "normal_balance": "dr",
             "is_contra": false
-        }
+        },
+
+        {
+            "code": "660000",
+            "name": "General Expenses",
+            "category": "expense",
+            "parent_code": "600000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+"code": "660100",
+"name": "Office Salaries",
+"category": "expense",
+"parent_code": "660000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "660200",
+"name": "Payroll Taxes - Administrative",
+"category": "expense",
+"parent_code": "660000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "660300",
+"name": "Office Supplies",
+"category": "expense",
+"parent_code": "660000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "660400",
+"name": "Telephone and Internet",
+"category": "expense",
+"parent_code": "660000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "660500",
+"name": "Software Subscriptions",
+"category": "expense",
+"parent_code": "660000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "660600",
+"name": "General Liability Insurance",
+"category": "expense",
+"parent_code": "660000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "660700",
+"name": "Vehicle Insurance",
+"category": "expense",
+"parent_code": "660000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "660800",
+"name": "Depreciation - Equipment",
+"category": "expense",
+"parent_code": "660000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "660900",
+"name": "Depreciation - Vehicles",
+"category": "expense",
+"parent_code": "660000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "661000",
+"name": "Depreciation - Buildings",
+"category": "expense",
+"parent_code": "660000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "661100",
+"name": "Professional Fees",
+"category": "expense",
+"parent_code": "660000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "661200",
+"name": "Legal Fees",
+"category": "expense",
+"parent_code": "660000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "661300",
+"name": "Accounting and Audit Fees",
+"category": "expense",
+"parent_code": "660000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "661400",
+"name": "Marketing and Advertising",
+"category": "expense",
+"parent_code": "660000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "661500",
+"name": "Travel and Entertainment",
+"category": "expense",
+"parent_code": "660000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "661600",
+"name": "Bank Charges",
+"category": "expense",
+"parent_code": "660000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "661700",
+"name": "Bad Debt Expense",
+"category": "expense",
+"parent_code": "660000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "661800",
+"name": "Warranty Expense",
+"category": "expense",
+"parent_code": "660000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "661900",
+"name": "Loss on Disposal of Assets",
+"category": "expense",
+"parent_code": "660000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "662000",
+"name": "Income Tax Expense",
+"category": "expense",
+"parent_code": "660000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "662100",
+"name": "Bonding and Surety Costs",
+"category": "expense",
+"parent_code": "660000",
+"normal_balance": "dr",
+"is_contra": false
+}
     ]
 }
