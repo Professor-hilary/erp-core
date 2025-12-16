@@ -243,11 +243,12 @@ ORDER BY v.serial_id, COALESCE(b.serial_id, 0), p.payment_date DESC NULLS LAST;
 -- END;
 -- $$;
 
+-- Payables post bill function (credit purchase)
 CREATE OR REPLACE FUNCTION payables.post_bill(
     p_bill_serial_id bigint,
     p_user uuid,
     p_expense_code text,
-    p_payable_code text,
+    p_payable_code text
 ) RETURNS void
 LANGUAGE plpgsql
 AS $$
@@ -306,6 +307,7 @@ BEGIN
 END;
 $$;
 
+-- Bill payment function (payment for credit purchase)
 CREATE OR REPLACE FUNCTION payables.post_payment(
     p_payment_serial_id bigint,
     p_user bigint,
@@ -343,6 +345,7 @@ BEGIN
 END;
 $$;
 
+-- Bill payment application function (payment for credit purchase)
 CREATE OR REPLACE FUNCTION payables.apply_payment(
     p_payment_serial_id bigint,
     p_bill_serial_id bigint,

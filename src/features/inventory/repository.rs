@@ -433,8 +433,8 @@ impl InventoryRepository for PostgresInventoryRepo {
             .bind(&payload.unit_cost)
             .bind(&payload.reference_type)
             .bind(payload.reference_serial_id)
-            .bind(&payload.cash_account_code)
             .bind(user_id)
+            .bind(&payload.cash_account_code)
             .execute(pool)
             .await?;
         Ok(())

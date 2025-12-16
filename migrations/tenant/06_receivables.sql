@@ -249,6 +249,8 @@ ORDER BY c.serial_id, COALESCE(i.serial_id, 0), p.payment_date DESC NULLS LAST;
 -- END;
 -- $$;
 
+
+-- Payables post invoice function (credit sale)
 CREATE OR REPLACE FUNCTION receivables.post_invoice(
     p_invoice_serial_id bigint,
     p_user uuid,
@@ -312,6 +314,7 @@ BEGIN
 END;
 $$;
 
+-- Invoice payment function (payment for credit sale)
 CREATE OR REPLACE FUNCTION receivables.post_payment(
     p_payment_serial_id bigint,
     p_user uuid,
@@ -345,6 +348,7 @@ BEGIN
 END;
 $$;
 
+-- Invoice payment application function (payment for credit sale)
 CREATE OR REPLACE FUNCTION receivables.apply_payment(
     p_payment_serial_id bigint,
     p_invoice_serial_id bigint,

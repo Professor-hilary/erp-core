@@ -343,7 +343,7 @@ ORDER BY m.movement_date DESC;
 --     WHERE uuid = v_item.uuid;
 -- END;
 -- $$;
-
+-- Inventory post cash or credit sale function
 CREATE OR REPLACE FUNCTION inventory.post_sale(
     p_item_serial_id bigint,
     p_warehouse_serial_id bigint,
@@ -351,8 +351,8 @@ CREATE OR REPLACE FUNCTION inventory.post_sale(
     p_unit_cost numeric,
     p_reference_type text,
     p_reference_serial_id bigint,
-    p_cash_code text DEFAULT NULL,
     p_user uuid,
+    p_cash_code text DEFAULT NULL,
     p_gl_transaction_uuid uuid DEFAULT NULL
 ) RETURNS uuid
 LANGUAGE plpgsql
@@ -406,12 +406,14 @@ BEGIN
             jsonb_build_object(
                 'account_ref', v_item.asset_account,
                 'debit', 0, 'credit', v_total,
-                'memo', 'Inventory Asset'),
+                'memo', 'Inventory Asset'
+			),
             -- Cash or equivalent is received when stock goes out
             jsonb_build_object(
                 'account_ref', p_cash_code,
                 'debit', v_total, 'credit', 0,
-                'memo', 'Cash Received',
+                'memo', 'Cash Received'
+            ),
             -- Income is credited to recognize economic benefit
             jsonb_build_object(
                 'account_ref', v_item.income_account,
@@ -454,6 +456,7 @@ BEGIN
 END;
 $$;
 
+-- Inventory post cash or credit purchase function
 CREATE OR REPLACE FUNCTION inventory.post_purchase(
     p_item_serial_id bigint,
     p_warehouse_serial_id bigint,
@@ -535,6 +538,7 @@ BEGIN
     RETURN v_txn_uuid;
 END;
 $$;
+
 
 -- ========================================
 -- INDEXES (Performance)
