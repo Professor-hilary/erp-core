@@ -1,527 +1,1031 @@
 {
-    "industry": "transportation",
-    "name": "Transportation & Logistics",
-    "description": "COA for trucking companies, logistics providers, delivery services, freight forwarders, and last-mile operations (Amazon-style).",
-    "accounts": [
-        {
-            "code": "100000",
-            "name": "Assets",
-            "category": "asset",
-            "parent_code": null,
-            "normal_balance": "dr",
-            "is_contra": false
-        },
-        {
-            "code": "110000",
-            "name": "Current Assets",
-            "category": "asset",
-            "parent_code": "100000",
-            "normal_balance": "dr",
-            "is_contra": false
-        },
-        {
-            "code": "111000",
-            "name": "Cash on Hand",
-            "category": "asset",
-            "parent_code": "110000",
-            "normal_balance": "dr",
-            "is_contra": false
-        },
-        {
-            "code": "112000",
-            "name": "Bank Accounts",
-            "category": "asset",
-            "parent_code": "110000",
-            "normal_balance": "dr",
-            "is_contra": false
-        },
-        {
-            "code": "113000",
-            "name": "Accounts Receivable",
-            "category": "asset",
-            "parent_code": "110000",
-            "normal_balance": "dr",
-            "is_contra": false
-        },
-        {
-            "code": "113100",
-            "name": "Customer Freight Receivables",
-            "category": "asset",
-            "parent_code": "113000",
-            "normal_balance": "dr",
-            "is_contra": false
-        },
-        {
-            "code": "113200",
-            "name": "Allowance for Doubtful Accounts",
-            "category": "asset",
-            "parent_code": "113000",
-            "normal_balance": "cr",
-            "is_contra": true
-        },
-        {
-            "code": "114000",
-            "name": "Prepaid Expenses",
-            "category": "asset",
-            "parent_code": "110000",
-            "normal_balance": "dr",
-            "is_contra": false
-        },
-        {
-            "code": "114100",
-            "name": "Prepaid Fuel Cards",
-            "category": "asset",
-            "parent_code": "114000",
-            "normal_balance": "dr",
-            "is_contra": false
-        },
-        {
-            "code": "114200",
-            "name": "Prepaid Insurance",
-            "category": "asset",
-            "parent_code": "114000",
-            "normal_balance": "dr",
-            "is_contra": false
-        },
-        {
-            "code": "120000",
-            "name": "Inventory",
-            "category": "asset",
-            "parent_code": "110000",
-            "normal_balance": "dr",
-            "is_contra": false
-        },
-        {
-            "code": "121000",
-            "name": "Fuel Inventory",
-            "category": "asset",
-            "parent_code": "120000",
-            "normal_balance": "dr",
-            "is_contra": false
-        },
-        {
-            "code": "122000",
-            "name": "Spare Parts & Tires",
-            "category": "asset",
-            "parent_code": "120000",
-            "normal_balance": "dr",
-            "is_contra": false
-        },
-        {
-            "code": "123000",
-            "name": "Packaging Materials",
-            "category": "asset",
-            "parent_code": "120000",
-            "normal_balance": "dr",
-            "is_contra": false
-        },
-        {
-            "code": "130000",
-            "name": "Non-Current Assets",
-            "category": "asset",
-            "parent_code": "100000",
-            "normal_balance": "dr",
-            "is_contra": false
-        },
-        {
-            "code": "131000",
-            "name": "Fleet Vehicles",
-            "category": "asset",
-            "parent_code": "130000",
-            "normal_balance": "dr",
-            "is_contra": false
-        },
-        {
-            "code": "131100",
-            "name": "Trucks & Trailers",
-            "category": "asset",
-            "parent_code": "131000",
-            "normal_balance": "dr",
-            "is_contra": false
-        },
-        {
-            "code": "131200",
-            "name": "Delivery Vans",
-            "category": "asset",
-            "parent_code": "131000",
-            "normal_balance": "dr",
-            "is_contra": false
-        },
-        {
-            "code": "131300",
-            "name": "Motorcycles & Bikes",
-            "category": "asset",
-            "parent_code": "131000",
-            "normal_balance": "dr",
-            "is_contra": false
-        },
-        {
-            "code": "132000",
-            "name": "Warehouse Equipment",
-            "category": "asset",
-            "parent_code": "130000",
-            "normal_balance": "dr",
-            "is_contra": false
-        },
-        {
-            "code": "132100",
-            "name": "Forklifts",
-            "category": "asset",
-            "parent_code": "132000",
-            "normal_balance": "dr",
-            "is_contra": false
-        },
-        {
-            "code": "133000",
-            "name": "Accumulated Depreciation",
-            "category": "asset",
-            "parent_code": "130000",
-            "normal_balance": "cr",
-            "is_contra": true
-        },
-        {
-            "code": "133100",
-            "name": "Acc. Dep. - Trucks",
-            "category": "asset",
-            "parent_code": "133000",
-            "normal_balance": "cr",
-            "is_contra": true
-        },
-        {
-            "code": "133200",
-            "name": "Acc. Dep. - Delivery Vans",
-            "category": "asset",
-            "parent_code": "133000",
-            "normal_balance": "cr",
-            "is_contra": true
-        },
-        {
-            "code": "200000",
-            "name": "Liabilities",
-            "category": "liability",
-            "parent_code": null,
-            "normal_balance": "cr",
-            "is_contra": false
-        },
-        {
-            "code": "210000",
-            "name": "Current Liabilities",
-            "category": "liability",
-            "parent_code": "200000",
-            "normal_balance": "cr",
-            "is_contra": false
-        },
-        {
-            "code": "211000",
-            "name": "Accounts Payable",
-            "category": "liability",
-            "parent_code": "210000",
-            "normal_balance": "cr",
-            "is_contra": false
-        },
-        {
-            "code": "212000",
-            "name": "Accrued Driver Salaries",
-            "category": "liability",
-            "parent_code": "210000",
-            "normal_balance": "cr",
-            "is_contra": false
-        },
-        {
-            "code": "213000",
-            "name": "Fuel Cards Payable",
-            "category": "liability",
-            "parent_code": "210000",
-            "normal_balance": "cr",
-            "is_contra": false
-        },
-        {
-            "code": "214000",
-            "name": "Taxes Payable",
-            "category": "liability",
-            "parent_code": "210000",
-            "normal_balance": "cr",
-            "is_contra": false
-        },
-        {
-            "code": "220000",
-            "name": "Non-Current Liabilities",
-            "category": "liability",
-            "parent_code": "200000",
-            "normal_balance": "cr",
-            "is_contra": false
-        },
-        {
-            "code": "221000",
-            "name": "Vehicle Loans - Long Term",
-            "category": "liability",
-            "parent_code": "220000",
-            "normal_balance": "cr",
-            "is_contra": false
-        },
-        {
-            "code": "222000",
-            "name": "Warehouse Lease Payable",
-            "category": "liability",
-            "parent_code": "220000",
-            "normal_balance": "cr",
-            "is_contra": false
-        },
-        {
-            "code": "300000",
-            "name": "Equity",
-            "category": "equity",
-            "parent_code": null,
-            "normal_balance": "cr",
-            "is_contra": false
-        },
-        {
-            "code": "310000",
-            "name": "Owner's Equity",
-            "category": "equity",
-            "parent_code": "300000",
-            "normal_balance": "cr",
-            "is_contra": false
-        },
-        {
-            "code": "311000",
-            "name": "Owner's Capital",
-            "category": "equity",
-            "parent_code": "310000",
-            "normal_balance": "cr",
-            "is_contra": false
-        },
-        {
-            "code": "312000",
-            "name": "Owner's Drawings",
-            "category": "equity",
-            "parent_code": "310000",
-            "normal_balance": "dr",
-            "is_contra": true
-        },
-        {
-            "code": "313000",
-            "name": "Retained Earnings",
-            "category": "equity",
-            "parent_code": "310000",
-            "normal_balance": "cr",
-            "is_contra": false
-        },
-        {
-            "code": "400000",
-            "name": "Revenue",
-            "category": "income",
-            "parent_code": null,
-            "normal_balance": "cr",
-            "is_contra": false
-        },
-        {
-            "code": "410000",
-            "name": "Freight Revenue",
-            "category": "income",
-            "parent_code": "400000",
-            "normal_balance": "cr",
-            "is_contra": false
-        },
-        {
-            "code": "411000",
-            "name": "Long-Haul Freight",
-            "category": "income",
-            "parent_code": "410000",
-            "normal_balance": "cr",
-            "is_contra": false
-        },
-        {
-            "code": "412000",
-            "name": "Local Trucking",
-            "category": "income",
-            "parent_code": "410000",
-            "normal_balance": "cr",
-            "is_contra": false
-        },
-        {
-            "code": "420000",
-            "name": "Last-Mile Delivery Revenue",
-            "category": "income",
-            "parent_code": "400000",
-            "normal_balance": "cr",
-            "is_contra": false
-        },
-        {
-            "code": "421000",
-            "name": "E-commerce Delivery",
-            "category": "income",
-            "parent_code": "420000",
-            "normal_balance": "cr",
-            "is_contra": false
-        },
-        {
-            "code": "430000",
-            "name": "Warehousing & Storage",
-            "category": "income",
-            "parent_code": "400000",
-            "normal_balance": "cr",
-            "is_contra": false
-        },
-        {
-            "code": "440000",
-            "name": "Revenue Adjustments",
-            "category": "income",
-            "parent_code": "400000",
-            "normal_balance": "dr",
-            "is_contra": true
-        },
-        {
-            "code": "450000",
-            "name": "Gain on Sale of Vehicles",
-            "category": "income",
-            "parent_code": "400000",
-            "normal_balance": "cr",
-            "is_contra": false
-        },
-        {
-            "code": "460000",
-            "name": "Other Incomes",
-            "category": "income",
-            "parent_code": "400000",
-            "normal_balance": "cr",
-            "is_contra": false
-        },
-        {
-            "code": "500000",
-            "name": "Cost of Transportation",
-            "category": "expense",
-            "parent_code": null,
-            "normal_balance": "dr",
-            "is_contra": false
-        },
-        {
-            "code": "510000",
-            "name": "Fuel Expense",
-            "category": "expense",
-            "parent_code": "500000",
-            "normal_balance": "dr",
-            "is_contra": false
-        },
-        {
-            "code": "520000",
-            "name": "Vehicle Maintenance",
-            "category": "expense",
-            "parent_code": "500000",
-            "normal_balance": "dr",
-            "is_contra": false
-        },
-        {
-            "code": "521000",
-            "name": "Tires & Repairs",
-            "category": "expense",
-            "parent_code": "520000",
-            "normal_balance": "dr",
-            "is_contra": false
-        },
-        {
-            "code": "530000",
-            "name": "Driver Per Diem & Allowances",
-            "category": "expense",
-            "parent_code": "500000",
-            "normal_balance": "dr",
-            "is_contra": false
-        },
-        {
-            "code": "540000",
-            "name": "Toll & Road Fees",
-            "category": "expense",
-            "parent_code": "500000",
-            "normal_balance": "dr",
-            "is_contra": false
-        },
-        {
-            "code": "550000",
-            "name": "Third-Party Carrier Costs",
-            "category": "expense",
-            "parent_code": "500000",
-            "normal_balance": "dr",
-            "is_contra": false
-        },
-        {
-            "code": "600000",
-            "name": "Operating Expenses",
-            "category": "expense",
-            "parent_code": null,
-            "normal_balance": "dr",
-            "is_contra": false
-        },
-        {
-            "code": "610000",
-            "name": "Payroll Expenses",
-            "category": "expense",
-            "parent_code": "600000",
-            "normal_balance": "dr",
-            "is_contra": false
-        },
-        {
-            "code": "611000",
-            "name": "Driver Salaries",
-            "category": "expense",
-            "parent_code": "610000",
-            "normal_balance": "dr",
-            "is_contra": false
-        },
-        {
-            "code": "612000",
-            "name": "Warehouse Staff",
-            "category": "expense",
-            "parent_code": "610000",
-            "normal_balance": "dr",
-            "is_contra": false
-        },
-        {
-            "code": "620000",
-            "name": "Warehouse Rent & Utilities",
-            "category": "expense",
-            "parent_code": "600000",
-            "normal_balance": "dr",
-            "is_contra": false
-        },
-        {
-            "code": "630000",
-            "name": "Insurance - Fleet",
-            "category": "expense",
-            "parent_code": "600000",
-            "normal_balance": "dr",
-            "is_contra": false
-        },
-        {
-            "code": "640000",
-            "name": "Depreciation - Vehicles",
-            "category": "expense",
-            "parent_code": "600000",
-            "normal_balance": "dr",
-            "is_contra": false
-        },
-        {
-            "code": "650000",
-            "name": "Technology & GPS Tracking",
-            "category": "expense",
-            "parent_code": "600000",
-            "normal_balance": "dr",
-            "is_contra": false
-        },
-        {
-            "code": "660000",
-            "name": "Other Expense",
-            "category": "expense",
-            "parent_code": "600000",
-            "normal_balance": "dr",
-            "is_contra": false
-        },
-        {
-            "code": "670000",
-            "name": "Interest Expense",
-            "category": "expense",
-            "parent_code": "600000",
-            "normal_balance": "dr",
-            "is_contra": false
-        }
-    ]
+  "industry": "transportation",
+  "name": "Transportation & Logistics",
+  "description": "COA for trucking companies, logistics providers, delivery services, freight forwarders, and last-mile operations (Amazon-style).",
+  "accounts": [
+    {
+      "code": "100000",
+      "name": "Assets",
+      "category": "asset",
+      "parent_code": null,
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "110000",
+      "name": "Current Assets",
+      "category": "asset",
+      "parent_code": "100000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "111000",
+      "name": "Cash on Hand",
+      "category": "asset",
+      "parent_code": "110000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "112000",
+      "name": "Bank Accounts",
+      "category": "asset",
+      "parent_code": "110000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "113000",
+      "name": "Accounts Receivable",
+      "category": "asset",
+      "parent_code": "110000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "113100",
+      "name": "Customer Freight Receivables",
+      "category": "asset",
+      "parent_code": "113000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "113200",
+      "name": "Allowance for Doubtful Accounts",
+      "category": "asset",
+      "parent_code": "113000",
+      "normal_balance": "cr",
+      "is_contra": true
+    },
+    {
+      "code": "114000",
+      "name": "Prepaid Expenses",
+      "category": "asset",
+      "parent_code": "110000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "114100",
+      "name": "Prepaid Fuel Cards",
+      "category": "asset",
+      "parent_code": "114000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "114200",
+      "name": "Prepaid Insurance",
+      "category": "asset",
+      "parent_code": "114000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "114300",
+      "name": "Prepaid Tolls",
+      "category": "asset",
+      "parent_code": "114000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "114400",
+      "name": "Prepaid Licenses & Permits",
+      "category": "asset",
+      "parent_code": "114000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "114500",
+      "name": "Prepaid Maintenance",
+      "category": "asset",
+      "parent_code": "114000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "115000",
+      "name": "Short-term Investments",
+      "category": "asset",
+      "parent_code": "110000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "116000",
+      "name": "Other Receivables",
+      "category": "asset",
+      "parent_code": "110000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "117000",
+      "name": "Advances to Drivers",
+      "category": "asset",
+      "parent_code": "110000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "118000",
+      "name": "Other Current Assets",
+      "category": "asset",
+      "parent_code": "110000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "120000",
+      "name": "Inventory",
+      "category": "asset",
+      "parent_code": "110000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "121000",
+      "name": "Fuel Inventory",
+      "category": "asset",
+      "parent_code": "120000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "122000",
+      "name": "Spare Parts & Tires",
+      "category": "asset",
+      "parent_code": "120000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "123000",
+      "name": "Packaging Materials",
+      "category": "asset",
+      "parent_code": "120000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "124000",
+      "name": "Warehouse Supplies",
+      "category": "asset",
+      "parent_code": "120000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "130000",
+      "name": "Non-Current Assets",
+      "category": "asset",
+      "parent_code": "100000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "131000",
+      "name": "Fleet Vehicles",
+      "category": "asset",
+      "parent_code": "130000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "131100",
+      "name": "Trucks & Trailers",
+      "category": "asset",
+      "parent_code": "131000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "131200",
+      "name": "Delivery Vans",
+      "category": "asset",
+      "parent_code": "131000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "131300",
+      "name": "Motorcycles & Bikes",
+      "category": "asset",
+      "parent_code": "131000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "132000",
+      "name": "Warehouse Equipment",
+      "category": "asset",
+      "parent_code": "130000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "132100",
+      "name": "Forklifts",
+      "category": "asset",
+      "parent_code": "132000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "133000",
+      "name": "Accumulated Depreciation",
+      "category": "asset",
+      "parent_code": "130000",
+      "normal_balance": "cr",
+      "is_contra": true
+    },
+    {
+      "code": "133100",
+      "name": "Acc. Dep. - Trucks",
+      "category": "asset",
+      "parent_code": "133000",
+      "normal_balance": "cr",
+      "is_contra": true
+    },
+    {
+      "code": "133200",
+      "name": "Acc. Dep. - Delivery Vans",
+      "category": "asset",
+      "parent_code": "133000",
+      "normal_balance": "cr",
+      "is_contra": true
+    },
+    {
+      "code": "134000",
+      "name": "Land & Buildings",
+      "category": "asset",
+      "parent_code": "130000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "134100",
+      "name": "Warehouses & Depots",
+      "category": "asset",
+      "parent_code": "134000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "135000",
+      "name": "Office Equipment & Computers",
+      "category": "asset",
+      "parent_code": "130000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "136000",
+      "name": "Accumulated Depreciation - Buildings",
+      "category": "asset",
+      "parent_code": "133000",
+      "normal_balance": "cr",
+      "is_contra": true
+    },
+    {
+      "code": "136100",
+      "name": "Acc. Dep. - Warehouse Equipment",
+      "category": "asset",
+      "parent_code": "133000",
+      "normal_balance": "cr",
+      "is_contra": true
+    },
+    {
+      "code": "136200",
+      "name": "Acc. Dep. - Motorcycles",
+      "category": "asset",
+      "parent_code": "133000",
+      "normal_balance": "cr",
+      "is_contra": true
+    },
+    {
+      "code": "137000",
+      "name": "Intangible Assets",
+      "category": "asset",
+      "parent_code": "130000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "137100",
+      "name": "Software & Routing Systems",
+      "category": "asset",
+      "parent_code": "137000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "138000",
+      "name": "Accumulated Amortization",
+      "category": "asset",
+      "parent_code": "130000",
+      "normal_balance": "cr",
+      "is_contra": true
+    },
+    {
+      "code": "139000",
+      "name": "Capital Work in Progress",
+      "category": "asset",
+      "parent_code": "130000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "200000",
+      "name": "Liabilities",
+      "category": "liability",
+      "parent_code": null,
+      "normal_balance": "cr",
+      "is_contra": false
+    },
+    {
+      "code": "210000",
+      "name": "Current Liabilities",
+      "category": "liability",
+      "parent_code": "200000",
+      "normal_balance": "cr",
+      "is_contra": false
+    },
+    {
+      "code": "211000",
+      "name": "Accounts Payable",
+      "category": "liability",
+      "parent_code": "210000",
+      "normal_balance": "cr",
+      "is_contra": false
+    },
+    {
+      "code": "212000",
+      "name": "Accrued Driver Salaries",
+      "category": "liability",
+      "parent_code": "210000",
+      "normal_balance": "cr",
+      "is_contra": false
+    },
+    {
+      "code": "213000",
+      "name": "Fuel Cards Payable",
+      "category": "liability",
+      "parent_code": "210000",
+      "normal_balance": "cr",
+      "is_contra": false
+    },
+    {
+      "code": "214000",
+      "name": "Taxes Payable",
+      "category": "liability",
+      "parent_code": "210000",
+      "normal_balance": "cr",
+      "is_contra": false
+    },
+    {
+      "code": "215000",
+      "name": "Accrued Expenses",
+      "category": "liability",
+      "parent_code": "210000",
+      "normal_balance": "cr",
+      "is_contra": false
+    },
+    {
+      "code": "216000",
+      "name": "Accrued Tolls & Fees",
+      "category": "liability",
+      "parent_code": "210000",
+      "normal_balance": "cr",
+      "is_contra": false
+    },
+    {
+      "code": "217000",
+      "name": "Current Portion of Vehicle Loans",
+      "category": "liability",
+      "parent_code": "210000",
+      "normal_balance": "cr",
+      "is_contra": false
+    },
+    {
+      "code": "218000",
+      "name": "Payroll Taxes Payable",
+      "category": "liability",
+      "parent_code": "210000",
+      "normal_balance": "cr",
+      "is_contra": false
+    },
+    {
+      "code": "219000",
+      "name": "Sales Tax Payable",
+      "category": "liability",
+      "parent_code": "210000",
+      "normal_balance": "cr",
+      "is_contra": false
+    },
+    {
+      "code": "220000",
+      "name": "Non-Current Liabilities",
+      "category": "liability",
+      "parent_code": "200000",
+      "normal_balance": "cr",
+      "is_contra": false
+    },
+    {
+      "code": "221000",
+      "name": "Vehicle Loans - Long Term",
+      "category": "liability",
+      "parent_code": "220000",
+      "normal_balance": "cr",
+      "is_contra": false
+    },
+    {
+      "code": "222000",
+      "name": "Warehouse Lease Payable",
+      "category": "liability",
+      "parent_code": "220000",
+      "normal_balance": "cr",
+      "is_contra": false
+    },
+    {
+      "code": "223000",
+      "name": "Equipment Loans",
+      "category": "liability",
+      "parent_code": "220000",
+      "normal_balance": "cr",
+      "is_contra": false
+    },
+    {
+      "code": "224000",
+      "name": "Deferred Tax Liability",
+      "category": "liability",
+      "parent_code": "220000",
+      "normal_balance": "cr",
+      "is_contra": false
+    },
+    {
+      "code": "300000",
+      "name": "Equity",
+      "category": "equity",
+      "parent_code": null,
+      "normal_balance": "cr",
+      "is_contra": false
+    },
+    {
+      "code": "310000",
+      "name": "Owner's Equity",
+      "category": "equity",
+      "parent_code": "300000",
+      "normal_balance": "cr",
+      "is_contra": false
+    },
+    {
+      "code": "311000",
+      "name": "Owner's Capital",
+      "category": "equity",
+      "parent_code": "310000",
+      "normal_balance": "cr",
+      "is_contra": false
+    },
+    {
+      "code": "312000",
+      "name": "Owner's Drawings",
+      "category": "equity",
+      "parent_code": "310000",
+      "normal_balance": "dr",
+      "is_contra": true
+    },
+    {
+      "code": "313000",
+      "name": "Retained Earnings",
+      "category": "equity",
+      "parent_code": "310000",
+      "normal_balance": "cr",
+      "is_contra": false
+    },
+    {
+      "code": "314000",
+      "name": "Revaluation Reserve",
+      "category": "equity",
+      "parent_code": "310000",
+      "normal_balance": "cr",
+      "is_contra": false
+    },
+    {
+      "code": "400000",
+      "name": "Revenue",
+      "category": "income",
+      "parent_code": null,
+      "normal_balance": "cr",
+      "is_contra": false
+    },
+    {
+      "code": "410000",
+      "name": "Freight Revenue",
+      "category": "income",
+      "parent_code": "400000",
+      "normal_balance": "cr",
+      "is_contra": false
+    },
+    {
+      "code": "411000",
+      "name": "Long-Haul Freight",
+      "category": "income",
+      "parent_code": "410000",
+      "normal_balance": "cr",
+      "is_contra": false
+    },
+    {
+      "code": "412000",
+      "name": "Local Trucking",
+      "category": "income",
+      "parent_code": "410000",
+      "normal_balance": "cr",
+      "is_contra": false
+    },
+    {
+      "code": "413000",
+      "name": "Freight Brokerage",
+      "category": "income",
+      "parent_code": "410000",
+      "normal_balance": "cr",
+      "is_contra": false
+    },
+    {
+      "code": "414000",
+      "name": "Intermodal Services",
+      "category": "income",
+      "parent_code": "410000",
+      "normal_balance": "cr",
+      "is_contra": false
+    },
+    {
+      "code": "420000",
+      "name": "Last-Mile Delivery Revenue",
+      "category": "income",
+      "parent_code": "400000",
+      "normal_balance": "cr",
+      "is_contra": false
+    },
+    {
+      "code": "421000",
+      "name": "E-commerce Delivery",
+      "category": "income",
+      "parent_code": "420000",
+      "normal_balance": "cr",
+      "is_contra": false
+    },
+    {
+      "code": "422000",
+      "name": "Courier & Parcel Delivery",
+      "category": "income",
+      "parent_code": "420000",
+      "normal_balance": "cr",
+      "is_contra": false
+    },
+    {
+      "code": "430000",
+      "name": "Warehousing & Storage",
+      "category": "income",
+      "parent_code": "400000",
+      "normal_balance": "cr",
+      "is_contra": false
+    },
+    {
+      "code": "431000",
+      "name": "Fulfillment Services",
+      "category": "income",
+      "parent_code": "430000",
+      "normal_balance": "cr",
+      "is_contra": false
+    },
+    {
+      "code": "432000",
+      "name": "Cross-Docking Fees",
+      "category": "income",
+      "parent_code": "430000",
+      "normal_balance": "cr",
+      "is_contra": false
+    },
+    {
+      "code": "440000",
+      "name": "Revenue Adjustments",
+      "category": "income",
+      "parent_code": "400000",
+      "normal_balance": "dr",
+      "is_contra": true
+    },
+    {
+      "code": "441000",
+      "name": "Fuel Surcharge Adjustments",
+      "category": "income",
+      "parent_code": "440000",
+      "normal_balance": "dr",
+      "is_contra": true
+    },
+    {
+      "code": "442000",
+      "name": "Delivery Discounts",
+      "category": "income",
+      "parent_code": "440000",
+      "normal_balance": "dr",
+      "is_contra": true
+    },
+    {
+      "code": "450000",
+      "name": "Gain on Sale of Vehicles",
+      "category": "income",
+      "parent_code": "400000",
+      "normal_balance": "cr",
+      "is_contra": false
+    },
+    {
+      "code": "460000",
+      "name": "Other Incomes",
+      "category": "income",
+      "parent_code": "400000",
+      "normal_balance": "cr",
+      "is_contra": false
+    },
+    {
+      "code": "461000",
+      "name": "Interest Income",
+      "category": "income",
+      "parent_code": "460000",
+      "normal_balance": "cr",
+      "is_contra": false
+    },
+    {
+      "code": "462000",
+      "name": "Scrap Sales",
+      "category": "income",
+      "parent_code": "460000",
+      "normal_balance": "cr",
+      "is_contra": false
+    },
+    {
+      "code": "500000",
+      "name": "Cost of Transportation",
+      "category": "expense",
+      "parent_code": null,
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "510000",
+      "name": "Fuel Expense",
+      "category": "expense",
+      "parent_code": "500000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "511000",
+      "name": "Diesel Fuel",
+      "category": "expense",
+      "parent_code": "510000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "512000",
+      "name": "Gasoline",
+      "category": "expense",
+      "parent_code": "510000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "520000",
+      "name": "Vehicle Maintenance",
+      "category": "expense",
+      "parent_code": "500000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "522000",
+      "name": "Oil & Lubricants",
+      "category": "expense",
+      "parent_code": "520000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "523000",
+      "name": "Routine Servicing",
+      "category": "expense",
+      "parent_code": "520000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "524000",
+      "name": "Major Repairs",
+      "category": "expense",
+      "parent_code": "520000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "521000",
+      "name": "Tires & Repairs",
+      "category": "expense",
+      "parent_code": "520000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "530000",
+      "name": "Driver Per Diem & Allowances",
+      "category": "expense",
+      "parent_code": "500000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "531000",
+      "name": "Driver Bonuses",
+      "category": "expense",
+      "parent_code": "530000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "532000",
+      "name": "Lodging & Meals",
+      "category": "expense",
+      "parent_code": "530000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "540000",
+      "name": "Toll & Road Fees",
+      "category": "expense",
+      "parent_code": "500000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "541000",
+      "name": "Highway Tolls",
+      "category": "expense",
+      "parent_code": "540000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "542000",
+      "name": "Parking Fees",
+      "category": "expense",
+      "parent_code": "540000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "550000",
+      "name": "Third-Party Carrier Costs",
+      "category": "expense",
+      "parent_code": "500000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "551000",
+      "name": "Subcontracted Freight",
+      "category": "expense",
+      "parent_code": "550000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "552000",
+      "name": "Air & Ocean Freight",
+      "category": "expense",
+      "parent_code": "550000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "600000",
+      "name": "Operating Expenses",
+      "category": "expense",
+      "parent_code": null,
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "610000",
+      "name": "Payroll Expenses",
+      "category": "expense",
+      "parent_code": "600000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "611000",
+      "name": "Driver Salaries",
+      "category": "expense",
+      "parent_code": "610000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "612000",
+      "name": "Warehouse Staff",
+      "category": "expense",
+      "parent_code": "610000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "613000",
+      "name": "Administrative Salaries",
+      "category": "expense",
+      "parent_code": "610000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "614000",
+      "name": "Payroll Taxes",
+      "category": "expense",
+      "parent_code": "610000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "615000",
+      "name": "Employee Benefits",
+      "category": "expense",
+      "parent_code": "610000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "620000",
+      "name": "Warehouse Rent & Utilities",
+      "category": "expense",
+      "parent_code": "600000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "621000",
+      "name": "Warehouse Utilities",
+      "category": "expense",
+      "parent_code": "620000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "622000",
+      "name": "Office Rent",
+      "category": "expense",
+      "parent_code": "620000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "630000",
+      "name": "Insurance - Fleet",
+      "category": "expense",
+      "parent_code": "600000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "631000",
+      "name": "Cargo Insurance",
+      "category": "expense",
+      "parent_code": "630000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "632000",
+      "name": "Liability Insurance",
+      "category": "expense",
+      "parent_code": "630000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "640000",
+      "name": "Depreciation - Vehicles",
+      "category": "expense",
+      "parent_code": "600000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "641000",
+      "name": "Depreciation - Warehouse Equipment",
+      "category": "expense",
+      "parent_code": "640000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "642000",
+      "name": "Depreciation - Buildings",
+      "category": "expense",
+      "parent_code": "640000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "650000",
+      "name": "Technology & GPS Tracking",
+      "category": "expense",
+      "parent_code": "600000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "651000",
+      "name": "Fleet Management Software",
+      "category": "expense",
+      "parent_code": "650000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "652000",
+      "name": "Telematics & Tracking",
+      "category": "expense",
+      "parent_code": "650000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "660000",
+      "name": "Other Expense",
+      "category": "expense",
+      "parent_code": "600000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "661000",
+      "name": "Office Supplies",
+      "category": "expense",
+      "parent_code": "660000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "662000",
+      "name": "Telephone & Internet",
+      "category": "expense",
+      "parent_code": "660000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "663000",
+      "name": "Professional Fees",
+      "category": "expense",
+      "parent_code": "660000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "664000",
+      "name": "Bad Debt Expense",
+      "category": "expense",
+      "parent_code": "660000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "665000",
+      "name": "Loss on Disposal of Vehicles",
+      "category": "expense",
+      "parent_code": "660000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "670000",
+      "name": "Interest Expense",
+      "category": "expense",
+      "parent_code": "600000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+    {
+      "code": "680000",
+      "name": "Income Tax Expense",
+      "category": "expense",
+      "parent_code": "600000",
+      "normal_balance": "dr",
+      "is_contra": false
+    }
+  ]
 }
