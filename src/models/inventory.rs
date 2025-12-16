@@ -88,7 +88,7 @@ pub struct PostPurchase {
     pub unit_cost: bigdecimal::BigDecimal,
     pub reference_type: Option<String>,
     pub reference_serial_id: i64,
-    pub payables_uuid: Uuid,
+    pub cash_account_code: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -99,5 +99,5 @@ pub struct PostSale {
     pub unit_cost: bigdecimal::BigDecimal,
     pub reference_type: Option<String>,
     pub reference_serial_id: i64,
-    pub _receivables:Option<Uuid>,
+    pub cash_account_code: String,
 }

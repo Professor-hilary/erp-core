@@ -24,6 +24,9 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/create/item", post(create_item))
         .route("/create/category", post(create_item_category))
         .route("/create/warehouse", post(create_warehouse))
+        .route("/purchase", post(cash_purchase))
+        .route("/purchase", post(credit_purchase))
+        .route("/sale", post(post_sale))
         .route("/list/items", get(list_items))
         .route("/list/categories", get(list_item_categories))
         .route("/list/warehouses", get(list_warehouses))
@@ -36,8 +39,6 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/delete/item/{uuid}", delete(delete_item))
         .route("/delete/category/{uuid}", delete(delete_item_category))
         .route("/delete/warehouse/{uuid}", delete(delete_warehouse))
-        .route("/purchase", post(post_purchase))
-        .route("/sale", post(post_sale))
 }
 
 async fn create_item(
@@ -233,7 +234,23 @@ async fn delete_warehouse(
     Ok(ApiResponse::success((), "Warehouse deleted"))
 }
 
-async fn post_purchase(
+async fn cash_purchase(
+    State(_state): State<Arc<AppState>>,
+    Extension(user): Extension<AuthenticatedTenant>,
+    Json(payload): Json<PostPurchase>,
+) -> Result<Response, AppError> {
+    let repo: PostgresInventoryRepo = PostgresInventoryRepo::new();
+    let service: InventoryService<PostgresInventoryRepo> = InventoryService::new(repo);
+    let purchase = service
+        .post_purchase(&user.tenant_pool, user.user_id, &payload)
+        .await?;
+    Ok(ApiResponse::success(
+        purchase,
+        "Purchase posted to inventory and GL",
+    ))
+}
+
+async fn credit_purchase(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<PostPurchase>,

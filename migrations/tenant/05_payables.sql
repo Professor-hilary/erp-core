@@ -205,40 +205,113 @@ ORDER BY v.serial_id, COALESCE(b.serial_id, 0), p.payment_date DESC NULLS LAST;
 -- ========================================
 -- FUNCTIONS
 -- ========================================
-CREATE OR REPLACE FUNCTION payables.post_bill(p_bill_serial_id bigint, p_user bigint)
-RETURNS void LANGUAGE plpgsql AS $$
+-- CREATE OR REPLACE FUNCTION payables.post_bill(
+--     p_bill_serial_id bigint,
+--     p_user uuid,
+--     p_inventory_code TEXT,
+--     p_payables_code TEXT
+-- )
+-- RETURNS void LANGUAGE plpgsql AS $$
+-- DECLARE
+--     v_bill payables.bills%ROWTYPE;
+--     v_txn_serial_id BIGINT;
+--     v_txn_uuid UUID;
+--     v_lines JSONB;
+-- BEGIN
+--     SELECT * INTO v_bill FROM payables.bills WHERE serial_id = p_bill_serial_id;
+--     IF NOT FOUND THEN RAISE EXCEPTION 'Bill serial_id % not found', p_bill_serial_id; END IF;
+--     IF v_bill.posted THEN RETURN; END IF;
+
+--     v_lines := jsonb_build_array(
+--         jsonb_build_object('account_ref', p_inventory_code, 'debit', v_bill.total_amount, 'credit', 0, 'memo', v_bill.bill_number),
+--         jsonb_build_object('account_ref', p_payables_code, 'debit', 0, 'credit', v_bill.total_amount, 'memo', v_bill.bill_number)
+--     );
+
+--     v_txn_serial_id := accounting.post_transaction(
+--         v_bill.bill_date, v_bill.bill_number, 'Vendor Bill Posting', p_user, 'bill', v_lines
+--     );
+
+--     SELECT uuid INTO v_txn_uuid FROM accounting.transactions WHERE serial_id = v_txn_serial_id;
+
+--     UPDATE payables.bills
+--     SET gl_transaction_uuid = v_txn_uuid, posted = TRUE, updated_at = now()
+--     WHERE serial_id = p_bill_serial_id;
+
+--     UPDATE payables.vendors
+--     SET current_balance = current_balance + v_bill.total_amount, updated_at = now()
+--     WHERE uuid = v_bill.vendor_uuid;
+-- END;
+-- $$;
+
+CREATE OR REPLACE FUNCTION payables.post_bill(
+    p_bill_serial_id bigint,
+    p_user uuid,
+    p_expense_code text,
+    p_payable_code text,
+) RETURNS void
+LANGUAGE plpgsql
+AS $$
 DECLARE
     v_bill payables.bills%ROWTYPE;
-    v_txn_serial_id BIGINT;
-    v_txn_uuid UUID;
-    v_lines JSONB;
+    v_txn_serial_id bigint;
+    v_txn_uuid uuid;
+    r record;
 BEGIN
-    SELECT * INTO v_bill FROM payables.bills WHERE serial_id = p_bill_serial_id;
-    IF NOT FOUND THEN RAISE EXCEPTION 'Bill serial_id % not found', p_bill_serial_id; END IF;
+    SELECT * INTO v_bill FROM payables.bills
+    WHERE serial_id = p_bill_serial_id;
+
     IF v_bill.posted THEN RETURN; END IF;
 
-    v_lines := jsonb_build_array(
-        jsonb_build_object('account_ref', '5.1.1', 'debit', v_bill.total_amount, 'credit', 0, 'memo', v_bill.bill_number),
-        jsonb_build_object('account_ref', '2.1.1', 'debit', 0, 'credit', v_bill.total_amount, 'memo', v_bill.bill_number)
-    );
-
     v_txn_serial_id := accounting.post_transaction(
-        v_bill.bill_date, v_bill.bill_number, 'Vendor Bill Posting', p_user, 'bill', v_lines
+        v_bill.bill_date,
+        v_bill.bill_number,
+        'Vendor Bill',
+        p_user,
+        'bill',
+        '[]'::jsonb
     );
 
-    SELECT uuid INTO v_txn_uuid FROM accounting.transactions WHERE serial_id = v_txn_serial_id;
+    SELECT uuid INTO v_txn_uuid
+    FROM accounting.transactions WHERE serial_id = v_txn_serial_id;
+
+    INSERT INTO accounting.transaction_entries
+    VALUES
+    (uuid_generate_v4(), v_txn_uuid, p_expense_code, v_bill.total_amount, 0, 'Credit Purchase'),
+    (uuid_generate_v4(), v_txn_uuid, p_payable_code, 0, v_bill.total_amount, 'Account Payable');
+
+    FOR r IN
+        SELECT * FROM payables.bill_items WHERE bill_uuid = v_bill.uuid
+    LOOP
+        PERFORM inventory.post_purchase(
+            r.item_code::bigint,
+            NULL,
+            r.quantity,
+            r.unit_price,
+            'bill',
+            p_bill_serial_id,
+            p_user,
+            NULL,
+            p_payable_code,
+            v_txn_uuid
+        );
+    END LOOP;
 
     UPDATE payables.bills
-    SET gl_transaction_uuid = v_txn_uuid, posted = TRUE, updated_at = now()
+    SET posted = TRUE, gl_transaction_uuid = v_txn_uuid
     WHERE serial_id = p_bill_serial_id;
 
     UPDATE payables.vendors
-    SET current_balance = current_balance + v_bill.total_amount, updated_at = now()
+    SET current_balance = current_balance + v_bill.total_amount
     WHERE uuid = v_bill.vendor_uuid;
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION payables.post_payment(p_payment_serial_id bigint, p_user bigint)
+CREATE OR REPLACE FUNCTION payables.post_payment(
+    p_payment_serial_id bigint,
+    p_user bigint,
+    p_cash_account_code TEXT,
+    p_payable_code TEXT
+)
 RETURNS void LANGUAGE plpgsql AS $$
 DECLARE
     v_payment payables.payments%ROWTYPE;
@@ -250,8 +323,8 @@ BEGIN
     IF NOT FOUND THEN RAISE EXCEPTION 'Payment serial_id % not found', p_payment_serial_id; END IF;
 
     v_lines := jsonb_build_array(
-        jsonb_build_object('account_ref', '2.1.1', 'debit', v_payment.amount, 'credit', 0, 'memo', v_payment.payment_number),
-        jsonb_build_object('account_ref', '1.1.02', 'debit', 0, 'credit', v_payment.amount, 'memo', v_payment.payment_number)
+        jsonb_build_object('account_ref', p_payable_code, 'debit', v_payment.amount, 'credit', 0, 'memo', v_payment.payment_number),
+        jsonb_build_object('account_ref', p_cash_account_code, 'debit', 0, 'credit', v_payment.amount, 'memo', v_payment.payment_number)
     );
 
     v_txn_serial_id := accounting.post_transaction(

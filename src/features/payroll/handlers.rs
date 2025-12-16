@@ -90,6 +90,8 @@ async fn post_payrun(
 ) -> Result<Response, AppError> {
     let repo = PostgresPayrollRepo::new();
     let service = PayrollService::new(repo);
-    let payrun: () = service.post_payrun(&user.tenant_pool, &payload).await?;
+    let payrun: () = service
+        .post_payrun(user.user_id, &user.tenant_pool, &payload)
+        .await?;
     Ok(ApiResponse::success(payrun, "Payrun posted to GL"))
 }

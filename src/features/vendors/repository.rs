@@ -1,6 +1,6 @@
 use crate::{
     infrastructure::errors::AppError,
-    models::vendor::{CreateVendor, Vendor},
+    models::vendor::{ApplyPayment, Bill, CreateBill, CreateVendor, PostBill, Vendor},
 };
 use async_trait::async_trait;
 use sqlx::PgPool;
@@ -24,6 +24,23 @@ pub trait VendorRepository: Send + Sync {
         payload: &CreateVendor,
     ) -> Result<Vendor, AppError>;
     async fn delete(&self, pool: &PgPool, uuid: Uuid, user_id: Uuid) -> Result<(), AppError>;
+
+    async fn create_bill(&self, pool: &PgPool, payload: &CreateBill) -> Result<Bill, AppError>;
+
+    async fn post_bill(
+        &self,
+        pool: &PgPool,
+        user_id: Uuid,
+        payload: &PostBill,
+    ) -> Result<(), AppError>;
+
+    async fn list_vendor_bills(
+        &self,
+        pool: &PgPool,
+        vendor_uuid: Uuid,
+    ) -> Result<Vec<Bill>, AppError>;
+
+    async fn apply_payment(&self, pool: &PgPool, cmd: ApplyPayment) -> Result<(), AppError>;
 }
 
 pub struct PostgresVendorRepo;
@@ -114,5 +131,122 @@ impl VendorRepository for PostgresVendorRepo {
         } else {
             Ok(())
         }
+    }
+
+    async fn create_bill(&self, pool: &PgPool, payload: &CreateBill) -> Result<Bill, AppError> {
+        let mut tx = pool.begin().await?;
+
+        let bill: Bill = sqlx::query_as::<_, Bill>(
+            r#"
+            INSERT INTO payables.bills (
+                bill_number,
+                vendor_uuid,
+                bill_date,
+                due_date,
+                reference,
+                total_amount,
+                tax_amount,
+                balance_due,
+                currency
+            )
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$6,$8)
+            RETURNING *
+            "#,
+        )
+        .bind(&payload.bill_number)
+        .bind(payload.vendor_uuid)
+        .bind(payload.bill_date)
+        .bind(payload.due_date)
+        .bind(&payload.reference)
+        .bind(&payload.total_amount)
+        .bind(&payload.tax_amount)
+        .bind(&payload.currency)
+        .fetch_one(&mut *tx)
+        .await?;
+
+        for item in &payload.items {
+            sqlx::query(
+                r#"
+                INSERT INTO payables.bill_items (
+                    bill_uuid,
+                    item_code,
+                    description,
+                    quantity,
+                    unit_price,
+                    tax_rate,
+                    total
+                )
+                VALUES ($1,$2,$3,$4,$5,$6,$7)
+                "#,
+            )
+            .bind(bill.uuid)
+            .bind(&item.item_code)
+            .bind(&item.description)
+            .bind(&item.quantity)
+            .bind(&item.unit_price)
+            .bind(&item.tax_rate)
+            .bind(&item.total)
+            .execute(&mut *tx)
+            .await?;
+        }
+
+        tx.commit().await?;
+        Ok(bill)
+    }
+
+    async fn post_bill(
+        &self,
+        pool: &PgPool,
+        user_id: Uuid,
+        payload: &PostBill,
+    ) -> Result<(), AppError> {
+        sqlx::query(
+            r#"
+            SELECT payables.post_bill($1, $2, $3, $4)
+            "#,
+        )
+        .bind(payload.bill_serial_id)
+        .bind(user_id)
+        .bind(&payload.inventory_account)
+        .bind(&payload.payables_account)
+        .execute(pool)
+        .await?;
+
+        Ok(())
+    }
+
+    async fn list_vendor_bills(
+        &self,
+        pool: &PgPool,
+        vendor_uuid: Uuid,
+    ) -> Result<Vec<Bill>, AppError> {
+        let bills = sqlx::query_as::<_, Bill>(
+            r#"
+            SELECT *
+            FROM payables.bills
+            WHERE vendor_uuid = $1
+            ORDER BY bill_date DESC
+            "#,
+        )
+        .bind(vendor_uuid)
+        .fetch_all(pool)
+        .await?;
+
+        Ok(bills)
+    }
+
+    async fn apply_payment(&self, pool: &PgPool, cmd: ApplyPayment) -> Result<(), AppError> {
+        let mut tx = pool.begin().await?;
+
+        sqlx::query(r#"SELECT payables.apply_payment($1, $2, $3)"#)
+            .bind(cmd.payment_serial_id)
+            .bind(cmd.bill_serial_id)
+            .bind(&cmd.amount)
+            .execute(&mut *tx)
+            .await?;
+
+        tx.commit().await?;
+
+        Ok(())
     }
 }

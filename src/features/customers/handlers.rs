@@ -4,7 +4,6 @@ use axum::{
     response::Response,
     routing::{delete, get, patch, post},
 };
-use sqlx::{FromRow, types::JsonValue};
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -12,21 +11,24 @@ use crate::{
     features::customers::{repository::PostgresCustomerRepo, services::CustomerService},
     infrastructure::{errors::AppError, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,
-    models::customers::{CreateCustomer, CreateInvoice, Customer},
+    models::customers::{ApplyPayment, CreateCustomer, CreateInvoice, Customer, PostInvoice},
     state::AppState,
 };
 
 pub fn router() -> Router<Arc<AppState>> {
     Router::new()
-        .route("/create", post(create_customer))
-        .route("/list", get(list_customers))
-        .route("/get/{uuid}", get(get_customer))
-        .route("/update/{uuid}", patch(update_customer))
-        .route("/delete/{uuid}", delete(delete_customer))
-        .route("/create/{cid}/invoices", post(create_invoice))
+        .route("/create/customer", post(http_create_customer))
+        .route("/create/invoice", post(http_create_invoice))
+        .route("/post-invoice", post(http_post_invoice))
+        .route("/get/{uuid}", get(http_get_customer))
+        .route("/list/customers", get(http_list_customers))
+        .route("/list/invoices/{uuid}", get(http_list_invoices))
+        .route("/apply-invoice-pay", get(http_apply_invoice_payment))
+        .route("/update/{uuid}", patch(http_update_customer))
+        .route("/delete/{uuid}", delete(http_delete_customer))
 }
 
-async fn create_customer(
+async fn http_create_customer(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<CreateCustomer>,
@@ -39,7 +41,7 @@ async fn create_customer(
     Ok(ApiResponse::created(customer, "Customer created"))
 }
 
-async fn list_customers(
+async fn http_list_customers(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
 ) -> Result<Response, AppError> {
@@ -49,7 +51,7 @@ async fn list_customers(
     Ok(ApiResponse::success(customers, "Customers fetched"))
 }
 
-async fn get_customer(
+async fn http_get_customer(
     State(_state): State<Arc<AppState>>,
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
@@ -60,7 +62,7 @@ async fn get_customer(
     Ok(ApiResponse::success(customer, "Customer fetched"))
 }
 
-async fn update_customer(
+async fn http_update_customer(
     State(_state): State<Arc<AppState>>,
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
@@ -74,7 +76,7 @@ async fn update_customer(
     Ok(ApiResponse::success(customer, "Customer updated"))
 }
 
-async fn delete_customer(
+async fn http_delete_customer(
     State(_state): State<Arc<AppState>>,
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
@@ -87,34 +89,50 @@ async fn delete_customer(
     Ok(ApiResponse::success((), "Customer deleted"))
 }
 
-// Handle Invoices
-#[derive(sqlx::Type, serde::Serialize, FromRow)]
-#[sqlx(type_name = "bigint")]
-pub struct InvoiceId {
-    pub uuid: Uuid,
-}
-
-async fn create_invoice(
-    State(state): State<Arc<AppState>>,
+async fn http_create_invoice(
+    State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<CreateInvoice>,
 ) -> Result<Response, AppError> {
-    let rows: InvoiceId = sqlx::query_as::<_, InvoiceId>(
-        r#"
-        SELECT receivables.create_invoice_and_post_gl(
-            $1, $2, $3, $4, $5, $6, $7
-        ) AS uuid
-        "#,
-    )
-    .bind(&payload.invoice_number)
-    .bind(payload.customer_id)
-    .bind(payload.issue_date)
-    .bind(payload.due_date)
-    .bind(&payload.total)
-    .bind(payload.items.as_ref().map(|v| JsonValue::from(v.clone())))
-    .bind(user.user_id) // assuming system.users.uuid is BIGINT
-    .fetch_one(&state.master_pool)
-    .await?;
+    let repo: PostgresCustomerRepo = PostgresCustomerRepo::new();
+    let service: CustomerService<PostgresCustomerRepo> = CustomerService::new(repo);
+    service.create_invoice(&user.tenant_pool, &payload).await?;
+    Ok(ApiResponse::success("Created Bill", "Vendor deleted"))
+}
 
-    Ok(ApiResponse::created(rows, "Invoice created & GL posted"))
+async fn http_post_invoice(
+    State(_state): State<Arc<AppState>>,
+    Extension(user): Extension<AuthenticatedTenant>,
+    Json(payload): Json<PostInvoice>,
+) -> Result<Response, AppError> {
+    let repo = PostgresCustomerRepo::new();
+    let service = CustomerService::new(repo);
+    service
+        .post_invoice(&user.tenant_pool, user.user_id, &payload)
+        .await?;
+    Ok(ApiResponse::success("Bill Posted", "Vendor deleted"))
+}
+
+async fn http_apply_invoice_payment(
+    State(_state): State<Arc<AppState>>,
+    Extension(user): Extension<AuthenticatedTenant>,
+    Json(payload): Json<ApplyPayment>,
+) -> Result<Response, AppError> {
+    let repo = PostgresCustomerRepo::new();
+    let service = CustomerService::new(repo);
+    service.apply_payment(&user.tenant_pool, payload).await?;
+    Ok(ApiResponse::success("Bill Posted", "Vendor deleted"))
+}
+
+async fn http_list_invoices(
+    State(_state): State<Arc<AppState>>,
+    Path(uuid): Path<Uuid>,
+    Extension(user): Extension<AuthenticatedTenant>,
+) -> Result<Response, AppError> {
+    let repo = PostgresCustomerRepo::new();
+    let service = CustomerService::new(repo);
+    service
+        .list_customer_invoice(&user.tenant_pool, uuid)
+        .await?;
+    Ok(ApiResponse::success("Vendor Bills Found", "Vendor deleted"))
 }

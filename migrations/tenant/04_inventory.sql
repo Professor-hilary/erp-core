@@ -200,80 +200,149 @@ ORDER BY m.movement_date DESC;
 -- ========================================
 -- FUNCTIONS
 -- ========================================
-CREATE OR REPLACE FUNCTION inventory.post_purchase(
-    p_item_serial_id bigint,
-    p_warehouse_serial_id bigint,
-    p_quantity numeric,
-    p_unit_cost numeric,
-    p_reference_type text,
-    p_reference_serial_id bigint,
-    p_user uuid,
-    p_payables_uuid uuid
-    -- p_data JSONB
-) RETURNS void
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    v_item inventory.items%ROWTYPE;
-    v_warehouse_uuid UUID;
-    v_movement_uuid UUID;
-    v_movement_serial_id BIGINT;
-    v_txn_serial_id BIGINT;
-    v_txn_uuid UUID;
-    v_total NUMERIC(18, 2);
-    v_lines JSONB;
-BEGIN
-    -- Resolve item
-    SELECT * INTO v_item FROM inventory.items WHERE serial_id = p_item_serial_id;
-    IF NOT FOUND THEN RAISE EXCEPTION 'Item serial_id % not found', p_item_serial_id; END IF;
+-- CREATE OR REPLACE FUNCTION inventory.post_purchase(
+--     p_item_serial_id bigint,
+--     p_warehouse_serial_id bigint,
+--     p_quantity numeric,
+--     p_unit_cost numeric,
+--     p_reference_type text,
+--     p_reference_serial_id bigint,
+--     p_user uuid,
+--     p_payables_uuid uuid
+--     -- p_data JSONB
+-- ) RETURNS void
+-- LANGUAGE plpgsql
+-- AS $$
+-- DECLARE
+--     v_item inventory.items%ROWTYPE;
+--     v_warehouse_uuid UUID;
+--     v_movement_uuid UUID;
+--     v_movement_serial_id BIGINT;
+--     v_txn_serial_id BIGINT;
+--     v_txn_uuid UUID;
+--     v_total NUMERIC(18, 2);
+--     v_lines JSONB;
+-- BEGIN
+--     -- Resolve item
+--     SELECT * INTO v_item FROM inventory.items WHERE serial_id = p_item_serial_id;
+--     IF NOT FOUND THEN RAISE EXCEPTION 'Item serial_id % not found', p_item_serial_id; END IF;
 
-    -- Resolve warehouse
-    IF p_warehouse_serial_id IS NOT NULL THEN
-        SELECT uuid INTO v_warehouse_uuid FROM inventory.warehouses WHERE serial_id = p_warehouse_serial_id;
-        IF v_warehouse_uuid IS NULL THEN RAISE EXCEPTION 'Warehouse serial_id % not found', p_warehouse_serial_id; END IF;
-    END IF;
+--     -- Resolve warehouse
+--     IF p_warehouse_serial_id IS NOT NULL THEN
+--         SELECT uuid INTO v_warehouse_uuid FROM inventory.warehouses WHERE serial_id = p_warehouse_serial_id;
+--         IF v_warehouse_uuid IS NULL THEN RAISE EXCEPTION 'Warehouse serial_id % not found', p_warehouse_serial_id; END IF;
+--     END IF;
 
-    v_total := p_quantity * p_unit_cost;
+--     v_total := p_quantity * p_unit_cost;
 
-    -- Insert movement
-    INSERT INTO inventory.movements (
-        item_uuid, warehouse_uuid, movement_date, reference_type, reference_id,
-        quantity, unit_cost, direction
-    ) VALUES (
-        v_item.uuid, v_warehouse_uuid, now(), p_reference_type, p_reference_serial_id,
-        p_quantity, p_unit_cost, 'IN'
-    ) RETURNING uuid, serial_id INTO v_movement_uuid, v_movement_serial_id;
+--     -- Insert movement
+--     INSERT INTO inventory.movements (
+--         item_uuid, warehouse_uuid, movement_date, reference_type, reference_id,
+--         quantity, unit_cost, direction
+--     ) VALUES (
+--         v_item.uuid, v_warehouse_uuid, now(), p_reference_type, p_reference_serial_id,
+--         p_quantity, p_unit_cost, 'IN'
+--     ) RETURNING uuid, serial_id INTO v_movement_uuid, v_movement_serial_id;
 
-    -- Post to GL: Debit Inventory, Credit A/P
-    v_lines := jsonb_build_array(
-        jsonb_build_object('account_ref', v_item.asset_account, 'debit', v_total, 'credit', 0, 'memo', format('Stock In - %s', v_item.sku)),
-        jsonb_build_object('account_ref', p_payables_uuid, 'debit', 0, 'credit', v_total, 'memo', 'Accounts Payable')
-    );
+--     -- Post to GL: Debit Inventory, Credit A/P
+--     v_lines := jsonb_build_array(
+--         jsonb_build_object('account_ref', v_item.asset_account, 'debit', v_total, 'credit', 0, 'memo', format('Stock In - %s', v_item.sku)),
+--         jsonb_build_object('account_ref', p_payables_uuid, 'debit', 0, 'credit', v_total, 'memo', 'Accounts Payable')
+--     );
 
-    v_txn_serial_id := accounting.post_transaction(
-        now()::date, 'INV-PUR-' || v_movement_serial_id, 'Inventory Purchase', p_user, 'inventory_purchase', v_lines
-    );
+--     v_txn_serial_id := accounting.post_transaction(
+--         now()::date, 'INV-PUR-' || v_movement_serial_id, 'Inventory Purchase', p_user, 'inventory_purchase', v_lines
+--     );
 
-    SELECT uuid INTO v_txn_uuid FROM accounting.transactions WHERE serial_id = v_txn_serial_id;
+--     SELECT uuid INTO v_txn_uuid FROM accounting.transactions WHERE serial_id = v_txn_serial_id;
 
-    UPDATE inventory.movements SET gl_transaction_uuid = v_txn_uuid WHERE uuid = v_movement_uuid;
+--     UPDATE inventory.movements SET gl_transaction_uuid = v_txn_uuid WHERE uuid = v_movement_uuid;
 
-    -- Record valuation
-    INSERT INTO inventory.item_valuation (
-        item_uuid, movement_uuid, debit_account, credit_account, amount, gl_transaction_uuid, description
-    ) VALUES (
-        v_item.uuid, v_movement_uuid, v_item.asset_account, v_item.category_uuid, v_total, v_txn_uuid, 'Purchase'
-    );
+--     -- Record valuation
+--     INSERT INTO inventory.item_valuation (
+--         item_uuid, movement_uuid, debit_account, credit_account, amount, gl_transaction_uuid, description
+--     ) VALUES (
+--         v_item.uuid, v_movement_uuid, v_item.asset_account, v_item.category_uuid, v_total, v_txn_uuid, 'Purchase'
+--     );
 
-    -- Update item
-    UPDATE inventory.items
-    SET
-        quantity_on_hand = quantity_on_hand + p_quantity,
-        cost_price = ((cost_price * quantity_on_hand) + v_total) / (quantity_on_hand + p_quantity),
-        updated_at = now()
-    WHERE uuid = v_item.uuid;
-END;
-$$;
+--     -- Update item
+--     UPDATE inventory.items
+--     SET
+--         quantity_on_hand = quantity_on_hand + p_quantity,
+--         cost_price = ((cost_price * quantity_on_hand) + v_total) / (quantity_on_hand + p_quantity),
+--         updated_at = now()
+--     WHERE uuid = v_item.uuid;
+-- END;
+-- $$;
+
+-- CREATE OR REPLACE FUNCTION inventory.post_sale(
+--     p_item_serial_id bigint,
+--     p_warehouse_serial_id bigint,
+--     p_quantity numeric,
+--     p_unit_cost numeric,
+--     p_reference_type text,
+--     p_reference_serial_id bigint,
+--     p_user UUID,
+--     p_gl_transaction_uuid uuid DEFAULT NULL
+-- ) RETURNS uuid
+-- LANGUAGE plpgsql
+-- AS $$
+-- DECLARE
+--     v_item inventory.items%ROWTYPE;
+--     v_warehouse_uuid UUID;
+--     v_movement_uuid UUID;
+--     v_movement_serial_id BIGINT;
+--     v_txn_serial_id BIGINT;
+--     v_txn_uuid UUID;
+--     v_total NUMERIC(18, 2);
+--     v_lines JSONB;
+-- BEGIN
+--     SELECT * INTO v_item FROM inventory.items WHERE serial_id = p_item_serial_id;
+--     IF NOT FOUND THEN RAISE EXCEPTION 'Item serial_id % not found', p_item_serial_id; END IF;
+
+--     IF v_item.quantity_on_hand < p_quantity THEN
+--         RAISE EXCEPTION 'Insufficient stock: % < %', v_item.quantity_on_hand, p_quantity;
+--     END IF;
+
+--     IF p_warehouse_serial_id IS NOT NULL THEN
+--         SELECT uuid INTO v_warehouse_uuid FROM inventory.warehouses WHERE serial_id = p_warehouse_serial_id;
+--         IF v_warehouse_uuid IS NULL THEN RAISE EXCEPTION 'Warehouse serial_id % not found', p_warehouse_serial_id; END IF;
+--     END IF;
+
+--     v_total := p_quantity * p_unit_cost;
+
+--     INSERT INTO inventory.movements (
+--         item_uuid, warehouse_uuid, movement_date, reference_type, reference_id,
+--         quantity, unit_cost, direction
+--     ) VALUES (
+--         v_item.uuid, v_warehouse_uuid, now(), p_reference_type, p_reference_serial_id,
+--         p_quantity, p_unit_cost, 'OUT'
+--     ) RETURNING uuid, serial_id INTO v_movement_uuid, v_movement_serial_id;
+
+--     v_lines := jsonb_build_array(
+--         jsonb_build_object('account_ref', v_item.cogs_account, 'debit', v_total, 'credit', 0, 'memo', format('COGS - %s', v_item.sku)),
+--         jsonb_build_object('account_ref', v_item.asset_account, 'debit', 0, 'credit', v_total, 'memo', 'Inventory Asset')
+--     );
+
+--     v_txn_serial_id := accounting.post_transaction(
+--         now()::date, 'INV-SALE-' || v_movement_serial_id, 'Inventory Sale', p_user, 'inventory_sale', v_lines
+--     );
+
+--     SELECT uuid INTO v_txn_uuid FROM accounting.transactions WHERE serial_id = v_txn_serial_id;
+
+--     UPDATE inventory.movements SET gl_transaction_uuid = v_txn_uuid WHERE uuid = v_movement_uuid;
+
+--     INSERT INTO inventory.item_valuation (
+--         item_uuid, movement_uuid, debit_account, credit_account, amount, gl_transaction_uuid, description
+--     ) VALUES (
+--         v_item.uuid, v_movement_uuid, v_item.cogs_account, v_item.asset_account, v_total, v_txn_uuid, 'Sale'
+--     );
+
+--     UPDATE inventory.items
+--     SET quantity_on_hand = quantity_on_hand - p_quantity, updated_at = now()
+--     WHERE uuid = v_item.uuid;
+-- END;
+-- $$;
 
 CREATE OR REPLACE FUNCTION inventory.post_sale(
     p_item_serial_id bigint,
@@ -282,64 +351,188 @@ CREATE OR REPLACE FUNCTION inventory.post_sale(
     p_unit_cost numeric,
     p_reference_type text,
     p_reference_serial_id bigint,
-    p_user UUID
-) RETURNS void
+    p_cash_code text DEFAULT NULL,
+    p_user uuid,
+    p_gl_transaction_uuid uuid DEFAULT NULL
+) RETURNS uuid
 LANGUAGE plpgsql
 AS $$
 DECLARE
     v_item inventory.items%ROWTYPE;
-    v_warehouse_uuid UUID;
-    v_movement_uuid UUID;
-    v_movement_serial_id BIGINT;
-    v_txn_serial_id BIGINT;
-    v_txn_uuid UUID;
-    v_total NUMERIC(18, 2);
-    v_lines JSONB;
+    v_warehouse_uuid uuid;
+    v_movement_uuid uuid;
+    v_movement_serial_id bigint;
+    v_txn_uuid uuid;
+    v_txn_serial_id bigint;
+    v_total numeric(18,2);
+    v_lines jsonb;
 BEGIN
     SELECT * INTO v_item FROM inventory.items WHERE serial_id = p_item_serial_id;
-    IF NOT FOUND THEN RAISE EXCEPTION 'Item serial_id % not found', p_item_serial_id; END IF;
+    IF NOT FOUND THEN RAISE EXCEPTION 'Item % not found', p_item_serial_id; END IF;
 
     IF v_item.quantity_on_hand < p_quantity THEN
-        RAISE EXCEPTION 'Insufficient stock: % < %', v_item.quantity_on_hand, p_quantity;
+        RAISE EXCEPTION 'Insufficient stock';
     END IF;
 
     IF p_warehouse_serial_id IS NOT NULL THEN
-        SELECT uuid INTO v_warehouse_uuid FROM inventory.warehouses WHERE serial_id = p_warehouse_serial_id;
-        IF v_warehouse_uuid IS NULL THEN RAISE EXCEPTION 'Warehouse serial_id % not found', p_warehouse_serial_id; END IF;
+        SELECT uuid INTO v_warehouse_uuid
+        FROM inventory.warehouses WHERE serial_id = p_warehouse_serial_id;
     END IF;
 
     v_total := p_quantity * p_unit_cost;
 
     INSERT INTO inventory.movements (
-        item_uuid, warehouse_uuid, movement_date, reference_type, reference_id,
+        item_uuid, warehouse_uuid, movement_date,
+        reference_type, reference_id,
         quantity, unit_cost, direction
     ) VALUES (
-        v_item.uuid, v_warehouse_uuid, now(), p_reference_type, p_reference_serial_id,
+        v_item.uuid, v_warehouse_uuid, now(),
+        p_reference_type, p_reference_serial_id,
         p_quantity, p_unit_cost, 'OUT'
     ) RETURNING uuid, serial_id INTO v_movement_uuid, v_movement_serial_id;
 
-    v_lines := jsonb_build_array(
-        jsonb_build_object('account_ref', v_item.cogs_account, 'debit', v_total, 'credit', 0, 'memo', format('COGS - %s', v_item.sku)),
-        jsonb_build_object('account_ref', v_item.asset_account, 'debit', 0, 'credit', v_total, 'memo', 'Inventory Asset')
-    );
+    -- ================================
+    -- GL handling
+    -- ================================
+    IF p_gl_transaction_uuid IS NULL THEN
+        v_lines := jsonb_build_array(
+            -- COGS is debited to recognize cost on inventory
+            jsonb_build_object(
+                'account_ref', v_item.cogs_account,
+                'debit', v_total, 'credit', 0, 'memo',
+                format('Cost Of Goods Sold - %s', v_item.sku)
+            ),
+            -- Stock account is credited to settle COGS outflow
+            jsonb_build_object(
+                'account_ref', v_item.asset_account,
+                'debit', 0, 'credit', v_total,
+                'memo', 'Inventory Asset'),
+            -- Cash or equivalent is received when stock goes out
+            jsonb_build_object(
+                'account_ref', p_cash_code,
+                'debit', v_total, 'credit', 0,
+                'memo', 'Cash Received',
+            -- Income is credited to recognize economic benefit
+            jsonb_build_object(
+                'account_ref', v_item.income_account,
+                'debit', 0, 'credit', v_total,
+                'memo', 'Inventory Account Credited'
+            )
+        );
 
-    v_txn_serial_id := accounting.post_transaction(
-        now()::date, 'INV-SALE-' || v_movement_serial_id, 'Inventory Sale', p_user, 'inventory_sale', v_lines
-    );
+        v_txn_serial_id := accounting.post_transaction(
+            now()::date,
+            'INV-SALE-' || v_movement_serial_id,
+            'Inventory Sale',
+            p_user,
+            'inventory_sale',
+            v_lines
+        );
 
-    SELECT uuid INTO v_txn_uuid FROM accounting.transactions WHERE serial_id = v_txn_serial_id;
+        SELECT uuid INTO v_txn_uuid
+        FROM accounting.transactions WHERE serial_id = v_txn_serial_id;
+    ELSE
+        v_txn_uuid := p_gl_transaction_uuid;
 
-    UPDATE inventory.movements SET gl_transaction_uuid = v_txn_uuid WHERE uuid = v_movement_uuid;
+        INSERT INTO accounting.transaction_entries (
+            transaction_uuid, account_ref, debit, credit, memo
+        ) VALUES
+        (v_txn_uuid, v_item.cogs_account, v_total, 0, 'Cost Of Goods Sold'),
+        (v_txn_uuid, v_item.asset_account, 0, v_total, 'Inventory Out');
+    END IF;
 
-    INSERT INTO inventory.item_valuation (
-        item_uuid, movement_uuid, debit_account, credit_account, amount, gl_transaction_uuid, description
-    ) VALUES (
-        v_item.uuid, v_movement_uuid, v_item.cogs_account, v_item.asset_account, v_total, v_txn_uuid, 'Sale'
-    );
+    UPDATE inventory.movements
+    SET gl_transaction_uuid = v_txn_uuid
+    WHERE uuid = v_movement_uuid;
 
     UPDATE inventory.items
-    SET quantity_on_hand = quantity_on_hand - p_quantity, updated_at = now()
+    SET quantity_on_hand = quantity_on_hand - p_quantity,
+        updated_at = now()
     WHERE uuid = v_item.uuid;
+
+    RETURN v_txn_uuid;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION inventory.post_purchase(
+    p_item_serial_id bigint,
+    p_warehouse_serial_id bigint,
+    p_quantity numeric,
+    p_unit_cost numeric,
+    p_reference_type text,
+    p_reference_serial_id bigint,
+    p_user uuid,
+    p_source_account text,
+    p_gl_transaction_uuid uuid DEFAULT NULL
+) RETURNS uuid
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_item inventory.items%ROWTYPE;
+    v_warehouse_uuid uuid;
+    v_movement_uuid uuid;
+    v_txn_uuid uuid;
+    v_txn_serial_id bigint;
+    v_total numeric(18,2);
+    v_lines jsonb;
+BEGIN
+    SELECT * INTO v_item FROM inventory.items WHERE serial_id = p_item_serial_id;
+    IF NOT FOUND THEN RAISE EXCEPTION 'Item not found'; END IF;
+
+    IF p_warehouse_serial_id IS NOT NULL THEN
+        SELECT uuid INTO v_warehouse_uuid
+        FROM inventory.warehouses WHERE serial_id = p_warehouse_serial_id;
+    END IF;
+
+    v_total := p_quantity * p_unit_cost;
+
+    INSERT INTO inventory.movements (
+        item_uuid, warehouse_uuid, movement_date,
+        reference_type, reference_id,
+        quantity, unit_cost, direction
+    ) VALUES (
+        v_item.uuid, v_warehouse_uuid, now(),
+        p_reference_type, p_reference_serial_id,
+        p_quantity, p_unit_cost, 'IN'
+    ) RETURNING uuid INTO v_movement_uuid;
+
+    IF p_gl_transaction_uuid IS NULL THEN
+        v_lines := jsonb_build_array(
+            jsonb_build_object('account_ref', v_item.asset_account, 'debit', v_total, 'credit', 0),
+            jsonb_build_object('account_ref', p_source_account, 'debit', 0, 'credit', v_total)
+        );
+
+        v_txn_serial_id := accounting.post_transaction(
+            now()::date,
+            'INV-PUR-' || p_reference_serial_id,
+            'Inventory Purchase',
+            p_user,
+            'inventory_purchase',
+            v_lines
+        );
+
+        SELECT uuid INTO v_txn_uuid
+        FROM accounting.transactions WHERE serial_id = v_txn_serial_id;
+    ELSE
+        v_txn_uuid := p_gl_transaction_uuid;
+
+        INSERT INTO accounting.transaction_entries (
+            transaction_uuid, account_ref, debit, credit
+        ) VALUES
+        (v_txn_uuid, v_item.asset_account, v_total, 0),
+        (v_txn_uuid, p_source_account, 0, v_total);
+    END IF;
+
+    UPDATE inventory.movements
+    SET gl_transaction_uuid = v_txn_uuid
+    WHERE uuid = v_movement_uuid;
+
+    UPDATE inventory.items
+    SET quantity_on_hand = quantity_on_hand + p_quantity,
+        updated_at = now()
+    WHERE uuid = v_item.uuid;
+
+    RETURN v_txn_uuid;
 END;
 $$;
 

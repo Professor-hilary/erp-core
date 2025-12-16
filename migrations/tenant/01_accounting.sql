@@ -147,7 +147,7 @@ BEGIN
             RAISE EXCEPTION 'Invalid account_ref type: must be string (code/uuid) or number (serial_id)';
         END IF;
 
-        -- Insert line (unchanged)
+        -- Insert line
         INSERT INTO accounting.transaction_entries(
             transaction_uuid, account_uuid, line_no,
             amount, debit, credit, memo

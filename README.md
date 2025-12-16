@@ -388,3 +388,13 @@ curl -X POST http://localhost:8080/api/transactions/void/THE_UUID \
 # Check balance of transaction
 `curl -G http://localhost:8080/api/transactions/balance/UUID \
   -H "Authorization: Bearer YOUR_JWT_HERE" | jq`
+
+
+# Generate payrun (including payslips with pay items, i.e., benefits)
+`curl -sX POST http://127.0.0.1:8080/api/payroll/payrun/create -H "Authorization: Bearer $TOKEN" -d '{"pay_period_start":"2025-01-01","pay_period_end":"2025-12-31", "payment_date":"2025-08-28", "notes":"Very first payroll for august 2025","payslips":[{"employee_uuid":"019b1e69-a5e6-7172-aa1e-e3468ff9eebb", "gross_pay":"1540000", "tax_deducted":"154000","social_security":"100000", "benefits":[{"item_type":"Allowance", "amount":"300000","description":"Transport benefits"}]}, {"employee_uuid":"019b1e63-037d-7c09-90ae-9f431590a0cb", "gross_pay":"1740000", "tax_deducted":"174000","social_security":"120000", "benefits":[{"item_type":"Allowance", "amount":"520000","description":"Rent"}]}, {"employee_uuid":"019b1e5d-4e7f-7f1c-8c2d-f59833e27024", "gross_pay":"2500000", "tax_deducted":"250000","social_security":"150000"}]}' -H "Content-Type: application/json" | jq`
+
+# Process Payrun
+`curl -sX POST http://127.0.0.1:8080/api/payroll/payrun/process/6 -H "Authorization: Bearer $TOKEN" -H  "Content-Type: application/json" | jq`
+
+# Post payroll
+`curl -sX POST http://127.0.0.1:8080/api/payroll/payrun/post -H "Authorization: Bearer $TOKEN" -d '{"payrun_serial_id":6,"labor_expense_id":"019b1db9-75a5-7640-a3a7-614f5658c16f", "income_tax_id":"019b1e72-50b5-70fd-82ad-9bfb3d5036cb", "social_security_id":"019b1e73-844d-748f-9650-3802cbdaa644", "cash_account_uuid":"019b1db9-73b0-7654-8054-3ffaf59782ac", "payroll_payable":"019b1e05-79c8-7174-bd8d-574b06979346"}' -H "Content-Type: application/json" | jq `

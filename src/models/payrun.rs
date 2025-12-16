@@ -28,11 +28,12 @@ pub struct CreatePayrun {
 
 #[derive(Debug, Deserialize)]
 pub struct PostPayrun {
-    pub pay_serial_id: i64,
-    pub labor_expense_id: Uuid,
-    pub income_tax_id: Uuid,
-    pub social_security_id: Uuid,
-    pub cash_account_uuid: Uuid,
+    pub payrun_serial_id: i64,    // ID for pending payrun
+    pub labor_expense_id: Uuid,   // Direct or Indirect labor expense
+    pub income_tax_id: Uuid,      // Income Tax Liability
+    pub social_security_id: Uuid, // Social Security Tax Liability
+    pub cash_account_uuid: Uuid,  // Cash/Bank Account
+    pub payroll_payable: Uuid,    // Payroll Liability Unpaid
 }
 
 #[derive(Debug, FromRow, Serialize, Deserialize, Clone)]

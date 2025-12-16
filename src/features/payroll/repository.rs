@@ -25,7 +25,12 @@ pub trait PayrollRepository: Send + Sync {
         payslips: &[CreatePayslip],
         tx: &mut Transaction<'_, sqlx::Postgres>,
     ) -> Result<(), AppError>;
-    async fn post_payrun(&self, pool: &PgPool, payload: &PostPayrun) -> Result<(), AppError>;
+    async fn post_payrun(
+        &self,
+        user_id: Uuid,
+        pool: &PgPool,
+        payload: &PostPayrun,
+    ) -> Result<(), AppError>;
     async fn process_payrun(&self, pool: &PgPool, payrun_id: i64) -> Result<Payrun, AppError>;
     async fn get_payrun(&self, pool: &PgPool, id: Uuid, user_id: Uuid) -> Result<Payrun, AppError>;
     async fn get_all_payruns(&self, pool: &PgPool) -> Result<Vec<Payrun>, AppError>;
@@ -100,11 +105,12 @@ impl PayrollRepository for PostgresPayrollRepo {
 
             if let Some(items) = &slip.benefits {
                 for item in items {
+                    // Get values to insert into payslip items table from payslips table given the payrun uuid
                     sqlx::query(
                         r#"
-                            INSERT INTO payroll.payslip_items (uuid, item_type, description, amount)
+                            INSERT INTO payroll.payslip_items (payslip_uuid, item_type, description, amount)
                             SELECT uuid, $1, $2, $3 FROM payroll.payslips WHERE payrun_uuid = $4
-                            AND employee_id = $5 ORDER BY payslip_id DESC LIMIT 1
+                            AND employee_uuid = $5 ORDER BY uuid DESC LIMIT 1
                         "#,
                     )
                     .bind(&item.item_type)
@@ -120,13 +126,20 @@ impl PayrollRepository for PostgresPayrollRepo {
         Ok(())
     }
 
-    async fn post_payrun(&self, pool: &PgPool, payload: &PostPayrun) -> Result<(), AppError> {
-        sqlx::query("SELECT payroll.post_payrun($1, $2, $3, $4, $5)")
-            .bind(&payload.pay_serial_id)
+    async fn post_payrun(
+        &self,
+        user_id: Uuid,
+        pool: &PgPool,
+        payload: &PostPayrun,
+    ) -> Result<(), AppError> {
+        sqlx::query("SELECT payroll.post_payrun($1, $2, $3, $4, $5, $6, $7)")
+            .bind(&payload.payrun_serial_id)
             .bind(&payload.labor_expense_id)
             .bind(&payload.income_tax_id)
             .bind(&payload.social_security_id)
             .bind(&payload.cash_account_uuid)
+            .bind(user_id)
+            .bind(&payload.payroll_payable)
             .execute(pool)
             .await?;
         Ok(())
@@ -158,10 +171,10 @@ impl PayrollRepository for PostgresPayrollRepo {
     }
 
     async fn get_all_payruns(&self, pool: &PgPool) -> Result<Vec<Payrun>, AppError> {
-        let payruns= sqlx::query_as::<_, Payrun>("SELECT * FROM payroll.payruns")
+        let payruns = sqlx::query_as::<_, Payrun>("SELECT * FROM payroll.payruns")
             .fetch_all(pool)
             .await
-            .map_err(|_|AppError::NotFound("Payrun not found".into()))?;
+            .map_err(|_| AppError::NotFound("Payrun not found".into()))?;
         Ok(payruns)
     }
 
@@ -169,7 +182,7 @@ impl PayrollRepository for PostgresPayrollRepo {
         let payslips = sqlx::query_as::<_, Payslip>("SELECT * FROM payroll.payslips")
             .fetch_all(pool)
             .await
-            .map_err(|_|AppError::NotFound("Payrun not found".into()))?;
+            .map_err(|_| AppError::NotFound("Payrun not found".into()))?;
         Ok(payslips)
     }
 }

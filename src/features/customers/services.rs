@@ -1,4 +1,5 @@
 use crate::features::customers::repository::CustomerRepository;
+use crate::models::customers::{ApplyPayment, CreateInvoice, Invoice, PostInvoice};
 use crate::{
     infrastructure::errors::AppError,
     models::customers::{CreateCustomer, Customer},
@@ -23,6 +24,7 @@ impl<R: CustomerRepository> CustomerService<R> {
     ) -> Result<Customer, AppError> {
         self.repo.create(tenant_pool, user_id, payload).await
     }
+
     pub async fn list(
         &self,
         tenant_pool: &PgPool,
@@ -30,6 +32,7 @@ impl<R: CustomerRepository> CustomerService<R> {
     ) -> Result<Vec<Customer>, AppError> {
         self.repo.list(tenant_pool, user_id).await
     }
+
     pub async fn get(
         &self,
         tenant_pool: &PgPool,
@@ -38,6 +41,7 @@ impl<R: CustomerRepository> CustomerService<R> {
     ) -> Result<Customer, AppError> {
         self.repo.get(tenant_pool, uuid, user_id).await
     }
+
     pub async fn update(
         &self,
         tenant_pool: &PgPool,
@@ -47,6 +51,7 @@ impl<R: CustomerRepository> CustomerService<R> {
     ) -> Result<Customer, AppError> {
         self.repo.update(tenant_pool, uuid, user_id, payload).await
     }
+
     pub async fn delete(
         &self,
         tenant_pool: &PgPool,
@@ -54,5 +59,34 @@ impl<R: CustomerRepository> CustomerService<R> {
         user_id: Uuid,
     ) -> Result<(), AppError> {
         self.repo.delete(tenant_pool, uuid, user_id).await
+    }
+
+    pub async fn create_invoice(
+        &self,
+        tenant_pool: &PgPool,
+        payload: &CreateInvoice,
+    ) -> Result<Invoice, AppError> {
+        self.repo.create_invoice(tenant_pool, payload).await
+    }
+
+    pub async fn post_invoice(
+        &self,
+        pool: &PgPool,
+        user_id: Uuid,
+        payload: &PostInvoice,
+    ) -> Result<(), AppError> {
+        self.repo.post_invoice(pool, user_id, payload).await
+    }
+
+    pub async fn list_customer_invoice(
+        &self,
+        pool: &PgPool,
+        vendor_uuid: Uuid,
+    ) -> Result<Vec<Invoice>, AppError> {
+        self.repo.list_customer_invoices(pool, vendor_uuid).await
+    }
+
+    pub async fn apply_payment(&self, pool: &PgPool, cmd: ApplyPayment) -> Result<(), AppError> {
+        self.repo.apply_payment(pool, cmd).await
     }
 }

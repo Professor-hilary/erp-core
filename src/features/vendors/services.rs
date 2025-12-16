@@ -1,4 +1,5 @@
 use crate::features::vendors::repository::VendorRepository;
+use crate::models::vendor::{ApplyPayment, Bill, CreateBill, PostBill};
 use crate::{
     infrastructure::errors::AppError,
     models::vendor::{CreateVendor, Vendor},
@@ -23,9 +24,11 @@ impl<R: VendorRepository> VendorService<R> {
     ) -> Result<Vendor, AppError> {
         self.repo.create(tenant_pool, user_id, payload).await
     }
+
     pub async fn list(&self, tenant_pool: &PgPool, user_id: Uuid) -> Result<Vec<Vendor>, AppError> {
         self.repo.list(tenant_pool, user_id).await
     }
+
     pub async fn get(
         &self,
         tenant_pool: &PgPool,
@@ -34,6 +37,7 @@ impl<R: VendorRepository> VendorService<R> {
     ) -> Result<Vendor, AppError> {
         self.repo.get(tenant_pool, uuid, user_id).await
     }
+
     pub async fn update(
         &self,
         tenant_pool: &PgPool,
@@ -43,6 +47,7 @@ impl<R: VendorRepository> VendorService<R> {
     ) -> Result<Vendor, AppError> {
         self.repo.update(tenant_pool, uuid, user_id, payload).await
     }
+
     pub async fn delete(
         &self,
         tenant_pool: &PgPool,
@@ -50,5 +55,34 @@ impl<R: VendorRepository> VendorService<R> {
         user_id: Uuid,
     ) -> Result<(), AppError> {
         self.repo.delete(tenant_pool, uuid, user_id).await
+    }
+
+    pub async fn create_bill(
+        &self,
+        tenant_pool: &PgPool,
+        payload: &CreateBill,
+    ) -> Result<Bill, AppError> {
+        self.repo.create_bill(tenant_pool, payload).await
+    }
+
+    pub async fn post_bill(
+        &self,
+        pool: &PgPool,
+        user_id: Uuid,
+        payload: &PostBill,
+    ) -> Result<(), AppError> {
+        self.repo.post_bill(pool, user_id, payload).await
+    }
+
+    pub async fn list_vendor_bills(
+        &self,
+        pool: &PgPool,
+        vendor_uuid: Uuid,
+    ) -> Result<Vec<Bill>, AppError> {
+        self.repo.list_vendor_bills(pool, vendor_uuid).await
+    }
+
+    pub async fn apply_payment(&self, pool: &PgPool, cmd: ApplyPayment) -> Result<(), AppError> {
+        self.repo.apply_payment(pool, cmd).await
     }
 }

@@ -43,10 +43,11 @@ impl<R: PayrollRepository> PayrollService<R> {
 
     pub async fn post_payrun(
         &self,
+        user_id: Uuid,
         tenant_pool: &PgPool,
         payload: &PostPayrun,
     ) -> Result<(), AppError> {
-        self.repo.post_payrun(tenant_pool, payload).await?;
+        self.repo.post_payrun(user_id, tenant_pool, payload).await?;
         Ok(())
     }
 

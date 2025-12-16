@@ -202,41 +202,122 @@ ORDER BY c.serial_id, COALESCE(i.serial_id, 0), p.payment_date DESC NULLS LAST;
 -- ========================================
 -- FUNCTIONS
 -- ========================================
-CREATE OR REPLACE FUNCTION receivables.post_invoice(p_invoice_serial_id bigint, p_user bigint)
-RETURNS void LANGUAGE plpgsql AS $$
+-- CREATE OR REPLACE FUNCTION receivables.post_invoice(
+--     p_invoice_serial_id bigint,
+--     p_user UUID,
+--     p_sales_code TEXT,
+--     p_receivables_code TEXT
+
+--     -- Also get inventory meta to sell
+--     p_item_serial_id bigint,
+--     p_warehouse_serial_id bigint,
+--     p_quantity numeric,
+--     p_unit_cost numeric,
+--     p_reference_type text,
+--     p_reference_serial_id bigint,
+-- )
+-- RETURNS void LANGUAGE plpgsql AS $$
+-- DECLARE
+--     v_invoice receivables.invoices%ROWTYPE;
+--     v_txn_serial_id bigint;
+--     v_txn_uuid uuid;
+--     v_lines jsonb;
+-- BEGIN
+--     SELECT * INTO v_invoice FROM receivables.invoices WHERE serial_id = p_invoice_serial_id;
+--     IF NOT FOUND THEN RAISE EXCEPTION 'Invoice serial_id % not found', p_invoice_serial_id; END IF;
+--     IF v_invoice.posted THEN RETURN; END IF;
+
+--     v_lines := jsonb_build_array(
+--         jsonb_build_object('account_ref', p_receivables_code, 'debit', v_invoice.total_amount, 'credit', 0, 'memo', v_invoice.invoice_number),
+--         jsonb_build_object('account_ref', p_sales_code, 'debit', 0, 'credit', v_invoice.total_amount, 'memo', v_invoice.invoice_number)
+--     );
+
+--     v_txn_serial_id := accounting.post_transaction(
+--         v_invoice.issue_date, v_invoice.invoice_number, 'Invoice Posting', p_user, 'invoice', v_lines
+--     );
+
+--     SELECT uuid INTO v_txn_uuid FROM accounting.transactions WHERE serial_id = v_txn_serial_id;
+--     IF v_txn_uuid IS NULL THEN RAISE EXCEPTION 'Failed to retrieve GL transaction UUID'; END IF;
+
+--     UPDATE receivables.invoices
+--     SET gl_transaction_uuid = v_txn_uuid, posted = TRUE, updated_at = now()
+--     WHERE serial_id = p_invoice_serial_id;
+
+--     UPDATE receivables.customers
+--     SET current_balance = current_balance + v_invoice.total_amount, updated_at = now()
+--     WHERE uuid = v_invoice.customer_uuid;
+-- END;
+-- $$;
+
+CREATE OR REPLACE FUNCTION receivables.post_invoice(
+    p_invoice_serial_id bigint,
+    p_user uuid,
+    p_receivables_code text,
+    p_revenue_code text
+) RETURNS void LANGUAGE plpgsql AS $$
 DECLARE
     v_invoice receivables.invoices%ROWTYPE;
     v_txn_serial_id bigint;
     v_txn_uuid uuid;
-    v_lines jsonb;
+    r record;
 BEGIN
-    SELECT * INTO v_invoice FROM receivables.invoices WHERE serial_id = p_invoice_serial_id;
-    IF NOT FOUND THEN RAISE EXCEPTION 'Invoice serial_id % not found', p_invoice_serial_id; END IF;
+    SELECT * INTO v_invoice FROM receivables.invoices
+    WHERE serial_id = p_invoice_serial_id;
+
     IF v_invoice.posted THEN RETURN; END IF;
 
-    v_lines := jsonb_build_array(
-        jsonb_build_object('account_ref', '1.2.1', 'debit', v_invoice.total_amount, 'credit', 0, 'memo', v_invoice.invoice_number),
-        jsonb_build_object('account_ref', '4.1.1', 'debit', 0, 'credit', v_invoice.total_amount, 'memo', v_invoice.invoice_number)
-    );
-
+    -- 1. Create GL transaction
     v_txn_serial_id := accounting.post_transaction(
-        v_invoice.issue_date, v_invoice.invoice_number, 'Invoice Posting', p_user, 'invoice', v_lines
+        v_invoice.issue_date,
+        v_invoice.invoice_number,
+        'Invoice Posting',
+        p_user,
+        'invoice',
+        '[]'::jsonb
     );
 
-    SELECT uuid INTO v_txn_uuid FROM accounting.transactions WHERE serial_id = v_txn_serial_id;
-    IF v_txn_uuid IS NULL THEN RAISE EXCEPTION 'Failed to retrieve GL transaction UUID'; END IF;
+    SELECT uuid INTO v_txn_uuid
+    FROM accounting.transactions WHERE serial_id = v_txn_serial_id;
+
+    -- 2. AR + Revenue
+    INSERT INTO accounting.transaction_entries
+    VALUES
+    (uuid_generate_v4(), v_txn_uuid, p_receivables_code, v_invoice.total_amount, 0, 'Accounts Receivable'),
+    (uuid_generate_v4(), v_txn_uuid, p_revenue_code, 0, v_invoice.total_amount, 'Revenue');
+
+    -- 3. Inventory delegation
+    FOR r IN
+        SELECT * FROM receivables.invoice_items WHERE invoice_uuid = v_invoice.uuid
+    LOOP
+        PERFORM inventory.post_sale(
+            r.item_code::bigint,
+            NULL,
+            r.quantity,
+            r.unit_price,
+            'invoice',
+            p_invoice_serial_id,
+            NULL,
+            p_user,
+            v_txn_uuid
+        );
+    END LOOP;
 
     UPDATE receivables.invoices
-    SET gl_transaction_uuid = v_txn_uuid, posted = TRUE, updated_at = now()
+    SET posted = TRUE, gl_transaction_uuid = v_txn_uuid
     WHERE serial_id = p_invoice_serial_id;
 
     UPDATE receivables.customers
-    SET current_balance = current_balance + v_invoice.total_amount, updated_at = now()
+    SET current_balance = current_balance + v_invoice.total_amount
     WHERE uuid = v_invoice.customer_uuid;
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION receivables.post_payment(p_payment_serial_id bigint, p_user bigint)
+CREATE OR REPLACE FUNCTION receivables.post_payment(
+    p_payment_serial_id bigint,
+    p_user uuid,
+    p_cash_account_code TEXT,
+    p_receivables_code TEXT
+)
 RETURNS void LANGUAGE plpgsql AS $$
 DECLARE
     v_payment receivables.payments%ROWTYPE;
@@ -247,8 +328,8 @@ BEGIN
     SELECT * INTO v_payment FROM receivables.payments WHERE serial_id = p_payment_serial_id;
     IF NOT FOUND THEN RAISE EXCEPTION 'Payment serial_id % not found', p_payment_serial_id; END IF;
     v_lines := jsonb_build_array(
-        jsonb_build_object('account_ref', '1.1.02', 'debit', v_payment.amount, 'credit', 0, 'memo', v_payment.payment_number),
-        jsonb_build_object('account_ref', '1.2.1', 'debit', 0, 'credit', v_payment.amount, 'memo', v_payment.payment_number)
+        jsonb_build_object('account_ref', p_cash_account_code, 'debit', v_payment.amount, 'credit', 0, 'memo', v_payment.payment_number),
+        jsonb_build_object('account_ref', p_receivables_code, 'debit', 0, 'credit', v_payment.amount, 'memo', v_payment.payment_number)
     );
     v_txn_serial_id := accounting.post_transaction(
         v_payment.payment_date, v_payment.payment_number, 'Payment Receipt', p_user, 'payment', v_lines
