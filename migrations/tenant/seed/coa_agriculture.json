@@ -52,6 +52,38 @@
       "is_contra": true
     },
     {
+"code": "114000",
+"name": "Notes Receivable",
+"category": "asset",
+"parent_code": "110000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "115000",
+"name": "Short-term Investments",
+"category": "asset",
+"parent_code": "110000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "116000",
+"name": "Advances to Suppliers",
+"category": "asset",
+"parent_code": "110000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "117000",
+"name": "Other Current Assets",
+"category": "asset",
+"parent_code": "110000",
+"normal_balance": "dr",
+"is_contra": false
+},
+    {
       "code": "120000",
       "name": "Biological Assets",
       "category": "asset",
@@ -84,6 +116,22 @@
       "is_contra": false
     },
     {
+"code": "124000",
+"name": "Bearer Plants",
+"category": "asset",
+"parent_code": "120000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "125000",
+"name": "Agricultural Produce Inventory",
+"category": "asset",
+"parent_code": "120000",
+"normal_balance": "dr",
+"is_contra": false
+},
+    {
       "code": "130000",
       "name": "Prepaid Expenses",
       "category": "asset",
@@ -115,6 +163,30 @@
       "normal_balance": "dr",
       "is_contra": false
     },
+    {
+"code": "133000",
+"name": "Prepaid Rent",
+"category": "asset",
+"parent_code": "130000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "134000",
+"name": "Prepaid Utilities",
+"category": "asset",
+"parent_code": "130000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "135000",
+"name": "Prepaid Advertising",
+"category": "asset",
+"parent_code": "130000",
+"normal_balance": "dr",
+"is_contra": false
+},
     {
       "code": "140000",
       "name": "Non-Current Assets",
@@ -164,6 +236,102 @@
       "is_contra": true
     },
     {
+"code": "144000",
+"name": "Buildings and Structures",
+"category": "asset",
+"parent_code": "140000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "144100",
+"name": "Barns and Sheds",
+"category": "asset",
+"parent_code": "144000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "144200",
+"name": "Greenhouses",
+"category": "asset",
+"parent_code": "144000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "144300",
+"name": "Storage Facilities",
+"category": "asset",
+"parent_code": "144000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "145000",
+"name": "Accumulated Depreciation - Buildings",
+"category": "asset",
+"parent_code": "140000",
+"normal_balance": "cr",
+"is_contra": true
+},
+{
+"code": "146000",
+"name": "Machinery and Tools",
+"category": "asset",
+"parent_code": "140000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "147000",
+"name": "Accumulated Depreciation - Machinery",
+"category": "asset",
+"parent_code": "140000",
+"normal_balance": "cr",
+"is_contra": true
+},
+{
+"code": "148000",
+"name": "Vehicles and Tractors",
+"category": "asset",
+"parent_code": "140000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "149000",
+"name": "Accumulated Depreciation - Vehicles",
+"category": "asset",
+"parent_code": "140000",
+"normal_balance": "cr",
+"is_contra": true
+},
+{
+"code": "150000",
+"name": "Intangible Assets",
+"category": "asset",
+"parent_code": "140000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "151000",
+"name": "Patents and Licenses",
+"category": "asset",
+"parent_code": "150000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "152000",
+"name": "Accumulated Amortization - Intangibles",
+"category": "asset",
+"parent_code": "150000",
+"normal_balance": "cr",
+"is_contra": true
+},
+    {
       "code": "200000",
       "name": "Liabilities",
       "category": "liability",
@@ -212,6 +380,46 @@
       "is_contra": false
     },
     {
+"code": "215000",
+"name": "Short-term Loans Payable",
+"category": "liability",
+"parent_code": "210000",
+"normal_balance": "cr",
+"is_contra": false
+},
+{
+"code": "216000",
+"name": "Current Portion of Long-term Debt",
+"category": "liability",
+"parent_code": "210000",
+"normal_balance": "cr",
+"is_contra": false
+},
+{
+"code": "217000",
+"name": "Accrued Interest Payable",
+"category": "liability",
+"parent_code": "210000",
+"normal_balance": "cr",
+"is_contra": false
+},
+{
+"code": "218000",
+"name": "Payroll Liabilities",
+"category": "liability",
+"parent_code": "210000",
+"normal_balance": "cr",
+"is_contra": false
+},
+{
+"code": "219000",
+"name": "Sales Tax Payable",
+"category": "liability",
+"parent_code": "210000",
+"normal_balance": "cr",
+"is_contra": false
+},
+    {
       "code": "220000",
       "name": "Non-Current Liabilities",
       "category": "liability",
@@ -243,6 +451,22 @@
       "normal_balance": "cr",
       "is_contra": false
     },
+    {
+"code": "224000",
+"name": "Mortgage Payable",
+"category": "liability",
+"parent_code": "220000",
+"normal_balance": "cr",
+"is_contra": false
+},
+{
+"code": "225000",
+"name": "Deferred Tax Liability",
+"category": "liability",
+"parent_code": "220000",
+"normal_balance": "cr",
+"is_contra": false
+},
     {
       "code": "300000",
       "name": "Equity",
@@ -284,6 +508,14 @@
       "is_contra": false
     },
     {
+"code": "314000",
+"name": "Revaluation Reserve",
+"category": "equity",
+"parent_code": "310000",
+"normal_balance": "cr",
+"is_contra": false
+},
+    {
       "code": "400000",
       "name": "Revenue",
       "category": "income",
@@ -315,6 +547,62 @@
       "normal_balance": "cr",
       "is_contra": false
     },
+    {
+"code": "413000",
+"name": "Processed Products Sales",
+"category": "income",
+"parent_code": "410000",
+"normal_balance": "cr",
+"is_contra": false
+},
+{
+"code": "414000",
+"name": "Dairy Sales Revenue",
+"category": "income",
+"parent_code": "410000",
+"normal_balance": "cr",
+"is_contra": false
+},
+{
+"code": "415000",
+"name": "Meat and Poultry Sales",
+"category": "income",
+"parent_code": "410000",
+"normal_balance": "cr",
+"is_contra": false
+},
+    {
+"code": "420000",
+"name": "Other Income",
+"category": "income",
+"parent_code": "400000",
+"normal_balance": "cr",
+"is_contra": false
+},
+{
+"code": "421000",
+"name": "Rental Income from Farm Assets",
+"category": "income",
+"parent_code": "420000",
+"normal_balance": "cr",
+"is_contra": false
+},
+{
+"code": "422000",
+"name": "Interest Income",
+"category": "income",
+"parent_code": "420000",
+"normal_balance": "cr",
+"is_contra": false
+},
+{
+"code": "423000",
+"name": "Gain on Sale of Assets",
+"category": "income",
+"parent_code": "420000",
+"normal_balance": "cr",
+"is_contra": false
+},
     {
       "code": "430000",
       "name": "Agricultural Grants & Subsidies",
@@ -364,6 +652,30 @@
       "is_contra": false
     },
     {
+"code": "511000",
+"name": "Seeds Expense",
+"category": "expense",
+"parent_code": "510000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "512000",
+"name": "Fertilizer Expense",
+"category": "expense",
+"parent_code": "510000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "513000",
+"name": "Pesticides and Herbicides",
+"category": "expense",
+"parent_code": "510000",
+"normal_balance": "dr",
+"is_contra": false
+},
+    {
       "code": "520000",
       "name": "Livestock Feed & Veterinary",
       "category": "expense",
@@ -371,6 +683,31 @@
       "normal_balance": "dr",
       "is_contra": false
     },
+    {
+"code": "521000",
+"name": "Livestock Feed",
+"category": "expense",
+"parent_code": "520000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "522000",
+"name": "Veterinary Services",
+"category": "expense",
+"parent_code": "520000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "523000",
+"name": "Breeding Costs",
+"category": "expense",
+"parent_code": "520000",
+"normal_balance": "dr",
+"is_contra": false
+},
+
     {
       "code": "530000",
       "name": "Farm Labor",
@@ -380,6 +717,30 @@
       "is_contra": false
     },
     {
+"code": "531000",
+"name": "Wages and Salaries",
+"category": "expense",
+"parent_code": "530000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "532000",
+"name": "Payroll Taxes",
+"category": "expense",
+"parent_code": "530000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "533000",
+"name": "Employee Benefits",
+"category": "expense",
+"parent_code": "530000",
+"normal_balance": "dr",
+"is_contra": false
+},
+    {
       "code": "540000",
       "name": "Fuel & Equipment",
       "category": "expense",
@@ -387,6 +748,30 @@
       "normal_balance": "dr",
       "is_contra": false
     },
+    {
+"code": "541000",
+"name": "Fuel Costs",
+"category": "expense",
+"parent_code": "540000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "542000",
+"name": "Equipment Rental",
+"category": "expense",
+"parent_code": "540000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "543000",
+"name": "Maintenance and Repairs - Equipment",
+"category": "expense",
+"parent_code": "540000",
+"normal_balance": "dr",
+"is_contra": false
+},
     {
       "code": "550000",
       "name": "Irrigation & Water Costs",
@@ -396,6 +781,22 @@
       "is_contra": false
     },
     {
+"code": "551000",
+"name": "Water Usage Costs",
+"category": "expense",
+"parent_code": "550000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "552000",
+"name": "Irrigation Maintenance",
+"category": "expense",
+"parent_code": "550000",
+"normal_balance": "dr",
+"is_contra": false
+},
+    {
       "code": "560000",
       "name": "Utility Costs",
       "category": "expense",
@@ -404,6 +805,22 @@
       "is_contra": false
     },
     {
+"code": "561000",
+"name": "Electricity",
+"category": "expense",
+"parent_code": "560000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "562000",
+"name": "Gas and Heating",
+"category": "expense",
+"parent_code": "560000",
+"normal_balance": "dr",
+"is_contra": false
+},
+    {
       "code": "570000",
       "name": "Other Direct Costs",
       "category": "expense",
@@ -411,6 +828,22 @@
       "normal_balance": "dr",
       "is_contra": false
     },
+    {
+"code": "571000",
+"name": "Packaging and Storage",
+"category": "expense",
+"parent_code": "570000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "572000",
+"name": "Transportation Costs",
+"category": "expense",
+"parent_code": "570000",
+"normal_balance": "dr",
+"is_contra": false
+},
     {
       "code": "600000",
       "name": "Operating Expenses",
@@ -428,6 +861,30 @@
       "is_contra": false
     },
     {
+"code": "611000",
+"name": "Office Supplies",
+"category": "expense",
+"parent_code": "610000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "612000",
+"name": "Telephone and Internet",
+"category": "expense",
+"parent_code": "610000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "613000",
+"name": "Administrative Salaries",
+"category": "expense",
+"parent_code": "610000",
+"normal_balance": "dr",
+"is_contra": false
+},
+    {
       "code": "620000",
       "name": "Insurance Expense",
       "category": "expense",
@@ -435,6 +892,22 @@
       "normal_balance": "dr",
       "is_contra": false
     },
+    {
+"code": "621000",
+"name": "Crop Insurance",
+"category": "expense",
+"parent_code": "620000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "622000",
+"name": "Liability Insurance",
+"category": "expense",
+"parent_code": "620000",
+"normal_balance": "dr",
+"is_contra": false
+},
     {
       "code": "630000",
       "name": "Depreciation Expense",
@@ -444,18 +917,158 @@
       "is_contra": false
     },
     {
+"code": "631000",
+"name": "Depreciation - Farm Equipment",
+"category": "expense",
+"parent_code": "630000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "632000",
+"name": "Depreciation - Buildings",
+"category": "expense",
+"parent_code": "630000",
+"normal_balance": "dr",
+"is_contra": false
+},
+    {
       "code": "640000",
       "name": "Other Expense",
       "category": "expense",
-      "parent_code": null,
+      "parent_code": "600000",
       "normal_balance": "dr",
       "is_contra": false
     },
+
     {
       "code": "641000",
       "name": "Interest Expense",
       "category": "expense",
       "parent_code": "640000",
+      "normal_balance": "dr",
+      "is_contra": false
+    },
+
+
+    {
+"code": "650000",
+"name": "Marketing and Advertising",
+"category": "expense",
+"parent_code": "600000",
+"normal_balance": "dr",
+"is_contra": false
+},
+    {
+"code": "660000",
+"name": "General Expenses",
+"category": "expense",
+"parent_code": "600000",
+"normal_balance": "dr",
+"is_contra": false
+},
+
+{
+"code": "660100",
+"name": "Professional Fees",
+"category": "expense",
+"parent_code": "660000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "660200",
+"name": "Legal Fees",
+"category": "expense",
+"parent_code": "660000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "660300",
+"name": "Accounting Fees",
+"category": "expense",
+"parent_code": "660000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "660400",
+"name": "Taxes and Licenses",
+"category": "expense",
+"parent_code": "660000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "660500",
+"name": "Property Taxes",
+"category": "expense",
+"parent_code": "660000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "660600",
+"name": "Business Licenses",
+"category": "expense",
+"parent_code": "660000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "660700",
+"name": "Bank Charges",
+"category": "expense",
+"parent_code": "660000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "660800",
+"name": "Miscellaneous Expenses",
+"category": "expense",
+"parent_code": "660000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "660900",
+"name": "Income Tax Expense",
+"category": "expense",
+"parent_code": "660000",
+"normal_balance": "dr",
+"is_contra": false
+},
+            {
+"code": "661000",
+"name": "Bad Debt Expense",
+"category": "expense",
+"parent_code": "660000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "661100",
+"name": "Loss on Disposal of Assets",
+"category": "expense",
+"parent_code": "660000",
+"normal_balance": "dr",
+"is_contra": false
+},
+{
+"code": "661200",
+"name": "Foreign Exchange Loss",
+"category": "expense",
+"parent_code": "660000",
+"normal_balance": "dr",
+"is_contra": false
+},
+    {
+      "code": "661300",
+      "name": "Interest Expense",
+      "category": "expense",
+      "parent_code": "660000",
       "normal_balance": "dr",
       "is_contra": false
     }
