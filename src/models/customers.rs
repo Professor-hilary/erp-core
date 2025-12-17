@@ -35,9 +35,9 @@ pub struct Invoice {
     pub customer_uuid: Uuid,
     pub issue_date: NaiveDate,
     pub due_date: NaiveDate,
-    pub total_amount: BigDecimal,
-    pub tax_amount: BigDecimal,
-    pub balance_due: BigDecimal,
+    pub total_amount: Option<BigDecimal>,
+    pub tax_amount: Option<BigDecimal>,
+    pub balance_due: Option<BigDecimal>,
     pub currency: String,
     pub status: String,
     pub posted: bool,
@@ -72,8 +72,8 @@ pub struct CreateInvoice {
     pub issue_date: NaiveDate,
     pub due_date: NaiveDate,
     pub currency: String,
-    pub tax_amount: BigDecimal,
-    pub total_amount: BigDecimal,
+    pub tax_amount: Option<BigDecimal>,
+    pub total_amount: Option<BigDecimal>,
     pub items: Vec<CreateInvoiceItem>,
 }
 
@@ -90,12 +90,12 @@ pub struct CreatePayment {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CreateInvoiceItem {
-    pub item_code: Option<String>,
+    pub stock_item_id: i64,
     pub description: String,
     pub quantity: BigDecimal,
     pub unit_price: BigDecimal,
     pub tax_rate: BigDecimal,
-    pub total: BigDecimal,
+    pub total: Option<BigDecimal>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

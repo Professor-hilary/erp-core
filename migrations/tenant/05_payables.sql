@@ -1,10 +1,7 @@
--- ========================================
+-- ===============================================
 -- PAYABLES MODULE - FULL SCHEMA
 -- Run this ONCE after `accounting` schema exists
--- ========================================
-
--- Enable UUID extension
--- CREATE EXTENSION IF NOT EXISTS pg_uuidv7;
+-- ===============================================
 
 -- Create schema
 CREATE SCHEMA IF NOT EXISTS payables;
@@ -54,9 +51,9 @@ CREATE TABLE IF NOT EXISTS payables.bills (
     bill_date date NOT NULL,
     due_date date NOT NULL,
     reference text,
-    total_amount numeric(18, 2) NOT NULL,
+    total_amount numeric(18, 2) DEFAULT 0,
     tax_amount numeric(18, 2) DEFAULT 0,
-    balance_due numeric(18, 2) NOT NULL,
+    balance_due numeric(18, 2) DEFAULT 0,
     currency text DEFAULT 'UGX',
     status text DEFAULT 'Unpaid',
     posted boolean DEFAULT false,
@@ -79,7 +76,7 @@ CREATE TABLE IF NOT EXISTS payables.bill_items (
     uuid uuid DEFAULT uuidv7() NOT NULL,
     serial_id bigint DEFAULT nextval('payables.bill_items_serial_id_seq') NOT NULL,
     bill_uuid uuid NOT NULL,
-    item_code text,
+    stock_item_id bigint,
     description text,
     quantity numeric(12, 4) DEFAULT 1,
     unit_price numeric(18, 4) DEFAULT 0,
@@ -205,43 +202,6 @@ ORDER BY v.serial_id, COALESCE(b.serial_id, 0), p.payment_date DESC NULLS LAST;
 -- ========================================
 -- FUNCTIONS
 -- ========================================
--- CREATE OR REPLACE FUNCTION payables.post_bill(
---     p_bill_serial_id bigint,
---     p_user uuid,
---     p_inventory_code TEXT,
---     p_payables_code TEXT
--- )
--- RETURNS void LANGUAGE plpgsql AS $$
--- DECLARE
---     v_bill payables.bills%ROWTYPE;
---     v_txn_serial_id BIGINT;
---     v_txn_uuid UUID;
---     v_lines JSONB;
--- BEGIN
---     SELECT * INTO v_bill FROM payables.bills WHERE serial_id = p_bill_serial_id;
---     IF NOT FOUND THEN RAISE EXCEPTION 'Bill serial_id % not found', p_bill_serial_id; END IF;
---     IF v_bill.posted THEN RETURN; END IF;
-
---     v_lines := jsonb_build_array(
---         jsonb_build_object('account_ref', p_inventory_code, 'debit', v_bill.total_amount, 'credit', 0, 'memo', v_bill.bill_number),
---         jsonb_build_object('account_ref', p_payables_code, 'debit', 0, 'credit', v_bill.total_amount, 'memo', v_bill.bill_number)
---     );
-
---     v_txn_serial_id := accounting.post_transaction(
---         v_bill.bill_date, v_bill.bill_number, 'Vendor Bill Posting', p_user, 'bill', v_lines
---     );
-
---     SELECT uuid INTO v_txn_uuid FROM accounting.transactions WHERE serial_id = v_txn_serial_id;
-
---     UPDATE payables.bills
---     SET gl_transaction_uuid = v_txn_uuid, posted = TRUE, updated_at = now()
---     WHERE serial_id = p_bill_serial_id;
-
---     UPDATE payables.vendors
---     SET current_balance = current_balance + v_bill.total_amount, updated_at = now()
---     WHERE uuid = v_bill.vendor_uuid;
--- END;
--- $$;
 
 -- Payables post bill function (credit purchase)
 CREATE OR REPLACE FUNCTION payables.post_bill(
@@ -256,6 +216,8 @@ DECLARE
     v_bill payables.bills%ROWTYPE;
     v_txn_serial_id bigint;
     v_txn_uuid uuid;
+    v_exp_account_uuid uuid;
+    v_payable_account_uuid uuid;
     r record;
 BEGIN
     SELECT * INTO v_bill FROM payables.bills
@@ -275,23 +237,44 @@ BEGIN
     SELECT uuid INTO v_txn_uuid
     FROM accounting.transactions WHERE serial_id = v_txn_serial_id;
 
-    INSERT INTO accounting.transaction_entries
-    VALUES
-    (uuid_generate_v4(), v_txn_uuid, p_expense_code, v_bill.total_amount, 0, 'Credit Purchase'),
-    (uuid_generate_v4(), v_txn_uuid, p_payable_code, 0, v_bill.total_amount, 'Account Payable');
+    -- Look up inventory account by serial_id
+    SELECT uuid INTO v_exp_account_uuid
+    FROM accounting.accounts
+    WHERE code = p_expense_code;
+    IF v_exp_account_uuid IS NULL THEN
+        RAISE EXCEPTION 'Account not found for code: %', p_expense_code;
+    END IF;
+
+    -- Look up payables account by serial_id
+    SELECT uuid INTO v_payable_account_uuid
+    FROM accounting.accounts
+    WHERE code = p_payable_code;
+    IF v_payable_account_uuid IS NULL THEN
+        RAISE EXCEPTION 'Account not found for code: %', p_payable_code;
+    END IF;
+
+    INSERT INTO accounting.transaction_entries (
+        transaction_uuid, account_uuid, line_no,
+        amount, debit, credit, memo
+    ) VALUES (
+        v_txn_uuid, v_exp_account_uuid, 1, v_bill.total_amount,
+        v_bill.total_amount, 0, 'Inventory billed on credit'
+    ), (
+        v_txn_uuid, v_payable_account_uuid, 2, -(v_bill.total_amount),
+        0, v_bill.total_amount, 'Account payable credit purchase'
+    );
 
     FOR r IN
         SELECT * FROM payables.bill_items WHERE bill_uuid = v_bill.uuid
     LOOP
         PERFORM inventory.post_purchase(
-            r.item_code::bigint,
+            r.stock_item_id::bigint,
             NULL,
             r.quantity,
             r.unit_price,
             'bill',
             p_bill_serial_id,
             p_user,
-            NULL,
             p_payable_code,
             v_txn_uuid
         );

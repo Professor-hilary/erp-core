@@ -999,7 +999,7 @@
       "code": "670000",
       "name": "Other Expenses",
       "category": "expense",
-      "parent_code": null,
+      "parent_code": "600000",
       "normal_balance": "dr",
       "is_contra": false
     }

@@ -1,10 +1,11 @@
 use crate::{
     infrastructure::errors::AppError,
     models::customers::{
-        ApplyPayment, CreateCustomer, CreateInvoice, Customer, Invoice, PostInvoice,
+        ApplyPayment, CreateCustomer, CreateInvoice, Customer, Invoice, Payment, PostInvoice,
     },
 };
 use async_trait::async_trait;
+use bigdecimal::BigDecimal;
 use sqlx::{PgPool, postgres::PgQueryResult};
 use uuid::Uuid;
 
@@ -25,7 +26,7 @@ pub trait CustomerRepository: Send + Sync {
         user_id: Uuid,
         payload: &CreateCustomer,
     ) -> Result<Customer, AppError>;
-    async fn delete(&self, pool: &PgPool, uuid: Uuid, user_id: Uuid) -> Result<(), AppError>;
+    async fn delete(&self, pool: &PgPool, uuid: Uuid, user_id: Uuid) -> Result<u64, AppError>;
 
     async fn create_invoice(
         &self,
@@ -38,7 +39,7 @@ pub trait CustomerRepository: Send + Sync {
         pool: &PgPool,
         user_id: Uuid,
         payload: &PostInvoice,
-    ) -> Result<(), AppError>;
+    ) -> Result<Invoice, AppError>;
 
     async fn list_customer_invoices(
         &self,
@@ -46,7 +47,7 @@ pub trait CustomerRepository: Send + Sync {
         vendor_uuid: Uuid,
     ) -> Result<Vec<Invoice>, AppError>;
 
-    async fn apply_payment(&self, pool: &PgPool, cmd: ApplyPayment) -> Result<(), AppError>;
+    async fn apply_payment(&self, pool: &PgPool, cmd: ApplyPayment) -> Result<Payment, AppError>;
 }
 
 pub struct PostgresCustomerRepo;
@@ -128,7 +129,7 @@ impl CustomerRepository for PostgresCustomerRepo {
         Ok(cust)
     }
 
-    async fn delete(&self, pool: &PgPool, uuid: Uuid, _user_id: Uuid) -> Result<(), AppError> {
+    async fn delete(&self, pool: &PgPool, uuid: Uuid, _user_id: Uuid) -> Result<u64, AppError> {
         let res: PgQueryResult = sqlx::query("DELETE FROM receivables.customers WHERE uuid = $1")
             .bind(uuid)
             .execute(pool)
@@ -136,7 +137,7 @@ impl CustomerRepository for PostgresCustomerRepo {
         if res.rows_affected() == 0 {
             Err(AppError::NotFound("Customer not found".into()))
         } else {
-            Ok(())
+            Ok(res.rows_affected())
         }
     }
 
@@ -146,6 +147,8 @@ impl CustomerRepository for PostgresCustomerRepo {
         payload: &CreateInvoice,
     ) -> Result<Invoice, AppError> {
         let mut tx = pool.begin().await?;
+        let mut total_cost: BigDecimal = Default::default();
+        let mut tax_amount: BigDecimal = Default::default();
 
         let invoice: Invoice = sqlx::query_as::<_, Invoice>(
             r#"
@@ -159,7 +162,7 @@ impl CustomerRepository for PostgresCustomerRepo {
                 balance_due,
                 currency
             )
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$6,$8)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
             RETURNING *
             "#,
         )
@@ -169,17 +172,21 @@ impl CustomerRepository for PostgresCustomerRepo {
         .bind(payload.due_date)
         .bind(&payload.total_amount)
         .bind(&payload.tax_amount)
-        .bind(&payload.total_amount + &payload.tax_amount)
+        .bind(&payload.total_amount)
         .bind(&payload.currency)
         .fetch_one(&mut *tx)
         .await?;
 
         for item in &payload.items {
+            let total_before_tax: BigDecimal = &item.quantity * &item.unit_price;
+            let gross_tax: BigDecimal = &total_before_tax * (&item.tax_rate / 100);
+            let total_after_tax: BigDecimal = &total_before_tax + &gross_tax;
+
             sqlx::query(
                 r#"
                 INSERT INTO receivables.invoice_items (
                     invoice_uuid,
-                    item_code,
+                    stock_item_id,
                     description,
                     quantity,
                     unit_price,
@@ -190,15 +197,31 @@ impl CustomerRepository for PostgresCustomerRepo {
                 "#,
             )
             .bind(invoice.uuid)
-            .bind(&item.item_code)
+            .bind(&item.stock_item_id)
             .bind(&item.description)
             .bind(&item.quantity)
             .bind(&item.unit_price)
             .bind(&item.tax_rate)
-            .bind(&item.total)
+            .bind(&total_after_tax)
             .execute(&mut *tx)
             .await?;
+
+            total_cost += &total_before_tax;
+            tax_amount += &gross_tax;
         }
+
+        // Update invoice with total and tax computed from items' meta
+        sqlx::query(
+            r#"
+                UPDATE receivables.invoices SET total_amount=$1, tax_amount=$2
+                    WHERE uuid=$3 RETURNING *
+            "#,
+        )
+        .bind(&total_cost)
+        .bind(&tax_amount)
+        .bind(invoice.uuid)
+        .execute(&mut *tx)
+        .await?;
 
         tx.commit().await?;
         Ok(invoice)
@@ -209,8 +232,8 @@ impl CustomerRepository for PostgresCustomerRepo {
         pool: &PgPool,
         user_id: Uuid,
         payload: &PostInvoice,
-    ) -> Result<(), AppError> {
-        sqlx::query(
+    ) -> Result<Invoice, AppError> {
+        let invoice = sqlx::query_as::<_, Invoice>(
             r#"
             SELECT payables.post_invoice($1, $2, $3, $4)
             "#,
@@ -219,10 +242,11 @@ impl CustomerRepository for PostgresCustomerRepo {
         .bind(user_id)
         .bind(&payload.receivable_code)
         .bind(&payload.revenue_code)
-        .execute(pool)
-        .await?;
+        .fetch_optional(pool)
+        .await?
+        .ok_or(AppError::NotFound("Invoice posting failed".into()))?;
 
-        Ok(())
+        Ok(invoice)
     }
 
     async fn list_customer_invoices(
@@ -245,18 +269,20 @@ impl CustomerRepository for PostgresCustomerRepo {
         Ok(invoices)
     }
 
-    async fn apply_payment(&self, pool: &PgPool, cmd: ApplyPayment) -> Result<(), AppError> {
+    async fn apply_payment(&self, pool: &PgPool, cmd: ApplyPayment) -> Result<Payment, AppError> {
         let mut tx = pool.begin().await?;
 
-        sqlx::query(r#"SELECT receivables.apply_payment($1, $2, $3)"#)
-            .bind(cmd.payment_serial_id)
-            .bind(cmd.invoice_serial_id)
-            .bind(&cmd.amount)
-            .execute(&mut *tx)
-            .await?;
+        let payment =
+            sqlx::query_as::<_, Payment>(r#"SELECT receivables.apply_payment($1, $2, $3)"#)
+                .bind(cmd.payment_serial_id)
+                .bind(cmd.invoice_serial_id)
+                .bind(&cmd.amount)
+                .fetch_optional(&mut *tx)
+                .await?
+                .ok_or(AppError::NotFound("Payment not found".into()))?;
 
         tx.commit().await?;
 
-        Ok(())
+        Ok(payment)
     }
 }

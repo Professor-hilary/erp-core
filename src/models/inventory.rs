@@ -98,6 +98,6 @@ pub struct PostSale {
     pub quantity: bigdecimal::BigDecimal,
     pub unit_cost: bigdecimal::BigDecimal,
     pub reference_type: Option<String>,
-    pub reference_serial_id: i64,
+    pub reference_serial_id: Option<i64>,
     pub cash_account_code: String,
 }

@@ -1,10 +1,7 @@
--- ========================================
+-- ===============================================
 -- RECEIVABLES MODULE - FULL SCHEMA
 -- Run this ONCE after `accounting` schema exists
--- ========================================
-
--- Enable UUID extension
--- CREATE EXTENSION IF NOT EXISTS pg_uuidv7;
+-- ===============================================
 
 -- Create schema
 CREATE SCHEMA IF NOT EXISTS receivables;
@@ -51,9 +48,9 @@ CREATE TABLE IF NOT EXISTS receivables.invoices (
     customer_uuid uuid NOT NULL,
     issue_date date NOT NULL,
     due_date date NOT NULL,
-    total_amount numeric(18, 2) NOT NULL,
+    total_amount numeric(18, 2) DEFAULT 0,
     tax_amount numeric(18, 2) DEFAULT 0,
-    balance_due numeric(18, 2) NOT NULL,
+    balance_due numeric(18, 2) DEFAULT 0,
     currency text DEFAULT 'USD',
     status text DEFAULT 'Unpaid',
     posted boolean DEFAULT false,
@@ -76,7 +73,7 @@ CREATE TABLE IF NOT EXISTS receivables.invoice_items (
     uuid uuid DEFAULT uuidv7() NOT NULL,
     serial_id bigint DEFAULT nextval('receivables.invoice_items_serial_id_seq') NOT NULL,
     invoice_uuid uuid NOT NULL,
-    item_code text,
+    stock_item_id bigint,
     description text,
     quantity numeric(12, 4) DEFAULT 1,
     unit_price numeric(18, 4) DEFAULT 0,
@@ -202,53 +199,6 @@ ORDER BY c.serial_id, COALESCE(i.serial_id, 0), p.payment_date DESC NULLS LAST;
 -- ========================================
 -- FUNCTIONS
 -- ========================================
--- CREATE OR REPLACE FUNCTION receivables.post_invoice(
---     p_invoice_serial_id bigint,
---     p_user UUID,
---     p_sales_code TEXT,
---     p_receivables_code TEXT
-
---     -- Also get inventory meta to sell
---     p_item_serial_id bigint,
---     p_warehouse_serial_id bigint,
---     p_quantity numeric,
---     p_unit_cost numeric,
---     p_reference_type text,
---     p_reference_serial_id bigint,
--- )
--- RETURNS void LANGUAGE plpgsql AS $$
--- DECLARE
---     v_invoice receivables.invoices%ROWTYPE;
---     v_txn_serial_id bigint;
---     v_txn_uuid uuid;
---     v_lines jsonb;
--- BEGIN
---     SELECT * INTO v_invoice FROM receivables.invoices WHERE serial_id = p_invoice_serial_id;
---     IF NOT FOUND THEN RAISE EXCEPTION 'Invoice serial_id % not found', p_invoice_serial_id; END IF;
---     IF v_invoice.posted THEN RETURN; END IF;
-
---     v_lines := jsonb_build_array(
---         jsonb_build_object('account_ref', p_receivables_code, 'debit', v_invoice.total_amount, 'credit', 0, 'memo', v_invoice.invoice_number),
---         jsonb_build_object('account_ref', p_sales_code, 'debit', 0, 'credit', v_invoice.total_amount, 'memo', v_invoice.invoice_number)
---     );
-
---     v_txn_serial_id := accounting.post_transaction(
---         v_invoice.issue_date, v_invoice.invoice_number, 'Invoice Posting', p_user, 'invoice', v_lines
---     );
-
---     SELECT uuid INTO v_txn_uuid FROM accounting.transactions WHERE serial_id = v_txn_serial_id;
---     IF v_txn_uuid IS NULL THEN RAISE EXCEPTION 'Failed to retrieve GL transaction UUID'; END IF;
-
---     UPDATE receivables.invoices
---     SET gl_transaction_uuid = v_txn_uuid, posted = TRUE, updated_at = now()
---     WHERE serial_id = p_invoice_serial_id;
-
---     UPDATE receivables.customers
---     SET current_balance = current_balance + v_invoice.total_amount, updated_at = now()
---     WHERE uuid = v_invoice.customer_uuid;
--- END;
--- $$;
-
 
 -- Payables post invoice function (credit sale)
 CREATE OR REPLACE FUNCTION receivables.post_invoice(
@@ -261,6 +211,8 @@ DECLARE
     v_invoice receivables.invoices%ROWTYPE;
     v_txn_serial_id bigint;
     v_txn_uuid uuid;
+    v_receivables_uuid uuid;
+    v_revenues_uuid uuid;
     r record;
 BEGIN
     SELECT * INTO v_invoice FROM receivables.invoices
@@ -282,24 +234,46 @@ BEGIN
     FROM accounting.transactions WHERE serial_id = v_txn_serial_id;
 
     -- 2. AR + Revenue
-    INSERT INTO accounting.transaction_entries
-    VALUES
-    (uuid_generate_v4(), v_txn_uuid, p_receivables_code, v_invoice.total_amount, 0, 'Accounts Receivable'),
-    (uuid_generate_v4(), v_txn_uuid, p_revenue_code, 0, v_invoice.total_amount, 'Revenue');
+    -- Look up inventory account by serial_id
+    SELECT uuid INTO v_receivables_uuid
+    FROM accounting.accounts
+    WHERE code = p_receivables_code;
+    IF v_receivables_uuid IS NULL THEN
+        RAISE EXCEPTION 'Account not found for code: %', p_receivables_code;
+    END IF;
+
+    -- Look up payables account by serial_id
+    SELECT uuid INTO v_revenues_uuid
+    FROM accounting.accounts
+    WHERE code = p_revenue_code;
+    IF v_revenues_uuid IS NULL THEN
+        RAISE EXCEPTION 'Account not found for code: %', p_revenue_code;
+    END IF;
+
+    INSERT INTO accounting.transaction_entries (
+        transaction_uuid, account_uuid, line_no,
+        amount, debit, credit, memo
+    ) VALUES (
+        v_txn_uuid, v_receivables_uuid, 1, v_bill.total_amount,
+        v_invoice.total_amount, 0, 'Accounts Receivable'
+    ), (
+        v_txn_uuid, v_revenues_uuid, 2, -(v_bill.total_amount),
+        0, v_invoice.total_amount, 'Revenue'
+    );
 
     -- 3. Inventory delegation
     FOR r IN
         SELECT * FROM receivables.invoice_items WHERE invoice_uuid = v_invoice.uuid
     LOOP
         PERFORM inventory.post_sale(
-            r.item_code::bigint,
+            r.stock_item_id::bigint,
             NULL,
             r.quantity,
             r.unit_price,
             'invoice',
             p_invoice_serial_id,
-            NULL,
             p_user,
+            NULL,
             v_txn_uuid
         );
     END LOOP;

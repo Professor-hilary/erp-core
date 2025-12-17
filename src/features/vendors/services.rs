@@ -1,5 +1,5 @@
 use crate::features::vendors::repository::VendorRepository;
-use crate::models::vendor::{ApplyPayment, Bill, CreateBill, PostBill};
+use crate::models::vendor::{ApplyPayment, Bill, CreateBill, Payment, PostBill};
 use crate::{
     infrastructure::errors::AppError,
     models::vendor::{CreateVendor, Vendor},
@@ -70,7 +70,7 @@ impl<R: VendorRepository> VendorService<R> {
         pool: &PgPool,
         user_id: Uuid,
         payload: &PostBill,
-    ) -> Result<(), AppError> {
+    ) -> Result<i64, AppError> {
         self.repo.post_bill(pool, user_id, payload).await
     }
 
@@ -82,7 +82,7 @@ impl<R: VendorRepository> VendorService<R> {
         self.repo.list_vendor_bills(pool, vendor_uuid).await
     }
 
-    pub async fn apply_payment(&self, pool: &PgPool, cmd: ApplyPayment) -> Result<(), AppError> {
+    pub async fn apply_payment(&self, pool: &PgPool, cmd: ApplyPayment) -> Result<Payment, AppError> {
         self.repo.apply_payment(pool, cmd).await
     }
 }

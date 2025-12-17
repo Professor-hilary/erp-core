@@ -911,7 +911,7 @@
             "code": "650000",
             "name": "Income Tax Expense",
             "category": "expense",
-            "parent_code": null,
+            "parent_code": "600000",
             "normal_balance": "dr",
             "is_contra": false
         }

@@ -1,8 +1,9 @@
 use crate::{
     infrastructure::errors::AppError,
-    models::vendor::{ApplyPayment, Bill, CreateBill, CreateVendor, PostBill, Vendor},
+    models::vendor::{ApplyPayment, Bill, CreateBill, CreateVendor, Payment, PostBill, Vendor},
 };
 use async_trait::async_trait;
+use bigdecimal::BigDecimal;
 use sqlx::PgPool;
 use uuid::Uuid;
 
@@ -32,7 +33,7 @@ pub trait VendorRepository: Send + Sync {
         pool: &PgPool,
         user_id: Uuid,
         payload: &PostBill,
-    ) -> Result<(), AppError>;
+    ) -> Result<i64, AppError>;
 
     async fn list_vendor_bills(
         &self,
@@ -40,7 +41,7 @@ pub trait VendorRepository: Send + Sync {
         vendor_uuid: Uuid,
     ) -> Result<Vec<Bill>, AppError>;
 
-    async fn apply_payment(&self, pool: &PgPool, cmd: ApplyPayment) -> Result<(), AppError>;
+    async fn apply_payment(&self, pool: &PgPool, cmd: ApplyPayment) -> Result<Payment, AppError>;
 }
 
 pub struct PostgresVendorRepo;
@@ -134,7 +135,9 @@ impl VendorRepository for PostgresVendorRepo {
     }
 
     async fn create_bill(&self, pool: &PgPool, payload: &CreateBill) -> Result<Bill, AppError> {
-        let mut tx = pool.begin().await?;
+        let mut tx: sqlx::Transaction<'_, sqlx::Postgres> = pool.begin().await?;
+        let mut total_cost: BigDecimal = Default::default();
+        let mut tax_amount: BigDecimal = Default::default();
 
         let bill: Bill = sqlx::query_as::<_, Bill>(
             r#"
@@ -146,10 +149,9 @@ impl VendorRepository for PostgresVendorRepo {
                 reference,
                 total_amount,
                 tax_amount,
-                balance_due,
                 currency
             )
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$6,$8)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
             RETURNING *
             "#,
         )
@@ -165,11 +167,15 @@ impl VendorRepository for PostgresVendorRepo {
         .await?;
 
         for item in &payload.items {
+            let total_before_tax: BigDecimal = &item.quantity * &item.unit_price;
+            let gross_tax: BigDecimal = &total_before_tax * (&item.tax_rate / 100);
+            let total_after_tax: BigDecimal = &total_before_tax + &gross_tax;
+
             sqlx::query(
                 r#"
                 INSERT INTO payables.bill_items (
                     bill_uuid,
-                    item_code,
+                    stock_item_id,
                     description,
                     quantity,
                     unit_price,
@@ -180,15 +186,31 @@ impl VendorRepository for PostgresVendorRepo {
                 "#,
             )
             .bind(bill.uuid)
-            .bind(&item.item_code)
+            .bind(&item.stock_item_id)
             .bind(&item.description)
             .bind(&item.quantity)
             .bind(&item.unit_price)
             .bind(&item.tax_rate)
-            .bind(&item.total)
+            .bind(&total_after_tax)
             .execute(&mut *tx)
             .await?;
+
+            total_cost += &total_before_tax;
+            tax_amount += &gross_tax;
         }
+
+        // Update bill with total and tax computed from items' meta
+        sqlx::query(
+            r#"
+                UPDATE payables.bills SET total_amount=$1, tax_amount=$2
+                    WHERE uuid=$3 RETURNING *
+            "#,
+        )
+        .bind(&total_cost)
+        .bind(&tax_amount)
+        .bind(bill.uuid)
+        .execute(&mut *tx)
+        .await?;
 
         tx.commit().await?;
         Ok(bill)
@@ -199,20 +221,16 @@ impl VendorRepository for PostgresVendorRepo {
         pool: &PgPool,
         user_id: Uuid,
         payload: &PostBill,
-    ) -> Result<(), AppError> {
-        sqlx::query(
-            r#"
-            SELECT payables.post_bill($1, $2, $3, $4)
-            "#,
-        )
-        .bind(payload.bill_serial_id)
-        .bind(user_id)
-        .bind(&payload.inventory_account)
-        .bind(&payload.payables_account)
-        .execute(pool)
-        .await?;
+    ) -> Result<i64, AppError> {
+        sqlx::query(r#"SELECT payables.post_bill($1, $2, $3, $4)"#)
+            .bind(payload.bill_serial_id)
+            .bind(user_id)
+            .bind(&payload.inventory_account)
+            .bind(&payload.payables_account)
+            .execute(pool)
+            .await?;
 
-        Ok(())
+        Ok(payload.bill_serial_id)
     }
 
     async fn list_vendor_bills(
@@ -235,18 +253,19 @@ impl VendorRepository for PostgresVendorRepo {
         Ok(bills)
     }
 
-    async fn apply_payment(&self, pool: &PgPool, cmd: ApplyPayment) -> Result<(), AppError> {
+    async fn apply_payment(&self, pool: &PgPool, cmd: ApplyPayment) -> Result<Payment, AppError> {
         let mut tx = pool.begin().await?;
 
-        sqlx::query(r#"SELECT payables.apply_payment($1, $2, $3)"#)
+        let payment = sqlx::query_as::<_, Payment>(r#"SELECT payables.apply_payment($1, $2, $3)"#)
             .bind(cmd.payment_serial_id)
             .bind(cmd.bill_serial_id)
             .bind(&cmd.amount)
-            .execute(&mut *tx)
-            .await?;
+            .fetch_optional(&mut *tx)
+            .await?
+            .ok_or(AppError::NotFound("Failed to apply payment".into()))?;
 
         tx.commit().await?;
 
-        Ok(())
+        Ok(payment)
     }
 }

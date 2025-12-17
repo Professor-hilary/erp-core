@@ -1,6 +1,5 @@
 use bigdecimal::BigDecimal;
-use chrono::NaiveDate;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
@@ -13,8 +12,8 @@ pub struct Vendor {
     pub email: Option<String>,
     pub phone: Option<String>,
     pub address: Option<String>,
-    pub credit_limit: bigdecimal::BigDecimal,
-    pub current_balance: bigdecimal::BigDecimal,
+    pub credit_limit: BigDecimal,
+    pub current_balance: BigDecimal,
     pub created_at: DateTime<Utc>,
 }
 
@@ -25,7 +24,7 @@ pub struct CreateVendor {
     pub email: Option<String>,
     pub phone: Option<String>,
     pub address: Option<String>,
-    pub credit_limit: Option<bigdecimal::BigDecimal>,
+    pub credit_limit: Option<BigDecimal>,
 }
 
 #[derive(Debug, Serialize, Deserialize, FromRow)]
@@ -37,9 +36,9 @@ pub struct Bill {
     pub bill_date: NaiveDate,
     pub due_date: NaiveDate,
     pub reference: Option<String>,
-    pub total_amount: BigDecimal,
-    pub tax_amount: BigDecimal,
-    pub balance_due: BigDecimal,
+    pub total_amount: Option<BigDecimal>,
+    pub tax_amount: Option<BigDecimal>,
+    pub balance_due: Option<BigDecimal>,
     pub currency: String,
     pub status: String,
     pub posted: bool,
@@ -73,9 +72,9 @@ pub struct CreateBill {
     pub bill_date: NaiveDate,
     pub due_date: NaiveDate,
     pub reference: Option<String>,
-    pub currency: String,
-    pub tax_amount: BigDecimal,
-    pub total_amount: BigDecimal,
+    pub currency: Option<String>,
+    pub tax_amount: Option<BigDecimal>,
+    pub total_amount: Option<BigDecimal>,
     pub items: Vec<CreateBillItem>,
 }
 
@@ -92,12 +91,12 @@ pub struct CreatePayment {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CreateBillItem {
-    pub item_code: Option<String>,
+    pub stock_item_id: i64,
     pub description: String,
     pub quantity: BigDecimal,
     pub unit_price: BigDecimal,
     pub tax_rate: BigDecimal,
-    pub total: BigDecimal,
+    pub total: Option<BigDecimal>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

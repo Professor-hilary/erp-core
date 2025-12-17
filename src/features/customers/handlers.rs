@@ -83,10 +83,13 @@ async fn http_delete_customer(
 ) -> Result<Response, AppError> {
     let repo: PostgresCustomerRepo = PostgresCustomerRepo::new();
     let service: CustomerService<PostgresCustomerRepo> = CustomerService::new(repo);
-    service
+    let customer_id = service
         .delete(&user.tenant_pool, uuid, user.user_id)
         .await?;
-    Ok(ApiResponse::success((), "Customer deleted"))
+    Ok(ApiResponse::success(
+        customer_id,
+        "Customer deleted successfully",
+    ))
 }
 
 async fn http_create_invoice(
@@ -96,8 +99,11 @@ async fn http_create_invoice(
 ) -> Result<Response, AppError> {
     let repo: PostgresCustomerRepo = PostgresCustomerRepo::new();
     let service: CustomerService<PostgresCustomerRepo> = CustomerService::new(repo);
-    service.create_invoice(&user.tenant_pool, &payload).await?;
-    Ok(ApiResponse::success("Created Bill", "Vendor deleted"))
+    let invoice = service.create_invoice(&user.tenant_pool, &payload).await?;
+    Ok(ApiResponse::success(
+        invoice,
+        "Customer invoice created successfully",
+    ))
 }
 
 async fn http_post_invoice(
@@ -107,10 +113,10 @@ async fn http_post_invoice(
 ) -> Result<Response, AppError> {
     let repo = PostgresCustomerRepo::new();
     let service = CustomerService::new(repo);
-    service
+    let invoice = service
         .post_invoice(&user.tenant_pool, user.user_id, &payload)
         .await?;
-    Ok(ApiResponse::success("Bill Posted", "Vendor deleted"))
+    Ok(ApiResponse::success(invoice, "Customer invoice posted"))
 }
 
 async fn http_apply_invoice_payment(
@@ -120,8 +126,11 @@ async fn http_apply_invoice_payment(
 ) -> Result<Response, AppError> {
     let repo = PostgresCustomerRepo::new();
     let service = CustomerService::new(repo);
-    service.apply_payment(&user.tenant_pool, payload).await?;
-    Ok(ApiResponse::success("Bill Posted", "Vendor deleted"))
+    let payment = service.apply_payment(&user.tenant_pool, payload).await?;
+    Ok(ApiResponse::success(
+        payment,
+        "Customer invoice payment applied",
+    ))
 }
 
 async fn http_list_invoices(
@@ -131,8 +140,8 @@ async fn http_list_invoices(
 ) -> Result<Response, AppError> {
     let repo = PostgresCustomerRepo::new();
     let service = CustomerService::new(repo);
-    service
+    let invoices = service
         .list_customer_invoice(&user.tenant_pool, uuid)
         .await?;
-    Ok(ApiResponse::success("Vendor Bills Found", "Vendor deleted"))
+    Ok(ApiResponse::success(invoices, "Customer invoices found"))
 }

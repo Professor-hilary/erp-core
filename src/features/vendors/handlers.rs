@@ -97,8 +97,9 @@ async fn http_create_bill(
 ) -> Result<Response, AppError> {
     let repo: PostgresVendorRepo = PostgresVendorRepo::new();
     let service: VendorService<PostgresVendorRepo> = VendorService::new(repo);
-    service.create_bill(&user.tenant_pool, &payload).await?;
-    Ok(ApiResponse::success("Created Bill", "Vendor deleted"))
+    let bill = service.create_bill(&user.tenant_pool, &payload).await?;
+
+    Ok(ApiResponse::created(bill, "Bill created successfully"))
 }
 
 async fn http_post_bill(
@@ -108,10 +109,11 @@ async fn http_post_bill(
 ) -> Result<Response, AppError> {
     let repo: PostgresVendorRepo = PostgresVendorRepo::new();
     let service: VendorService<PostgresVendorRepo> = VendorService::new(repo);
-    service
+    let bill_id = service
         .post_bill(&user.tenant_pool, user.user_id, &payload)
         .await?;
-    Ok(ApiResponse::success("Bill Posted", "Vendor deleted"))
+
+    Ok(ApiResponse::success(bill_id, "Bill posted successfully"))
 }
 
 async fn http_apply_bill_payment(
@@ -121,8 +123,11 @@ async fn http_apply_bill_payment(
 ) -> Result<Response, AppError> {
     let repo: PostgresVendorRepo = PostgresVendorRepo::new();
     let service: VendorService<PostgresVendorRepo> = VendorService::new(repo);
-    service.apply_payment(&user.tenant_pool, payload).await?;
-    Ok(ApiResponse::success("Bill Posted", "Vendor deleted"))
+    let payment = service.apply_payment(&user.tenant_pool, payload).await?;
+    Ok(ApiResponse::success(
+        payment,
+        "Bill payment applied successfully",
+    ))
 }
 
 async fn http_list_vendor_bills(
@@ -132,6 +137,6 @@ async fn http_list_vendor_bills(
 ) -> Result<Response, AppError> {
     let repo: PostgresVendorRepo = PostgresVendorRepo::new();
     let service: VendorService<PostgresVendorRepo> = VendorService::new(repo);
-    service.list_vendor_bills(&user.tenant_pool, uuid).await?;
-    Ok(ApiResponse::success("Vendor Bills Found", "Vendor deleted"))
+    let bills = service.list_vendor_bills(&user.tenant_pool, uuid).await?;
+    Ok(ApiResponse::success(bills, "Vendor bills found"))
 }

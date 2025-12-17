@@ -21,27 +21,26 @@ use crate::{
 
 pub fn router() -> Router<Arc<AppState>> {
     Router::new()
-        .route("/create/item", post(create_item))
-        .route("/create/category", post(create_item_category))
-        .route("/create/warehouse", post(create_warehouse))
-        .route("/purchase", post(cash_purchase))
-        .route("/purchase", post(credit_purchase))
-        .route("/sale", post(post_sale))
-        .route("/list/items", get(list_items))
-        .route("/list/categories", get(list_item_categories))
-        .route("/list/warehouses", get(list_warehouses))
-        .route("/get/item/{uuid}", get(get_item))
-        .route("/get/category/{uuid}", get(get_item_category))
-        .route("/get/warehouse/{uuid}", get(get_warehouse))
-        .route("/update/item/{uuid}", patch(update_item))
-        .route("/update/category/{uuid}", patch(update_item_category))
-        .route("/update/warehouse/{uuid}", patch(update_warehouse))
-        .route("/delete/item/{uuid}", delete(delete_item))
-        .route("/delete/category/{uuid}", delete(delete_item_category))
-        .route("/delete/warehouse/{uuid}", delete(delete_warehouse))
+        .route("/create/item", post(http_create_item))
+        .route("/create/category", post(http_create_item_category))
+        .route("/create/warehouse", post(http_create_warehouse))
+        .route("/create/cash-purchase", post(http_cash_purchase))
+        .route("/create/cash-sale", post(http_post_sale))
+        .route("/list/inventory", get(http_list_items))
+        .route("/list/categories", get(http_list_item_categories))
+        .route("/list/warehouses", get(http_list_warehouses))
+        .route("/get/item/{uuid}", get(http_get_item))
+        .route("/get/category/{uuid}", get(http_get_item_category))
+        .route("/get/warehouse/{uuid}", get(http_get_warehouse))
+        .route("/update/item/{uuid}", patch(http_update_item))
+        .route("/update/category/{uuid}", patch(http_update_item_category))
+        .route("/update/warehouse/{uuid}", patch(http_update_warehouse))
+        .route("/delete/item/{uuid}", delete(http_delete_item))
+        .route("/delete/category/{uuid}", delete(http_delete_item_category))
+        .route("/delete/warehouse/{uuid}", delete(http_delete_warehouse))
 }
 
-async fn create_item(
+async fn http_create_item(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<CreateItem>,
@@ -54,7 +53,7 @@ async fn create_item(
     Ok(ApiResponse::created(item, "Item created"))
 }
 
-async fn create_warehouse(
+async fn http_create_warehouse(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<CreateWarehouse>,
@@ -67,7 +66,7 @@ async fn create_warehouse(
     Ok(ApiResponse::created(category, "Warehouse created"))
 }
 
-async fn create_item_category(
+async fn http_create_item_category(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<CreateItemCategory>,
@@ -80,7 +79,7 @@ async fn create_item_category(
     Ok(ApiResponse::created(category, "Item category created"))
 }
 
-async fn list_items(
+async fn http_list_items(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
 ) -> Result<Response, AppError> {
@@ -90,7 +89,7 @@ async fn list_items(
     Ok(ApiResponse::success(list, "Items fetched"))
 }
 
-async fn list_item_categories(
+async fn http_list_item_categories(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
 ) -> Result<Response, AppError> {
@@ -102,7 +101,7 @@ async fn list_item_categories(
     Ok(ApiResponse::success(list, "Item categories fetched"))
 }
 
-async fn list_warehouses(
+async fn http_list_warehouses(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
 ) -> Result<Response, AppError> {
@@ -114,7 +113,7 @@ async fn list_warehouses(
     Ok(ApiResponse::success(list, "Warehouses fetched"))
 }
 
-async fn get_item(
+async fn http_get_item(
     State(_state): State<Arc<AppState>>,
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
@@ -127,7 +126,7 @@ async fn get_item(
     Ok(ApiResponse::success(item, "Item fetched"))
 }
 
-async fn get_item_category(
+async fn http_get_item_category(
     State(_state): State<Arc<AppState>>,
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
@@ -140,7 +139,7 @@ async fn get_item_category(
     Ok(ApiResponse::success(item, "Item category fetched"))
 }
 
-async fn get_warehouse(
+async fn http_get_warehouse(
     State(_state): State<Arc<AppState>>,
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
@@ -153,7 +152,7 @@ async fn get_warehouse(
     Ok(ApiResponse::success(item, "Warehouse fetched"))
 }
 
-async fn update_item(
+async fn http_update_item(
     State(_state): State<Arc<AppState>>,
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
@@ -167,7 +166,7 @@ async fn update_item(
     Ok(ApiResponse::success(item, "Item updated"))
 }
 
-async fn update_item_category(
+async fn http_update_item_category(
     State(_state): State<Arc<AppState>>,
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
@@ -181,7 +180,7 @@ async fn update_item_category(
     Ok(ApiResponse::success(item, "Item category updated"))
 }
 
-async fn update_warehouse(
+async fn http_update_warehouse(
     State(_state): State<Arc<AppState>>,
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
@@ -195,7 +194,7 @@ async fn update_warehouse(
     Ok(ApiResponse::success(warehouse, "Warehouse updated"))
 }
 
-async fn delete_item(
+async fn http_delete_item(
     State(_state): State<Arc<AppState>>,
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
@@ -208,7 +207,7 @@ async fn delete_item(
     Ok(ApiResponse::success((), "Item deleted"))
 }
 
-async fn delete_item_category(
+async fn http_delete_item_category(
     State(_state): State<Arc<AppState>>,
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
@@ -221,7 +220,7 @@ async fn delete_item_category(
     Ok(ApiResponse::success((), "Item category deleted"))
 }
 
-async fn delete_warehouse(
+async fn http_delete_warehouse(
     State(_state): State<Arc<AppState>>,
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
@@ -234,7 +233,7 @@ async fn delete_warehouse(
     Ok(ApiResponse::success((), "Warehouse deleted"))
 }
 
-async fn cash_purchase(
+async fn http_cash_purchase(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<PostPurchase>,
@@ -250,23 +249,7 @@ async fn cash_purchase(
     ))
 }
 
-async fn credit_purchase(
-    State(_state): State<Arc<AppState>>,
-    Extension(user): Extension<AuthenticatedTenant>,
-    Json(payload): Json<PostPurchase>,
-) -> Result<Response, AppError> {
-    let repo: PostgresInventoryRepo = PostgresInventoryRepo::new();
-    let service: InventoryService<PostgresInventoryRepo> = InventoryService::new(repo);
-    let purchase = service
-        .post_purchase(&user.tenant_pool, user.user_id, &payload)
-        .await?;
-    Ok(ApiResponse::success(
-        purchase,
-        "Purchase posted to inventory and GL",
-    ))
-}
-
-async fn post_sale(
+async fn http_post_sale(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<PostSale>,

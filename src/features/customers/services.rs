@@ -1,5 +1,5 @@
 use crate::features::customers::repository::CustomerRepository;
-use crate::models::customers::{ApplyPayment, CreateInvoice, Invoice, PostInvoice};
+use crate::models::customers::{ApplyPayment, CreateInvoice, Invoice, Payment, PostInvoice};
 use crate::{
     infrastructure::errors::AppError,
     models::customers::{CreateCustomer, Customer},
@@ -57,7 +57,7 @@ impl<R: CustomerRepository> CustomerService<R> {
         tenant_pool: &PgPool,
         uuid: Uuid,
         user_id: Uuid,
-    ) -> Result<(), AppError> {
+    ) -> Result<u64, AppError> {
         self.repo.delete(tenant_pool, uuid, user_id).await
     }
 
@@ -74,7 +74,7 @@ impl<R: CustomerRepository> CustomerService<R> {
         pool: &PgPool,
         user_id: Uuid,
         payload: &PostInvoice,
-    ) -> Result<(), AppError> {
+    ) -> Result<Invoice, AppError> {
         self.repo.post_invoice(pool, user_id, payload).await
     }
 
@@ -86,7 +86,7 @@ impl<R: CustomerRepository> CustomerService<R> {
         self.repo.list_customer_invoices(pool, vendor_uuid).await
     }
 
-    pub async fn apply_payment(&self, pool: &PgPool, cmd: ApplyPayment) -> Result<(), AppError> {
+    pub async fn apply_payment(&self, pool: &PgPool, cmd: ApplyPayment) -> Result<Payment, AppError> {
         self.repo.apply_payment(pool, cmd).await
     }
 }
