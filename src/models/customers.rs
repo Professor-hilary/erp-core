@@ -68,7 +68,6 @@ pub struct Payment {
 pub struct CreateInvoice {
     pub invoice_number: String,
     pub customer_uuid: Uuid,
-    pub payment_date: NaiveDate,
     pub issue_date: NaiveDate,
     pub due_date: NaiveDate,
     pub currency: String,

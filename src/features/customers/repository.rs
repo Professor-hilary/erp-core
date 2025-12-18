@@ -235,7 +235,7 @@ impl CustomerRepository for PostgresCustomerRepo {
     ) -> Result<Invoice, AppError> {
         let invoice = sqlx::query_as::<_, Invoice>(
             r#"
-            SELECT payables.post_invoice($1, $2, $3, $4)
+            SELECT receivables.post_invoice($1, $2, $3, $4)
             "#,
         )
         .bind(payload.invoice_serial_id)

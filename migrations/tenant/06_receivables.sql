@@ -200,7 +200,6 @@ ORDER BY c.serial_id, COALESCE(i.serial_id, 0), p.payment_date DESC NULLS LAST;
 -- FUNCTIONS
 -- ========================================
 
--- Payables post invoice function (credit sale)
 CREATE OR REPLACE FUNCTION receivables.post_invoice(
     p_invoice_serial_id bigint,
     p_user uuid,
@@ -211,62 +210,54 @@ DECLARE
     v_invoice receivables.invoices%ROWTYPE;
     v_txn_serial_id bigint;
     v_txn_uuid uuid;
-    v_receivables_uuid uuid;
-    v_revenues_uuid uuid;
     r record;
 BEGIN
-    SELECT * INTO v_invoice FROM receivables.invoices
+    SELECT * INTO v_invoice
+    FROM receivables.invoices
     WHERE serial_id = p_invoice_serial_id;
 
-    IF v_invoice.posted THEN RETURN; END IF;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Invoice % not found', p_invoice_serial_id;
+    END IF;
 
-    -- 1. Create GL transaction
+    IF v_invoice.posted THEN
+        RETURN;
+    END IF;
+
+    -- GL posting (AR / Revenue)
     v_txn_serial_id := accounting.post_transaction(
         v_invoice.issue_date,
         v_invoice.invoice_number,
         'Invoice Posting',
         p_user,
         'invoice',
-        '[]'::jsonb
+        jsonb_build_array(
+            jsonb_build_object(
+                'account_ref', p_receivables_code,
+                'debit', v_invoice.total_amount,
+                'credit', 0,
+                'memo', 'Accounts Receivable'
+            ),
+            jsonb_build_object(
+                'account_ref', p_revenue_code,
+                'debit', 0,
+                'credit', v_invoice.total_amount,
+                'memo', 'Revenue'
+            )
+        )
     );
 
     SELECT uuid INTO v_txn_uuid
-    FROM accounting.transactions WHERE serial_id = v_txn_serial_id;
+    FROM accounting.transactions
+    WHERE serial_id = v_txn_serial_id;
 
-    -- 2. AR + Revenue
-    -- Look up inventory account by serial_id
-    SELECT uuid INTO v_receivables_uuid
-    FROM accounting.accounts
-    WHERE code = p_receivables_code;
-    IF v_receivables_uuid IS NULL THEN
-        RAISE EXCEPTION 'Account not found for code: %', p_receivables_code;
-    END IF;
-
-    -- Look up payables account by serial_id
-    SELECT uuid INTO v_revenues_uuid
-    FROM accounting.accounts
-    WHERE code = p_revenue_code;
-    IF v_revenues_uuid IS NULL THEN
-        RAISE EXCEPTION 'Account not found for code: %', p_revenue_code;
-    END IF;
-
-    INSERT INTO accounting.transaction_entries (
-        transaction_uuid, account_uuid, line_no,
-        amount, debit, credit, memo
-    ) VALUES (
-        v_txn_uuid, v_receivables_uuid, 1, v_bill.total_amount,
-        v_invoice.total_amount, 0, 'Accounts Receivable'
-    ), (
-        v_txn_uuid, v_revenues_uuid, 2, -(v_bill.total_amount),
-        0, v_invoice.total_amount, 'Revenue'
-    );
-
-    -- 3. Inventory delegation
+    -- Inventory delegation (credit sale)
     FOR r IN
-        SELECT * FROM receivables.invoice_items WHERE invoice_uuid = v_invoice.uuid
+        SELECT * FROM receivables.invoice_items
+        WHERE invoice_uuid = v_invoice.uuid
     LOOP
         PERFORM inventory.post_sale(
-            r.stock_item_id::bigint,
+            r.stock_item_id,
             NULL,
             r.quantity,
             r.unit_price,
@@ -279,11 +270,14 @@ BEGIN
     END LOOP;
 
     UPDATE receivables.invoices
-    SET posted = TRUE, gl_transaction_uuid = v_txn_uuid
-    WHERE serial_id = p_invoice_serial_id;
+    SET posted = TRUE,
+        gl_transaction_uuid = v_txn_uuid,
+        updated_at = now()
+    WHERE uuid = v_invoice.uuid;
 
     UPDATE receivables.customers
-    SET current_balance = current_balance + v_invoice.total_amount
+    SET current_balance = current_balance + v_invoice.total_amount,
+        updated_at = now()
     WHERE uuid = v_invoice.customer_uuid;
 END;
 $$;

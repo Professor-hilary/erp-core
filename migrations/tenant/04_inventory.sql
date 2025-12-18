@@ -201,7 +201,6 @@ ORDER BY m.movement_date DESC;
 -- FUNCTIONS
 -- ========================================
 
--- Inventory post cash or credit sale function
 CREATE OR REPLACE FUNCTION inventory.post_sale(
     p_item_serial_id bigint,
     p_warehouse_serial_id bigint,
@@ -213,22 +212,23 @@ CREATE OR REPLACE FUNCTION inventory.post_sale(
     p_cash_code text DEFAULT NULL,
     p_gl_transaction_uuid uuid DEFAULT NULL
 ) RETURNS uuid
-LANGUAGE plpgsql
-AS $$
+LANGUAGE plpgsql AS $$
 DECLARE
     v_item inventory.items%ROWTYPE;
     v_warehouse_uuid uuid;
     v_movement_uuid uuid;
-    v_movement_serial_id bigint;
     v_txn_uuid uuid;
     v_txn_serial_id bigint;
-    v_cogs_account_uuid uuid;
-    v_asset_account_uuid uuid;
     v_total numeric(18,2);
     v_lines jsonb;
 BEGIN
-    SELECT * INTO v_item FROM inventory.items WHERE serial_id = p_item_serial_id;
-    IF NOT FOUND THEN RAISE EXCEPTION 'Item % not found', p_item_serial_id; END IF;
+    SELECT * INTO v_item
+    FROM inventory.items
+    WHERE serial_id = p_item_serial_id;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Item % not found', p_item_serial_id;
+    END IF;
 
     IF v_item.quantity_on_hand < p_quantity THEN
         RAISE EXCEPTION 'Insufficient stock';
@@ -236,55 +236,52 @@ BEGIN
 
     IF p_warehouse_serial_id IS NOT NULL THEN
         SELECT uuid INTO v_warehouse_uuid
-        FROM inventory.warehouses WHERE serial_id = p_warehouse_serial_id;
+        FROM inventory.warehouses
+        WHERE serial_id = p_warehouse_serial_id;
     END IF;
 
     v_total := p_quantity * p_unit_cost;
 
     INSERT INTO inventory.movements (
-        item_uuid, warehouse_uuid, movement_date,
+        item_uuid, warehouse_uuid,
         reference_type, reference_id,
         quantity, unit_cost, direction
     ) VALUES (
-        v_item.uuid, v_warehouse_uuid, now(),
+        v_item.uuid, v_warehouse_uuid,
         p_reference_type, p_reference_serial_id,
         p_quantity, p_unit_cost, 'OUT'
-    ) RETURNING uuid, serial_id INTO v_movement_uuid, v_movement_serial_id;
+    )
+    RETURNING uuid INTO v_movement_uuid;
 
-    -- =====================================================================
     -- GL handling
-    -- =====================================================================
     IF p_gl_transaction_uuid IS NULL THEN
+        -- Cash sale
         v_lines := jsonb_build_array(
-            -- COGS is debited to recognize cost on inventory
             jsonb_build_object(
                 'account_ref', v_item.cogs_account,
-                'debit', v_total, 'credit', 0, 'memo',
-                format('Cost Of Goods Sold - %s', v_item.sku)
+                'debit', v_total, 'credit', 0,
+                'memo', 'COGS'
             ),
-            -- Stock account is credited to settle COGS outflow
             jsonb_build_object(
                 'account_ref', v_item.asset_account,
                 'debit', 0, 'credit', v_total,
                 'memo', 'Inventory Asset'
-			),
-            -- Cash or equivalent is received when stock goes out
+            ),
             jsonb_build_object(
                 'account_ref', p_cash_code,
                 'debit', v_total, 'credit', 0,
                 'memo', 'Cash Received'
             ),
-            -- Income is credited to recognize economic benefit
             jsonb_build_object(
                 'account_ref', v_item.income_account,
                 'debit', 0, 'credit', v_total,
-                'memo', 'Income Account Credited'
+                'memo', 'Revenue'
             )
         );
 
         v_txn_serial_id := accounting.post_transaction(
             now()::date,
-            'INV-SALE-' || v_movement_serial_id,
+            'INV-SALE-' || p_reference_serial_id,
             'Inventory Sale',
             p_user,
             'inventory_sale',
@@ -292,36 +289,32 @@ BEGIN
         );
 
         SELECT uuid INTO v_txn_uuid
-        FROM accounting.transactions WHERE serial_id = v_txn_serial_id;
+        FROM accounting.transactions
+        WHERE serial_id = v_txn_serial_id;
     ELSE
-        -- Credit Sale
+        -- Credit sale (invoice already posted)
         v_txn_uuid := p_gl_transaction_uuid;
 
-        -- Look up COGS account by code
-        SELECT uuid INTO v_cogs_account_uuid
-        FROM accounting.accounts
-        WHERE code = v_item.cogs_account;
-        IF v_cogs_account_uuid IS NULL THEN
-            RAISE EXCEPTION 'Account not found for code: %', v_item.cogs_account;
-        END IF;
+        v_lines := jsonb_build_array(
+            jsonb_build_object(
+                'account_ref', v_item.cogs_account,
+                'debit', v_total, 'credit', 0,
+                'memo', 'COGS'
+            ),
+            jsonb_build_object(
+                'account_ref', v_item.asset_account,
+                'debit', 0, 'credit', v_total,
+                'memo', 'Inventory Asset'
+            )
+        );
 
-        -- Look revenue account by code
-        SELECT uuid INTO v_asset_account_uuid
-        FROM accounting.accounts
-        WHERE code = v_item.asset_account;
-        IF v_asset_account_uuid IS NULL THEN
-            RAISE EXCEPTION 'Account not found for code: %', v_item.asset_account;
-        END IF;
-
-        INSERT INTO accounting.transaction_entries (
-            transaction_uuid, account_uuid, line_no,
-            amount, debit, credit, memo
-        ) VALUES (
-            v_txn_uuid, v_cogs_account_uuid, 1, v_bill.total_amount,
-            v_bill.total_amount, 0, 'Cost Of Goods Sold'
-        ), (
-            v_txn_uuid, v_asset_account_uuid, 2, -(v_bill.total_amount),
-            0, v_bill.total_amount, 'Inventory Out'
+        PERFORM accounting.post_transaction(
+            now()::date,
+            'INV-COGS-' || p_reference_serial_id,
+            'COGS Recognition',
+            p_user,
+            'cogs',
+            v_lines
         );
     END IF;
 
@@ -383,10 +376,19 @@ BEGIN
         p_quantity, p_unit_cost, 'IN'
     ) RETURNING uuid INTO v_movement_uuid;
 
+    -- =====================================================================
+    -- GL handling
+    -- =====================================================================
     IF p_gl_transaction_uuid IS NULL THEN
         v_lines := jsonb_build_array(
-            jsonb_build_object('account_ref', v_item.asset_account, 'debit', v_total, 'credit', 0),
-            jsonb_build_object('account_ref', p_source_account, 'debit', 0, 'credit', v_total)
+            jsonb_build_object(
+                'account_ref', v_item.asset_account, 'debit', v_total, 'credit', 0,
+                'memo','Cash purchase'
+            ),
+            jsonb_build_object(
+                'account_ref', p_source_account, 'debit', 0, 'credit', v_total,
+                'memo',p_source_account
+            )
         );
 
         v_txn_serial_id := accounting.post_transaction(

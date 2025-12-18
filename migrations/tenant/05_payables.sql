@@ -209,8 +209,7 @@ CREATE OR REPLACE FUNCTION payables.post_bill(
     p_user uuid,
     p_expense_code text,
     p_payable_code text
-) RETURNS void
-LANGUAGE plpgsql
+) RETURNS void LANGUAGE plpgsql
 AS $$
 DECLARE
     v_bill payables.bills%ROWTYPE;
