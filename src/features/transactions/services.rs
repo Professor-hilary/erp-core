@@ -6,7 +6,7 @@ use uuid::Uuid;
 
 use crate::features::transactions::repository::TransactionRepository;
 use crate::infrastructure::errors::AppError;
-use crate::models::account::{CreateJournalEntry, JournalEntry, JournalEntryWithLines, UpdateJournalEntry};
+use crate::models::account::{CreateJournalEntry, JournalEntry, JournalEntryWithLines, LedgerFilter, LedgerRowDto, UpdateJournalEntry};
 
 pub struct TransactionService<R: TransactionRepository> {
     repo: R,
@@ -143,5 +143,13 @@ impl<R: TransactionRepository> TransactionService<R> {
         user_id: Uuid,
     ) -> Result<Option<JournalEntryWithLines>, AppError> {
         self.repo.get_journal_entry_with_lines(pool, uuid, user_id).await
+    }
+
+    pub async fn fetch_ledger(
+        &self,
+        pool: &PgPool,
+        filter: LedgerFilter,
+    ) ->  Result<Vec<LedgerRowDto>, AppError> {
+        self.repo.fetch_account_ledger(pool, filter).await
     }
 }

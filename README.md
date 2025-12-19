@@ -398,3 +398,6 @@ curl -X POST http://localhost:8080/api/transactions/void/THE_UUID \
 
 # Post payroll
 `curl -sX POST http://127.0.0.1:8080/api/payroll/payrun/post -H "Authorization: Bearer $TOKEN" -d '{"payrun_serial_id":6,"labor_expense_id":"019b1db9-75a5-7640-a3a7-614f5658c16f", "income_tax_id":"019b1e72-50b5-70fd-82ad-9bfb3d5036cb", "social_security_id":"019b1e73-844d-748f-9650-3802cbdaa644", "cash_account_uuid":"019b1db9-73b0-7654-8054-3ffaf59782ac", "payroll_payable":"019b1e05-79c8-7174-bd8d-574b06979346"}' -H "Content-Type: application/json" | jq `
+
+# Create Invoice
+`curl -sX POST http://127.0.0.1:8080/api/customers/create/invoice -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{"invoice_number":"INVOICE-765JH", "customer_uuid":"019b2d55-f638-7b7f-b810-13c80fd8f3db", "issue_date":"2025-03-30", "due_date":"2025-04-30", "currency":"UGX", "items":[{"stock_item_id":2, "description":"Microcontrollers", "quantity":"20", "unit_price":"50000", "tax_rate":"18"}, {"stock_item_id":5, "description":"Microcontrollers", "quantity":"20", "unit_price":"270000", "tax_rate":"18"}, {"stock_item_id":3, "description":"Black Printable Circuit Boards", "quantity":"34", "unit_price":"6500", "tax_rate":"18"}]}' | jq`

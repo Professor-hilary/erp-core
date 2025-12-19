@@ -108,3 +108,27 @@ pub struct CoaTemplate {
     pub description: String,
     pub accounts: Vec<ChartOfAccountsEntry>,
 }
+
+#[derive(Debug, sqlx::FromRow, serde::Serialize)]
+pub struct LedgerRowDto {
+    pub transaction_uuid: Uuid,
+    pub transaction_serial_id: i64,
+    pub entry_uuid: Uuid,
+    pub entry_serial_id: i64,
+    pub txn_date: NaiveDate,
+    pub reference: Option<String>,
+    pub description: Option<String>,
+    pub debit: BigDecimal,
+    pub credit: BigDecimal,
+    pub amount: BigDecimal,
+    pub memo: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub running_balance: BigDecimal,
+}
+
+pub struct LedgerFilter {
+    pub account_uuid: Uuid,
+    pub from_date: Option<NaiveDate>,
+    pub to_date: Option<NaiveDate>,
+    pub posted_only: bool,
+}

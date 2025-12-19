@@ -2,10 +2,11 @@
 
 use axum::{
     Extension, Router,
-    extract::{Json, Path, State},
+    extract::{Json, Path, Query, State},
     response::IntoResponse,
     routing::{delete, get, post, put},
 };
+use chrono::NaiveDate;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -14,16 +15,24 @@ use crate::{
     infrastructure::{errors::AppError, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,
     models::account::{
-        CreateJournalEntry, JournalEntry, JournalEntryWithLines, UpdateJournalEntry,
+        CreateJournalEntry, JournalEntry, JournalEntryWithLines, LedgerFilter, UpdateJournalEntry,
     },
     state::AppState,
 };
+
+#[derive(Debug, serde::Deserialize)]
+pub struct LedgerQuery {
+    pub from: Option<NaiveDate>,
+    pub to: Option<NaiveDate>,
+    pub posted: Option<bool>,
+}
 
 pub fn router() -> Router<Arc<AppState>> {
     Router::new()
         .route("/create", post(create_entry))
         .route("/get/{uuid}", get(get_entry))
         .route("/list", get(list_entries))
+        .route("/get/ledger/{uuid}", get(get_account_ledger))
         .route("/post/{uuid}", put(post_entry))
         .route("/update/{uuid}", put(update_unposted_entry))
         .route("/delete/{uuid}", delete(delete_unposted_entry))
@@ -110,6 +119,25 @@ async fn delete_unposted_entry(
         .delete_unposted_journal_entry(&user.tenant_pool, user.user_id, uuid)
         .await?;
     Ok(ApiResponse::success((), "Unposted journal entry deleted"))
+}
+
+async fn get_account_ledger(
+    State(_state): State<Arc<AppState>>,
+    Path(uuid): Path<Uuid>,
+    Extension(user): Extension<AuthenticatedTenant>,
+    Query(q): Query<LedgerQuery>,
+) -> Result<impl IntoResponse, AppError> {
+    let filter = LedgerFilter {
+        account_uuid: uuid,
+        from_date: q.from,
+        to_date: q.to,
+        posted_only: q.posted.unwrap_or(true),
+    };
+
+    let service: TransactionService<PostgresTransactionRepo> =
+        TransactionService::new(PostgresTransactionRepo::new());
+    let rows = service.fetch_ledger(&user.tenant_pool, filter).await?;
+    Ok(ApiResponse::success(rows, "Fetched ledger for account"))
 }
 
 async fn void_entry(

@@ -8,8 +8,8 @@ use uuid::Uuid;
 
 use crate::infrastructure::errors::AppError;
 use crate::models::account::{
-    CreateJournalEntry, JournalEntry, JournalEntryLine, JournalEntryWithLines,
-    TransactionLineInput, UpdateJournalEntry,
+    CreateJournalEntry, JournalEntry, JournalEntryLine, JournalEntryWithLines, LedgerFilter,
+    LedgerRowDto, TransactionLineInput, UpdateJournalEntry,
 };
 
 #[async_trait]
@@ -20,6 +20,12 @@ pub trait TransactionRepository: Send + Sync {
         user_id: Uuid,
         input: &CreateJournalEntry,
     ) -> Result<JournalEntry, AppError>;
+
+    async fn fetch_account_ledger(
+        &self,
+        pool: &PgPool,
+        filter: LedgerFilter,
+    ) -> Result<Vec<LedgerRowDto>, AppError>;
 
     async fn post_journal_entry(
         &self,
@@ -489,5 +495,56 @@ impl TransactionRepository for PostgresTransactionRepo {
         }
 
         Ok(())
+    }
+
+    async fn fetch_account_ledger(
+        &self,
+        pool: &PgPool,
+        filter: LedgerFilter,
+    ) -> Result<Vec<LedgerRowDto>, AppError> {
+        let rows = sqlx::query_as::<_, LedgerRowDto>(
+            r#"
+            SELECT
+                t.uuid          AS transaction_uuid,
+                t.serial_id     AS transaction_serial_id,
+                te.uuid         AS entry_uuid,
+                te.serial_id    AS entry_serial_id,
+
+                t.txn_date,
+                t.reference,
+                t.description,
+
+                te.debit,
+                te.credit,
+                te.amount,
+                te.memo,
+                te.debit,
+                te.created_at,
+
+                SUM(te.amount) OVER (
+                    ORDER BY t.txn_date, te.serial_id
+                    ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+                ) AS running_balance
+
+            FROM accounting.transaction_entries te
+            JOIN accounting.transactions t
+                ON t.uuid = te.transaction_uuid
+
+            WHERE te.account_uuid = $1
+                AND ($2::date IS NULL OR t.txn_date >= $2)
+                AND ($3::date IS NULL OR t.txn_date <= $3)
+                AND ($4::boolean = FALSE OR t.posted = TRUE)
+
+            ORDER BY t.txn_date, te.serial_id
+        "#,
+        )
+        .bind(filter.account_uuid)
+        .bind(filter.from_date)
+        .bind(filter.to_date)
+        .bind(filter.posted_only)
+        .fetch_all(pool)
+        .await?;
+
+        Ok(rows)
     }
 }
