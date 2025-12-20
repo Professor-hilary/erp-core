@@ -1,6 +1,6 @@
 // src/features/auth/repository.rs
 use crate::infrastructure::errors::AppError;
-use crate::models::user::User;
+use crate::models::user::{User, UserCompany};
 use async_trait::async_trait;
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -16,7 +16,7 @@ pub trait UserRepository: Send + Sync {
     async fn get_user_company(
         &self,
         user_id: Uuid,
-    ) -> Result<(Option<Uuid>, Option<String>), AppError>;
+    ) -> Result<Option<UserCompany>, AppError>;
 
     async fn get_company_for_switch(
         &self,
@@ -53,6 +53,15 @@ impl UserRepository for PostgresUserRepo {
             }
             _ => AppError::Database(e),
         })?;
+
+        // let company = sqlx::query_as::<_, UserCompany>(
+        //     "SELECT c.uuid, c.tenant_db_name
+        //     FROM companies c
+        //     JOIN user_companies uc ON c.uuid = uc.company_id
+        //     WHERE uc.user_id = $1 AND c.status != 'deleted'
+        //     LIMIT 1",
+        // )
+        // .fetch_one(&self.pool);
         Ok(user)
     }
 
@@ -86,11 +95,10 @@ impl UserRepository for PostgresUserRepo {
     async fn get_user_company(
         &self,
         user_id: Uuid,
-    ) -> Result<(Option<Uuid>, Option<String>), AppError> {
-        let row: Option<(Uuid, String)> = sqlx::query_as::<_, (Uuid, String)>(
+    ) -> Result<Option<UserCompany>, AppError> {
+        let row: Option<UserCompany> = sqlx::query_as::<_, UserCompany>(
             r#"
-            SELECT c.uuid, c.tenant_db_name
-            FROM companies c
+            SELECT * FROM companies c
             JOIN user_companies uc ON c.uuid = uc.company_id
             WHERE uc.user_id = $1 AND c.status != 'deleted'
             LIMIT 1
@@ -101,8 +109,8 @@ impl UserRepository for PostgresUserRepo {
         .await?;
 
         Ok(row
-            .map(|(id, db)| (Some(id), Some(db)))
-            .unwrap_or((None, None)))
+            .map(|user_company| (Some(user_company)))
+            .unwrap_or(None))
     }
 
     /// # Get Company

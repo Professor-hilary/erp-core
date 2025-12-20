@@ -12,6 +12,7 @@ use axum::{
     response::IntoResponse,
     routing::post,
 };
+use serde_json::json;
 use std::sync::Arc;
 
 pub fn router() -> Router<Arc<AppState>> {
@@ -27,10 +28,10 @@ async fn register(
 ) -> Result<impl IntoResponse, AppError> {
     let repo: PostgresUserRepo = PostgresUserRepo::new(state.master_pool.clone());
     let service: AuthService<PostgresUserRepo> = AuthService::new(repo, state.clone());
-    let (user, token) = service.register(&payload, state).await?;
+    let (user, user_company, token) = service.register(&payload, state).await?;
 
     Ok(ApiResponse::created_with_token(
-        user,
+        json!({"user":user, "company":user_company}),
         token,
         "Registered successfully",
         "user",
@@ -44,10 +45,10 @@ async fn login(
 ) -> Result<impl IntoResponse, AppError> {
     let repo: PostgresUserRepo = PostgresUserRepo::new(state.master_pool.clone());
     let service: AuthService<PostgresUserRepo> = AuthService::new(repo, state.clone());
-    let (user, token) = service.login(&payload, state).await?;
+    let (user, user_company, token) = service.login(&payload, state).await?;
 
     Ok(ApiResponse::success_with_meta(
-        user,
+        json!({"user": user, "company":user_company}),
         "Login successful",
         &token,
     ))

@@ -23,3 +23,16 @@ pub struct LoginUser {
     pub email: String,
     pub password: String,
 }
+
+#[derive(Debug, FromRow, Serialize, Deserialize, Clone)]
+pub struct UserCompany {
+    pub uuid: Option<Uuid>,
+    pub company_id: Option<Uuid>,
+    pub name: Option<String>,
+    pub tenant_db_name: Option<String>,
+    pub industry: Option<String>,
+    pub business_type: Option<String>,
+    pub status: Option<String>,
+    pub role: Option<String>,
+    pub created_at: Option<DateTime<Utc>>,
+}

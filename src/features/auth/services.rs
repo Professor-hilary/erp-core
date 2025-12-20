@@ -2,7 +2,7 @@
 use crate::features::auth::repository::UserRepository;
 use crate::infrastructure::errors::AppError;
 use crate::models::dto::JwtClaims;
-use crate::models::user::{CreateUser, LoginUser, User};
+use crate::models::user::{CreateUser, LoginUser, User, UserCompany};
 use crate::state::AppState;
 use bcrypt::{DEFAULT_COST, hash, verify};
 use chrono::{Duration, Utc};
@@ -26,7 +26,7 @@ impl<R: UserRepository> AuthService<R> {
         &self,
         user: &CreateUser,
         _state: Arc<AppState>,
-    ) -> Result<(User, String), AppError> {
+    ) -> Result<(User, Option<UserCompany>, String), AppError> {
         if user.email.is_empty() || user.password.is_empty() {
             return Err(AppError::BadRequest("Email and password required".into()));
         }
@@ -37,12 +37,15 @@ impl<R: UserRepository> AuthService<R> {
         let created_user: User = self.repo.create(&user.email, &password_hash).await?;
 
         // this will automatically return None because at registration, no company is created
-        let (company_id, tenant_db) = self.repo.get_user_company(created_user.uuid).await?;
+        let user_company = self.repo.get_user_company(created_user.uuid).await?;
 
-        let token: String =
-            self.generate_token(created_user.uuid, company_id, tenant_db.clone())?;
+        let token: String = self.generate_token(
+            created_user.uuid,
+            user_company.clone().unwrap().company_id,
+            user_company.clone().unwrap().tenant_db_name.clone(),
+        )?;
 
-        Ok((created_user, token))
+        Ok((created_user, user_company, token))
     }
 
     /// Sign in user from master database, update tenant pools in state
@@ -50,7 +53,7 @@ impl<R: UserRepository> AuthService<R> {
         &self,
         user: &LoginUser,
         _state: Arc<AppState>,
-    ) -> Result<(User, String), AppError> {
+    ) -> Result<(User, Option<UserCompany>, String), AppError> {
         let db_user: User = self
             .repo
             .find_by_email(&user.email)
@@ -63,10 +66,10 @@ impl<R: UserRepository> AuthService<R> {
             return Err(AppError::Unauthorized("Invalid credentials".into()));
         }
 
-        let (company_id, tenant_db) = self.repo.get_user_company(db_user.uuid).await?;
+        let user_company: Option<UserCompany> = self.repo.get_user_company(db_user.uuid).await?;
 
         // only attempt to load tenant/pool if company_id is Some
-        if let Some(company_uuid) = company_id {
+        if let Some(company_uuid) = user_company.clone().unwrap().company_id {
             let tenant_url_option: Option<String> =
                 self.repo.get_tenant_url(Some(company_uuid)).await?;
             let tenant_url = tenant_url_option
@@ -74,9 +77,13 @@ impl<R: UserRepository> AuthService<R> {
                 .ok_or(AppError::Internal("Tenant Url missing".to_string()))?;
             Self::ensure_tenant_pool(&_state, company_uuid, tenant_url).await?;
         }
-        let token = self.generate_token(db_user.uuid, company_id, tenant_db.clone())?;
+        let token: String = self.generate_token(
+            db_user.uuid,
+            user_company.clone().unwrap().company_id,
+            user_company.clone().unwrap().tenant_db_name,
+        )?;
 
-        Ok((db_user, token))
+        Ok((db_user, user_company, token))
     }
 
     /// Switch company for current user
