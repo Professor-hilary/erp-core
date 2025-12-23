@@ -34,7 +34,6 @@ async fn register(
         json!({"user":user, "company":user_company}),
         token,
         "Registered successfully",
-        "user",
     ))
 }
 
@@ -47,9 +46,9 @@ async fn login(
     let service: AuthService<PostgresUserRepo> = AuthService::new(repo, state.clone());
     let (user, user_company, token) = service.login(&payload, state).await?;
 
-    Ok(ApiResponse::success_with_meta(
+    Ok(ApiResponse::success_with_token(
         json!({"user": user, "company":user_company}),
+        token,
         "Login successful",
-        &token,
     ))
 }

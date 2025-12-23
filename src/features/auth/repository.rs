@@ -108,9 +108,7 @@ impl UserRepository for PostgresUserRepo {
         .fetch_optional(&self.pool)
         .await?;
 
-        Ok(row
-            .map(|user_company| (Some(user_company)))
-            .unwrap_or(None))
+        Ok(row)
     }
 
     /// # Get Company

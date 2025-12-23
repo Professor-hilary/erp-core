@@ -300,6 +300,14 @@
             "is_contra": false
         },
         {
+            "code": "220000",
+            "name": "Fixed liabilities",
+            "category": "liability",
+            "parent_code": "200000",
+            "normal_balance": "cr",
+            "is_contra": false
+        },
+        {
             "code": "220100",
             "name": "Customer Deposits – Long Term",
             "category": "liability",
@@ -436,7 +444,7 @@
             "is_contra": false
         },
         {
-            "code": "2118000",
+            "code": "211800",
             "name": "Other Current Liabilities",
             "category": "liability",
             "parent_code": "210000",
@@ -444,7 +452,7 @@
             "is_contra": false
         },
         {
-            "code": "2219000",
+            "code": "221900",
             "name": "Other Non-Current Liabilities",
             "category": "liability",
             "parent_code": "210000",
@@ -452,7 +460,7 @@
             "is_contra": false
         },
         {
-            "code": "2220000",
+            "code": "222000",
             "name": "Suspense Liabilities",
             "category": "liability",
             "parent_code": "220000",

@@ -39,11 +39,12 @@ impl<R: UserRepository> AuthService<R> {
         // this will automatically return None because at registration, no company is created
         let user_company = self.repo.get_user_company(created_user.uuid).await?;
 
-        let token: String = self.generate_token(
-            created_user.uuid,
-            user_company.clone().unwrap().company_id,
-            user_company.clone().unwrap().tenant_db_name.clone(),
-        )?;
+        let (company_id, tenant_db_name) = match &user_company {
+            Some(uc) => (uc.company_id, uc.tenant_db_name.clone()),
+            None => (None, None),
+        };
+
+        let token = self.generate_token(created_user.uuid, company_id, tenant_db_name)?;
 
         Ok((created_user, user_company, token))
     }
@@ -52,7 +53,7 @@ impl<R: UserRepository> AuthService<R> {
     pub async fn login(
         &self,
         user: &LoginUser,
-        _state: Arc<AppState>,
+        state: Arc<AppState>,
     ) -> Result<(User, Option<UserCompany>, String), AppError> {
         let db_user: User = self
             .repo
@@ -68,20 +69,46 @@ impl<R: UserRepository> AuthService<R> {
 
         let user_company: Option<UserCompany> = self.repo.get_user_company(db_user.uuid).await?;
 
-        // only attempt to load tenant/pool if company_id is Some
-        if let Some(company_uuid) = user_company.clone().unwrap().company_id {
-            let tenant_url_option: Option<String> =
-                self.repo.get_tenant_url(Some(company_uuid)).await?;
-            let tenant_url = tenant_url_option
-                .as_deref()
-                .ok_or(AppError::Internal("Tenant Url missing".to_string()))?;
-            Self::ensure_tenant_pool(&_state, company_uuid, tenant_url).await?;
+        // // only attempt to load tenant/pool if company_id is Some
+        // if let Some(company_uuid) = user_company.clone().unwrap().company_id {
+        //     let tenant_url_option: Option<String> =
+        //         self.repo.get_tenant_url(Some(company_uuid)).await?;
+        //     let tenant_url = tenant_url_option
+        //         .as_deref()
+        //         .ok_or(AppError::Internal("Tenant Url missing".to_string()))?;
+        //     Self::ensure_tenant_pool(&_state, company_uuid, tenant_url).await?;
+        // }
+        // let token: String = self.generate_token(
+        //     db_user.uuid,
+        //     user_company.clone().unwrap().company_id,
+        //     user_company.clone().unwrap().tenant_db_name,
+        // )?;
+
+        // Safe handling: Only load tenant pool if company exists AND has valid tenant URL
+        if let Some(uc) =&user_company{
+            if let Some(company_uuid)=uc.company_id{
+                match self.repo.get_tenant_url(Some(company_uuid)).await?{
+                    Some(tenant_url)=>{
+                        // Valid company setup - load pool
+                        Self::ensure_tenant_pool(&state, company_uuid, &tenant_url).await?;
+                    }
+                    None=>{
+                        // Company exists but incomplete set up - treat as no company
+                        if cfg!(debug_assertions){
+                            println!("Company {} exists but missing tenant URL - treating as no company", company_uuid);
+                        }
+                    }
+                }
+            }
         }
-        let token: String = self.generate_token(
-            db_user.uuid,
-            user_company.clone().unwrap().company_id,
-            user_company.clone().unwrap().tenant_db_name,
-        )?;
+
+        // Fixed: Safe unwrapping with match
+        let (company_id, tenant_db_name)=match &user_company{
+            Some(uc) => (uc.company_id, uc.tenant_db_name.clone()),
+            None => (None, None),
+        };
+
+        let token = self.generate_token(db_user.uuid, company_id, tenant_db_name)?;
 
         Ok((db_user, user_company, token))
     }

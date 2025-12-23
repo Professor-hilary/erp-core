@@ -23,7 +23,7 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/get/{uuid}", get(http_get_customer))
         .route("/list/customers", get(http_list_customers))
         .route("/list/invoices/{uuid}", get(http_list_invoices))
-        .route("/apply-invoice-pay", get(http_apply_invoice_payment))
+        .route("/pay-invoice", get(http_apply_invoice_payment))
         .route("/update/{uuid}", patch(http_update_customer))
         .route("/delete/{uuid}", delete(http_delete_customer))
 }

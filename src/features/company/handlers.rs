@@ -44,7 +44,6 @@ async fn create_company(
         company,
         token_str,
         "Company Created Successfully",
-        "company",
     ))
 }
 
@@ -130,6 +129,5 @@ async fn switch_company(
         company,
         new_token,
         "Company switched successfully",
-        "company",
     ))
 }
