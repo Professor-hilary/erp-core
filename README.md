@@ -490,9 +490,70 @@ curl -sX POST http://127.0.0.1:8080/api/payroll/payrun/post \
 
 # Create Invoice
 ```python
-curl -sX POST http://127.0.0.1:8080/api/customers/create/invoice -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{"invoice_number":"INVOICE-765JH", "customer_uuid":"019b2d55-f638-7b7f-b810-13c80fd8f3db", "issue_date":"2025-03-30", "due_date":"2025-04-30", "currency":"UGX", "items":[{"stock_item_id":2, "description":"Microcontrollers", "quantity":"20", "unit_price":"50000", "tax_rate":"18"}, {"stock_item_id":5, "description":"Microcontrollers", "quantity":"20", "unit_price":"270000", "tax_rate":"18"}, {"stock_item_id":3, "description":"Black Printable Circuit Boards", "quantity":"34", "unit_price":"6500", "tax_rate":"18"}]}' | jq
+curl -sX POST http://127.0.0.1:8080/api/customers/create/invoice \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "invoice_number": "INVOICE-765JH",
+    "customer_uuid":  "019b2d55-f638-7b7f-b810-13c80fd8f3db",
+    "issue_date":     "2025-03-30",
+    "due_date":       "2025-04-30",
+    "currency":       "UGX",
+    "items": [
+      {
+        "stock_item_id": 2,
+        "description":   "Microcontrollers",
+        "quantity":      "20",
+        "unit_price":    "50000",
+        "tax_rate":      "18"
+      },
+      {
+        "stock_item_id": 5,
+        "description":   "Microcontrollers",
+        "quantity":      "20",
+        "unit_price":    "270000",
+        "tax_rate":      "18"
+      },
+      {
+        "stock_item_id": 3,
+        "description":   "Black Printable Circuit Boards",
+        "quantity":      "34",
+        "unit_price":    "6500",
+        "tax_rate":      "18"
+      }
+    ]
+  }' \
+  | jq
 ```
 
+# Create Bill
 ```python
-curl -sX POST http://127.0.0.1:8080/api/vendors/create/bill -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{"bill_number":"BILL-12HD44", "vendor_uuid":"019b380e-9636-7d76-97a5-30cc179d070e", "bill_date":"2025-01-10", "due_date":"2025-01-30", "reference":"invoice", "currency":"UGX", "items":[{"stock_item_id":1, "description":"Description of nature of product A", "quantity":"100", "tax_rate":"18", "unit_price":"25000"}, {"stock_item_id":2, "description":"Description of nature of product B", "quantity":"1000", "tax_rate":"18", "unit_price":"9000"}]}' | jq
+curl -sX POST http://127.0.0.1:8080/api/vendors/create/bill \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "bill_number":   "BILL-12HD44",
+    "vendor_uuid":   "019b380e-9636-7d76-97a5-30cc179d070e",
+    "bill_date":     "2025-01-10",
+    "due_date":      "2025-01-30",
+    "reference":     "invoice",
+    "currency":      "UGX",
+    "items": [
+      {
+        "stock_item_id": 1,
+        "description":   "Description of nature of product A",
+        "quantity":      "100",
+        "tax_rate":      "18",
+        "unit_price":    "25000"
+      },
+      {
+        "stock_item_id": 2,
+        "description":   "Description of nature of product B",
+        "quantity":      "1000",
+        "tax_rate":      "18",
+        "unit_price":    "9000"
+      }
+    ]
+  }' \
+  | jq
 ```
