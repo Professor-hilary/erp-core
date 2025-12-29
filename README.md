@@ -228,20 +228,26 @@ MIT License
 
 ## Usefull Routes
 # Sign Up
+```python
 curl -X POST http://localhost:8080/api/auth/register -d \
     '{"email":"a@b.c","password":"123"}' -H "Content-Type: application/json"
+```
 
 # Login
+```python
 TOKEN=$(curl -s -X POST http://localhost:8080/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email": "zeus@olympus.com", "password": "thunderbolt123"}' \
   | jq -r '.data')
+```
 
 # Create Account
+```python
 curl -X POST http://localhost:8080/api/accounts/create \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN" \
   -d '{"name": "Cash", "type_": "asset"}'
+```
 
 # List Accounts
 ```python
@@ -341,8 +347,9 @@ curl -sX POST http://localhost:8080/api/transactions/create -H\ "Authorization :
   "description": "Investing money and property into business by owners.",
   "posted": false,
   "lines": [
-    { "account_uuid": "019ae5bb-9664-7d64-b478-2ce17f26069d", "debit": "122000.00", "credit": "0", "memo": "Cash at Bank" }, {"account_uuid": "019ae5
-bb-9ac7-7943-aa2a-9097ed62f516", "debit": "33000.00", "credit":"0", "memo": "Land"}, { "account_uuid": "019ae5bb-a229-79ae-b5f4-0354b80ef94e", "debit
+    { "account_uuid": "019ae5bb-9664-7d64-b478-2ce17f26069d", "debit": "122000.00", "credit": "0", "memo": "Cash at Bank" },
+{"account_uuid": "019ae5bb-9ac7-7943-aa2a-9097ed62f516", "debit": "33000.00", "credit":"0", "memo": "Land"},
+{ "account_uuid": "019ae5bb-a229-79ae-b5f4-0354b80ef94e", "debit
 ": "0", "credit": "155000.00", "memo": "Shareholder's net ownership" }
   ]}' | jq
 ```
@@ -415,7 +422,15 @@ curl -G http://localhost:8080/api/transactions/balance/UUID \
 
 # Generate payrun example (including payslips with pay items, i.e., benefits)
 ```python
-curl -sX POST http://127.0.0.1:8080/api/payroll/payrun/create -H "Authorization: Bearer $TOKEN" -d '{"pay_period_start":"2025-01-01","pay_period_end":"2025-12-31", "payment_date":"2025-08-28", "notes":"Very first payroll for august 2025","payslips":[{"employee_uuid":"019b1e69-a5e6-7172-aa1e-e3468ff9eebb", "gross_pay":"1540000", "tax_deducted":"154000","social_security":"100000", "benefits":[{"item_type":"Allowance", "amount":"300000","description":"Transport benefits"}]}, {"employee_uuid":"019b1e63-037d-7c09-90ae-9f431590a0cb", "gross_pay":"1740000", "tax_deducted":"174000","social_security":"120000", "benefits":[{"item_type":"Allowance", "amount":"520000","description":"Rent"}]}, {"employee_uuid":"019b1e5d-4e7f-7f1c-8c2d-f59833e27024", "gross_pay":"2500000", "tax_deducted":"250000","social_security":"150000"}]}' -H "Content-Type: application/json" | jq
+curl -sX POST http://127.0.0.1:8080/api/payroll/payrun/create -H "Authorization: Bearer $TOKEN" -d '{
+"pay_period_start":"2025-01-01","pay_period_end":"2025-12-31", "payment_date":"2025-08-28", "notes":"Very first payroll for august 2025","payslips":[
+{
+"employee_uuid":"019b1e69-a5e6-7172-aa1e-e3468ff9eebb", "gross_pay":"1540000", "tax_deducted":"154000","social_security":"100000", "benefits":[{"item_type":"Allowance", "amount":"300000","description":"Transport benefits"}]
+},
+{"employee_uuid":"019b1e63-037d-7c09-90ae-9f431590a0cb", "gross_pay":"1740000", "tax_deducted":"174000","social_security":"120000", "benefits":[{"item_type":"Allowance", "amount":"520000","description":"Rent"}]},
+{"employee_uuid":"019b1e5d-4e7f-7f1c-8c2d-f59833e27024", "gross_pay":"2500000", "tax_deducted":"250000","social_security":"150000"}
+]
+}' -H "Content-Type: application/json" | jq
 ```
 
 # Process Payrun
