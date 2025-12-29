@@ -422,15 +422,49 @@ curl -G http://localhost:8080/api/transactions/balance/UUID \
 
 # Generate payrun example (including payslips with pay items, i.e., benefits)
 ```python
-curl -sX POST http://127.0.0.1:8080/api/payroll/payrun/create -H "Authorization: Bearer $TOKEN" -d '{
-"pay_period_start":"2025-01-01","pay_period_end":"2025-12-31", "payment_date":"2025-08-28", "notes":"Very first payroll for august 2025","payslips":[
-{
-"employee_uuid":"019b1e69-a5e6-7172-aa1e-e3468ff9eebb", "gross_pay":"1540000", "tax_deducted":"154000","social_security":"100000", "benefits":[{"item_type":"Allowance", "amount":"300000","description":"Transport benefits"}]
-},
-{"employee_uuid":"019b1e63-037d-7c09-90ae-9f431590a0cb", "gross_pay":"1740000", "tax_deducted":"174000","social_security":"120000", "benefits":[{"item_type":"Allowance", "amount":"520000","description":"Rent"}]},
-{"employee_uuid":"019b1e5d-4e7f-7f1c-8c2d-f59833e27024", "gross_pay":"2500000", "tax_deducted":"250000","social_security":"150000"}
-]
-}' -H "Content-Type: application/json" | jq
+curl -sX POST curl -sX POST http://127.0.0.1:8080/api/payroll/payrun/create \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "pay_period_start": "2025-01-01",
+    "pay_period_end":   "2025-12-31",
+    "payment_date":     "2025-08-28",
+    "notes":            "Very first payroll for august 2025",
+    "payslips": [
+      {
+        "employee_uuid": "019b1e69-a5e6-7172-aa1e-e3468ff9eebb",
+        "gross_pay": 1540000,
+        "tax_deducted": 154000,
+        "social_security": 100000,
+        "benefits": [
+          {
+            "item_type": "Allowance",
+            "amount": 300000,
+            "description": "Transport benefits"
+          }
+        ]
+      },
+      {
+        "employee_uuid": "019b1e63-037d-7c09-90ae-9f431590a0cb",
+        "gross_pay": 1740000,
+        "tax_deducted": 174000,
+        "social_security": 120000,
+        "benefits": [
+          {
+            "item_type": "Allowance",
+            "amount": 520000,
+            "description": "Rent"
+          }
+        ]
+      },
+      {
+        "employee_uuid": "019b1e5d-4e7f-7f1c-8c2d-f59833e27024",
+        "gross_pay": 2500000,
+        "tax_deducted": 250000,
+        "social_security": 150000
+      }
+    ]
+  }' | jq
 ```
 
 # Process Payrun
