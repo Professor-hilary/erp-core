@@ -31,7 +31,8 @@ pub fn router() -> Router<Arc<AppState>> {
     Router::new()
         .route("/create", post(create_entry))
         .route("/get/{uuid}", get(get_entry))
-        .route("/list", get(list_entries))
+        .route("/list/brief", get(list_entries))
+        .route("/list", get(list_full_entries))
         .route("/get/ledger/{uuid}", get(get_account_ledger))
         .route("/post/{uuid}", put(post_entry))
         .route("/update/{uuid}", put(update_unposted_entry))
@@ -74,6 +75,18 @@ async fn list_entries(
         TransactionService::new(PostgresTransactionRepo::new());
     let entries: Vec<JournalEntry> = service
         .list_journal_entries(&user.tenant_pool, user.user_id, 100, 0)
+        .await?;
+    Ok(ApiResponse::success(entries, "Journal entries fetched"))
+}
+
+async fn list_full_entries(
+    State(_state): State<Arc<AppState>>,
+    Extension(user): Extension<AuthenticatedTenant>,
+) -> Result<impl IntoResponse, AppError> {
+    let service: TransactionService<PostgresTransactionRepo> =
+        TransactionService::new(PostgresTransactionRepo::new());
+    let entries: Vec<JournalEntryWithLines> = service
+        .list_full_journal_entries(&user.tenant_pool, user.user_id)
         .await?;
     Ok(ApiResponse::success(entries, "Journal entries fetched"))
 }

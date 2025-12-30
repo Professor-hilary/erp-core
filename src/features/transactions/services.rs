@@ -6,7 +6,10 @@ use uuid::Uuid;
 
 use crate::features::transactions::repository::TransactionRepository;
 use crate::infrastructure::errors::AppError;
-use crate::models::account::{CreateJournalEntry, JournalEntry, JournalEntryWithLines, LedgerFilter, LedgerRowDto, UpdateJournalEntry};
+use crate::models::account::{
+    CreateJournalEntry, JournalEntry, JournalEntryWithLines, LedgerFilter, LedgerRowDto,
+    UpdateJournalEntry,
+};
 
 pub struct TransactionService<R: TransactionRepository> {
     repo: R,
@@ -126,6 +129,14 @@ impl<R: TransactionRepository> TransactionService<R> {
         self.repo.get_account_balance(pool, account_uuid).await
     }
 
+    pub async fn list_full_journal_entries(
+        &self,
+        pool: &PgPool,
+        user_id: Uuid,
+    ) -> Result<Vec<JournalEntryWithLines>, AppError> {
+        self.repo.get_all_journal_with_lines(pool, user_id).await
+    }
+
     pub async fn list_journal_entries(
         &self,
         pool: &PgPool,
@@ -133,7 +144,9 @@ impl<R: TransactionRepository> TransactionService<R> {
         limit: i64,
         offset: i64,
     ) -> Result<Vec<JournalEntry>, AppError> {
-        self.repo.list_journal_entries(pool, user_id, limit, offset).await
+        self.repo
+            .list_journal_entries(pool, user_id, limit, offset)
+            .await
     }
 
     pub async fn get_journal_entry_with_lines(
@@ -142,14 +155,16 @@ impl<R: TransactionRepository> TransactionService<R> {
         uuid: Uuid,
         user_id: Uuid,
     ) -> Result<Option<JournalEntryWithLines>, AppError> {
-        self.repo.get_journal_entry_with_lines(pool, uuid, user_id).await
+        self.repo
+            .get_journal_entry_with_lines(pool, uuid, user_id)
+            .await
     }
 
     pub async fn fetch_ledger(
         &self,
         pool: &PgPool,
         filter: LedgerFilter,
-    ) ->  Result<Vec<LedgerRowDto>, AppError> {
+    ) -> Result<Vec<LedgerRowDto>, AppError> {
         self.repo.fetch_account_ledger(pool, filter).await
     }
 }

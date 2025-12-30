@@ -56,6 +56,12 @@ pub trait TransactionRepository: Send + Sync {
         user_id: Uuid,
     ) -> Result<Option<JournalEntryWithLines>, AppError>;
 
+    async fn get_all_journal_with_lines(
+        &self,
+        pool: &PgPool,
+        user_id: Uuid,
+    ) -> Result<Vec<JournalEntryWithLines>, AppError>;
+
     async fn list_journal_entries(
         &self,
         pool: &PgPool,
@@ -362,6 +368,35 @@ impl TransactionRepository for PostgresTransactionRepo {
         .map_err(|e| AppError::Database(e))?;
 
         Ok(Some(JournalEntryWithLines { header, lines }))
+    }
+
+    async fn get_all_journal_with_lines(
+        &self,
+        pool: &PgPool,
+        user_id: Uuid,
+    ) -> Result<Vec<JournalEntryWithLines>, AppError> {
+        let headers = sqlx::query_as::<_, JournalEntry>(
+            "SELECT * FROM accounting.transactions WHERE created_by = $1",
+        )
+        .bind(user_id)
+        .fetch_all(pool)
+        .await
+        .map_err(|e| AppError::Database(e))?;
+
+        let mut transactions = Vec::with_capacity(headers.len());
+
+        for header in headers {
+            let lines = sqlx::query_as::<_, JournalEntryLine>(
+                "SELECT * FROM accounting.transaction_entries WHERE transaction_uuid = $1 ORDER BY line_no"
+            )
+            .bind(header.uuid)
+            .fetch_all(pool)
+            .await
+            .map_err(|e| AppError::Database(e))?;
+
+            transactions.push(JournalEntryWithLines { header, lines });
+        }
+        Ok(transactions)
     }
 
     async fn list_journal_entries(
