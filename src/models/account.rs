@@ -72,6 +72,10 @@ pub struct JournalEntryLine {
     pub debit: BigDecimal,
     pub credit: BigDecimal,
     pub memo: Option<String>,
+    // Fields from accounts table
+    pub account_name: String,
+    pub account_code: String,
+    pub account_category: String,
 }
 
 #[derive(Debug, Clone, Serialize)]

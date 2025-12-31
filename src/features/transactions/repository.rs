@@ -375,7 +375,7 @@ impl TransactionRepository for PostgresTransactionRepo {
         pool: &PgPool,
         user_id: Uuid,
     ) -> Result<Vec<JournalEntryWithLines>, AppError> {
-        let headers = sqlx::query_as::<_, JournalEntry>(
+        let headers: Vec<JournalEntry> = sqlx::query_as::<_, JournalEntry>(
             "SELECT * FROM accounting.transactions WHERE created_by = $1",
         )
         .bind(user_id)
@@ -387,7 +387,24 @@ impl TransactionRepository for PostgresTransactionRepo {
 
         for header in headers {
             let lines = sqlx::query_as::<_, JournalEntryLine>(
-                "SELECT * FROM accounting.transaction_entries WHERE transaction_uuid = $1 ORDER BY line_no"
+                r#"
+                SELECT
+                    te.uuid,
+                    te.transaction_uuid,
+                    te.account_uuid,
+                    te.line_no,
+                    te.amount,
+                    te.debit,
+                    te.credit,
+                    te.memo,
+                    a.name      AS account_name,
+                    a.code      AS account_code,
+                    a.category  AS account_category
+                FROM accounting.transaction_entries te
+                LEFT JOIN accounting.accounts a ON te.account_uuid = a.uuid
+                WHERE te.transaction_uuid = $1
+                ORDER BY te.line_no
+                "#,
             )
             .bind(header.uuid)
             .fetch_all(pool)
