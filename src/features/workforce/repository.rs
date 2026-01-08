@@ -124,7 +124,7 @@ impl HrRepository for PostgresHrRepo {
             )
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
             RETURNING *
-            "#
+            "#,
         )
         .bind(&payload.first_name)
         .bind(&payload.last_name)
@@ -180,9 +180,34 @@ impl HrRepository for PostgresHrRepo {
         pool: &PgPool,
         _user_id: Uuid,
     ) -> Result<Vec<Employee>, AppError> {
-        let rows: Vec<Employee> = sqlx::query_as::<_, Employee>("SELECT * FROM hr.employees")
-            .fetch_all(pool)
-            .await?;
+        let rows: Vec<Employee> = sqlx::query_as::<_, Employee>(
+            r#"
+                SELECT
+                    e.uuid,
+                    e.serial_id,
+                    e.first_name,
+                    e.last_name,
+                    e.email,
+                    e.phone_number,
+                    e.hire_date,
+                    e.termination_date,
+                    jt.title AS job_title,
+                    d.name as department,
+                    s.first_name AS supervisor_name,
+                    e.employment_type,
+                    e.salary,
+                    e.pay_frequency,
+                    e.status,
+                    e.created_at,
+                    e.updated_at
+                FROM hr.employees e
+                LEFT JOIN hr.job_titles jt ON e.job_title = jt.uuid
+                LEFT JOIN hr.employees s ON e.supervisor_uuid = s.uuid
+                LEFT JOIN hr.departments d ON e.department_uuid = d.uuid;
+            "#,
+        )
+        .fetch_all(pool)
+        .await?;
         Ok(rows)
     }
 
