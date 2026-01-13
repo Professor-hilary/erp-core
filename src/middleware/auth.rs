@@ -12,6 +12,5 @@ pub struct AuthenticatedUser {
 pub struct AuthenticatedTenant {
     pub user_id: Uuid,
     pub company_id: Uuid,
-    pub tenant_db: String,
     pub tenant_pool: sqlx::PgPool,
 }

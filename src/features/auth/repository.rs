@@ -13,10 +13,7 @@ pub trait UserRepository: Send + Sync {
 
     async fn get_tenant_url(&self, company_id: Option<Uuid>) -> Result<Option<String>, AppError>;
 
-    async fn get_user_company(
-        &self,
-        user_id: Uuid,
-    ) -> Result<Option<UserCompany>, AppError>;
+    async fn get_user_company(&self, user_id: Uuid) -> Result<Option<UserCompany>, AppError>;
 
     async fn get_company_for_switch(
         &self,
@@ -68,7 +65,7 @@ impl UserRepository for PostgresUserRepo {
     /// # Find User
     /// This function finds user using provided email.
     async fn find_by_email(&self, email: &str) -> Result<Option<User>, AppError> {
-        let user = sqlx::query_as::<_, User>("SELECT * FROM users WHERE email = $1")
+        let user: Option<User> = sqlx::query_as::<_, User>("SELECT * FROM users WHERE email = $1")
             .bind(email)
             .fetch_optional(&self.pool)
             .await?;
@@ -84,18 +81,15 @@ impl UserRepository for PostgresUserRepo {
                 .fetch_optional(&self.pool)
                 .await?;
 
-        let tenant_url =
-            secret.and_then(|(value,)| value["tenant_url"].as_str().map(|s| s.to_string()));
+        let tenant_url: Option<String> =
+            secret.and_then(|(value,)| value["tenant_url"].as_str().map(|s: &str| s.to_string()));
 
         Ok(tenant_url)
     }
 
     /// # Get Company
     /// This function returns company for a particular company.
-    async fn get_user_company(
-        &self,
-        user_id: Uuid,
-    ) -> Result<Option<UserCompany>, AppError> {
+    async fn get_user_company(&self, user_id: Uuid) -> Result<Option<UserCompany>, AppError> {
         let row: Option<UserCompany> = sqlx::query_as::<_, UserCompany>(
             r#"
             SELECT * FROM companies c
@@ -118,7 +112,7 @@ impl UserRepository for PostgresUserRepo {
         user_id: Uuid,
         company_id: Uuid,
     ) -> Result<Option<String>, AppError> {
-        let row = sqlx::query_as::<_, (String,)>(
+        let row: Option<(String,)> = sqlx::query_as::<_, (String,)>(
             // returns (tenant_db_name,)
             r#"
             SELECT c.tenant_db_name

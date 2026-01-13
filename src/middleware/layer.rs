@@ -6,11 +6,12 @@ use axum::{
     response::Response,
 };
 use jsonwebtoken::{DecodingKey, Validation, decode};
+use sqlx::Postgres;
 use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::{
-    infrastructure::errors::AppError,
+    infrastructure::{database::tenant_resolver::get_tenant_pool, errors::AppError},
     middleware::auth::{AuthenticatedTenant, AuthenticatedUser},
     models::dto::JwtClaims,
     state::AppState,
@@ -69,7 +70,7 @@ pub async fn auth_middleware(
                 "You have no valid authorization to perform this action!".into(),
             ))?;
 
-        println!("RAW TOKEN RECEIVED: {}", auth_header);
+        // println!("RAW TOKEN RECEIVED: {}", auth_header);
 
         let token_data = decode::<JwtClaims>(
             auth_header,
@@ -93,15 +94,24 @@ pub async fn auth_middleware(
 
         // Try to insert tenant context — silently fail (it's optional)
         match (token_data.claims.company_id, token_data.claims.tenant_db) {
-            (Some(company_id), Some(tenant_db)) => {
-                if let Some(pool) = state.tenant_pools.get(&company_id) {
-                    request.extensions_mut().insert(AuthenticatedTenant {
-                        user_id,
-                        company_id,
-                        tenant_db,
-                        tenant_pool: pool.value().clone(),
-                    });
-                }
+            (Some(company_id), Some(_tenant_db)) => {
+                // if let Some(pool) = state.tenant_pools.get(&company_id) {
+                //     request.extensions_mut().insert(AuthenticatedTenant {
+                //         user_id,
+                //         company_id,
+                //         tenant_db,
+                //         tenant_pool: pool.value().clone(),
+                //     });
+                // }
+                let pool: sqlx::Pool<Postgres> = get_tenant_pool(&state, company_id)
+                    .await
+                    .map_err(|_| AppError::Unauthorized("Tenant not found".into()))?;
+
+                request.extensions_mut().insert(AuthenticatedTenant {
+                    user_id,
+                    company_id,
+                    tenant_pool: pool,
+                });
             }
             _ => (),
         }

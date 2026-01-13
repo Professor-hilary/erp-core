@@ -38,6 +38,11 @@ pub trait CompanyRepository: Send + Sync {
         user_id: Uuid,
         tenant_db_uri: &str,
         company_id: Uuid,
+        tenant_db_name: String,
+        tenant_db_role: String,
+        tenant_db_pass: String,
+        tenant_db_host: String,
+        tenant_db_port: i32,
     ) -> Result<(), AppError>;
 
     /// # Find By Id
@@ -146,16 +151,39 @@ impl CompanyRepository for PostgresCompanyRepository {
         user_id: Uuid,
         tenant_db_uri: &str,
         company_id: Uuid,
+        tenant_db_name: String,
+        tenant_db_role: String,
+        tenant_db_pass: String,
+        tenant_db_host: String,
+        tenant_db_port: i32,
     ) -> Result<(), AppError> {
         // assume `company_id` is known and `tenant_url` is built
         sqlx::query(
-            "INSERT INTO tenant_secrets (company_id, secret, created_by) VALUES ($1, $2, $3) ON CONFLICT (company_id) DO NOTHING"
+            r#"
+                INSERT INTO tenant_secrets (
+                    company_id,
+                    secret,
+                    db_name,
+                    db_host,
+                    db_port,
+                    db_user,
+                    db_password,
+                    created_by
+                )
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                ON CONFLICT (company_id) DO NOTHING"#,
         )
         .bind(company_id)
         .bind(serde_json::json!({ "tenant_url": tenant_db_uri }))
+        .bind(tenant_db_name)
+        .bind(tenant_db_host)
+        .bind(tenant_db_port)
+        .bind(tenant_db_role)
+        .bind(tenant_db_pass)
         .bind(user_id)
         .execute(executor)
-        .await.map_err(|e| AppError::Internal(e.to_string()))?;
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
 
         Ok(())
     }

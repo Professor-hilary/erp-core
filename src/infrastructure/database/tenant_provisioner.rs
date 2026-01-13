@@ -11,7 +11,7 @@ impl TenantProvisioner {
         master_pool: &PgPool,
         _user_id: Uuid,
         company_name: &str,
-    ) -> Result<(PgPool, String), AppError> {
+    ) -> Result<(PgPool, String, String, String, String, String, i32), AppError> {
         let slug: String = company_name
             .to_lowercase()
             .replace(' ', "_")
@@ -19,6 +19,9 @@ impl TenantProvisioner {
             .filter(|c| c.is_alphanumeric() || *c == '_')
             .take(30)
             .collect::<String>();
+
+        let db_host: String = "localhost".to_owned(); // Default host
+        let db_port: i32 = 5433; // Default port
 
         let db_name: String = format!("tenant_{}", slug);
         let role_name: String = format!("role_{}", slug);
@@ -87,6 +90,14 @@ impl TenantProvisioner {
             .await
             .map_err(|e| AppError::Internal(format!("Tenant migrations failed: <{}>", e)))?;
 
-        Ok((tenant_pool, tenant_url))
+        Ok((
+            tenant_pool,
+            tenant_url,
+            db_name,
+            role_name,
+            password,
+            db_host,
+            db_port,
+        ))
     }
 }

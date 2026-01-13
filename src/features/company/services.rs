@@ -38,8 +38,15 @@ impl CompanyService {
         // Step 2: Provision tenant database (this commits independently)
         // Note: We cannot keep this inside the same tx as master operations
         // because CREATE DATABASE cannot run inside a transaction block in PostgreSQL
-        let (tenant_pool, tenant_db_uri) =
-            TenantProvisioner::create_tenant_db(&state.master_pool, user_id, &req.name).await?;
+        let (
+            tenant_pool,
+            tenant_db_uri,
+            db_name,
+            db_role,
+            db_pass,
+            db_host,
+            db_port,
+        ) = TenantProvisioner::create_tenant_db(&state.master_pool, user_id, &req.name).await?;
 
         let tenant_db_name: String = format!("tenant_{}", slug);
 
@@ -74,9 +81,19 @@ impl CompanyService {
             .await
             .map_err(|_| AppError::Internal("Failed to activate company".into()))?;
 
-        repo.update_company_secret(&mut *tx, user_id, &tenant_db_uri, company.uuid)
-            .await
-            .map_err(|_| AppError::Internal("Failed to update company secrets tables".into()))?;
+        repo.update_company_secret(
+            &mut *tx,
+            user_id,
+            &tenant_db_uri,
+            company.uuid,
+            db_name,
+            db_role,
+            db_pass,
+            db_host,
+            db_port,
+        )
+        .await
+        .map_err(|_| AppError::Internal("Failed to update company secrets tables".into()))?;
 
         // Step 6: Commit master transaction
         tx.commit()

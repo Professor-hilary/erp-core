@@ -9,3 +9,13 @@ pub struct JwtClaims {
     pub tenant_db: Option<String>,
     pub exp: usize,
 }
+
+#[derive(sqlx::FromRow)]
+pub struct TenantRow{
+    pub _company_id: Uuid,
+    pub db_name: String,
+    pub db_host: String,
+    pub db_port: i32,
+    pub db_user: String,
+    pub db_password: String,
+}

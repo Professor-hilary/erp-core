@@ -18,6 +18,16 @@ CREATE TABLE IF NOT EXISTS companies (
     tenant_db_uri text NOT NULL,
     industry text NOT NULL,
     business_type text NOT NULL,
+    country text NOT NULL,
+    company_email text,
+    legal_name text,
+    telephone text,
+    website text,
+    co_address text,
+    city text,
+    co_state text,
+    zip_code text,
+    tax_id text,
     status text NOT NULL DEFAULT 'provisioning',
     created_by uuid REFERENCES users(uuid),
     is_deleted boolean DEFAULT false,
@@ -51,6 +61,11 @@ CREATE TABLE IF NOT EXISTS user_companies(
 CREATE TABLE IF NOT EXISTS tenant_secrets(
     company_id uuid PRIMARY KEY REFERENCES companies(uuid),
     secret jsonb NOT NULL,
+    db_name TEXT NOT NULL,
+    db_host TEXT NOT NULL DEFAULT 'localhost',
+    db_port INT NOT NULL DEFAULT 5433,
+    db_user TEXT NOT NULL,
+    db_password TEXT NOT NULL,
     created_by uuid REFERENCES users(uuid),
     created_at timestamptz DEFAULT now()
 );
