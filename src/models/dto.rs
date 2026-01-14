@@ -10,9 +10,10 @@ pub struct JwtClaims {
     pub exp: usize,
 }
 
+#[allow(dead_code)]
 #[derive(sqlx::FromRow)]
 pub struct TenantRow{
-    pub _company_id: Uuid,
+    pub company_id: Uuid,
     pub db_name: String,
     pub db_host: String,
     pub db_port: i32,

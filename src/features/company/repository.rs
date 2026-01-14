@@ -2,6 +2,7 @@
 use crate::infrastructure::errors::AppError;
 use crate::models::company::{Company, UpdateCompanyDto};
 use async_trait::async_trait;
+use chrono::NaiveDate;
 use sqlx::{Executor, Postgres};
 use uuid::Uuid;
 
@@ -18,6 +19,17 @@ pub trait CompanyRepository: Send + Sync {
         tenant_db_uri: &str,
         industry: &str,
         business_type: &str,
+        country: &str,
+        company_email: Option<String>,
+        legal_name: Option<String>,
+        telephone: Option<String>,
+        website: Option<String>,
+        co_address: Option<String>,
+        city: Option<String>,
+        co_state: Option<String>,
+        zip_code: Option<String>,
+        tax_id: Option<String>,
+        fiscal_year_start: Option<NaiveDate>,
         created_by: Uuid,
     ) -> Result<Company, AppError>;
 
@@ -99,15 +111,31 @@ impl CompanyRepository for PostgresCompanyRepository {
         tenant_db_uri: &str,
         industry: &str,
         business_type: &str,
+        country: &str,
+        company_email: Option<String>,
+        legal_name: Option<String>,
+        telephone: Option<String>,
+        website: Option<String>,
+        co_address: Option<String>,
+        city: Option<String>,
+        co_state: Option<String>,
+        zip_code: Option<String>,
+        tax_id: Option<String>,
+        fiscal_year_start: Option<NaiveDate>,
         created_by: Uuid,
     ) -> Result<Company, AppError> {
         let company: Company = sqlx::query_as::<_, Company>(
             r#"
             INSERT INTO companies (
                 name, slug, tenant_db_name, tenant_db_uri,
-                industry, business_type, created_by
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7)
-            RETURNING *
+                industry, business_type, created_by,
+                country, company_email, legal_name,
+                telephone, website, co_address,
+                city, co_state, zip_code, tax_id, fiscal_year_start
+            ) VALUES (
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+                $11, $12, $13, $14, $15, $16, $17, $18
+            ) RETURNING *
             "#,
         )
         .bind(name)
@@ -117,6 +145,17 @@ impl CompanyRepository for PostgresCompanyRepository {
         .bind(industry)
         .bind(business_type)
         .bind(created_by)
+        .bind(country)
+        .bind(company_email)
+        .bind(legal_name)
+        .bind(telephone)
+        .bind(website)
+        .bind(co_address)
+        .bind(city)
+        .bind(co_state)
+        .bind(zip_code)
+        .bind(tax_id)
+        .bind(fiscal_year_start)
         .fetch_one(executor)
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
@@ -242,7 +281,18 @@ impl CompanyRepository for PostgresCompanyRepository {
                 slug = COALESCE($2, slug),
                 industry = COALESCE($3, industry),
                 business_type = COALESCE($4, business_type)
-            WHERE uuid = $5 AND status != 'deleted'
+                country = COALESCE($5, country)
+                company_email = COALESCE($6, company_email)
+                legal_name = COALESCE($7, legal_name)
+                telephone = COALESCE($8, telephone)
+                website = COALESCE($9, website)
+                co_address = COALESCE($10, co_address)
+                city = COALESCE($11, city)
+                co_state = COALESCE($12, co_state)
+                zip_code = COALESCE($13, zip_code)
+                tax_id = COALESCE($14, tax_id)
+                fiscal_year_start = COALESCE($15, fiscal_year_start)
+            WHERE uuid = $16 AND status != 'deleted'
             RETURNING *
             "#,
         )
@@ -250,6 +300,17 @@ impl CompanyRepository for PostgresCompanyRepository {
         .bind(new_slug.as_ref())
         .bind(dto.industry.as_ref())
         .bind(dto.business_type.as_ref())
+        .bind(dto.country.as_ref())
+        .bind(dto.company_email.as_ref())
+        .bind(dto.legal_name.as_ref())
+        .bind(dto.telephone.as_ref())
+        .bind(dto.website.as_ref())
+        .bind(dto.co_address.as_ref())
+        .bind(dto.city.as_ref())
+        .bind(dto.co_state.as_ref())
+        .bind(dto.zip_code.as_ref())
+        .bind(dto.tax_id.as_ref())
+        .bind(dto.fiscal_year_start.as_ref())
         .bind(id)
         .fetch_one(executor)
         .await

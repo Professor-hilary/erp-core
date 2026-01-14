@@ -105,7 +105,7 @@ pub async fn auth_middleware(
                 // }
                 let pool: sqlx::Pool<Postgres> = get_tenant_pool(&state, company_id)
                     .await
-                    .map_err(|_| AppError::Unauthorized("Tenant not found".into()))?;
+                    .map_err(|e| AppError::Unauthorized(e.to_string()))?;
 
                 request.extensions_mut().insert(AuthenticatedTenant {
                     user_id,

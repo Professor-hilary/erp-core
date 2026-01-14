@@ -38,15 +38,8 @@ impl CompanyService {
         // Step 2: Provision tenant database (this commits independently)
         // Note: We cannot keep this inside the same tx as master operations
         // because CREATE DATABASE cannot run inside a transaction block in PostgreSQL
-        let (
-            tenant_pool,
-            tenant_db_uri,
-            db_name,
-            db_role,
-            db_pass,
-            db_host,
-            db_port,
-        ) = TenantProvisioner::create_tenant_db(&state.master_pool, user_id, &req.name).await?;
+        let (tenant_pool, tenant_db_uri, db_name, db_role, db_pass, db_host, db_port) =
+            TenantProvisioner::create_tenant_db(&state.master_pool, user_id, &req.name).await?;
 
         let tenant_db_name: String = format!("tenant_{}", slug);
 
@@ -67,10 +60,21 @@ impl CompanyService {
                 &tenant_db_uri,
                 &req.industry,
                 &req.business_type,
+                &req.country,
+                req.company_email,
+                req.legal_name,
+                req.telephone,
+                req.website,
+                req.co_address,
+                req.city,
+                req.co_state,
+                req.zip_code,
+                req.tax_id,
+                req.fiscal_year_start,
                 user_id,
             )
             .await
-            .map_err(|_| AppError::Internal("Failed to create company record".into()))?;
+            .map_err(|e| AppError::Internal(e.to_string()))?;
 
         // Step 5: Assign user as admin + activate + update the secrets table
         repo.assign_user_as_admin(&mut *tx, user_id, company.uuid)
