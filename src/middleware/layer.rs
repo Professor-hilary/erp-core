@@ -5,8 +5,8 @@ use axum::{
     middleware::Next,
     response::Response,
 };
-use jsonwebtoken::{DecodingKey, Validation, decode};
-use sqlx::Postgres;
+use jsonwebtoken::{DecodingKey, TokenData, Validation, decode};
+use sqlx::{Error, Postgres};
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -45,7 +45,7 @@ pub async fn auth_middleware(
 
         println!("RAW TOKEN RECEIVED: {}", auth_header);
 
-        let token_data: jsonwebtoken::TokenData<JwtClaims> = decode::<JwtClaims>(
+        let token_data: TokenData<JwtClaims> = decode::<JwtClaims>(
             auth_header,
             &DecodingKey::from_secret(state.jwt_secret.as_ref()),
             &Validation::default(),
@@ -61,7 +61,7 @@ pub async fn auth_middleware(
         return Ok(next.run(request).await);
     } else {
         // All other routes protected by authenticated tenant
-        let auth_header = request
+        let auth_header: &str = request
             .headers()
             .get("authorization")
             .and_then(|h| h.to_str().ok())
@@ -70,9 +70,7 @@ pub async fn auth_middleware(
                 "You have no valid authorization to perform this action!".into(),
             ))?;
 
-        // println!("RAW TOKEN RECEIVED: {}", auth_header);
-
-        let token_data = decode::<JwtClaims>(
+        let token_data: TokenData<JwtClaims> = decode::<JwtClaims>(
             auth_header,
             &DecodingKey::from_secret(state.jwt_secret.as_ref()),
             &Validation::default(),
@@ -84,7 +82,7 @@ pub async fn auth_middleware(
             token_data.claims.company_id, token_data.claims.tenant_db, token_data.claims.sub
         );
 
-        let user_id = Uuid::parse_str(&token_data.claims.sub.to_string())
+        let user_id: Uuid = Uuid::parse_str(&token_data.claims.sub.to_string())
             .map_err(|_| AppError::Unauthorized("Invalid user ID in token".into()))?;
 
         // Always insert the basic user
@@ -95,17 +93,9 @@ pub async fn auth_middleware(
         // Try to insert tenant context — silently fail (it's optional)
         match (token_data.claims.company_id, token_data.claims.tenant_db) {
             (Some(company_id), Some(_tenant_db)) => {
-                // if let Some(pool) = state.tenant_pools.get(&company_id) {
-                //     request.extensions_mut().insert(AuthenticatedTenant {
-                //         user_id,
-                //         company_id,
-                //         tenant_db,
-                //         tenant_pool: pool.value().clone(),
-                //     });
-                // }
                 let pool: sqlx::Pool<Postgres> = get_tenant_pool(&state, company_id)
                     .await
-                    .map_err(|e| AppError::Unauthorized(e.to_string()))?;
+                    .map_err(|e: Error| AppError::Unauthorized(e.to_string()))?;
 
                 request.extensions_mut().insert(AuthenticatedTenant {
                     user_id,

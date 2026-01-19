@@ -1,6 +1,6 @@
 // src/features/hr/service.rs
 use crate::models::employee::{
-    CreateDepartment, CreateEmployee, CreateJobTitle, Department, Employee, JobTitle,
+    CreateDepartment, CreateEmployee, CreateJobTitle, Department, Employee, EmployeeResponse, JobTitle
 };
 use crate::{features::workforce::repository::HrRepository, infrastructure::errors::AppError};
 use sqlx::PgPool;
@@ -52,7 +52,7 @@ impl<R: HrRepository> HrService<R> {
         &self,
         tenant_pool: &PgPool,
         user_id: Uuid,
-    ) -> Result<Vec<Employee>, AppError> {
+    ) -> Result<Vec<EmployeeResponse>, AppError> {
         self.repo.list_employees(tenant_pool, user_id).await
     }
 
@@ -76,7 +76,7 @@ impl<R: HrRepository> HrService<R> {
         tenant_pool: &PgPool,
         id: Uuid,
         user_id: Uuid,
-    ) -> Result<Employee, AppError> {
+    ) -> Result<EmployeeResponse, AppError> {
         self.repo.get_employee(tenant_pool, id, user_id).await
     }
 
@@ -92,9 +92,8 @@ impl<R: HrRepository> HrService<R> {
         &self,
         tenant_pool: &PgPool,
         id: Uuid,
-        user_id: Uuid,
     ) -> Result<JobTitle, AppError> {
-        self.repo.get_job_title(tenant_pool, id, user_id).await
+        self.repo.get_job_title(tenant_pool, id).await
     }
 
     pub async fn update_employee(

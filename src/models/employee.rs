@@ -14,9 +14,9 @@ pub struct Employee {
     pub phone_number: Option<String>,
     pub hire_date: NaiveDate,
     pub termination_date: Option<NaiveDate>,
-    pub job_title: Option<String>,
-    pub department: Option<String>,
-    pub supervisor_name: Option<String>,
+    pub job_title: Option<Uuid>,
+    pub department_uuid: Option<Uuid>,
+    pub supervisor_uuid: Option<Uuid>,
     pub employment_type: Option<String>,
     pub salary: Option<bigdecimal::BigDecimal>,
     pub pay_frequency: Option<String>,
@@ -41,6 +41,27 @@ pub struct CreateEmployee {
     pub pay_frequency: Option<String>,
 }
 
+#[derive(Debug, Serialize)]
+pub struct EmployeeResponse {
+    pub uuid: Uuid,
+    pub serial_id: i64,
+    pub first_name: String,
+    pub last_name: String,
+    pub email: Option<String>,
+    pub phone_number: Option<String>,
+    pub hire_date: NaiveDate,
+    pub termination_date: Option<NaiveDate>,
+    pub job_title: Option<JobTitle>,
+    pub department: Option<Department>,
+    pub supervisor: Option<SupervisorResponse>,
+    pub employment_type: Option<String>,
+    pub salary: Option<bigdecimal::BigDecimal>,
+    pub pay_frequency: Option<String>,
+    pub status: String,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
 #[derive(Debug, FromRow, Serialize, Deserialize, Clone)]
 pub struct Department {
     pub uuid: Uuid,
@@ -55,6 +76,13 @@ pub struct Department {
 pub struct CreateDepartment {
     pub name: String,
     pub description: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, FromRow)]
+pub struct SupervisorResponse {
+    pub uuid: Uuid,
+    pub first_name: String,
+    pub last_name: String,
 }
 
 #[derive(Debug, FromRow, Serialize, Deserialize, Clone)]

@@ -1,7 +1,8 @@
 // src/features/hr/repository.rs
 use crate::infrastructure::errors::AppError;
 use crate::models::employee::{
-    CreateDepartment, CreateEmployee, CreateJobTitle, Department, Employee, JobTitle,
+    CreateDepartment, CreateEmployee, CreateJobTitle, Department, Employee, EmployeeResponse,
+    JobTitle, SupervisorResponse,
 };
 use async_trait::async_trait;
 use sqlx::PgPool;
@@ -29,8 +30,11 @@ pub trait HrRepository: Send + Sync {
         payload: &CreateJobTitle,
     ) -> Result<JobTitle, AppError>;
 
-    async fn list_employees(&self, pool: &PgPool, user_id: Uuid)
-    -> Result<Vec<Employee>, AppError>;
+    async fn list_employees(
+        &self,
+        pool: &PgPool,
+        user_id: Uuid,
+    ) -> Result<Vec<EmployeeResponse>, AppError>;
     async fn list_departments(
         &self,
         pool: &PgPool,
@@ -47,19 +51,14 @@ pub trait HrRepository: Send + Sync {
         pool: &PgPool,
         id: Uuid,
         user_id: Uuid,
-    ) -> Result<Employee, AppError>;
+    ) -> Result<EmployeeResponse, AppError>;
     async fn get_department(
         &self,
         pool: &PgPool,
         id: Uuid,
         user_id: Uuid,
     ) -> Result<Department, AppError>;
-    async fn get_job_title(
-        &self,
-        pool: &PgPool,
-        id: Uuid,
-        user_id: Uuid,
-    ) -> Result<JobTitle, AppError>;
+    async fn get_job_title(&self, pool: &PgPool, id: Uuid) -> Result<JobTitle, AppError>;
 
     async fn update_employee(
         &self,
@@ -179,36 +178,76 @@ impl HrRepository for PostgresHrRepo {
         &self,
         pool: &PgPool,
         _user_id: Uuid,
-    ) -> Result<Vec<Employee>, AppError> {
-        let rows: Vec<Employee> = sqlx::query_as::<_, Employee>(
-            r#"
-                SELECT
-                    e.uuid,
-                    e.serial_id,
-                    e.first_name,
-                    e.last_name,
-                    e.email,
-                    e.phone_number,
-                    e.hire_date,
-                    e.termination_date,
-                    jt.title AS job_title,
-                    d.name as department,
-                    s.first_name AS supervisor_name,
-                    e.employment_type,
-                    e.salary,
-                    e.pay_frequency,
-                    e.status,
-                    e.created_at,
-                    e.updated_at
-                FROM hr.employees e
-                LEFT JOIN hr.job_titles jt ON e.job_title = jt.uuid
-                LEFT JOIN hr.employees s ON e.supervisor_uuid = s.uuid
-                LEFT JOIN hr.departments d ON e.department_uuid = d.uuid;
-            "#,
-        )
-        .fetch_all(pool)
-        .await?;
-        Ok(rows)
+    ) -> Result<Vec<EmployeeResponse>, AppError> {
+        let employees: Vec<Employee> =
+            sqlx::query_as::<_, Employee>(r#"SELECT * FROM hr.employees"#)
+                .fetch_all(pool)
+                .await?;
+
+        let mut out: Vec<EmployeeResponse> = Vec::with_capacity(employees.len());
+
+        for employee in employees {
+            // job title
+            let job_title: Option<JobTitle> = match employee.job_title {
+                Some(id) => {
+                    sqlx::query_as::<_, JobTitle>(r#"SELECT * FROM hr.job_titles WHERE uuid = $1"#)
+                        .bind(id)
+                        .fetch_optional(pool)
+                        .await?
+                }
+                None => None,
+            };
+
+            // departments
+            let department: Option<Department> = match employee.department_uuid {
+                Some(id) => {
+                    sqlx::query_as::<_, Department>(
+                        r#"SELECT * FROM hr.departments WHERE uuid = $1"#,
+                    )
+                    .bind(id)
+                    .fetch_optional(pool)
+                    .await?
+                }
+                None => None,
+            };
+
+            // supervisor
+            let supervisor: Option<SupervisorResponse> = match employee.supervisor_uuid {
+                Some(id) => {
+                    sqlx::query_as::<_, SupervisorResponse>(
+                        r#"
+                        SELECT uuid, first_name, last_name FROM hr.employees WHERE uuid = $1
+                    "#,
+                    )
+                    .bind(id)
+                    .fetch_optional(pool)
+                    .await?
+                }
+                None => None,
+            };
+
+            out.push(EmployeeResponse {
+                uuid: employee.uuid,
+                serial_id: employee.serial_id,
+                first_name: employee.first_name,
+                last_name: employee.last_name,
+                email: employee.email,
+                phone_number: employee.phone_number,
+                hire_date: employee.hire_date,
+                termination_date: employee.termination_date,
+                job_title,
+                department,
+                supervisor,
+                employment_type: employee.employment_type,
+                salary: employee.salary,
+                pay_frequency: employee.pay_frequency,
+                status: employee.status,
+                created_at: employee.created_at,
+                updated_at: employee.updated_at,
+            });
+        }
+
+        Ok(out)
     }
 
     async fn list_departments(
@@ -238,14 +277,69 @@ impl HrRepository for PostgresHrRepo {
         pool: &PgPool,
         id: Uuid,
         _user_id: Uuid,
-    ) -> Result<Employee, AppError> {
-        let emp: Employee =
+    ) -> Result<EmployeeResponse, AppError> {
+        let employee: Employee =
             sqlx::query_as::<_, Employee>("SELECT * FROM hr.employees WHERE uuid = $1")
                 .bind(id)
                 .fetch_optional(pool)
                 .await?
                 .ok_or(AppError::NotFound("Employee not found".into()))?;
-        Ok(emp)
+
+        let job_title: Option<JobTitle> = match employee.job_title {
+            Some(id) => {
+                sqlx::query_as::<_, JobTitle>(r#"SELECT * FROM hr.job_titles WHERE uuid = $1"#)
+                    .bind(id)
+                    .fetch_optional(pool)
+                    .await?
+            }
+            None => None,
+        };
+
+        // departments
+        let department: Option<Department> = match employee.department_uuid {
+            Some(id) => {
+                sqlx::query_as::<_, Department>(r#"SELECT * FROM hr.departments WHERE uuid = $1"#)
+                    .bind(id)
+                    .fetch_optional(pool)
+                    .await?
+            }
+            None => None,
+        };
+
+        // supervisor
+        let supervisor: Option<SupervisorResponse> = match employee.supervisor_uuid {
+            Some(id) => {
+                sqlx::query_as::<_, SupervisorResponse>(
+                    r#"
+                        SELECT uuid, first_name, last_name FROM hr.employees WHERE uuid = $1
+                    "#,
+                )
+                .bind(id)
+                .fetch_optional(pool)
+                .await?
+            }
+            None => None,
+        };
+
+        Ok(EmployeeResponse {
+            uuid: employee.uuid,
+            serial_id: employee.serial_id,
+            first_name: employee.first_name,
+            last_name: employee.last_name,
+            email: employee.email,
+            phone_number: employee.phone_number,
+            hire_date: employee.hire_date,
+            termination_date: employee.termination_date,
+            job_title,
+            department,
+            supervisor,
+            employment_type: employee.employment_type,
+            salary: employee.salary,
+            pay_frequency: employee.pay_frequency,
+            status: employee.status,
+            created_at: employee.created_at,
+            updated_at: employee.updated_at,
+        })
     }
 
     async fn get_department(
@@ -263,12 +357,7 @@ impl HrRepository for PostgresHrRepo {
         Ok(emp)
     }
 
-    async fn get_job_title(
-        &self,
-        pool: &PgPool,
-        id: Uuid,
-        _user_id: Uuid,
-    ) -> Result<JobTitle, AppError> {
+    async fn get_job_title(&self, pool: &PgPool, id: Uuid) -> Result<JobTitle, AppError> {
         let emp: JobTitle =
             sqlx::query_as::<_, JobTitle>("SELECT * FROM hr.job_titles WHERE uuid = $1")
                 .bind(id)
