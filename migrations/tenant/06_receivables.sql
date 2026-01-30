@@ -257,15 +257,8 @@ BEGIN
         WHERE invoice_uuid = v_invoice.uuid
     LOOP
         PERFORM inventory.post_sale(
-            r.stock_item_id,
-            NULL,
-            r.quantity,
-            r.unit_price,
-            'invoice',
-            p_invoice_serial_id,
-            p_user,
-            NULL,
-            v_txn_uuid
+            r.stock_item_id, NULL, r.quantity, r.unit_price, 'invoice', p_invoice_serial_id,
+            p_user, NULL, v_txn_uuid
         );
     END LOOP;
 
@@ -363,4 +356,3 @@ CREATE INDEX IF NOT EXISTS idx_payments_customer ON receivables.payments(custome
 CREATE INDEX IF NOT EXISTS idx_payments_date ON receivables.payments(payment_date DESC);
 
 CREATE INDEX IF NOT EXISTS idx_customers_code ON receivables.customers(code);
-

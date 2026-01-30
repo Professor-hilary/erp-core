@@ -178,7 +178,7 @@ BEGIN
             'memo', 'Payroll Payable'
         ),
 
-        -- 3. Settle payroll payable into components <- this can go into a seperate function/transaction
+        -- 3. Settle payroll payable, typically means payroll liability payment
         jsonb_build_object(
             'account_ref', p_payrun_payroll_payable_id,
             'debit', v_total_gross,
@@ -186,6 +186,7 @@ BEGIN
             'memo', 'Payroll Payable Settlement'
         ),
 
+		-- 4. Settle witholding which should be liability
         jsonb_build_object(
             'account_ref', p_payrun_tax_id,
             'debit', 0,
@@ -193,6 +194,7 @@ BEGIN
             'memo', 'Income Tax Withholding'
         ),
 
+		-- 5. Settle social security witholding, another liability
         jsonb_build_object(
             'account_ref', p_payrun_social_sec_id,
             'debit', 0,
@@ -200,6 +202,7 @@ BEGIN
             'memo', 'Social Security Withholding'
         ),
 
+		-- 6. Recognize cash/bank payment for hr benefits & renumeration
         jsonb_build_object(
             'account_ref', p_payrun_cash_id,
             'debit', 0,

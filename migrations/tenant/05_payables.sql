@@ -267,15 +267,8 @@ BEGIN
         SELECT * FROM payables.bill_items WHERE bill_uuid = v_bill.uuid
     LOOP
         PERFORM inventory.post_purchase(
-            r.stock_item_id::bigint,
-            NULL,
-            r.quantity,
-            r.unit_price,
-            'bill',
-            p_bill_serial_id,
-            p_user,
-            p_payable_code,
-            v_txn_uuid
+            r.stock_item_id::bigint, NULL, r.quantity, r.unit_price, 'bill', p_bill_serial_id,
+            p_user, p_payable_code, v_txn_uuid
         );
     END LOOP;
 

@@ -200,7 +200,7 @@ CREATE TRIGGER trig_revert_balance
 AFTER DELETE ON accounting.transaction_entries
 FOR EACH ROW EXECUTE FUNCTION accounting.revert_account_balance();
 
---
+-- USE
 --SELECT accounting.post_transaction(
 --    '2025-04-01',
 --    'INV-001',
@@ -212,4 +212,3 @@ FOR EACH ROW EXECUTE FUNCTION accounting.revert_account_balance();
 --        {"account_ref": 42,       "debit": 0,      "credit": 1000.00, "memo": "AR"}
 --    ]'::jsonb
 --);
-
