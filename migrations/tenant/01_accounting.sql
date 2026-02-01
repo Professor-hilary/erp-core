@@ -31,6 +31,17 @@ CREATE INDEX ON accounting.accounts (code);
 CREATE INDEX ON accounting.accounts (serial_id);   -- handy for front-end look-ups
 
 -----------------------------------------------------------------
+-- Finance cycle
+-----------------------------------------------------------------
+CREATE TABLE accounting.financial_periods(
+    uuid        UUID    DEFAULT uuidv7() PRIMARY KEY,
+    begin_date  DATE    NOT NULL,
+    end_date    DATE    NOT NULL,
+    is_locked   BOOLEAN DEFAULT false,
+    CONSTRAINT period_date_check CHECK (begin_date < end_date)
+);
+
+-----------------------------------------------------------------
 -- transactions: header/journal
 -----------------------------------------------------------------
 CREATE TABLE accounting.transactions (

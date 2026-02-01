@@ -1,14 +1,14 @@
--- ========================================
+-- ============================================================================
 -- INVENTORY MODULE - FULL SCHEMA
 -- Run this ONCE in a fresh DB with `accounting` schema already present
--- ========================================
+-- ============================================================================
 
 -- Create schema
 CREATE SCHEMA IF NOT EXISTS inventory;
 
--- ========================================
+-- ============================================================================
 -- SEQUENCES
--- ========================================
+-- ============================================================================
 CREATE SEQUENCE IF NOT EXISTS inventory.warehouses_serial_id_seq;
 CREATE SEQUENCE IF NOT EXISTS inventory.item_categories_serial_id_seq;
 CREATE SEQUENCE IF NOT EXISTS inventory.items_serial_id_seq;
@@ -16,9 +16,9 @@ CREATE SEQUENCE IF NOT EXISTS inventory.movements_serial_id_seq;
 CREATE SEQUENCE IF NOT EXISTS inventory.adjustments_serial_id_seq;
 CREATE SEQUENCE IF NOT EXISTS inventory.item_valuation_serial_id_seq;
 
--- ========================================
+-- ============================================================================
 -- TABLE: warehouses
--- ========================================
+-- ============================================================================
 CREATE TABLE IF NOT EXISTS inventory.warehouses (
     uuid uuid DEFAULT uuidv7() NOT NULL,
     serial_id bigint DEFAULT nextval('inventory.warehouses_serial_id_seq') NOT NULL,
@@ -33,9 +33,9 @@ CREATE TABLE IF NOT EXISTS inventory.warehouses (
     CONSTRAINT warehouses_code_key UNIQUE (code)
 );
 
--- ========================================
+-- ============================================================================
 -- TABLE: item_categories
--- ========================================
+-- ============================================================================
 CREATE TABLE IF NOT EXISTS inventory.item_categories (
     uuid uuid DEFAULT uuidv7() NOT NULL,
     serial_id bigint DEFAULT nextval('inventory.item_categories_serial_id_seq') NOT NULL,
@@ -49,9 +49,9 @@ CREATE TABLE IF NOT EXISTS inventory.item_categories (
     CONSTRAINT item_categories_code_key UNIQUE (code)
 );
 
--- ========================================
+-- ============================================================================
 -- TABLE: items
--- ========================================
+-- ============================================================================
 CREATE TABLE IF NOT EXISTS inventory.items (
     uuid uuid DEFAULT uuidv7() NOT NULL,
     serial_id bigint DEFAULT nextval('inventory.items_serial_id_seq') NOT NULL,
@@ -60,10 +60,10 @@ CREATE TABLE IF NOT EXISTS inventory.items (
     category_uuid uuid,
     description text,
     unit text DEFAULT 'pcs',
-    cost_price numeric(18, 2) DEFAULT 0,
+    -- cost_price numeric(18, 2) DEFAULT 0, -- IRRELEVANT
     selling_price numeric(18, 2) DEFAULT 0,
     track_quantity boolean DEFAULT true,
-    quantity_on_hand numeric(18, 4) DEFAULT 0,
+    -- quantity_on_hand numeric(18, 4) DEFAULT 0, -- IRRELEVANT
     reorder_level numeric(18, 4) DEFAULT 0,
     valuation_method TEXT DEFAULT 'FIFO' CHECK (valuation_method IN ('FIFO', 'LIFO', 'WAVG')),
     asset_account text,
@@ -79,9 +79,9 @@ CREATE TABLE IF NOT EXISTS inventory.items (
         FOREIGN KEY (category_uuid) REFERENCES inventory.item_categories(uuid) ON DELETE SET NULL
 );
 
--- ========================================
+-- ============================================================================
 -- TABLE: movements
--- ========================================
+-- ============================================================================
 CREATE TABLE IF NOT EXISTS inventory.movements (
     uuid uuid DEFAULT uuidv7() NOT NULL,
     serial_id bigint DEFAULT nextval('inventory.movements_serial_id_seq') NOT NULL,
@@ -90,6 +90,8 @@ CREATE TABLE IF NOT EXISTS inventory.movements (
     movement_date timestamptz DEFAULT now(),
     reference_type TEXT,
     reference_id bigint,
+    financial_period_uuid UUID REFERENCES accounting.financial_periods(uuid),
+    movement_type TEXT CHECK (movement_type IN ('OPENING', 'PURCHASE', 'SALE', 'ADJUSTMENT', 'TRANSFER')),
     quantity numeric(18, 4) NOT NULL,
     unit_cost numeric(18, 4) DEFAULT 0,
     total_cost numeric(18, 2) GENERATED ALWAYS AS (quantity * unit_cost) STORED,
@@ -106,9 +108,9 @@ CREATE TABLE IF NOT EXISTS inventory.movements (
         FOREIGN KEY (gl_transaction_uuid) REFERENCES accounting.transactions(uuid)
 );
 
--- ========================================
+-- ============================================================================
 -- TABLE: adjustments
--- ========================================
+-- ============================================================================
 CREATE TABLE IF NOT EXISTS inventory.adjustments (
     uuid uuid DEFAULT uuidv7() NOT NULL,
     serial_id bigint DEFAULT nextval('inventory.adjustments_serial_id_seq') NOT NULL,
@@ -134,9 +136,9 @@ CREATE TABLE IF NOT EXISTS inventory.adjustments (
         FOREIGN KEY (gl_transaction_uuid) REFERENCES accounting.transactions(uuid)
 );
 
--- ========================================
+-- ============================================================================
 -- TABLE: item_valuation
--- ========================================
+-- ============================================================================
 CREATE TABLE IF NOT EXISTS inventory.item_valuation (
     uuid uuid DEFAULT uuidv7() NOT NULL,
     serial_id bigint DEFAULT nextval('inventory.item_valuation_serial_id_seq') NOT NULL,
@@ -158,9 +160,9 @@ CREATE TABLE IF NOT EXISTS inventory.item_valuation (
         FOREIGN KEY (gl_transaction_uuid) REFERENCES accounting.transactions(uuid)
 );
 
--- ========================================
+-- ============================================================================
 -- TABLE: lots (for FIFO/LIFO cost layering)
--- ========================================
+-- ============================================================================
 CREATE TABLE IF NOT EXISTS inventory.lots (
     uuid UUID DEFAULT uuidv7() PRIMARY KEY,
     serial_id BIGSERIAL NOT NULL UNIQUE,
@@ -215,25 +217,40 @@ CREATE INDEX IF NOT EXISTS idx_lots_item ON inventory.lots(item_uuid);
 CREATE INDEX IF NOT EXISTS idx_lots_item_received ON inventory.lots(item_uuid, received_date);
 CREATE INDEX IF NOT EXISTS idx_lots_remaining ON inventory.lots(item_uuid) WHERE remaining_quantity > 0;
 
--- ========================================
+-- ============================================================================
 -- VIEWS
--- ========================================
+-- ============================================================================
+
+-- Modern item summary view, tracks using inventory management method
 CREATE OR REPLACE VIEW inventory.item_summary AS
 SELECT
-    i.serial_id AS item_serial_id,
+    i.serial_id,
     i.sku,
-    i.name AS item_name,
-    c.name AS category_name,
+    i.name,
     i.unit,
-    i.quantity_on_hand,
-    i.cost_price,
-    (i.quantity_on_hand * i.cost_price) AS inventory_value,
-    i.reorder_level,
-    (i.quantity_on_hand <= i.reorder_level) AS needs_reorder
+    inventory.get_quantity_on_hand(i.uuid) AS quantity_on_hand,
+    COALESCE(
+        w.current_avg_cost,
+        (
+            SELECT SUM(l.remaining_total_cost)/NULLIF(SUM(l.remaining_quantity),0)
+            FROM inventory.lots l
+            WHERE l.item_uuid = i.uuid AND l.remaining_quantity > 0
+        ),
+        0
+    ) AS current_cost,
+    COALESCE(
+        (
+            SELECT SUM(l.remaining_total_cost)
+            FROM inventory.lots l
+            WHERE l.item_uuid = i.uuid AND l.remaining_quantity > 0
+        ),
+        w.total_cost,
+        0
+    ) AS inventory_value
 FROM inventory.items i
-LEFT JOIN inventory.item_categories c ON c.uuid = i.category_uuid
-ORDER BY i.sku;
+LEFT JOIN inventory.wavg_history w ON w.item_uuid = i.uuid;
 
+-- Track stock inflows and outflows
 CREATE OR REPLACE VIEW inventory.movement_history AS
 SELECT
     m.serial_id AS movement_serial_id,
@@ -255,34 +272,108 @@ LEFT JOIN inventory.warehouses w ON w.uuid = m.warehouse_uuid
 LEFT JOIN accounting.transactions t ON t.uuid = m.gl_transaction_uuid
 ORDER BY m.movement_date DESC;
 
-/*
+-- Update current inventory cost value
 CREATE OR REPLACE VIEW inventory.item_current_cost AS
 SELECT
-    i.uuid,
+    i.uuid AS item_uuid,
     i.serial_id,
     i.sku,
     i.name,
     i.valuation_method,
-    COALESCE(
-        -- For WAVG items: use the running average
-        w.current_avg_cost,
-        -- For FIFO/LIFO: weighted average of remaining lots
-        (SELECT SUM(l.remaining_total_cost) / NULLIF(SUM(l.remaining_quantity), 0)
-         FROM inventory.lots l WHERE l.item_uuid = i.uuid AND l.remaining_quantity > 0),
-        0
-    ) AS current_cost_price,
-    i.quantity_on_hand,
-    (i.quantity_on_hand * COALESCE(
-        (SELECT SUM(remaining_total_cost) / NULLIF(SUM(remaining_quantity), 0)
-            FROM inventory.lots
-            WHERE item_uuid = items.uuid AND remaining_quantity > 0
-        ), 0)) AS current_inventory_value
+    CASE
+        WHEN i.valuation_method = 'WAVG' THEN
+            COALESCE(w.current_avg_cost, 0)
+        ELSE
+            COALESCE(
+                (
+                    SELECT SUM(l.remaining_total_cost) / NULLIF(SUM(l.remaining_quantity), 0)
+                    FROM inventory.lots l WHERE l.item_uuid = i.uuid AND l.remaining_quantity > 0
+                ),
+                0
+            )
+    END AS current_cost_per_unit,
+    inventory.get_quantity_on_hand(i.uuid) AS quantity_on_hand,
+    CASE
+        WHEN i.valuation_method = 'WAVG' THEN
+            COALESCE(w.total_cost, 0)
+        ELSE
+            COALESCE(
+                (
+                    SELECT SUM(l.remaining_total_cost) FROM inventory.lots l
+                    WHERE l.item_uuid = i.uuid AND l.remaining_quantity > 0
+                ),
+                0
+            )
+    END AS inventory_value
 FROM inventory.items i
 LEFT JOIN inventory.wavg_history w ON w.item_uuid = i.uuid;
-*/
--- ========================================
+
+-- ============================================================================
 -- FUNCTIONS
--- ========================================
+-- ============================================================================
+
+-- Posting opening stock
+CREATE OR REPLACE FUNCTION inventory.post_opening_stock(
+    p_item_serial_id BIGINT,
+    p_warehouse_serial_id BIGINT,
+    p_quantity NUMERIC,
+    p_unit_cost NUMERIC,
+    p_financial_period_uuid UUID,
+    p_user UUID
+) RETURNS VOID
+LANGUAGE plpgsql AS $$
+DECLARE
+    v_item inventory.items%ROWTYPE;
+    v_warehouse_uuid UUID;
+BEGIN
+    SELECT * INTO v_item FROM inventory.items WHERE serial_id = p_item_serial_id;
+    IF NOT FOUND THEN RAISE EXCEPTION 'Item not found'; END IF;
+
+    SELECT uuid INTO v_warehouse_uuid
+    FROM inventory.warehouses WHERE serial_id = p_warehouse_serial_id;
+
+    -- Inventory movement
+    INSERT INTO inventory.movements (
+        item_uuid, warehouse_uuid, quantity, unit_cost, direction, movement_type,
+        financial_period_uuid
+    ) VALUES (
+        v_item.uuid, v_warehouse_uuid, p_quantity, p_unit_cost, 'IN', 'OPENING',
+        p_financial_period_uuid
+    );
+
+    -- FIFO/LIFO
+    IF v_item.valuation_method IN ('LIFO','FIFO') THEN
+        INSERT INTO inventory.lots (
+            item_uuid, warehouse_uuid, reference_id, original_quantity,
+            original_cost_per_unit, remaining_quantity
+        ) VALUES (
+            v_item.uuid, v_warehouse_uuid, 'opening', p_item_serial_id,
+            p_quantity, p_unit_cost, p_quantity
+        );
+    ELSE
+        INSERT INTO inventory.wavg_history (item_uuid, total_quantity, total_cost)
+        VALUES (v_item.uuid, p_quantity, p_quantity * p_unit_cost);
+    END IF;
+
+END;
+$$;
+
+-- Check available stock
+CREATE OR REPLACE FUNCTION inventory.get_quantity_on_hand(
+    p_item_uuid UUID,
+    p_warehouse_uuid UUID DEFAULT NULL
+) RETURNS NUMERIC(18,4)
+LANGUAGE sql AS $$
+    SELECT COALESCE(SUM(
+        CASE
+            WHEN direction = 'IN' THEN quantity
+            ELSE -quantity
+        END
+    ), 0)
+    FROM inventory.movements
+    WHERE item_uuid = p_item_uuid
+        AND (p_warehouse_uuid IS NULL OR warehouse_uuid = p_warehouse_uuid);
+$$
 
 CREATE OR REPLACE FUNCTION inventory.deplete_inventory(
     p_item_serial_id BIGINT,
@@ -304,8 +395,8 @@ BEGIN
     SELECT * INTO v_item FROM inventory.items WHERE serial_id = p_item_serial_id;
     IF NOT FOUND THEN RAISE EXCEPTION 'Item not found'; END IF;
 
-    IF v_item.quantity_on_hand < p_quantity_needed THEN
-        RAISE EXCEPTION 'Insufficient stock: have %, need %', v_item.quantity_on_hand, p_quantity_needed;
+    IF inventory.get_quantity_on_hand(v_item.uuid) < p_quantity_needed THEN
+        RAISE EXCEPTION 'Insufficient stock';
     END IF;
 
     -- Branch by valuation method
@@ -382,20 +473,15 @@ BEGIN
 
     -- Record OUT movement
     INSERT INTO inventory.movements (
-        item_uuid, reference_type, reference_id,
+        item_uuid, reference_type, reference_id, movement_type,
         quantity, unit_cost, direction, gl_transaction_uuid
     ) VALUES (
         v_item.uuid, p_reference_type, p_reference_serial_id,
-        p_quantity_needed,
+        'SALE', p_quantity_needed,
         v_cogs / NULLIF(p_quantity_needed, 0),  -- average unit cost for this depletion
         'OUT',
         p_gl_transaction_uuid
     );
-
-    -- Update quantity on hand
-    UPDATE inventory.items
-    SET quantity_on_hand = quantity_on_hand - p_quantity_needed
-    WHERE uuid = v_item.uuid;
 
     RETURN v_cogs;
 END;
@@ -464,6 +550,25 @@ BEGIN
 END;
 $$;
 
+-- Function to prevent posting into locked periods
+CREATE OR REPLACE FUNCTION accounting.prevent_lock_period_posting()
+RETURNS trigger AS $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM accounting.financial_periods
+        WHERE uuid = NEW.financial_period_uuid
+        AND is_locked
+    ) THEN
+        RAISE EXCEPTION 'Cannot post into locked financial period';
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_block_locked_periods
+BEFORE INSERT ON inventory.movements
+FOR EACH ROW EXECUTE FUNCTION accounting.prevent_lock_period_posting();
+
 --------------------------------------------------------------------------------
 -- Inventory post cash or credit purchase function
 --------------------------------------------------------------------------------
@@ -498,12 +603,12 @@ BEGIN
     -- Record movement IN (common to all methods)
     INSERT INTO inventory.movements (
         item_uuid, warehouse_uuid,
-        reference_type, reference_id,
+        reference_type, movement_type, reference_id,
         quantity, unit_cost, direction,
         gl_transaction_uuid
     ) VALUES (
         v_item.uuid, v_warehouse_uuid,
-        p_reference_type, p_reference_serial_id,
+        p_reference_type, 'PURCHASE' p_reference_serial_id,
         p_quantity, p_unit_cost, 'IN',
         v_txn_uuid
     ) RETURNING uuid INTO v_movement_uuid;
@@ -554,19 +659,13 @@ BEGIN
         );
     END IF;
 
-    -- Update total quantity on hand (common)
-    UPDATE inventory.items
-    SET quantity_on_hand = quantity_on_hand + p_quantity,
-        updated_at = NOW()
-    WHERE uuid = v_item.uuid;
-
     RETURN v_txn_uuid;
 END;
 $$;
 
--- ========================================
+-- ============================================================================
 -- INDEXES (Performance)
--- ========================================
+-- ============================================================================
 CREATE INDEX IF NOT EXISTS idx_items_sku ON inventory.items(sku);
 CREATE INDEX IF NOT EXISTS idx_items_category ON inventory.items(category_uuid);
 CREATE INDEX IF NOT EXISTS idx_movements_item ON inventory.movements(item_uuid);
