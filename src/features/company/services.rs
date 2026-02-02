@@ -70,8 +70,8 @@ impl CompanyService {
                 req.co_state,
                 req.zip_code,
                 req.tax_id,
-                req.fiscal_year_start,
-                req.fiscal_year_end,
+                req.period_start,
+                req.period_end,
                 user_id,
             )
             .await

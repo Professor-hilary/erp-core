@@ -146,7 +146,7 @@ users (id, email, password_hash, created_at)
 accounts (id, name, type, balance NUMERIC, user_id, created_at)
 transactions (id, date, description, user_id, created_at)
 transaction_lines (id, transaction_id, account_id, debit, credit)
-companies (id, name, fiscal_year_start, user_id)
+companies (id, name, period_start, user_id)
 customers (id, name, email, phone, company_id)
 vendors (id, name, email, phone, company_id)
 ```

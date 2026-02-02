@@ -29,8 +29,8 @@ pub trait CompanyRepository: Send + Sync {
         co_state: Option<String>,
         zip_code: Option<String>,
         tax_id: Option<String>,
-        fiscal_year_start: Option<NaiveDate>,
-        fiscal_year_end: Option<NaiveDate>,
+        period_start: Option<NaiveDate>,
+        period_end: Option<NaiveDate>,
         created_by: Uuid,
     ) -> Result<Company, AppError>;
 
@@ -122,8 +122,8 @@ impl CompanyRepository for PostgresCompanyRepository {
         co_state: Option<String>,
         zip_code: Option<String>,
         tax_id: Option<String>,
-        fiscal_year_start: Option<NaiveDate>,
-        fiscal_year_end: Option<NaiveDate>,
+        period_start: Option<NaiveDate>,
+        period_end: Option<NaiveDate>,
         created_by: Uuid,
     ) -> Result<Company, AppError> {
         let company: Company = sqlx::query_as::<_, Company>(
@@ -132,8 +132,8 @@ impl CompanyRepository for PostgresCompanyRepository {
                 name, slug, tenant_db_name, tenant_db_uri,
                 industry, business_type, created_by,
                 country, company_email, legal_name,
-                telephone, website, co_address,
-                city, co_state, zip_code, tax_id, fiscal_year_start
+                telephone, website, co_address, city, co_state,
+                zip_code, tax_id, period_start, period_end
             ) VALUES (
                 $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
                 $11, $12, $13, $14, $15, $16, $17, $18
@@ -157,8 +157,8 @@ impl CompanyRepository for PostgresCompanyRepository {
         .bind(co_state)
         .bind(zip_code)
         .bind(tax_id)
-        .bind(fiscal_year_start)
-        .bind(fiscal_year_end)
+        .bind(period_start)
+        .bind(period_end)
         .fetch_one(executor)
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
@@ -294,8 +294,8 @@ impl CompanyRepository for PostgresCompanyRepository {
                 co_state = COALESCE($12, co_state)
                 zip_code = COALESCE($13, zip_code)
                 tax_id = COALESCE($14, tax_id)
-                fiscal_year_start = COALESCE($15, fiscal_year_start)
-                fiscal_year_end = COALESCE($15, fiscal_year_end)
+                period_start = COALESCE($15, period_start)
+                period_end = COALESCE($15, period_end)
             WHERE uuid = $16 AND status != 'deleted'
             RETURNING *
             "#,
@@ -314,8 +314,8 @@ impl CompanyRepository for PostgresCompanyRepository {
         .bind(dto.co_state.as_ref())
         .bind(dto.zip_code.as_ref())
         .bind(dto.tax_id.as_ref())
-        .bind(dto.fiscal_year_start.as_ref())
-        .bind(dto.fiscal_year_end.as_ref())
+        .bind(dto.period_start.as_ref())
+        .bind(dto.period_end.as_ref())
         .bind(id)
         .fetch_one(executor)
         .await

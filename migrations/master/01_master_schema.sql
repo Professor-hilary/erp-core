@@ -31,7 +31,8 @@ CREATE TABLE IF NOT EXISTS companies (
     status text NOT NULL DEFAULT 'provisioning',
     created_by uuid REFERENCES users(uuid),
     is_deleted boolean DEFAULT false,
-    fiscal_year_start DATE,
+    period_start DATE,
+    period_end DATE,
     created_at timestamptz DEFAULT now(),
     UNIQUE(created_by, name),
     CHECK (
@@ -47,11 +48,7 @@ CREATE TABLE IF NOT EXISTS companies (
 CREATE INDEX companies_created_by_idx ON companies(created_by);
 CREATE INDEX companies_tenant_db_name_idx ON companies(tenant_db_name);
 CREATE INDEX companies_status_idx ON companies(status);
--- CREATE TABLE IF NOT EXISTS industry_coa_templates (
---     industry text PRIMARY KEY,
---     template jsonb NOT NULL,
---     created_at timestamptz DEFAULT now()
--- );
+
 CREATE TABLE IF NOT EXISTS user_companies(
     user_id uuid REFERENCES users(uuid) ON DELETE CASCADE,
     company_id uuid REFERENCES companies(uuid) ON DELETE CASCADE,
