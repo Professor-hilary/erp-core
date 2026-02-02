@@ -24,6 +24,7 @@ pub struct Company {
     pub zip_code: Option<String>,
     pub tax_id: Option<String>,
     pub fiscal_year_start: Option<NaiveDate>,
+    pub fiscal_year_end: Option<NaiveDate>,
     pub status: String,
     pub created_by: Uuid,
     pub created_at: DateTime<Utc>,
@@ -45,6 +46,7 @@ pub struct CreateCompanyDto {
     pub tax_id: Option<String>,
     pub business_type: String,
     pub fiscal_year_start: Option<NaiveDate>,
+    pub fiscal_year_end: Option<NaiveDate>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -63,4 +65,5 @@ pub struct UpdateCompanyDto {
     pub zip_code: Option<String>,
     pub tax_id: Option<String>,
     pub fiscal_year_start: Option<NaiveDate>,
+    pub fiscal_year_end: Option<NaiveDate>,
 }

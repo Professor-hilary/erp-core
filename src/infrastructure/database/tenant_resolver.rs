@@ -1,5 +1,5 @@
 // src/infrastructure/database/tenant_resolver.rs
-use sqlx::PgPool;
+use sqlx::{PgPool, Pool, Postgres};
 use uuid::Uuid;
 
 use crate::{models::dto::TenantRow, state::AppState};
@@ -23,7 +23,7 @@ pub async fn get_tenant_pool(state: &AppState, company_id: Uuid) -> Result<PgPoo
     );
 
     // 4. Create pool
-    let pool = PgPool::connect(&url).await?;
+    let pool: Pool<Postgres> = PgPool::connect(&url).await?;
 
     // 5. Cache pool
     state.tenant_pools.insert(company_id, pool.clone());

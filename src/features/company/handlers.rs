@@ -78,13 +78,12 @@ async fn get_company(
 async fn update_company(
     State(state): State<Arc<AppState>>,
     Path(company_id): Path<Uuid>,
-    Extension(tenant): Extension<AuthenticatedTenant>,
+    Extension(_tenant): Extension<AuthenticatedTenant>,
     Json(payload): Json<UpdateCompanyDto>,
 ) -> Result<Json<Company>, AppError> {
-    let company: Company =
-        CompanyService::update_company(state.clone(), tenant.user_id, company_id, payload)
-            .await
-            .map_err(|_| AppError::Internal("Failed to fetch companies".into()))?;
+    let company: Company = CompanyService::update_company(state.clone(), company_id, payload)
+        .await
+        .map_err(|_| AppError::Internal("Failed to fetch companies".into()))?;
     Ok(Json(company))
 }
 

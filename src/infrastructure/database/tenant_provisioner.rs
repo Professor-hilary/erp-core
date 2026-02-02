@@ -1,7 +1,7 @@
 // src/infrastructure/database/tenant_provisioner.rs
 use crate::infrastructure::errors::AppError;
 use rand::{Rng, distr::Alphanumeric, rng};
-use sqlx::{PgPool, postgres::PgPoolOptions};
+use sqlx::{PgPool, migrate::MigrateError, postgres::PgPoolOptions};
 use uuid::Uuid;
 
 pub struct TenantProvisioner;
@@ -55,7 +55,9 @@ impl TenantProvisioner {
         sqlx::query(&format!("ALTER ROLE \"{}\" INHERIT", role_name))
             .execute(master_pool)
             .await
-            .map_err(|e| AppError::Internal(format!("Failed to alter role inherit: {}", e)))?;
+            .map_err(|e: sqlx::Error| {
+                AppError::Internal(format!("Failed to alter role inherit: {}", e))
+            })?;
 
         ignore_already_exists!(&format!("GRANT \"{}\" TO master_user", role_name))?;
 
@@ -79,7 +81,7 @@ impl TenantProvisioner {
             .max_connections(10)
             .connect(&tenant_url)
             .await
-            .map_err(|e| {
+            .map_err(|e: sqlx::Error| {
                 AppError::Internal(format!("Failed to connect to tenant DB {}: {}", db_name, e))
             })?;
 
@@ -88,7 +90,9 @@ impl TenantProvisioner {
         sqlx::migrate!("./migrations/tenant")
             .run(&tenant_pool)
             .await
-            .map_err(|e| AppError::Internal(format!("Tenant migrations failed: <{}>", e)))?;
+            .map_err(|e: MigrateError| {
+                AppError::Internal(format!("Tenant migrations failed: <{}>", e))
+            })?;
 
         Ok((
             tenant_pool,

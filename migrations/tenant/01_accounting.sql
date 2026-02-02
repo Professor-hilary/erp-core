@@ -88,17 +88,18 @@ CREATE INDEX ON accounting.transaction_entries (serial_id);
 
 -- Fixed accounting.post_transaction function:
 CREATE OR REPLACE FUNCTION accounting.post_transaction(
-    p_txn_date DATE,
     p_reference TEXT,
     p_description TEXT,
     p_created_by UUID,
     p_module TEXT,
-    p_lines JSONB
+    p_txn_date DATE DEFAULT NULL,
+    p_lines JSONB DEFAULT NULL
 ) RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
 DECLARE
     v_txn_uuid UUID;
+    v_txn_date DATE;
     v_txn_serial_id BIGINT;
     v_total_debits NUMERIC(18,2) := 0;
     v_total_credits NUMERIC(18,2) := 0;
@@ -107,6 +108,15 @@ DECLARE
     v_line_no INT := 0;
     v_ref_text TEXT;
 BEGIN
+    IF p_txn_date IS NULL THEN
+        -- Opening balance transactions - default transaction date to period start
+        SELECT begin_date INTO v_txn_date FROM accounting.financial_period
+            ORDER BY begin_date DESC LIMIT 1;
+    ELSE
+        -- Other transactions, adjustments, journals, etc
+        v_txn_date := p_txn_date;
+    END IF;
+
     -- Validate balance from JSON - they should equal
     FOR v_line IN SELECT * FROM jsonb_to_recordset(p_lines) AS t(account_ref JSONB, debit NUMERIC, credit NUMERIC, memo TEXT)
     LOOP

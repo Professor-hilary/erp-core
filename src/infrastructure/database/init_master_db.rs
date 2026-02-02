@@ -8,7 +8,7 @@ pub async fn init_master(
     master_db_name: &str,
     master_db_user: &str,
     master_db_pass: &str,
-    postgres_port: &str
+    postgres_port: &str,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
     println!("Connecting to PostgreSQL as superuser...");
     let super_pool: PgPool = PgPool::connect(super_psql_url)
@@ -73,15 +73,16 @@ pub async fn init_master(
     }
 
     // 4. Connect as the app user and run migrations
-    let master_url: String =
-        format!("postgres://{master_db_user}:{master_db_pass}@localhost:{postgres_port}/{master_db_name}");
+    let master_url: String = format!(
+        "postgres://{master_db_user}:{master_db_pass}@localhost:{postgres_port}/{master_db_name}"
+    );
 
     println!("Connecting as '{master_db_user}' to run migrations...");
     let master_pool: sqlx::Pool<sqlx::Postgres> = PgPoolOptions::new()
         .max_connections(10)
         .connect(&master_url)
         .await
-        .map_err(|e| {
+        .map_err(|e: sqlx::Error| {
             format!("Failed to connect as app user. Did ownership transfer succeed?\n{e}")
         })?;
 

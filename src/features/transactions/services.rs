@@ -6,7 +6,7 @@ use uuid::Uuid;
 
 use crate::features::transactions::repository::TransactionRepository;
 use crate::infrastructure::errors::AppError;
-use crate::models::account::{
+use crate::models::transaction::{
     CreateJournalEntry, JournalEntry, JournalEntryWithLines, LedgerFilter, LedgerRowDto,
     UpdateJournalEntry,
 };

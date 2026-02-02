@@ -7,7 +7,7 @@ use sqlx::{Error, PgPool};
 use uuid::Uuid;
 
 use crate::infrastructure::errors::AppError;
-use crate::models::account::{
+use crate::models::transaction::{
     CreateJournalEntry, JournalEntry, JournalEntryLine, JournalEntryWithLines, LedgerFilter,
     LedgerRowDto, TransactionLineInput, UpdateJournalEntry,
 };

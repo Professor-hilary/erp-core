@@ -64,8 +64,8 @@ pub async fn auth_middleware(
         let auth_header: &str = request
             .headers()
             .get("authorization")
-            .and_then(|h| h.to_str().ok())
-            .and_then(|h| h.strip_prefix("Bearer "))
+            .and_then(|h: &axum::http::HeaderValue| h.to_str().ok())
+            .and_then(|h: &str| h.strip_prefix("Bearer "))
             .ok_or(AppError::Unauthorized(
                 "You have no valid authorization to perform this action!".into(),
             ))?;

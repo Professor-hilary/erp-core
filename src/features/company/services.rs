@@ -71,6 +71,7 @@ impl CompanyService {
                 req.zip_code,
                 req.tax_id,
                 req.fiscal_year_start,
+                req.fiscal_year_end,
                 user_id,
             )
             .await
@@ -156,7 +157,6 @@ impl CompanyService {
     /// Update company info given user is an admin and company id is provided
     pub async fn update_company(
         state: Arc<AppState>,
-        _user_id: Uuid,
         company_id: Uuid,
         req: crate::models::company::UpdateCompanyDto,
     ) -> Result<Company, AppError> {

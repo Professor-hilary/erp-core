@@ -30,6 +30,7 @@ pub trait CompanyRepository: Send + Sync {
         zip_code: Option<String>,
         tax_id: Option<String>,
         fiscal_year_start: Option<NaiveDate>,
+        fiscal_year_end: Option<NaiveDate>,
         created_by: Uuid,
     ) -> Result<Company, AppError>;
 
@@ -122,6 +123,7 @@ impl CompanyRepository for PostgresCompanyRepository {
         zip_code: Option<String>,
         tax_id: Option<String>,
         fiscal_year_start: Option<NaiveDate>,
+        fiscal_year_end: Option<NaiveDate>,
         created_by: Uuid,
     ) -> Result<Company, AppError> {
         let company: Company = sqlx::query_as::<_, Company>(
@@ -156,6 +158,7 @@ impl CompanyRepository for PostgresCompanyRepository {
         .bind(zip_code)
         .bind(tax_id)
         .bind(fiscal_year_start)
+        .bind(fiscal_year_end)
         .fetch_one(executor)
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
@@ -292,6 +295,7 @@ impl CompanyRepository for PostgresCompanyRepository {
                 zip_code = COALESCE($13, zip_code)
                 tax_id = COALESCE($14, tax_id)
                 fiscal_year_start = COALESCE($15, fiscal_year_start)
+                fiscal_year_end = COALESCE($15, fiscal_year_end)
             WHERE uuid = $16 AND status != 'deleted'
             RETURNING *
             "#,
@@ -311,6 +315,7 @@ impl CompanyRepository for PostgresCompanyRepository {
         .bind(dto.zip_code.as_ref())
         .bind(dto.tax_id.as_ref())
         .bind(dto.fiscal_year_start.as_ref())
+        .bind(dto.fiscal_year_end.as_ref())
         .bind(id)
         .fetch_one(executor)
         .await

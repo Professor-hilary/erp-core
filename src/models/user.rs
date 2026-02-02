@@ -48,4 +48,5 @@ pub struct UserCompany {
     pub zip_code: Option<String>,
     pub tax_id: Option<String>,
     pub fiscal_year_start: Option<NaiveDate>,
+    pub fiscal_year_end: Option<NaiveDate>,
 }

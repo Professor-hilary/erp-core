@@ -2,6 +2,7 @@
 use crate::{middleware::auth::AuthenticatedUser, models::dto::JwtClaims, state::AppState};
 use axum::{
     extract::{Request, State},
+    http::HeaderValue,
     middleware::Next,
     response::Response,
 };
@@ -15,15 +16,15 @@ pub async fn debug_app_state_middleware(
     next: Next,
 ) -> Response {
     // 1. Decode the JWT **without verifying signature** just to see the claims (dev only!)
-    let jwt_company_id = request
+    let jwt_company_id: String = request
         .headers()
         .get("authorization")
-        .and_then(|v| v.to_str().ok())
-        .and_then(|v| v.strip_prefix("Bearer "))
-        .and_then(|token| {
+        .and_then(|v: &HeaderValue| v.to_str().ok())
+        .and_then(|v: &str| v.strip_prefix("Bearer "))
+        .and_then(|token: &str| {
             // This is the new 2024–2025 way: use decode with empty validation
             use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode};
-            let mut validation = Validation::new(Algorithm::HS256);
+            let mut validation: Validation = Validation::new(Algorithm::HS256);
             #[allow(deprecated)]
             validation.insecure_disable_signature_validation(); // removes signature check
             validation.required_spec_claims.remove("exp"); // ignore expiry too
@@ -32,7 +33,7 @@ pub async fn debug_app_state_middleware(
                 .map(|data| {
                     data.claims
                         .company_id
-                        .map(|id| id.to_string())
+                        .map(|id: uuid::Uuid| id.to_string())
                         .unwrap_or("none".into())
                 })
         })
