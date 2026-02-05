@@ -149,23 +149,21 @@ ORDER BY pr.pay_period_start DESC
 WITH NO DATA;
 
 -- 9. Inventory Valuation
-CREATE MATERIALIZED VIEW IF NOT EXISTS reporting.inventory_valuation AS
-SELECT
-    i.serial_id AS item_serial_id,
-    i.sku,
-    i.name,
-    c.name AS category,
-    i.unit,
-    i.quantity_on_hand,
-    i.cost_price,
-    (i.quantity_on_hand * i.cost_price) AS total_value,
-    i.reorder_level,
-    (i.quantity_on_hand <= i.reorder_level) AS needs_reorder
-FROM inventory.items i
-LEFT JOIN inventory.item_categories c ON c.uuid = i.category_uuid
-WHERE i.track_quantity = true
-ORDER BY total_value DESC
-WITH NO DATA;
+--CREATE MATERIALIZED VIEW IF NOT EXISTS reporting.inventory_valuation AS
+--SELECT
+--    i.serial_id AS item_serial_id,
+--    i.sku,
+--    i.name,
+--    c.name AS category,
+--    i.unit,
+--    (i.quantity_on_hand * i.cost_price) AS total_value,
+--    i.reorder_level,
+--    (i.quantity_on_hand <= i.reorder_level) AS needs_reorder
+--FROM inventory.items i
+--LEFT JOIN inventory.item_categories c ON c.uuid = i.category_uuid
+--WHERE i.track_quantity = true
+--ORDER BY total_value DESC
+--WITH NO DATA;
 
 -- 10. Customer Statement (Detailed)
 CREATE MATERIALIZED VIEW IF NOT EXISTS reporting.customer_statement AS
@@ -197,7 +195,7 @@ REFRESH MATERIALIZED VIEW reporting.cashbook;
 REFRESH MATERIALIZED VIEW reporting.ar_aging_detailed;
 REFRESH MATERIALIZED VIEW reporting.ap_aging_detailed;
 REFRESH MATERIALIZED VIEW reporting.payroll_summary;
-REFRESH MATERIALIZED VIEW reporting.inventory_valuation;
+--REFRESH MATERIALIZED VIEW reporting.inventory_valuation;
 REFRESH MATERIALIZED VIEW reporting.customer_statement;
 
 -- ========================================
