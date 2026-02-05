@@ -7,6 +7,7 @@ mod routes;
 mod state;
 
 use axum::serve;
+use chrono::NaiveDate;
 use dashmap::DashMap;
 use dotenv::dotenv;
 use sqlx::postgres::PgPoolOptions;
@@ -81,11 +82,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         jwt_secret,
         tenant_pools: DashMap::new(),
         coa_seed_path: coa_seed_path,
+        period_start: NaiveDate::MIN,
+        period_end: NaiveDate::MAX,
         tenant_config: TenantConfig {
-            user: "".to_string(),
-            password: "".to_string(),
-            host: "".to_string(),
-            port: "".to_string(),
+            // user: "".to_string(),
+            // password: "".to_string(),
+            // host: "".to_string(),
+            // port: "".to_string(),
             base_url: "".to_string(),
         },
     });

@@ -131,14 +131,15 @@ impl InventoryRepository for PostgresInventoryRepo {
     ) -> Result<Item, AppError> {
         let item: Item = sqlx::query_as::<_, Item>(
             r#"
-            INSERT INTO inventory.items (
-                sku, name, category_uuid, description, unit, cost_price, selling_price,
-                track_quantity, reorder_level, asset_account, cogs_account, income_account
-            )
-            VALUES (
-                $1, $2, $3, $4, COALESCE($5, 'pcs'), COALESCE($6, 0), COALESCE($7, 0),
-                COALESCE($8, TRUE), COALESCE($9, 0), $10, $11, $12
-            ) RETURNING *
+                INSERT INTO inventory.items (
+                    sku, name, category_uuid, description, unit, selling_price,
+                    track_quantity, reorder_level, asset_account, cogs_account,
+                    income_account
+                )
+                VALUES (
+                    $1, $2, $3, $4, COALESCE($5, 'pcs'), COALESCE($6, 0), COALESCE($7, 0),
+                    COALESCE($8, TRUE), COALESCE($9, 0), $10, $11, $12
+                ) RETURNING *
             "#,
         )
         .bind(&payload.sku)
@@ -146,7 +147,6 @@ impl InventoryRepository for PostgresInventoryRepo {
         .bind(payload.category_uuid)
         .bind(&payload.description)
         .bind(&payload.unit)
-        .bind(payload.cost_price.as_ref())
         .bind(payload.selling_price.as_ref())
         .bind(payload.track_quantity)
         .bind(payload.reorder_level.as_ref())
@@ -280,14 +280,18 @@ impl InventoryRepository for PostgresInventoryRepo {
     ) -> Result<Item, AppError> {
         let item: Item = sqlx::query_as::<_, Item>(
             r#"
-            UPDATE inventory.items
-            SET sku=$1, name=$2, category_uuid=$3, description=$4, unit=COALESCE($5, unit),
-                cost_price=COALESCE($6, cost_price), selling_price=COALESCE($7, selling_price),
-                track_quantity=COALESCE($8, track_quantity), reorder_level=COALESCE($9, reorder_level),
-                asset_account=COALESCE($10, asset_account), cogs_account=COALESCE($11, cogs_account),
-                income_account=COALESCE($12, income_account), updated_at=now()
-            WHERE uuid=$13
-            RETURNING *
+                UPDATE inventory.items
+                SET sku=$1, name=$2, category_uuid=$3, description=$4,
+                    unit=COALESCE($5, unit),
+                    selling_price=COALESCE($7, selling_price),
+                    track_quantity=COALESCE($8, track_quantity),
+                    reorder_level=COALESCE($9, reorder_level),
+                    asset_account=COALESCE($10, asset_account),
+                    cogs_account=COALESCE($11, cogs_account),
+                    income_account=COALESCE($12, income_account),
+                    updated_at=now()
+                WHERE uuid=$13
+                RETURNING *
             "#
         )
         .bind(&payload.sku)
@@ -295,7 +299,6 @@ impl InventoryRepository for PostgresInventoryRepo {
         .bind(payload.category_uuid)
         .bind(&payload.description)
         .bind(&payload.unit)
-        .bind(payload.cost_price.as_ref())
         .bind(payload.selling_price.as_ref())
         .bind(payload.track_quantity)
         .bind(payload.reorder_level.as_ref())

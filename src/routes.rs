@@ -19,7 +19,6 @@ use crate::{
 use std::{sync::Arc, time::Duration};
 use tower_http::{classify::ServerErrorsFailureClass, cors::CorsLayer, trace::TraceLayer};
 
-
 pub fn create_router(state: Arc<AppState>) -> Router {
     // Protected Routes - need a verified tenant (Company AppState)
     let company_routes: Router<Arc<AppState>> = company::handlers::router().layer(

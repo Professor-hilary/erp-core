@@ -1,15 +1,16 @@
+use chrono::NaiveDate;
 // src/state.rs
 use dashmap::DashMap;
 use sqlx::PgPool;
 use uuid::Uuid;
 
-#[allow(unused)]
+// #[allow(unused)]
 #[derive(Clone, Debug)]
 pub struct TenantConfig {
-    pub user: String,
-    pub password: String,
-    pub host: String,
-    pub port: String,
+    // pub user: String,
+    // pub password: String,
+    // pub host: String,
+    // pub port: String,
     pub base_url: String,
 }
 
@@ -19,5 +20,7 @@ pub struct AppState {
     pub tenant_pools: DashMap<Uuid, PgPool>,
     pub jwt_secret: String,
     pub coa_seed_path: String,
+    pub period_start: NaiveDate,
+    pub period_end: NaiveDate,
     pub tenant_config: TenantConfig,
 }
