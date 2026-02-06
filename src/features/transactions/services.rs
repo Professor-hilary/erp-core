@@ -24,24 +24,24 @@ impl<R: TransactionRepository> TransactionService<R> {
         &self,
         pool: &PgPool,
         user_id: Uuid,
-        input: CreateJournalEntry,
+        journal: CreateJournalEntry,
     ) -> Result<JournalEntryWithLines, AppError> {
         // Validate balance
-        let total_debit: BigDecimal = input.lines.iter().map(|l| l.debit.clone()).sum();
-        let total_credit: BigDecimal = input.lines.iter().map(|l| l.credit.clone()).sum();
+        let total_debit: BigDecimal = journal.lines.iter().map(|l| l.debit.clone()).sum();
+        let total_credit: BigDecimal = journal.lines.iter().map(|l| l.credit.clone()).sum();
         if total_debit != total_credit {
             return Err(AppError::BadRequest(format!(
                 "Unbalanced entry: debit {total_debit} ≠ credit {total_credit}"
             )));
         }
 
-        if input.lines.len() < 2 {
+        if journal.lines.len() < 2 {
             return Err(AppError::BadRequest("Entry must have ≥2 lines".into()));
         }
 
         let header: JournalEntry = self
             .repo
-            .create_journal_entry(pool, user_id, &input)
+            .create_journal_entry(pool, user_id, &journal)
             .await?;
         self.repo
             .get_journal_entry_with_lines(pool, header.uuid, user_id)
@@ -69,10 +69,10 @@ impl<R: TransactionRepository> TransactionService<R> {
         pool: &PgPool,
         user_id: Uuid,
         uuid: Uuid,
-        input: UpdateJournalEntry,
+        journal: UpdateJournalEntry,
     ) -> Result<JournalEntryWithLines, AppError> {
         // Validate new lines if provided
-        if let Some(lines) = &input.lines {
+        if let Some(lines) = &journal.lines {
             let total_debit: BigDecimal = lines.iter().map(|l| l.debit.clone()).sum();
             let total_credit: BigDecimal = lines.iter().map(|l| l.credit.clone()).sum();
             if total_debit != total_credit {
@@ -87,7 +87,7 @@ impl<R: TransactionRepository> TransactionService<R> {
 
         let header = self
             .repo
-            .update_unposted_journal_entry(pool, uuid, user_id, &input)
+            .update_unposted_journal_entry(pool, uuid, user_id, &journal)
             .await?;
         self.repo
             .get_journal_entry_with_lines(pool, header.uuid, user_id)

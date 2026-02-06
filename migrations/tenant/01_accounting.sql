@@ -37,8 +37,13 @@ CREATE TABLE accounting.financial_periods(
     uuid        UUID    DEFAULT uuidv7() PRIMARY KEY,
     begin_date  DATE    NOT NULL,
     end_date    DATE    NOT NULL,
+    is_open     BOOLEAN DEFAULT true,
     is_locked   BOOLEAN DEFAULT false,
-    CONSTRAINT period_date_check CHECK (begin_date < end_date)
+    created_at  timestamptz DEFAULT now(),
+    updated_at  timestamptz DEFAULT now(),
+    name text,
+    CONSTRAINT period_date_check CHECK (begin_date < end_date),
+    CONSTRAINT period_date_unique UNIQUE (begin_date, end_date),
 );
 
 -----------------------------------------------------------------

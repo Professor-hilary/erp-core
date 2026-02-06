@@ -1,13 +1,17 @@
 // src/features/auth/services.rs
-use crate::features::auth::repository::UserRepository;
-use crate::infrastructure::errors::AppError;
-use crate::models::dto::JwtClaims;
-use crate::models::user::{CreateUser, LoginUser, User, UserCompany};
-use crate::state::AppState;
+use crate::{
+    features::auth::repository::UserRepository,
+    infrastructure::errors::AppError,
+    models::{
+        dto::JwtClaims,
+        user::{CreateUser, LoginUser, User, UserCompany},
+    },
+    state::{AppState, PeriodInfo},
+};
 use bcrypt::{DEFAULT_COST, hash, verify};
 use chrono::{Duration, Utc};
 use jsonwebtoken::{EncodingKey, Header, encode};
-use sqlx::postgres::PgPoolOptions;
+use sqlx::{PgPool, postgres::PgPoolOptions};
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -37,14 +41,15 @@ impl<R: UserRepository> AuthService<R> {
         let created_user: User = self.repo.create(&user.email, &password_hash).await?;
 
         // this will automatically return None because at registration, no company is created
-        let user_company = self.repo.get_user_company(created_user.uuid).await?;
+        let user_company: Option<UserCompany> =
+            self.repo.get_user_company(created_user.uuid).await?;
 
         let (company_id, tenant_db_name) = match &user_company {
             Some(uc) => (uc.company_id, uc.tenant_db_name.clone()),
             None => (None, None),
         };
 
-        let token = self.generate_token(created_user.uuid, company_id, tenant_db_name)?;
+        let token: String = self.generate_token(created_user.uuid, company_id, tenant_db_name)?;
 
         Ok((created_user, user_company, token))
     }
@@ -90,20 +95,54 @@ impl<R: UserRepository> AuthService<R> {
             }
         }
 
-        // Fixed: Safe unwrapping with match
-        let (company_id, tenant_db_name, period_start, period_end) = match &user_company {
-            Some(uc) => (
-                uc.company_id,
-                uc.tenant_db_name.clone(),
-                uc.period_start,
-                uc.period_end,
-            ),
-            None => (None, None, None, None),
+        // Safe unwrapping with match
+        let (company_id, tenant_db_name) = match &user_company {
+            Some(uc) => (uc.company_id, uc.tenant_db_name.clone()),
+            None => (None, None),
         };
 
-        let token = self.generate_token(db_user.uuid, company_id, tenant_db_name)?;
+        let token: String = self.generate_token(db_user.uuid, company_id, tenant_db_name)?;
 
         Ok((db_user, user_company, token))
+    }
+
+    pub async fn fetch_current_period(
+        tenant_pool: PgPool,
+        company_id: Uuid,
+    ) -> Result<PeriodInfo, AppError> {
+        #[derive(sqlx::FromRow)]
+        struct PeriodRow {
+            uuid: Uuid,
+            start_date: chrono::NaiveDate,
+            end_date: chrono::NaiveDate,
+            is_locked: Option<bool>,
+        }
+
+        let row_opt: Option<PeriodRow> = sqlx::query_as::<_, PeriodRow>(
+            r#"
+                SELECT uuid, start_date, end_date, is_locked
+                FROM accounting.financial_periods
+                WHERE company_id = $1
+                AND is_open = true
+                ORDER BY start_date DESC
+                LIMIT 1
+                "#,
+        )
+        .bind(company_id)
+        .fetch_optional(&tenant_pool)
+        .await
+        .map_err(|e| AppError::Database(e))?; // ← use anyhow or Box<dyn Error>
+
+        let row = row_opt.ok_or_else(|| {
+            AppError::Internal("No open financial period for this company".into())
+        })?;
+
+        Ok(PeriodInfo {
+            _uuid: row.uuid,
+            start_date: row.start_date,
+            end_date: row.end_date,
+            is_locked: row.is_locked.unwrap_or(false),
+        })
     }
 
     /// Switch company for current user
@@ -176,7 +215,11 @@ impl<R: UserRepository> AuthService<R> {
             .connect(tenant_url)
             .await?;
 
-        state.tenant_pools.insert(company_id, pool);
+        state.tenant_pools.insert(company_id, pool.clone());
+
+        let period_info: PeriodInfo = Self::fetch_current_period(pool, company_id).await?; // your helper fn
+
+        state.period_cache.insert(company_id, period_info).await;
 
         println!("⚡ Lazy-loaded tenant pool for company {}", company_id);
         Ok(())

@@ -1,5 +1,6 @@
 // src/features/company/service.rs
 use crate::features::{
+    accounts::repository::{AccountRepository, PostgresAccountRepo},
     auth::{AuthService, repository::PostgresUserRepo},
     company::repository::{CompanyRepository, PostgresCompanyRepository},
 };
@@ -99,6 +100,28 @@ impl CompanyService {
         )
         .await
         .map_err(|_| AppError::Internal("Failed to update company secrets tables".into()))?;
+
+        // ...and update opening financial period too
+        let accounting_repo: PostgresAccountRepo = PostgresAccountRepo::new();
+        let period_start = req
+            .period_start
+            .unwrap_or_else(|| chrono::Utc::now().naive_utc().date());
+
+        let period_end = req
+            .period_start
+            .unwrap_or_else(|| period_start + chrono::Duration::days(365));
+
+        let _period_uuid: Uuid = accounting_repo
+            .create_initial_period(&tenant_pool, company.uuid, period_start, period_end)
+            .await
+            .map_err(|e: AppError| {
+                AppError::Internal(format!("Failed to create initial period: {}", e))
+            })?;
+
+        println!(
+            "Created initial finalcial period {} -> {} for company {}",
+            period_start, period_end, company.uuid
+        );
 
         // Step 6: Commit master transaction
         tx.commit()

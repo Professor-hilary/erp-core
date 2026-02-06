@@ -6,7 +6,6 @@ use axum::{
     response::Response,
 };
 use jsonwebtoken::{DecodingKey, TokenData, Validation, decode};
-use sqlx::{Error, Postgres};
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -14,7 +13,7 @@ use crate::{
     infrastructure::{database::tenant_resolver::get_tenant_pool, errors::AppError},
     middleware::auth::{AuthenticatedTenant, AuthenticatedUser},
     models::dto::JwtClaims,
-    state::AppState,
+    state::{AppState, PeriodInfo},
 };
 
 // Middleware — puts AuthenticatedUser in extensions, fails only on bad token
@@ -91,20 +90,72 @@ pub async fn auth_middleware(
             .insert(AuthenticatedUser { user_id });
 
         // Try to insert tenant context — silently fail (it's optional)
+        // Inside your auth_middleware else branch, after getting pool
+
         match (token_data.claims.company_id, token_data.claims.tenant_db) {
             (Some(company_id), Some(_tenant_db)) => {
-                let pool: sqlx::Pool<Postgres> = get_tenant_pool(&state, company_id)
+                let pool = get_tenant_pool(&state, company_id)
                     .await
-                    .map_err(|e: Error| AppError::Unauthorized(e.to_string()))?;
+                    .map_err(|e| AppError::Unauthorized(e.to_string()))?;
+
+                let pool_clone = pool.clone(); // cheap Arc clone
+
+                let period = state
+                    .period_cache
+                    .try_get_with(company_id, {
+                        async move {
+                            #[derive(sqlx::FromRow)]
+                            struct PeriodRow {
+                                uuid: Uuid,
+                                start_date: chrono::NaiveDate,
+                                end_date: chrono::NaiveDate,
+                                is_locked: Option<bool>,
+                            }
+
+                            let row_opt: Option<PeriodRow> = sqlx::query_as::<_, PeriodRow>(
+                                r#"
+                                SELECT uuid, start_date, end_date, is_locked
+                                FROM accounting.financial_periods
+                                WHERE company_id = $1
+                                AND is_open = true
+                                ORDER BY start_date DESC
+                                LIMIT 1
+                                "#,
+                            )
+                            .bind(company_id)
+                            .fetch_optional(&pool_clone)
+                            .await
+                            .map_err(|e| anyhow::anyhow!("Database error: {}", e))?; // ← use anyhow or Box<dyn Error>
+
+                            let row = row_opt.ok_or_else(|| {
+                                anyhow::anyhow!("No open financial period for this company")
+                            })?;
+
+                            Ok(PeriodInfo {
+                                _uuid: row.uuid,
+                                start_date: row.start_date,
+                                end_date: row.end_date,
+                                is_locked: row.is_locked.unwrap_or(false),
+                            })
+                        }
+                    })
+                    .await
+                    .map_err(|cache_err: Arc<anyhow::Error>| {
+                        AppError::Internal(format!("Period cache failed: {}", cache_err))
+                    })?;
 
                 request.extensions_mut().insert(AuthenticatedTenant {
                     user_id,
                     company_id,
                     tenant_pool: pool,
+                    current_period_start: period.start_date,
+                    current_period_end: period.end_date,
+                    period_is_locked: period.is_locked,
                 });
             }
             _ => (),
         }
+
         Ok(next.run(request).await)
     }
 }

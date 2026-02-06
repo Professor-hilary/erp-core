@@ -1,3 +1,4 @@
+use chrono::NaiveDate;
 // src/models/dto.rs
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -19,4 +20,8 @@ pub struct TenantRow{
     pub db_port: i32,
     pub db_user: String,
     pub db_password: String,
+
+    // Financial period
+    pub period_start: NaiveDate,
+    pub period_end: NaiveDate,
 }

@@ -18,7 +18,7 @@ pub trait TransactionRepository: Send + Sync {
         &self,
         pool: &PgPool,
         user_id: Uuid,
-        input: &CreateJournalEntry,
+        journal: &CreateJournalEntry,
     ) -> Result<JournalEntry, AppError>;
 
     async fn fetch_account_ledger(
@@ -39,7 +39,7 @@ pub trait TransactionRepository: Send + Sync {
         pool: &PgPool,
         uuid: Uuid,
         user_id: Uuid,
-        input: &UpdateJournalEntry,
+        journal: &UpdateJournalEntry,
     ) -> Result<JournalEntry, AppError>;
 
     async fn delete_unposted_journal_entry(
@@ -84,11 +84,11 @@ pub trait TransactionRepository: Send + Sync {
         account_uuid: Uuid,
     ) -> Result<BigDecimal, AppError>;
 
-    async fn validate_balances(
-        &self,
-        pool: &PgPool,
-        lines: &[TransactionLineInput],
-    ) -> Result<(), AppError>;
+    // async fn validate_balances(
+    //     &self,
+    //     pool: &PgPool,
+    //     lines: &[TransactionLineInput],
+    // ) -> Result<(), AppError>;
 }
 pub struct PostgresTransactionRepo;
 
@@ -104,9 +104,9 @@ impl TransactionRepository for PostgresTransactionRepo {
         &self,
         pool: &PgPool,
         user_id: Uuid,
-        input: &CreateJournalEntry,
+        journal: &CreateJournalEntry,
     ) -> Result<JournalEntry, AppError> {
-        let lines_json: Vec<serde_json::Value> = input
+        let lines_json: Vec<serde_json::Value> = journal
             .lines
             .iter()
             .map(|line| {
@@ -126,20 +126,20 @@ impl TransactionRepository for PostgresTransactionRepo {
             )
             "#,
         )
-        .bind(input.txn_date)
-        .bind(&input.reference)
-        .bind(&input.description)
+        .bind(journal.txn_date)
+        .bind(&journal.reference)
+        .bind(&journal.description)
         .bind(user_id)
-        .bind(input.module.as_deref().unwrap_or("journal"))
+        .bind(journal.module.as_deref().unwrap_or("journal"))
         .bind(serde_json::to_value(lines_json).unwrap())
         .fetch_one(pool)
         .await
         .map_err(|e: Error| AppError::Database(e))?;
 
         // Simulate balances if posting
-        if input.posted {
-            self.validate_balances(pool, &input.lines).await?
-        }
+        // if journal.posted {
+        //     self.validate_balances(pool, &journal.lines).await?
+        // }
 
         let header: JournalEntry = sqlx::query_as::<_, JournalEntry>(
             "SELECT * FROM accounting.transactions WHERE serial_id = $1",
@@ -149,8 +149,8 @@ impl TransactionRepository for PostgresTransactionRepo {
         .await
         .map_err(|e: Error| AppError::Database(e))?;
 
-        // Override posted status if input specifies draft
-        let final_header: JournalEntry = if !input.posted {
+        // Override posted status if journal specifies draft
+        let final_header: JournalEntry = if !journal.posted {
             sqlx::query_as::<_, JournalEntry>(
                 "UPDATE accounting.transactions SET posted = false WHERE uuid = $1 RETURNING *",
             )
@@ -171,25 +171,25 @@ impl TransactionRepository for PostgresTransactionRepo {
         uuid: Uuid,
         user_id: Uuid,
     ) -> Result<JournalEntry, AppError> {
-        let entry_with_lines = self
-            .get_journal_entry_with_lines(pool, uuid, user_id)
-            .await?
-            .ok_or(AppError::NotFound("Entry not found".into()));
+        // let entry_with_lines = self
+        //     .get_journal_entry_with_lines(pool, uuid, user_id)
+        //     .await?
+        //     .ok_or(AppError::NotFound("Entry not found".into()));
 
         // Validate before posting
-        let lines: Vec<TransactionLineInput> = entry_with_lines
-            .unwrap()
-            .lines
-            .iter()
-            .map(|line: &JournalEntryLine| TransactionLineInput {
-                account_uuid: line.account_uuid,
-                debit: line.debit.clone(),
-                credit: line.credit.clone(),
-                memo: line.memo.clone(),
-            })
-            .collect();
+        // let _: Vec<TransactionLineInput> = entry_with_lines
+        //     .unwrap()
+        //     .lines
+        //     .iter()
+        //     .map(|line: &JournalEntryLine| TransactionLineInput {
+        //         account_uuid: line.account_uuid,
+        //         debit: line.debit.clone(),
+        //         credit: line.credit.clone(),
+        //         memo: line.memo.clone(),
+        //     })
+        //     .collect();
 
-        self.validate_balances(pool, &lines).await?;
+        // self.validate_balances(pool, &lines).await?;
 
         let entry: Option<JournalEntry> = sqlx::query_as::<_, JournalEntry>(
             r#"
@@ -215,7 +215,7 @@ impl TransactionRepository for PostgresTransactionRepo {
         pool: &PgPool,
         uuid: Uuid,
         user_id: Uuid,
-        input: &UpdateJournalEntry,
+        journal: &UpdateJournalEntry,
     ) -> Result<JournalEntry, AppError> {
         // Start a transaction
         let mut tx: sqlx::Transaction<'_, sqlx::Postgres> = pool
@@ -235,7 +235,7 @@ impl TransactionRepository for PostgresTransactionRepo {
         .ok_or(AppError::NotFound("Draft entry not found or already posted".into()))?;
 
         // If lines are provided, delete old lines and insert new ones
-        if let Some(lines) = &input.lines {
+        if let Some(lines) = &journal.lines {
             // Delete existing lines
             sqlx::query("DELETE FROM accounting.transaction_entries WHERE transaction_uuid = $1")
                 .bind(uuid)
@@ -302,10 +302,10 @@ impl TransactionRepository for PostgresTransactionRepo {
             RETURNING *
             "#,
         )
-        .bind(&input.txn_date)
-        .bind(&input.reference)
-        .bind(&input.description)
-        .bind(&input.module)
+        .bind(&journal.txn_date)
+        .bind(&journal.reference)
+        .bind(&journal.description)
+        .bind(&journal.module)
         .bind(uuid)
         .bind(user_id)
         .fetch_one(&mut *tx)
@@ -505,49 +505,49 @@ impl TransactionRepository for PostgresTransactionRepo {
     }
 
     // Validate balances
-    async fn validate_balances(
-        &self,
-        pool: &PgPool,
-        lines: &[TransactionLineInput],
-    ) -> Result<(), AppError> {
-        use std::collections::HashMap;
-        let mut net_impacts: HashMap<Uuid, BigDecimal> = HashMap::new();
+    // async fn validate_balances(
+    //     &self,
+    //     pool: &PgPool,
+    //     lines: &[TransactionLineInput],
+    // ) -> Result<(), AppError> {
+    //     use std::collections::HashMap;
+    //     let mut net_impacts: HashMap<Uuid, BigDecimal> = HashMap::new();
 
-        // Group net ampunt per account (amount = debit - credit)
-        for line in lines {
-            let amount: BigDecimal = &line.debit - &line.credit;
-            *net_impacts
-                .entry(line.account_uuid)
-                .or_insert_with(BigDecimal::zero) += amount;
-        }
+    //     // Group net ampunt per account (amount = debit - credit)
+    //     for line in lines {
+    //         let amount: BigDecimal = &line.debit - &line.credit;
+    //         *net_impacts
+    //             .entry(line.account_uuid)
+    //             .or_insert_with(BigDecimal::zero) += amount;
+    //     }
 
-        // Fetch current balances and account types in one entry
-        let account_ids: Vec<Uuid> = net_impacts.keys().cloned().collect();
-        let accounts: Vec<(Uuid, BigDecimal, String)> = sqlx::query_as(
-            "SELECT uuid, current_balance, category FROM accounting.accounts WHERE uuid = ANY($1",
-        )
-        .bind(&account_ids)
-        .fetch_all(pool)
-        .await
-        .map_err(|e| AppError::Database(e))?;
+    //     // Fetch current balances and account types in one entry
+    //     let account_ids: Vec<Uuid> = net_impacts.keys().cloned().collect();
+    //     let accounts: Vec<(Uuid, BigDecimal, String)> = sqlx::query_as(
+    //         "SELECT uuid, current_balance, category FROM accounting.accounts WHERE uuid = ANY($1",
+    //     )
+    //     .bind(&account_ids)
+    //     .fetch_all(pool)
+    //     .await
+    //     .map_err(|e| AppError::Database(e))?;
 
-        // Check each
-        for (uuid, current, acc_type) in accounts {
-            let zero: &BigDecimal = &BigDecimal::zero(); // Prevents value from being dropped during borrowing
-            let net: &BigDecimal = net_impacts.get(&uuid).unwrap_or(zero);
-            let proposed: BigDecimal = &current + net;
+    //     // Check each
+    //     for (uuid, current, acc_type) in accounts {
+    //         let zero: &BigDecimal = &BigDecimal::zero(); // Prevents value from being dropped during borrowing
+    //         let net: &BigDecimal = net_impacts.get(&uuid).unwrap_or(zero);
+    //         let proposed: BigDecimal = &current + net;
 
-            // Enforce rules (customize: e.g., cash/bank can't go negative)
-            if (acc_type == "Cash" || acc_type == "Bank") && proposed < BigDecimal::zero() {
-                return Err(AppError::BadRequest(format!(
-                    "Insufficient funds in account {}: proposed balance {}",
-                    uuid, proposed
-                )));
-            }
-        }
+    //         // Enforce rules (customize: e.g., cash/bank can't go negative)
+    //         if (acc_type == "Cash" || acc_type == "Bank") && proposed < BigDecimal::zero() {
+    //             return Err(AppError::BadRequest(format!(
+    //                 "Insufficient funds in account {}: proposed balance {}",
+    //                 uuid, proposed
+    //             )));
+    //         }
+    //     }
 
-        Ok(())
-    }
+    //     Ok(())
+    // }
 
     async fn fetch_account_ledger(
         &self,

@@ -7,16 +7,18 @@ mod routes;
 mod state;
 
 use axum::serve;
-use chrono::NaiveDate;
 use dashmap::DashMap;
 use dotenv::dotenv;
+use moka::future::Cache;
 use sqlx::postgres::PgPoolOptions;
-use std::{env, net::SocketAddr, sync::Arc};
+use std::{env, net::SocketAddr, sync::Arc, time::Duration};
 use tokio::net::TcpListener;
 use tracing_subscriber::{EnvFilter, fmt, prelude::*};
 
-use crate::infrastructure::database::init_master_db::init_master;
-use crate::state::{AppState, TenantConfig};
+use crate::{
+    infrastructure::database::init_master_db::init_master,
+    state::{AppState, TenantConfig},
+};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
@@ -25,10 +27,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // --------------------------------------------------
     // Read environment: Master DB Variables Preset
     // --------------------------------------------------
-    let master_db_name: String = env::var("MASTER_DB_NAME").expect("Master database name missing");
-    let master_db_pass: String = env::var("MASTER_DB_PASS").expect("Master database pass missing");
-    let master_db_user: String = env::var("MASTER_DB_USER").expect("Master database user missing");
-    let master_db_url: String = env::var("DATABASE_URL").expect("Master url missing");
+    let master_name: String = env::var("MASTER_DB_NAME").expect("Master database name missing");
+    let master_pass: String = env::var("MASTER_DB_PASS").expect("Master database pass missing");
+    let master_user: String = env::var("MASTER_DB_USER").expect("Master database user missing");
+    let master_url: String = env::var("DATABASE_URL").expect("Master url missing");
     let postgres_port: String = env::var("DATABASE_PORT").expect("Postgres port missing");
     let super_psql_url: String =
         env::var("POSTGRES_SUPER_URL").expect("POSTGRES_SUPER_URL missing");
@@ -38,9 +40,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // Ensure master DB exists -> Create if running first time
     let _ = init_master(
         &super_psql_url,
-        &master_db_name,
-        &master_db_user,
-        &master_db_pass,
+        &master_name,
+        &master_user,
+        &master_pass,
         &postgres_port,
     )
     .await
@@ -49,7 +51,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // Create master pool
     let master_pool: sqlx::Pool<sqlx::Postgres> = PgPoolOptions::new()
         .max_connections(10)
-        .connect(&master_db_url)
+        .connect(&master_url)
         .await?;
 
     /********************************************************************************
@@ -57,10 +59,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         Tenant configuration structure, will be set after login/signup in user module
         -----------------------------------------------------------------------------
         let tenant_config: TenantConfig = TenantConfig {
-            user: "",
-            password: "",
-            host: "",
-            port: "",
             base_url: format!(
                 "TENANT_DB_USER",           // USER   set within company module
                 "TENANT_DB_PASSWORD"        // PASSWD set within company module
@@ -82,13 +80,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         jwt_secret,
         tenant_pools: DashMap::new(),
         coa_seed_path: coa_seed_path,
-        period_start: NaiveDate::MIN,
-        period_end: NaiveDate::MAX,
+        period_cache: Cache::builder()
+            .time_to_live(Duration::from_secs(300))
+            .max_capacity(1000)
+            .build(),
         tenant_config: TenantConfig {
-            // user: "".to_string(),
-            // password: "".to_string(),
-            // host: "".to_string(),
-            // port: "".to_string(),
             base_url: "".to_string(),
         },
     });

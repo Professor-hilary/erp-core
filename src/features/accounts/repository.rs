@@ -3,6 +3,7 @@ use crate::infrastructure::errors::AppError;
 use crate::models::account::{Account, CreateAccount};
 use async_trait::async_trait;
 use bigdecimal::BigDecimal;
+use chrono::NaiveDate;
 use sqlx::PgPool;
 use uuid::Uuid;
 
@@ -54,6 +55,13 @@ pub trait AccountRepository: Send + Sync {
         uuid: sqlx::types::Uuid,
         user_id: sqlx::types::Uuid,
     ) -> Result<(), AppError>;
+    async fn create_initial_period(
+        &self,
+        pool: &PgPool,
+        company_id: Uuid,
+        start_date: NaiveDate,
+        end_date: NaiveDate,
+    ) -> Result<Uuid, AppError>;
 }
 
 // Concrete impls
@@ -197,5 +205,32 @@ impl AccountRepository for PostgresAccountRepo {
             .execute(pool)
             .await?;
         Ok(())
+    }
+
+    async fn create_initial_period(
+        &self,
+        pool: &PgPool,
+        company_id: Uuid,
+        start_date: NaiveDate,
+        end_date: NaiveDate,
+    ) -> Result<Uuid, AppError> {
+        let period_id = Uuid::new_v4();
+
+        sqlx::query(
+            r#"
+            INSERT INTO accounting.financial_periods (
+                uuid, start_date, end_date, is_open, is_locked, created_at
+            ) VALUES ($1, $2, $3, $4, true, false, NOW())
+            "#,
+        )
+        .bind(period_id)
+        .bind(company_id)
+        .bind(start_date)
+        .bind(end_date)
+        .execute(pool)
+        .await
+        .map_err(|e| AppError::Database(e))?;
+
+        Ok(period_id)
     }
 }

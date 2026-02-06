@@ -1,26 +1,30 @@
-use chrono::NaiveDate;
 // src/state.rs
+
+use chrono::NaiveDate;
 use dashmap::DashMap;
-use sqlx::PgPool;
+use moka::future::Cache;
+use sqlx::{FromRow, PgPool};
 use uuid::Uuid;
 
-// #[allow(unused)]
 #[derive(Clone, Debug)]
 pub struct TenantConfig {
-    // pub user: String,
-    // pub password: String,
-    // pub host: String,
-    // pub port: String,
     pub base_url: String,
 }
 
 #[derive(Clone, Debug)]
+pub struct PeriodInfo {
+    pub _uuid: Uuid,
+    pub start_date: NaiveDate,
+    pub end_date: NaiveDate,
+    pub is_locked: bool,
+}
+
+#[derive(Clone, Debug, FromRow)]
 pub struct AppState {
     pub master_pool: PgPool,
     pub tenant_pools: DashMap<Uuid, PgPool>,
     pub jwt_secret: String,
     pub coa_seed_path: String,
-    pub period_start: NaiveDate,
-    pub period_end: NaiveDate,
     pub tenant_config: TenantConfig,
+    pub period_cache: Cache<Uuid, PeriodInfo>,
 }
