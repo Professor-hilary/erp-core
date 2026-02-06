@@ -1,14 +1,19 @@
 // src/features/transactions/service.rs
 
+use axum::Extension;
 use bigdecimal::BigDecimal;
+use chrono::NaiveDate;
 use sqlx::PgPool;
 use uuid::Uuid;
 
-use crate::features::transactions::repository::TransactionRepository;
-use crate::infrastructure::errors::AppError;
-use crate::models::transaction::{
-    CreateJournalEntry, JournalEntry, JournalEntryWithLines, LedgerFilter, LedgerRowDto,
-    UpdateJournalEntry,
+use crate::{
+    features::transactions::repository::TransactionRepository,
+    infrastructure::errors::AppError,
+    middleware::auth::AuthenticatedTenant,
+    models::transaction::{
+        CreateJournalEntry, JournalEntry, JournalEntryWithLines, LedgerFilter, LedgerRowDto,
+        TransactionLineInput, UpdateJournalEntry,
+    },
 };
 
 pub struct TransactionService<R: TransactionRepository> {
@@ -23,28 +28,55 @@ impl<R: TransactionRepository> TransactionService<R> {
     pub async fn create_journal_entry(
         &self,
         pool: &PgPool,
-        user_id: Uuid,
+        Extension(tenant): Extension<AuthenticatedTenant>,
         journal: CreateJournalEntry,
     ) -> Result<JournalEntryWithLines, AppError> {
         // Validate balance
-        let total_debit: BigDecimal = journal.lines.iter().map(|l| l.debit.clone()).sum();
-        let total_credit: BigDecimal = journal.lines.iter().map(|l| l.credit.clone()).sum();
+        let total_debit: BigDecimal = journal
+            .lines
+            .iter()
+            .map(|l: &TransactionLineInput| l.debit.clone())
+            .sum();
+        let total_credit: BigDecimal = journal
+            .lines
+            .iter()
+            .map(|l: &TransactionLineInput| l.credit.clone())
+            .sum();
+        let journal_date: NaiveDate = journal.txn_date;
+
+        // Make sure total credit and total debit amounts balance
         if total_debit != total_credit {
             return Err(AppError::BadRequest(format!(
                 "Unbalanced entry: debit {total_debit} ≠ credit {total_credit}"
             )));
         }
 
+        // Make sure transaction is within financial period
+        if journal_date < tenant.current_period_start || journal_date > tenant.current_period_end {
+            return Err(AppError::BadRequest(format!(
+                "Transaction date {} is outside current financial period {} to {}",
+                journal_date, tenant.current_period_start, tenant.current_period_end
+            )));
+        }
+
+        // Make sure the financial period is not locked
+        if tenant.period_is_locked {
+            return Err(AppError::Forbidden(format!(
+                "Cannot post to a locked financial period"
+            )));
+        }
+
+        // Make sure at least one debit and one credit transaction line exist
         if journal.lines.len() < 2 {
             return Err(AppError::BadRequest("Entry must have ≥2 lines".into()));
         }
 
         let header: JournalEntry = self
             .repo
-            .create_journal_entry(pool, user_id, &journal)
+            .create_journal_entry(pool, tenant.user_id, &journal)
             .await?;
         self.repo
-            .get_journal_entry_with_lines(pool, header.uuid, user_id)
+            .get_journal_entry_with_lines(pool, header.uuid, tenant.user_id)
             .await?
             .ok_or(AppError::NotFound(
                 "Failed to retrieve created entry".into(),

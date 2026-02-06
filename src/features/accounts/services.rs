@@ -4,6 +4,7 @@ use std::sync::Arc;
 use crate::features::accounts::repository::AccountRepository;
 use crate::infrastructure::errors::AppError;
 use crate::models::account::{Account, CreateAccount};
+use crate::models::dto::FinancialPeriodDto;
 use crate::state::AppState;
 
 use sqlx::PgPool;
@@ -37,12 +38,7 @@ impl<R: AccountRepository> AccountingService<R> {
         user_id: Uuid,
         state: Arc<AppState>,
     ) -> Result<Vec<Account>, AppError> {
-        println!("JWT Scrt: {}", state.jwt_secret);
-        println!("Base Url: {}", state.tenant_config.base_url);
-        println!("COA Path: {}", state.coa_seed_path);
-        // println!("MasterID: {}", state.master_pool);
-
-        for entry in state.tenant_pools.iter(){
+        for entry in state.tenant_pools.iter() {
             println!("Tenant UUID: {}", entry.key());
         }
 
@@ -100,11 +96,24 @@ impl<R: AccountRepository> AccountingService<R> {
         self.account_repo
             .delete_account(tenant_pool, id, user_id)
             .await
-        // .ok_or(AppError::NotFound("Account not found".into()))
+    }
 
-        // if result.rows_affected() == 0 {
-        //     return Err(AppError::NotFound("Account not found".into()));
-        // }
-        // Ok(())
+    pub async fn list_all_periods(
+        &self,
+        pool: &PgPool,
+    ) -> Result<Vec<FinancialPeriodDto>, AppError> {
+        self.account_repo.list_periods(pool).await
+    }
+
+    pub async fn close_financial_period(
+        &self,
+        state: Arc<AppState>,
+        tenant_pool: &PgPool,
+        period_id: Uuid,
+        company_id: Uuid,
+    ) -> Result<(), AppError> {
+        self.account_repo
+            .close_period(state, period_id, tenant_pool, company_id)
+            .await
     }
 }

@@ -48,7 +48,7 @@ async fn create_entry(
     let service: TransactionService<PostgresTransactionRepo> =
         TransactionService::new(PostgresTransactionRepo::new());
     let entry: JournalEntryWithLines = service
-        .create_journal_entry(&user.tenant_pool, user.user_id, payload)
+        .create_journal_entry(&user.tenant_pool.clone(), axum::Extension(user), payload)
         .await?;
     Ok(ApiResponse::created(entry, "Journal entry created"))
 }

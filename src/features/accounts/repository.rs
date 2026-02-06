@@ -1,8 +1,15 @@
+use std::sync::Arc;
+
 // src/features/accounts/repositories.rs
-use crate::infrastructure::errors::AppError;
-use crate::models::account::{Account, CreateAccount};
+use crate::{
+    infrastructure::errors::AppError,
+    models::{
+        account::{Account, CreateAccount},
+        dto::FinancialPeriodDto,
+    },
+    state::AppState,
+};
 use async_trait::async_trait;
-use bigdecimal::BigDecimal;
 use chrono::NaiveDate;
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -14,34 +21,30 @@ pub trait AccountRepository: Send + Sync {
     async fn create(
         &self,
         pool: &PgPool,
-        user_id: sqlx::types::Uuid,
+        user_id: Uuid,
         acc: &CreateAccount,
     ) -> Result<Account, AppError>;
     async fn find_by_serial_id(
         &self,
         pool: &PgPool,
         id: i64,
-        user_id: sqlx::types::Uuid,
+        user_id: Uuid,
     ) -> Result<Option<Account>, AppError>;
     async fn find_by_uuid(
         &self,
         pool: &PgPool,
-        uuid: sqlx::types::Uuid,
-        user_id: sqlx::types::Uuid,
+        uuid: Uuid,
+        user_id: Uuid,
     ) -> Result<Option<Account>, AppError>;
     // find_by_user() is useful later
-    async fn find_by_user(
-        &self,
-        pool: &PgPool,
-        user_id: sqlx::types::Uuid,
-    ) -> Result<Vec<Account>, AppError>;
-    #[allow(unused)]
-    async fn update_balance(
-        &self,
-        pool: &PgPool,
-        id: sqlx::types::Uuid,
-        delta: BigDecimal,
-    ) -> Result<(), AppError>;
+    async fn find_by_user(&self, pool: &PgPool, user_id: Uuid) -> Result<Vec<Account>, AppError>;
+    // #[allow(unused)]
+    // async fn update_balance(
+    //     &self,
+    //     pool: &PgPool,
+    //     id: sqlx::types::Uuid,
+    //     delta: BigDecimal,
+    // ) -> Result<(), AppError>;
     async fn update_account_info(
         &self,
         pool: &PgPool,
@@ -52,8 +55,8 @@ pub trait AccountRepository: Send + Sync {
     async fn delete_account(
         &self,
         pool: &PgPool,
-        uuid: sqlx::types::Uuid,
-        user_id: sqlx::types::Uuid,
+        uuid: Uuid,
+        user_id: Uuid,
     ) -> Result<(), AppError>;
     async fn create_initial_period(
         &self,
@@ -62,6 +65,14 @@ pub trait AccountRepository: Send + Sync {
         start_date: NaiveDate,
         end_date: NaiveDate,
     ) -> Result<Uuid, AppError>;
+    async fn list_periods(&self, pool: &PgPool) -> Result<Vec<FinancialPeriodDto>, AppError>;
+    async fn close_period(
+        &self,
+        state: Arc<AppState>,
+        uuid: Uuid,
+        pool: &PgPool,
+        company_id: Uuid,
+    ) -> Result<(), AppError>;
 }
 
 // Concrete impls
@@ -86,7 +97,7 @@ impl AccountRepository for PostgresAccountRepo {
     async fn create(
         &self,
         pool: &PgPool,
-        _user_id: sqlx::types::Uuid,
+        _user_id: Uuid,
         acc: &CreateAccount,
     ) -> Result<Account, AppError> {
         let account = sqlx::query_as::<_, Account>(
@@ -109,7 +120,7 @@ impl AccountRepository for PostgresAccountRepo {
         &self,
         pool: &PgPool,
         id: i64,
-        user_id: sqlx::types::Uuid,
+        user_id: Uuid,
     ) -> Result<Option<Account>, AppError> {
         let account =
             sqlx::query_as::<_, Account>("SELECT * FROM accounting.accounts WHERE serial_id = $1")
@@ -123,8 +134,8 @@ impl AccountRepository for PostgresAccountRepo {
     async fn find_by_uuid(
         &self,
         pool: &PgPool,
-        uuid: sqlx::types::Uuid,
-        user_id: sqlx::types::Uuid,
+        uuid: Uuid,
+        user_id: Uuid,
     ) -> Result<Option<Account>, AppError> {
         let account =
             sqlx::query_as::<_, Account>("SELECT * FROM accounting.accounts WHERE uuid = $1")
@@ -135,11 +146,7 @@ impl AccountRepository for PostgresAccountRepo {
         Ok(account)
     }
 
-    async fn find_by_user(
-        &self,
-        pool: &PgPool,
-        user_id: sqlx::types::Uuid,
-    ) -> Result<Vec<Account>, AppError> {
+    async fn find_by_user(&self, pool: &PgPool, user_id: Uuid) -> Result<Vec<Account>, AppError> {
         let accounts: Vec<Account> =
             sqlx::query_as::<_, Account>("SELECT * FROM accounting.accounts")
                 .bind(user_id)
@@ -148,19 +155,19 @@ impl AccountRepository for PostgresAccountRepo {
         Ok(accounts)
     }
 
-    async fn update_balance(
-        &self,
-        pool: &PgPool,
-        id: sqlx::types::Uuid,
-        delta: BigDecimal,
-    ) -> Result<(), AppError> {
-        sqlx::query("UPDATE accounting.accounts SET balance = balance + $1 WHERE serial_id = $2")
-            .bind(delta)
-            .bind(id)
-            .execute(pool)
-            .await?;
-        Ok(())
-    }
+    // async fn update_balance(
+    //     &self,
+    //     pool: &PgPool,
+    //     id: sqlx::types::Uuid,
+    //     delta: BigDecimal,
+    // ) -> Result<(), AppError> {
+    //     sqlx::query("UPDATE accounting.accounts SET balance = balance + $1 WHERE serial_id = $2")
+    //         .bind(delta)
+    //         .bind(id)
+    //         .execute(pool)
+    //         .await?;
+    //     Ok(())
+    // }
 
     async fn update_account_info(
         &self,
@@ -196,8 +203,8 @@ impl AccountRepository for PostgresAccountRepo {
     async fn delete_account(
         &self,
         pool: &PgPool,
-        uuid: sqlx::types::Uuid,
-        user_id: sqlx::types::Uuid,
+        uuid: Uuid,
+        user_id: Uuid,
     ) -> Result<(), AppError> {
         sqlx::query("DELETE FROM accounting.accounts WHERE id = $1 AND user_id = $2")
             .bind(uuid)
@@ -232,5 +239,54 @@ impl AccountRepository for PostgresAccountRepo {
         .map_err(|e| AppError::Database(e))?;
 
         Ok(period_id)
+    }
+
+    async fn list_periods(&self, pool: &PgPool) -> Result<Vec<FinancialPeriodDto>, AppError> {
+        let periods: Vec<FinancialPeriodDto> = sqlx::query_as::<_, FinancialPeriodDto>(
+            r#"
+                SELECT
+                    uuid,
+                    start_date,
+                    end_date,
+                    name,
+                    is_open,
+                    is_locked
+                FROM accounting.financial_periods
+                ORDER BY start_date DESC
+            "#,
+        )
+        .fetch_all(pool)
+        .await?;
+
+        Ok(periods)
+    }
+
+    async fn close_period(
+        &self,
+        state: Arc<AppState>,
+        uuid: Uuid,
+        pool: &PgPool,
+        company_id: Uuid,
+    ) -> Result<(), AppError> {
+        let updated = sqlx::query(
+            r#"
+                UPDATE accounting.financial_periods SET is_open = false,
+                    is_locked = true, updated_at = NOW()
+                    WHERE uuid = $1 AND is_open = true
+            "#,
+        )
+        .bind(uuid)
+        .execute(pool)
+        .await?
+        .rows_affected();
+
+        if updated == 0 {
+            return Err(AppError::NotFound("Period not found or closed already".into()));
+        }
+
+        // Invalidate cached period
+        state.period_cache.invalidate(&company_id).await;
+
+        Ok(())
     }
 }

@@ -1,10 +1,12 @@
 // src/features/accounts/handlers.rs
 use crate::{
     features::accounts::{repository::PostgresAccountRepo, services::AccountingService},
-    infrastructure::errors::AppError,
-    infrastructure::responses::ApiResponse,
+    infrastructure::{errors::AppError, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,
-    models::account::CreateAccount,
+    models::{
+        account::{Account, CreateAccount},
+        dto::FinancialPeriodDto,
+    },
     state::AppState,
 };
 use axum::{
@@ -24,6 +26,8 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/get/serial/{id}", get(get_account_by_serial))
         .route("/update/{id}", patch(update_account))
         .route("/delete/{id}", delete(delete_account))
+        .route("/period/close/{id}", patch(close_period))
+        .route("/period/list", get(get_financial_periods))
 }
 
 async fn create_account(
@@ -33,7 +37,7 @@ async fn create_account(
 ) -> Result<Response, AppError> {
     let repo: PostgresAccountRepo = PostgresAccountRepo::new();
     let service: AccountingService<PostgresAccountRepo> = AccountingService::new(repo);
-    let account: crate::models::account::Account = service
+    let account: Account = service
         .create_account(&user.tenant_pool, user.user_id, &payload)
         .await?;
     Ok(ApiResponse::created(account, "Account created"))
@@ -45,9 +49,19 @@ async fn get_accounts(
 ) -> Result<Response, AppError> {
     let repo: PostgresAccountRepo = PostgresAccountRepo::new();
     let service: AccountingService<PostgresAccountRepo> = AccountingService::new(repo);
-    let accounts: Vec<crate::models::account::Account> = service
+    let accounts: Vec<Account> = service
         .get_accounts(&user.tenant_pool, user.user_id, state)
         .await?;
+    Ok(ApiResponse::success(accounts, "Accounts fetched"))
+}
+
+async fn get_financial_periods(
+    State(_state): State<Arc<AppState>>,
+    Extension(user): Extension<AuthenticatedTenant>,
+) -> Result<Response, AppError> {
+    let repo: PostgresAccountRepo = PostgresAccountRepo::new();
+    let service: AccountingService<PostgresAccountRepo> = AccountingService::new(repo);
+    let accounts: Vec<FinancialPeriodDto> = service.list_all_periods(&user.tenant_pool).await?;
     Ok(ApiResponse::success(accounts, "Accounts fetched"))
 }
 
@@ -58,7 +72,7 @@ async fn get_account_by_uuid(
 ) -> Result<Response, AppError> {
     let repo: PostgresAccountRepo = PostgresAccountRepo::new();
     let service: AccountingService<PostgresAccountRepo> = AccountingService::new(repo);
-    let account: crate::models::account::Account = service
+    let account: Account = service
         .get_account_by_uuid(&user.tenant_pool, id, user.user_id)
         .await?;
     Ok(ApiResponse::success(account, "Account fetched"))
@@ -71,7 +85,7 @@ async fn get_account_by_serial(
 ) -> Result<Response, AppError> {
     let repo: PostgresAccountRepo = PostgresAccountRepo::new();
     let service: AccountingService<PostgresAccountRepo> = AccountingService::new(repo);
-    let account: crate::models::account::Account = service
+    let account: Account = service
         .get_account_by_serial(&user.tenant_pool, id, user.user_id)
         .await?;
     Ok(ApiResponse::success(account, "Account fetched"))
@@ -85,7 +99,7 @@ async fn update_account(
 ) -> Result<Response, AppError> {
     let repo: PostgresAccountRepo = PostgresAccountRepo::new();
     let service: AccountingService<PostgresAccountRepo> = AccountingService::new(repo);
-    let account: crate::models::account::Account = service
+    let account: Account = service
         .update_account(&user.tenant_pool, id, user.user_id, &payload)
         .await?;
     Ok(ApiResponse::success(account, "Account updated"))
@@ -102,4 +116,20 @@ async fn delete_account(
         .delete_account(&user.tenant_pool, id, user.user_id)
         .await?;
     Ok(ApiResponse::success((), "Account deleted"))
+}
+
+async fn close_period(
+    State(state): State<Arc<AppState>>,
+    Path(period_id): Path<Uuid>,
+    Extension(user): Extension<AuthenticatedTenant>,
+) -> Result<Response, AppError> {
+    let repo: PostgresAccountRepo = PostgresAccountRepo::new();
+    let service: AccountingService<PostgresAccountRepo> = AccountingService::new(repo);
+    service
+        .close_financial_period(state, &user.tenant_pool, period_id, user.company_id)
+        .await?;
+    Ok(ApiResponse::success(
+        (),
+        "Financial period closed successfully!",
+    ))
 }

@@ -1,6 +1,7 @@
 use chrono::NaiveDate;
 // src/models/dto.rs
 use serde::{Deserialize, Serialize};
+use sqlx::FromRow;
 use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -24,4 +25,12 @@ pub struct TenantRow{
     // Financial period
     pub period_start: NaiveDate,
     pub period_end: NaiveDate,
+}
+
+#[derive(Debug, FromRow, Serialize, Deserialize, Clone)]
+pub struct FinancialPeriodDto {
+    pub uuid: Uuid,
+    pub start_date: NaiveDate,
+    pub end_date: NaiveDate,
+    pub is_locked: bool,
 }

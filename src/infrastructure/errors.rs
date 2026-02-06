@@ -19,7 +19,6 @@ pub enum AppError {
     NotFound(String),
     #[error("Derver error: {0}")]
     Internal(String),
-    #[allow(dead_code)]
     #[error("Not authorized: {0}")]
     Forbidden(String),
 }
