@@ -12,7 +12,7 @@ use uuid::Uuid;
 use crate::{
     infrastructure::{database::tenant_resolver::get_tenant_pool, errors::AppError},
     middleware::auth::{AuthenticatedTenant, AuthenticatedUser},
-    models::dto::JwtClaims,
+    models::dto::{JwtClaims, PeriodRow},
     state::{AppState, PeriodInfo},
 };
 
@@ -96,22 +96,15 @@ pub async fn auth_middleware(
             (Some(company_id), Some(_tenant_db)) => {
                 let pool = get_tenant_pool(&state, company_id)
                     .await
-                    .map_err(|e| AppError::Unauthorized(e.to_string()))?;
+                    .map_err(|e: sqlx::Error| AppError::Unauthorized(e.to_string()))?;
 
-                let pool_clone = pool.clone(); // cheap Arc clone
+                let pool_clone: sqlx::Pool<sqlx::Postgres> = pool.clone(); // cheap Arc clone
 
-                let period = state
+                // Make sure period dates are in cache else fetch one
+                let period: PeriodInfo = state
                     .period_cache
                     .try_get_with(company_id, {
                         async move {
-                            #[derive(sqlx::FromRow)]
-                            struct PeriodRow {
-                                uuid: Uuid,
-                                start_date: chrono::NaiveDate,
-                                end_date: chrono::NaiveDate,
-                                is_locked: Option<bool>,
-                            }
-
                             let row_opt: Option<PeriodRow> = sqlx::query_as::<_, PeriodRow>(
                                 r#"
                                 SELECT uuid, start_date, end_date, is_locked
@@ -125,7 +118,7 @@ pub async fn auth_middleware(
                             .bind(company_id)
                             .fetch_optional(&pool_clone)
                             .await
-                            .map_err(|e| anyhow::anyhow!("Database error: {}", e))?; // ← use anyhow or Box<dyn Error>
+                            .map_err(|e: sqlx::Error| anyhow::anyhow!("Database error: {}", e))?;
 
                             let row = row_opt.ok_or_else(|| {
                                 anyhow::anyhow!("No open financial period for this company")

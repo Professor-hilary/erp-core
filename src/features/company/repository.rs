@@ -30,7 +30,7 @@ pub trait CompanyRepository: Send + Sync {
         zip_code: Option<String>,
         tax_id: Option<String>,
         period_start: Option<NaiveDate>,
-        period_end: Option<NaiveDate>,
+        period_type: Option<String>,
         created_by: Uuid,
     ) -> Result<Company, AppError>;
 
@@ -123,7 +123,7 @@ impl CompanyRepository for PostgresCompanyRepository {
         zip_code: Option<String>,
         tax_id: Option<String>,
         period_start: Option<NaiveDate>,
-        period_end: Option<NaiveDate>,
+        period_type: Option<String>,
         created_by: Uuid,
     ) -> Result<Company, AppError> {
         let company: Company = sqlx::query_as::<_, Company>(
@@ -133,7 +133,7 @@ impl CompanyRepository for PostgresCompanyRepository {
                 industry, business_type, created_by,
                 country, company_email, legal_name,
                 telephone, website, co_address, city, co_state,
-                zip_code, tax_id, period_start, period_end
+                zip_code, tax_id, period_start, period_type
             ) VALUES (
                 $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
                 $11, $12, $13, $14, $15, $16, $17, $18
@@ -158,7 +158,7 @@ impl CompanyRepository for PostgresCompanyRepository {
         .bind(zip_code)
         .bind(tax_id)
         .bind(period_start)
-        .bind(period_end)
+        .bind(period_type)
         .fetch_one(executor)
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;

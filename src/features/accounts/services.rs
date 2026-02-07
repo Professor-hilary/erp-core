@@ -1,11 +1,15 @@
+// src/features/accounts/service.rs
 use std::sync::Arc;
 
-// src/features/accounts/service.rs
-use crate::features::accounts::repository::AccountRepository;
-use crate::infrastructure::errors::AppError;
-use crate::models::account::{Account, CreateAccount};
-use crate::models::dto::FinancialPeriodDto;
-use crate::state::AppState;
+use crate::{
+    features::accounts::repository::AccountRepository,
+    infrastructure::errors::AppError,
+    models::{
+        account::{Account, CreateAccount},
+        dto::FinancialPeriodDto,
+    },
+    state::AppState,
+};
 
 use sqlx::PgPool;
 use uuid::Uuid;

@@ -2,6 +2,7 @@
 use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
+use strum::{Display, EnumString};
 use uuid::Uuid;
 
 #[derive(Debug, Serialize, FromRow)]
@@ -24,6 +25,7 @@ pub struct Company {
     pub zip_code: Option<String>,
     pub tax_id: Option<String>,
     pub period_start: Option<NaiveDate>,
+    pub period_type: Option<String>,
     pub period_end: Option<NaiveDate>,
     pub status: String,
     pub created_by: Uuid,
@@ -46,7 +48,8 @@ pub struct CreateCompanyDto {
     pub tax_id: Option<String>,
     pub business_type: String,
     pub period_start: Option<NaiveDate>,
-    pub period_end: Option<NaiveDate>,
+    pub period_type: Option<PeriodType>,
+    pub custom_end_date: Option<NaiveDate>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -66,4 +69,21 @@ pub struct UpdateCompanyDto {
     pub tax_id: Option<String>,
     pub period_start: Option<NaiveDate>,
     pub period_end: Option<NaiveDate>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, EnumString, Display)]
+#[strum(serialize_all = "lowercase")]
+pub enum PeriodType {
+    Monthly,
+    Quaterly,
+    HalfYearly,
+    Yearly,
+    Custom,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CreateInitialPeriod {
+    pub period_type: PeriodType,
+    pub start_date: NaiveDate,
+    pub custom_end_date: Option<NaiveDate>,
 }

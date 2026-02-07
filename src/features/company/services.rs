@@ -1,18 +1,19 @@
 // src/features/company/service.rs
-use crate::features::{
-    accounts::repository::{AccountRepository, PostgresAccountRepo},
-    auth::{AuthService, repository::PostgresUserRepo},
-    company::repository::{CompanyRepository, PostgresCompanyRepository},
-};
-use crate::models::{
-    account::CoaTemplate,
-    company::{Company, CreateCompanyDto},
-};
 use crate::{
+    features::{
+        accounts::repository::{AccountRepository, PostgresAccountRepo},
+        auth::{AuthService, repository::PostgresUserRepo},
+        company::repository::{CompanyRepository, PostgresCompanyRepository},
+    },
     infrastructure::{database::tenant_provisioner::TenantProvisioner, errors::AppError},
+    models::{
+        account::CoaTemplate,
+        company::{Company, CreateCompanyDto, CreateInitialPeriod, PeriodType},
+    },
     state::AppState,
 };
 
+use chrono::{Months, NaiveDate};
 use sqlx::{PgPool, Postgres};
 use std::sync::Arc;
 use uuid::Uuid;
@@ -72,7 +73,7 @@ impl CompanyService {
                 req.zip_code,
                 req.tax_id,
                 req.period_start,
-                req.period_end,
+                Some(req.period_type.clone().unwrap().to_string()),
                 user_id,
             )
             .await
@@ -103,24 +104,33 @@ impl CompanyService {
 
         // ...and update opening financial period too
         let accounting_repo: PostgresAccountRepo = PostgresAccountRepo::new();
-        let period_start = req
-            .period_start
-            .unwrap_or_else(|| chrono::Utc::now().naive_utc().date());
 
-        let period_end = req
-            .period_start
-            .unwrap_or_else(|| period_start + chrono::Duration::days(365));
+        let period_dto: CreateInitialPeriod = CreateInitialPeriod {
+            period_type: req.period_type.unwrap_or(PeriodType::Yearly),
+            start_date: req
+                .period_start
+                .unwrap_or(chrono::Utc::now().naive_utc().date()),
+            custom_end_date: req.custom_end_date,
+        };
+
+        let period_end: NaiveDate = Self::calculate_period_end(
+            &period_dto.period_type,
+            period_dto.start_date,
+            period_dto.custom_end_date,
+        )?;
 
         let _period_uuid: Uuid = accounting_repo
-            .create_initial_period(&tenant_pool, company.uuid, period_start, period_end)
-            .await
-            .map_err(|e: AppError| {
-                AppError::Internal(format!("Failed to create initial period: {}", e))
-            })?;
+            .create_initial_period(
+                &tenant_pool,
+                company.uuid,
+                period_dto.start_date,
+                period_end,
+            )
+            .await?;
 
         println!(
             "Created initial finalcial period {} -> {} for company {}",
-            period_start, period_end, company.uuid
+            period_dto.start_date, period_end, company.uuid
         );
 
         // Step 6: Commit master transaction
@@ -174,6 +184,40 @@ impl CompanyService {
         state.tenant_pools.remove(&company_id);
 
         Ok(())
+    }
+
+    /// # Calculate financial year end
+    /// Use selected financial period to determine close date for the user
+    fn calculate_period_end(
+        period_type: &PeriodType,
+        start_date: NaiveDate,
+        custom_end: Option<NaiveDate>,
+    ) -> Result<NaiveDate, AppError> {
+        match period_type {
+            PeriodType::Monthly => start_date
+                .checked_add_months(Months::new(1))
+                .and_then(|d| d.pred_opt())
+                .ok_or_else(|| AppError::BadRequest("Invalid monthly period".into())),
+
+            PeriodType::Quaterly => start_date
+                .checked_add_months(Months::new(3))
+                .and_then(|d| d.pred_opt())
+                .ok_or_else(|| AppError::BadRequest("Invalid quaterly period".into())),
+
+            PeriodType::HalfYearly => start_date
+                .checked_add_months(Months::new(6))
+                .and_then(|d| d.pred_opt())
+                .ok_or_else(|| AppError::BadRequest("Invalid half-yearly period".into())),
+
+            PeriodType::Yearly => start_date
+                .checked_add_months(Months::new(12))
+                .and_then(|d| d.pred_opt())
+                .ok_or_else(|| AppError::BadRequest("Invalid yearly period".into())),
+
+            PeriodType::Custom => custom_end.ok_or_else(|| {
+                AppError::BadRequest("Custom end date required for custom type".into())
+            }),
+        }
     }
 
     /// # Update Company
