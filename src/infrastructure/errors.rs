@@ -4,7 +4,7 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
-use serde_json::{json};
+use serde_json::json;
 use thiserror::Error;
 
 #[derive(Error, Debug)]

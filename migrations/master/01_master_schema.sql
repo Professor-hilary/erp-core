@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS companies (
     website text,
     co_address text,
     city text,
+    currency text,
     co_state text,
     zip_code text,
     tax_id text,

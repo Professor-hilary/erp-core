@@ -1,7 +1,7 @@
 // src/middleware/auth.rs
 use axum::{
     extract::{Request, State},
-    http::Method,
+    http::{HeaderValue, Method},
     middleware::Next,
     response::Response,
 };
@@ -30,14 +30,16 @@ pub async fn auth_middleware(
 
     let is_switch_company: bool = method == Method::POST && path.contains("/switch-company");
 
+    // =========================================================================================
     // Skip tenant context for company creation
+    // =========================================================================================
     if is_company_create || is_switch_company {
         // Middleware only for create company route
-        let auth_header = request
+        let auth_header: &str = request
             .headers()
             .get("authorization")
-            .and_then(|h| h.to_str().ok())
-            .and_then(|h| h.strip_prefix("Bearer "))
+            .and_then(|h: &HeaderValue| h.to_str().ok())
+            .and_then(|h: &str| h.strip_prefix("Bearer "))
             .ok_or(AppError::Unauthorized(
                 "You need to log in to perform this action".into(),
             ))?;
@@ -52,18 +54,20 @@ pub async fn auth_middleware(
         .map_err(|_| AppError::Unauthorized("Invalid or expired token".into()))?;
 
         // Only insert AuthenticatedUser, ignore tenant claim
-        let user_id = token_data.claims.sub;
+        let user_id: Uuid = token_data.claims.sub;
         request
             .extensions_mut()
             .insert(AuthenticatedUser { user_id });
 
         return Ok(next.run(request).await);
     } else {
+        // =========================================================================================
         // All other routes protected by authenticated tenant
+        // =========================================================================================
         let auth_header: &str = request
             .headers()
             .get("authorization")
-            .and_then(|h: &axum::http::HeaderValue| h.to_str().ok())
+            .and_then(|h: &HeaderValue| h.to_str().ok())
             .and_then(|h: &str| h.strip_prefix("Bearer "))
             .ok_or(AppError::Unauthorized(
                 "You have no valid authorization to perform this action!".into(),
@@ -109,10 +113,8 @@ pub async fn auth_middleware(
                                 r#"
                                 SELECT uuid, start_date, end_date, is_locked
                                 FROM accounting.financial_periods
-                                WHERE company_id = $1
-                                AND is_open = true
-                                ORDER BY start_date DESC
-                                LIMIT 1
+                                WHERE company_id = $1 AND is_open = true
+                                ORDER BY start_date DESC LIMIT 1
                                 "#,
                             )
                             .bind(company_id)
@@ -120,7 +122,7 @@ pub async fn auth_middleware(
                             .await
                             .map_err(|e: sqlx::Error| anyhow::anyhow!("Database error: {}", e))?;
 
-                            let row = row_opt.ok_or_else(|| {
+                            let row: PeriodRow = row_opt.ok_or_else(|| {
                                 anyhow::anyhow!("No open financial period for this company")
                             })?;
 

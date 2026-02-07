@@ -61,6 +61,7 @@ impl CompanyService {
                 &tenant_db_name,
                 &tenant_db_uri,
                 &req.industry,
+                &req.currency,
                 &req.business_type,
                 &req.country,
                 req.company_email,

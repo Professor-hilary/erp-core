@@ -77,18 +77,18 @@ impl ApiResponse {
         Self::build(StatusCode::OK, message, Some(json!(payload)), Some(meta))
     }
 
-    #[allow(unused)]
-    /// Optional: Generic with custom meta (pagination, etc.)
-    pub fn success_with_meta(
-        payload: impl serde::Serialize,
-        message: &str,
-        meta: impl serde::Serialize,
-    ) -> Response {
-        Self::build(
-            StatusCode::OK,
-            message,
-            Some(json!(payload)),
-            Some(json!(meta)),
-        )
-    }
+    // #[allow(unused)]
+    // Optional: Generic with custom meta (pagination, etc.)
+    // pub fn success_with_meta(
+    //     payload: impl serde::Serialize,
+    //     message: &str,
+    //     meta: impl serde::Serialize,
+    // ) -> Response {
+    //     Self::build(
+    //         StatusCode::OK,
+    //         message,
+    //         Some(json!(payload)),
+    //         Some(json!(meta)),
+    //     )
+    // }
 }

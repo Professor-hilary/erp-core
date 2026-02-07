@@ -18,6 +18,7 @@ pub trait CompanyRepository: Send + Sync {
         tenant_db_name: &str,
         tenant_db_uri: &str,
         industry: &str,
+        currency: &str,
         business_type: &str,
         country: &str,
         company_email: Option<String>,
@@ -111,6 +112,7 @@ impl CompanyRepository for PostgresCompanyRepository {
         tenant_db_name: &str,
         tenant_db_uri: &str,
         industry: &str,
+        currency: &str,
         business_type: &str,
         country: &str,
         company_email: Option<String>,
@@ -131,12 +133,12 @@ impl CompanyRepository for PostgresCompanyRepository {
             INSERT INTO companies (
                 name, slug, tenant_db_name, tenant_db_uri,
                 industry, business_type, created_by,
-                country, company_email, legal_name,
+                country, currency, company_email, legal_name,
                 telephone, website, co_address, city, co_state,
                 zip_code, tax_id, period_start, period_type
             ) VALUES (
-                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-                $11, $12, $13, $14, $15, $16, $17, $18
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,
+                $12, $13, $14, $15, $16, $17, $18, $19, $20
             ) RETURNING *
             "#,
         )
@@ -148,6 +150,7 @@ impl CompanyRepository for PostgresCompanyRepository {
         .bind(business_type)
         .bind(created_by)
         .bind(country)
+        .bind(currency)
         .bind(company_email)
         .bind(legal_name)
         .bind(telephone)
@@ -276,7 +279,7 @@ impl CompanyRepository for PostgresCompanyRepository {
             .as_ref()
             .map(|n| n.to_lowercase().replace(" ", "-"));
 
-        let company = sqlx::query_as::<_, Company>(
+        let company: Company = sqlx::query_as::<_, Company>(
             r#"
             UPDATE companies
             SET
@@ -285,6 +288,7 @@ impl CompanyRepository for PostgresCompanyRepository {
                 industry = COALESCE($3, industry),
                 business_type = COALESCE($4, business_type)
                 country = COALESCE($5, country)
+                currency = COALESCE($5, currency)
                 company_email = COALESCE($6, company_email)
                 legal_name = COALESCE($7, legal_name)
                 telephone = COALESCE($8, telephone)
@@ -305,6 +309,7 @@ impl CompanyRepository for PostgresCompanyRepository {
         .bind(dto.industry.as_ref())
         .bind(dto.business_type.as_ref())
         .bind(dto.country.as_ref())
+        .bind(dto.currency.as_ref())
         .bind(dto.company_email.as_ref())
         .bind(dto.legal_name.as_ref())
         .bind(dto.telephone.as_ref())

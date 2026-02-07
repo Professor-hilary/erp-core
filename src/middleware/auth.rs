@@ -8,7 +8,6 @@ pub struct AuthenticatedUser {
 }
 
 // Only available if company is selected AND tenant DB is cached
-#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct AuthenticatedTenant {
     pub user_id: Uuid,

@@ -16,7 +16,7 @@ impl TenantProvisioner {
             .to_lowercase()
             .replace(' ', "_")
             .chars()
-            .filter(|c| c.is_alphanumeric() || *c == '_')
+            .filter(|c: &char| c.is_alphanumeric() || *c == '_')
             .take(30)
             .collect::<String>();
 

@@ -4,7 +4,7 @@ use uuid::Uuid;
 
 use crate::{models::dto::TenantRow, state::AppState};
 
-pub async fn get_tenant_pool(state: &AppState, company_id: Uuid) -> Result<PgPool/* , NaiveDate, NaiveDate */, sqlx::Error> {
+pub async fn get_tenant_pool(state: &AppState, company_id: Uuid) -> Result<PgPool, sqlx::Error> {
     // 1. Check cache for fully setup user
     if let Some(pool) = state.tenant_pools.get(&company_id) {
         return Ok(pool.value().clone());
@@ -28,5 +28,5 @@ pub async fn get_tenant_pool(state: &AppState, company_id: Uuid) -> Result<PgPoo
     // 5. Cache pool
     state.tenant_pools.insert(company_id, pool.clone());
 
-    Ok(pool/* , tenant.period_start, tenant.period_end */)
+    Ok(pool)
 }
