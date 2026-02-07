@@ -21,6 +21,9 @@ pub enum AppError {
     Internal(String),
     #[error("Not authorized: {0}")]
     Forbidden(String),
+    #[allow(dead_code)]
+    #[error("Bad data: {0}")]
+    Unprocessable(String),
 }
 
 impl IntoResponse for AppError {
@@ -59,6 +62,11 @@ impl IntoResponse for AppError {
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(json!({"status":500, "error":"Database error","message":error.to_string(),}))
                     .into_response(),
+            )
+                .into_response(),
+            AppError::Unprocessable(message) => (
+                StatusCode::UNPROCESSABLE_ENTITY,
+                Json(json!({"status":422, "error":"Bad data","message":message,})).into_response(),
             )
                 .into_response(),
         }

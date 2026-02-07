@@ -28,7 +28,7 @@ async fn register(
 ) -> Result<impl IntoResponse, AppError> {
     let repo: PostgresUserRepo = PostgresUserRepo::new(state.master_pool.clone());
     let service: AuthService<PostgresUserRepo> = AuthService::new(repo, state.clone());
-    let (user, user_company, token) = service.register(&payload, state).await?;
+    let (user, user_company, token) = service.register(payload, state).await?;
 
     Ok(ApiResponse::created_with_token(
         json!({"user":user, "company":user_company}),

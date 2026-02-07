@@ -7,7 +7,17 @@ use uuid::Uuid;
 
 #[async_trait]
 pub trait UserRepository: Send + Sync {
-    async fn create(&self, email: &str, password_hash: &str) -> Result<User, AppError>;
+    async fn create(
+        &self,
+        email: &str,
+        password_hash: &str,
+        firstname: &str,
+        othername: Option<String>,
+        telephone: Option<String>,
+        avatar_url: Option<String>,
+        timezone: Option<String>,
+        pref_language: Option<String>,
+    ) -> Result<User, AppError>;
 
     async fn find_by_email(&self, email: &str) -> Result<Option<User>, AppError>;
 
@@ -36,12 +46,37 @@ impl PostgresUserRepo {
 impl UserRepository for PostgresUserRepo {
     /// # Create Company
     /// Create a new user and password for company operations.
-    async fn create(&self, email: &str, password_hash: &str) -> Result<User, AppError> {
+    async fn create(
+        &self,
+        email: &str,
+        password_hash: &str,
+        firstname: &str,
+        othername: Option<String>,
+        telephone: Option<String>,
+        avatar_url: Option<String>,
+        timezone: Option<String>,
+        pref_language: Option<String>,
+    ) -> Result<User, AppError> {
         let user = sqlx::query_as::<_, User>(
-            "INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING *",
+            "INSERT INTO users (
+                email,
+                password_hash,
+                first_name,
+                other_name,
+                telephone,
+                avatar_url,
+                timezone,
+                pref_language
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *",
         )
         .bind(email)
         .bind(password_hash)
+        .bind(firstname)
+        .bind(othername)
+        .bind(telephone)
+        .bind(avatar_url)
+        .bind(timezone)
+        .bind(pref_language)
         .fetch_one(&self.pool)
         .await
         .map_err(|e| match e {
@@ -51,14 +86,6 @@ impl UserRepository for PostgresUserRepo {
             _ => AppError::Database(e),
         })?;
 
-        // let company = sqlx::query_as::<_, UserCompany>(
-        //     "SELECT c.uuid, c.tenant_db_name
-        //     FROM companies c
-        //     JOIN user_companies uc ON c.uuid = uc.company_id
-        //     WHERE uc.user_id = $1 AND c.status != 'deleted'
-        //     LIMIT 1",
-        // )
-        // .fetch_one(&self.pool);
         Ok(user)
     }
 

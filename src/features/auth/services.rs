@@ -28,7 +28,7 @@ impl<R: UserRepository> AuthService<R> {
     /// Sign up user into master database, update tenant pools in state
     pub async fn register(
         &self,
-        user: &CreateUser,
+        user: CreateUser,
         _state: Arc<AppState>,
     ) -> Result<(User, Option<UserCompany>, String), AppError> {
         if user.email.is_empty() || user.password.is_empty() {
@@ -38,7 +38,19 @@ impl<R: UserRepository> AuthService<R> {
         let password_hash: String = hash(&user.password, DEFAULT_COST)
             .map_err(|_| AppError::Internal("Failed to hash password".into()))?;
 
-        let created_user: User = self.repo.create(&user.email, &password_hash).await?;
+        let created_user: User = self
+            .repo
+            .create(
+                &user.email,
+                &password_hash,
+                &user.first_name,
+                user.other_name,
+                user.telephone,
+                user.avatar_url,
+                user.timezone,
+                user.pref_language,
+            )
+            .await?;
 
         // this will automatically return None because at registration, no company is created
         let user_company: Option<UserCompany> =
@@ -131,9 +143,9 @@ impl<R: UserRepository> AuthService<R> {
         .bind(company_id)
         .fetch_optional(&tenant_pool)
         .await
-        .map_err(|e| AppError::Database(e))?; // ← use anyhow or Box<dyn Error>
+        .map_err(|e: sqlx::Error| AppError::Database(e))?;
 
-        let row = row_opt.ok_or_else(|| {
+        let row: PeriodRow = row_opt.ok_or_else(|| {
             AppError::Internal("No open financial period for this company".into())
         })?;
 

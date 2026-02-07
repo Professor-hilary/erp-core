@@ -200,7 +200,7 @@ impl CompanyService {
                 .and_then(|d| d.pred_opt())
                 .ok_or_else(|| AppError::BadRequest("Invalid monthly period".into())),
 
-            PeriodType::Quaterly => start_date
+            PeriodType::Quarterly => start_date
                 .checked_add_months(Months::new(3))
                 .and_then(|d| d.pred_opt())
                 .ok_or_else(|| AppError::BadRequest("Invalid quaterly period".into())),

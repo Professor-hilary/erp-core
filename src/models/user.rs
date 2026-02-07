@@ -1,14 +1,21 @@
+use chrono::NaiveDate;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
-use chrono::NaiveDate;
 
 #[derive(Debug, FromRow, Serialize, Deserialize, Clone)]
 pub struct User {
     pub uuid: Uuid,
     pub email: String,
     pub password_hash: String,
+    pub first_name: String,
+    pub other_name: String,
+    pub telephone: String,
+    pub avatar_url: String,
+    pub timezone: String,
+    pub pref_language: String,
+    pub updated_at: DateTime<Utc>,
     pub created_at: DateTime<Utc>,
 }
 
@@ -17,6 +24,12 @@ pub struct User {
 pub struct CreateUser {
     pub email: String,
     pub password: String,
+    pub first_name: String,
+    pub other_name: Option<String>,
+    pub telephone: Option<String>,
+    pub avatar_url: Option<String>,
+    pub timezone: Option<String>,
+    pub pref_language: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]

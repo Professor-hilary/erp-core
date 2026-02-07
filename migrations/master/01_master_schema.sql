@@ -3,12 +3,19 @@
 --
 -- CREATE EXTENSION IF NOT EXISTSS pg_uuidv7;
 CREATE TABLE IF NOT EXISTS users (
-    uuid uuid PRIMARY KEY DEFAULT uuidv7() NOT NULL,
-    email text UNIQUE NOT NULL,
-    password_hash text NOT NULL,
-    created_at timestamptz DEFAULT now(),
-    is_active boolean DEFAULT true,
-    is_deleted boolean DEFAULT false
+    uuid            uuid PRIMARY KEY DEFAULT uuidv7() NOT NULL,
+    email           text UNIQUE NOT NULL,
+    password_hash   text NOT NULL,
+    first_name      text,
+    other_name      text,
+    telephone       text,
+    avatar_url      text,
+    timezone        text,
+    pref_language   text DEFAULT 'en',
+    is_active       boolean DEFAULT true,
+    is_deleted      boolean DEFAULT false,
+    updated_at      timestamptz DEFAULT now(),
+    created_at      timestamptz DEFAULT now()
 );
 CREATE TABLE IF NOT EXISTS companies (
     uuid uuid PRIMARY KEY DEFAULT uuidv7() NOT NULL,
@@ -33,7 +40,7 @@ CREATE TABLE IF NOT EXISTS companies (
     created_by uuid REFERENCES users(uuid),
     is_deleted boolean DEFAULT false,
     period_start DATE,
-    period_end DATE,
+    period_type text,
     created_at timestamptz DEFAULT now(),
     UNIQUE(created_by, name),
     CHECK (

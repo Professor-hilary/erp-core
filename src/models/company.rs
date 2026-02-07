@@ -78,7 +78,7 @@ pub struct UpdateCompanyDto {
 #[strum(serialize_all = "lowercase")]
 pub enum PeriodType {
     Monthly,
-    Quaterly,
+    Quarterly,
     HalfYearly,
     Yearly,
     Custom,
