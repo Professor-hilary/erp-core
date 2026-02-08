@@ -92,7 +92,11 @@ impl<R: UserRepository> AuthService<R> {
                 match self.repo.get_tenant_url(Some(company_uuid)).await? {
                     Some(tenant_url) => {
                         // Valid company setup - load pool
-                        Self::ensure_tenant_pool(&state, company_uuid, &tenant_url).await?;
+                        if let Err(e) =
+                            Self::ensure_tenant_pool(&state, company_uuid, &tenant_url).await
+                        {
+                            tracing::warn!("Tenant pool load failed: {:?}", e);
+                        }
                     }
                     None => {
                         // Company exists but incomplete set up - treat as no company

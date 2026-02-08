@@ -557,3 +557,26 @@ curl -sX POST http://127.0.0.1:8080/api/vendors/create/bill \
   }' \
   | jq
 ```
+
+# Example responsezeus@skywalker:~/Documents/Projects/Rust/erp-core$ RUST_LOG=info cargo run
+   Compiling chiefalry_accountant_backend v0.1.0 (/home/zeus/Documents/Projects/Rust/erp-core)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2m 57s
+     Running `target/debug/chiefalry_accountant_backend`
+Connecting to PostgreSQL as superuser...
+Database 'master_db' already exists.
+Updating password for 'master_user' (idempotent)...
+Setting ownership and privileges...
+Connecting as 'master_user' to run migrations...
+Running migrations...
+Master database setup complete!
+Connection string: postgres://master_user:AodMzT6aEM0dX9HuZpyvChPsylI0ugcLmIIL@localhost:5433/master_db
+Listening on 127.0.0.1:8080
+2026-02-08T22:00:53.851758Z  INFO chiefalry_accountant_backend: Server running on 127.0.0.1:8080
+2026-02-08T22:01:11.399591Z  WARN request{method=POST uri=/api/auth/login user_id=anonymous}: chiefalry_accountant_backend::features::auth::services: Tenant pool load failed: Database(Database(PgDatabaseError { severity: Error, code: "42703", message: "column \"company_id\" does not exist", detail: None, hint: None, position: Some(Original(135)), where: None, schema: None, table: None, column: None, data_type: None, constraint: None, file: Some("parse_relation.c"), line: Some(3822), routine: Some("errorMissingColumn") }))
+Company ID in Gen Token: Some(019c3e5d-68d2-760b-b743-192293da7d6b)
+Company db in Gen Token: Some("tenant_heather-and-hilary-partnership")
+2026-02-08T22:01:11.400745Z  INFO request{method=POST uri=/api/auth/login user_id=anonymous}: chiefalry_accountant_backend::routes: response sent status=200 latency="2.29s"
+
+
+
+

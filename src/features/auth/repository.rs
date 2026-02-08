@@ -119,7 +119,31 @@ impl UserRepository for PostgresUserRepo {
     async fn get_user_company(&self, user_id: Uuid) -> Result<Option<UserCompany>, AppError> {
         let row: Option<UserCompany> = sqlx::query_as::<_, UserCompany>(
             r#"
-            SELECT * FROM companies c
+            SELECT
+                c.uuid              AS uuid,
+                c.uuid              AS company_id,
+                c.name              AS name,
+                c.currency          AS currency,
+                c.tenant_db_name    AS tenant_db_name,
+                c.industry          AS industry,
+                c.business_type     AS business_type,
+                c.status            AS status,
+                uc.role             AS role,
+                c.created_at        AS created_at,
+                c.slug              AS slug,
+                c.country           AS country,
+                c.company_email     AS company_email,
+                c.legal_name        AS legal_name,
+                c.telephone         AS telephone,
+                c.website           AS website,
+                c.co_address        AS co_address,
+                c.city              AS city,
+                c.co_state          AS co_state,
+                c.zip_code          AS zip_code,
+                c.tax_id            AS tax_id,
+                c.period_start      AS period_start,
+                c.period_type       AS period_type
+            FROM companies c
             JOIN user_companies uc ON c.uuid = uc.company_id
             WHERE uc.user_id = $1 AND c.status != 'deleted'
             LIMIT 1
