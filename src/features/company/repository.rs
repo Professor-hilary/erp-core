@@ -299,7 +299,6 @@ impl CompanyRepository for PostgresCompanyRepository {
                 zip_code = COALESCE($13, zip_code)
                 tax_id = COALESCE($14, tax_id)
                 period_start = COALESCE($15, period_start)
-                period_end = COALESCE($15, period_end)
             WHERE uuid = $16 AND status != 'deleted'
             RETURNING *
             "#,
@@ -320,7 +319,6 @@ impl CompanyRepository for PostgresCompanyRepository {
         .bind(dto.zip_code.as_ref())
         .bind(dto.tax_id.as_ref())
         .bind(dto.period_start.as_ref())
-        .bind(dto.period_end.as_ref())
         .bind(id)
         .fetch_one(executor)
         .await

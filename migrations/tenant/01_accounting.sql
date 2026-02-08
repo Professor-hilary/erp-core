@@ -35,15 +35,15 @@ CREATE INDEX ON accounting.accounts (serial_id);   -- handy for front-end look-u
 -----------------------------------------------------------------
 CREATE TABLE accounting.financial_periods(
     uuid        UUID    DEFAULT uuidv7() PRIMARY KEY,
-    begin_date  DATE    NOT NULL,
+    start_date  DATE    NOT NULL,
     end_date    DATE    NOT NULL,
     is_open     BOOLEAN DEFAULT true,
     is_locked   BOOLEAN DEFAULT false,
     created_at  timestamptz DEFAULT now(),
     updated_at  timestamptz DEFAULT now(),
     name text,
-    CONSTRAINT period_date_check CHECK (begin_date < end_date),
-    CONSTRAINT period_date_unique UNIQUE (begin_date, end_date),
+    CONSTRAINT period_date_check CHECK (start_date < end_date),
+    CONSTRAINT period_date_unique UNIQUE (start_date, end_date)
 );
 
 -----------------------------------------------------------------
@@ -115,8 +115,8 @@ DECLARE
 BEGIN
     IF p_txn_date IS NULL THEN
         -- Opening balance transactions - default transaction date to period start
-        SELECT begin_date INTO v_txn_date FROM accounting.financial_period
-            ORDER BY begin_date DESC LIMIT 1;
+        SELECT start_date INTO v_txn_date FROM accounting.financial_period
+            ORDER BY start_date DESC LIMIT 1;
     ELSE
         -- Other transactions, adjustments, journals, etc
         v_txn_date := p_txn_date;

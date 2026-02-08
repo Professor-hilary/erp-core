@@ -120,10 +120,9 @@ impl CompanyService {
             period_dto.custom_end_date,
         )?;
 
-        let _period_uuid: Uuid = accounting_repo
+        accounting_repo
             .create_initial_period(
                 &tenant_pool,
-                company.uuid,
                 period_dto.start_date,
                 period_end,
             )

@@ -20,17 +20,17 @@ where
 {
     // Axum wraps the serde error in serd_path_to_error::Error
     if let Some(path_err) = find_source::<serde_path_to_error::Error<serde_json::Error>>(err) {
-        let path = path_err.path().to_string(); // This gives e.g. "users[0].email"
+        let path: String = path_err.path().to_string(); // This gives e.g. "users[0].email"
 
-        let location = if path == "." || path.is_empty() {
+        let location: String = if path == "." || path.is_empty() {
             "at the root".to_string()
         } else {
             format!("at {}", path)
         };
 
-        let inner = path_err.inner().to_string();
+        let inner: String = path_err.inner().to_string();
 
-        let pos = if let Some(_) = path_err.inner().source() {
+        let pos: String = if let Some(_) = path_err.inner().source() {
             if let Some(sje) = find_source::<serde_json::Error>(path_err.inner()) {
                 format!(" (line {}, column {}", sje.line(), sje.column())
             } else {

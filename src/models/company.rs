@@ -27,7 +27,6 @@ pub struct Company {
     pub tax_id: Option<String>,
     pub period_start: Option<NaiveDate>,
     pub period_type: Option<String>,
-    pub period_end: Option<NaiveDate>,
     pub status: String,
     pub created_by: Uuid,
     pub created_at: DateTime<Utc>,
@@ -71,7 +70,6 @@ pub struct UpdateCompanyDto {
     pub zip_code: Option<String>,
     pub tax_id: Option<String>,
     pub period_start: Option<NaiveDate>,
-    pub period_end: Option<NaiveDate>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, EnumString, Display)]

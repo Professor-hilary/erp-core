@@ -4,7 +4,7 @@ use crate::{
         auth::{AuthService, repository::PostgresUserRepo},
         company::services::CompanyService,
     },
-    infrastructure::{errors::AppError, responses::ApiResponse},
+    infrastructure::{appjson_errors::AppJson, errors::AppError, responses::ApiResponse},
     middleware::auth::{AuthenticatedTenant, AuthenticatedUser},
     models::company::{Company, CreateCompanyDto, UpdateCompanyDto},
     state::AppState,
@@ -35,7 +35,7 @@ pub fn router() -> Router<Arc<AppState>> {
 async fn create_company(
     State(state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedUser>,
-    Json(payload): Json<CreateCompanyDto>,
+    AppJson(payload): AppJson<CreateCompanyDto>,
 ) -> Result<impl IntoResponse, AppError> {
     let (company, token_str) =
         CompanyService::create_company(state.clone(), user.user_id, payload).await?;
@@ -79,7 +79,7 @@ async fn update_company(
     State(state): State<Arc<AppState>>,
     Path(company_id): Path<Uuid>,
     Extension(_tenant): Extension<AuthenticatedTenant>,
-    Json(payload): Json<UpdateCompanyDto>,
+    AppJson(payload): AppJson<UpdateCompanyDto>,
 ) -> Result<Json<Company>, AppError> {
     let company: Company = CompanyService::update_company(state.clone(), company_id, payload)
         .await
@@ -104,7 +104,7 @@ async fn delete_company(
 async fn switch_company(
     State(state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedUser>,
-    Json(payload): Json<serde_json::Value>,
+    AppJson(payload): AppJson<serde_json::Value>,
 ) -> Result<impl IntoResponse, AppError> {
     let repo: PostgresUserRepo = PostgresUserRepo::new(state.master_pool.clone());
 

@@ -5,12 +5,7 @@ use crate::{
     models::user::{CreateUser, LoginUser},
     state::AppState,
 };
-use axum::{
-    Router,
-    extract::{State},
-    response::IntoResponse,
-    routing::post,
-};
+use axum::{Router, extract::State, response::IntoResponse, routing::post};
 use serde_json::json;
 use std::sync::Arc;
 

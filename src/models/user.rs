@@ -42,6 +42,7 @@ pub struct LoginUser {
 pub struct UserCompany {
     pub uuid: Option<Uuid>,
     pub company_id: Option<Uuid>,
+    pub currency: Option<String>,
     pub name: Option<String>,
     pub tenant_db_name: Option<String>,
     pub industry: Option<String>,
@@ -61,5 +62,5 @@ pub struct UserCompany {
     pub zip_code: Option<String>,
     pub tax_id: Option<String>,
     pub period_start: Option<NaiveDate>,
-    pub period_end: Option<NaiveDate>,
+    pub period_type: Option<String>,
 }
