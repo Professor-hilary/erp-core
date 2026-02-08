@@ -18,14 +18,27 @@ where
 {
     // Axum wraps the serde error in serd_path_to_error::Error
     if let Some(path_err) = find_source::<serde_path_to_error::Error<serde_json::Error>>(err) {
-        let inner = path_err.inner();
         let path = path_err.path().to_string(); // This gives e.g. "users[0].email"
 
-        if path.is_empty() {
-            format!("Invalid JSON data: {}", inner)
+        let location = if path == "." || path.is_empty() {
+            "at the root".to_string()
         } else {
-            format!("Invalid JSON at {}: {}", path, inner)
-        }
+            format!("at {}", path)
+        };
+
+        let inner = path_err.inner().to_string();
+
+        let pos = if let Some(_) = path_err.inner().source() {
+            if let Some(sje) = find_source::<serde_json::Error>(path_err.inner()) {
+                format!(" (line {}, column {}", sje.line(), sje.column())
+            } else {
+                String::new()
+            }
+        } else {
+            String::new()
+        };
+
+        format!("Invalid JSON data {}: {}{}", location, inner, pos)
     } else {
         // Fallback if not wrapped that way
         err.to_string()
@@ -52,7 +65,7 @@ where
 impl<S, T> FromRequest<S> for AppJson<T>
 where
     AxumJson<T>: FromRequest<S, Rejection = JsonRejection>,
-    T: DeserializeOwned,
+    T: DeserializeOwned + 'static,
     S: Send + Sync,
 {
     type Rejection = AppError;
@@ -70,7 +83,7 @@ where
                         format!("Malformed JSON syntax: {}", e)
                     }
                     JsonRejection::JsonDataError(e) => {
-                        // format!("Invalid JSON data or key(s) : {}", e)
+                        // For wrong keys / types / missing fields
                         serde_path_error_message(&e)
                     }
                     JsonRejection::BytesRejection(_) => {
