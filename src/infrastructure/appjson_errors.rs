@@ -1,3 +1,5 @@
+// src/infrastructure/appjson_errors.rs
+
 use std::error::Error as StdError;
 
 use axum::{

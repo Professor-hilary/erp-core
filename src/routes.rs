@@ -1,7 +1,8 @@
 // src/routes.rs
 use axum::{
     Extension, Router,
-    extract::Request,
+    extract::{OriginalUri, Request},
+    http::Method,
     middleware::{self},
     response::{IntoResponse, Response},
     routing::get,
@@ -12,7 +13,7 @@ use crate::{
     features::{
         accounts, company, customers, inventory, payroll, reports, transactions, vendors, workforce,
     },
-    infrastructure::{errors::AppError},
+    infrastructure::errors::AppError,
     middleware::{auth::AuthenticatedUser, layer::auth_middleware},
 };
 
@@ -114,8 +115,6 @@ pub fn create_router(state: Arc<AppState>) -> Router {
 }
 
 // 404 Fallback Handler
-async fn handler_404() -> impl IntoResponse {
-    let error: AppError =
-        AppError::NotFound("Oops! The page you're looking for doesn't exist. CHECK THE URI".into());
-    error.into_response()
+async fn handler_404(method: Method, uri: OriginalUri) -> impl IntoResponse {
+    AppError::NotFound(format!("No route matches {} {}", method, uri.0))
 }
