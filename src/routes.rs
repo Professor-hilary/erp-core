@@ -2,7 +2,7 @@
 use axum::{
     Extension, Router,
     extract::Request,
-    middleware,
+    middleware::{self},
     response::{IntoResponse, Response},
     routing::get,
 };
@@ -12,7 +12,7 @@ use crate::{
     features::{
         accounts, company, customers, inventory, payroll, reports, transactions, vendors, workforce,
     },
-    infrastructure::errors::AppError,
+    infrastructure::{errors::AppError},
     middleware::{auth::AuthenticatedUser, layer::auth_middleware},
 };
 
@@ -67,6 +67,8 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .nest("/api/reports", report_routes)
         .nest("/api/vendors", vendor_routes)
         .nest("/api/workforce", employee_routes)
+        // Catch unprocessable error code 422
+        // .layer(middleware::from_fn(map_client_errors))
         // CORS & global state
         .layer(Extension(state.clone()))
         .layer(CorsLayer::permissive())

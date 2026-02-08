@@ -36,3 +36,4 @@ moka = {version = "0.12", features = ["future"]} # future for async cache
 anyhow = "1.0"
 strum = {version = "0.27.2", features = ["derive"]}
 strum_macros = "0.27.2"
+serde_path_to_error = "0.1.20"

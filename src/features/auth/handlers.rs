@@ -1,14 +1,13 @@
 // src/features/auth/handlers.rs
 use crate::{
     features::auth::{AuthService, repository::PostgresUserRepo},
-    infrastructure::errors::AppError,
-    infrastructure::responses::ApiResponse,
+    infrastructure::{appjson_errors::AppJson, errors::AppError, responses::ApiResponse},
     models::user::{CreateUser, LoginUser},
     state::AppState,
 };
 use axum::{
     Router,
-    extract::{Json, State},
+    extract::{State},
     response::IntoResponse,
     routing::post,
 };
@@ -24,7 +23,7 @@ pub fn router() -> Router<Arc<AppState>> {
 /// POST /auth/register
 async fn register(
     State(state): State<Arc<AppState>>,
-    Json(payload): Json<CreateUser>,
+    AppJson(payload): AppJson<CreateUser>,
 ) -> Result<impl IntoResponse, AppError> {
     let repo: PostgresUserRepo = PostgresUserRepo::new(state.master_pool.clone());
     let service: AuthService<PostgresUserRepo> = AuthService::new(repo, state.clone());
@@ -40,7 +39,7 @@ async fn register(
 /// POST /auth/login
 async fn login(
     State(state): State<Arc<AppState>>,
-    Json(payload): Json<LoginUser>,
+    AppJson(payload): AppJson<LoginUser>,
 ) -> Result<impl IntoResponse, AppError> {
     let repo: PostgresUserRepo = PostgresUserRepo::new(state.master_pool.clone());
     let service: AuthService<PostgresUserRepo> = AuthService::new(repo, state.clone());
