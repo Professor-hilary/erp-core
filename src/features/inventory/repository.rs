@@ -137,8 +137,8 @@ impl InventoryRepository for PostgresInventoryRepo {
                     income_account
                 )
                 VALUES (
-                    $1, $2, $3, $4, COALESCE($5, 'pcs'), COALESCE($6, 0), COALESCE($7, 0),
-                    COALESCE($8, TRUE), COALESCE($9, 0), $10, $11, $12
+                    $1, $2, $3, $4, COALESCE($5, 'pcs'), COALESCE($6, 0),
+                    COALESCE($7, true), COALESCE($8, 0), $9, $10, $11
                 ) RETURNING *
             "#,
         )
@@ -171,7 +171,6 @@ impl InventoryRepository for PostgresInventoryRepo {
             "#,
         )
         .bind(&payload.name)
-        // .bind(&payload.serial_id)
         .bind(&payload.description)
         .bind(&payload.code)
         .fetch_one(pool)

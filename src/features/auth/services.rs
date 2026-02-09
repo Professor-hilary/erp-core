@@ -122,10 +122,7 @@ impl<R: UserRepository> AuthService<R> {
         Ok((db_user, user_company, token))
     }
 
-    pub async fn fetch_current_period(
-        tenant_pool: PgPool,
-        company_id: Uuid,
-    ) -> Result<PeriodInfo, AppError> {
+    pub async fn fetch_current_period(tenant_pool: PgPool) -> Result<PeriodInfo, AppError> {
         #[derive(sqlx::FromRow)]
         struct PeriodRow {
             uuid: Uuid,
@@ -138,13 +135,12 @@ impl<R: UserRepository> AuthService<R> {
             r#"
                 SELECT uuid, start_date, end_date, is_locked
                 FROM accounting.financial_periods
-                WHERE company_id = $1
-                AND is_open = true
+                WHERE is_open = true
                 ORDER BY start_date DESC
                 LIMIT 1
                 "#,
         )
-        .bind(company_id)
+        // .bind(company_id)
         .fetch_optional(&tenant_pool)
         .await
         .map_err(|e: sqlx::Error| AppError::Database(e))?;
@@ -233,7 +229,7 @@ impl<R: UserRepository> AuthService<R> {
 
         state.tenant_pools.insert(company_id, pool.clone());
 
-        let period_info: PeriodInfo = Self::fetch_current_period(pool, company_id).await?; // your helper fn
+        let period_info: PeriodInfo = Self::fetch_current_period(pool).await?; // your helper fn
 
         state.period_cache.insert(company_id, period_info).await;
 

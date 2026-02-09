@@ -113,11 +113,10 @@ pub async fn auth_middleware(
                                 r#"
                                 SELECT uuid, start_date, end_date, is_locked
                                 FROM accounting.financial_periods
-                                WHERE company_id = $1 AND is_open = true
+                                WHERE is_open = true
                                 ORDER BY start_date DESC LIMIT 1
                                 "#,
                             )
-                            .bind(company_id)
                             .fetch_optional(&pool_clone)
                             .await
                             .map_err(|e: sqlx::Error| anyhow::anyhow!("Database error: {}", e))?;
