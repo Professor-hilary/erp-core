@@ -113,6 +113,8 @@ impl TransactionRepository for PostgresTransactionRepo {
             })
             .collect();
 
+        tracing::debug!("Before posting to accounting.post_transaction(...)");
+
         // validate transaction date, should be in the financial period
         let serial_id: (i64,) = sqlx::query_as(
             r#"
@@ -121,15 +123,17 @@ impl TransactionRepository for PostgresTransactionRepo {
             )
             "#,
         )
-        .bind(journal.txn_date)
         .bind(&journal.reference)
         .bind(&journal.description)
         .bind(user_id)
         .bind(journal.module.as_deref().unwrap_or("journal"))
+        .bind(journal.txn_date)
         .bind(serde_json::to_value(lines_json).unwrap())
         .fetch_one(pool)
         .await
         .map_err(|e: Error| AppError::Database(e))?;
+
+        tracing::debug!("After posting to accounting.post_transaction(...)");
 
         let header: JournalEntry = sqlx::query_as::<_, JournalEntry>(
             "SELECT * FROM accounting.transactions WHERE serial_id = $1",
@@ -138,6 +142,8 @@ impl TransactionRepository for PostgresTransactionRepo {
         .fetch_one(pool)
         .await
         .map_err(|e: Error| AppError::Database(e))?;
+
+        tracing::debug!("Setting posted flag");
 
         // Override posted status if journal specifies draft
         let final_header: JournalEntry = if !journal.posted {
@@ -330,7 +336,24 @@ impl TransactionRepository for PostgresTransactionRepo {
         };
 
         let lines: Vec<JournalEntryLine> = sqlx::query_as::<_, JournalEntryLine>(
-            "SELECT * FROM accounting.transaction_entries WHERE transaction_uuid = $1 ORDER BY line_no"
+            r#"
+            SELECT
+                te.uuid,
+                te.transaction_uuid,
+                te.account_uuid,
+                te.line_no,
+                te.amount,
+                te.debit,
+                te.credit,
+                te.memo,
+                a.name      AS account_name,
+                a.code      AS account_code,
+                a.category  AS account_category
+            FROM accounting.transaction_entries te
+            LEFT JOIN accounting.accounts a ON te.account_uuid = a.uuid
+            WHERE te.transaction_uuid = $1
+            ORDER BY te.line_no
+            "#,
         )
         .bind(uuid)
         .fetch_all(pool)
@@ -353,10 +376,10 @@ impl TransactionRepository for PostgresTransactionRepo {
         .await
         .map_err(|e| AppError::Database(e))?;
 
-        let mut transactions = Vec::with_capacity(headers.len());
+        let mut transactions: Vec<JournalEntryWithLines> = Vec::with_capacity(headers.len());
 
         for header in headers {
-            let lines = sqlx::query_as::<_, JournalEntryLine>(
+            let lines: Vec<JournalEntryLine> = sqlx::query_as::<_, JournalEntryLine>(
                 r#"
                 SELECT
                     te.uuid,

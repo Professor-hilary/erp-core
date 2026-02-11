@@ -225,11 +225,11 @@ BEGIN
     IF v_bill.posted THEN RETURN; END IF;
 
     v_txn_serial_id := accounting.post_transaction(
-        v_bill.bill_date,
         v_bill.bill_number,
         'Vendor Bill',
         p_user,
         'bill',
+        v_bill.bill_date,
         '[]'::jsonb
     );
 
@@ -305,7 +305,7 @@ BEGIN
     );
 
     v_txn_serial_id := accounting.post_transaction(
-        v_payment.payment_date, v_payment.payment_number, 'Vendor Payment', p_user, 'vendor_payment', v_lines
+        v_payment.payment_number, 'Vendor Payment', p_user, 'vendor_payment', v_payment.payment_date, v_lines
     );
 
     SELECT uuid INTO v_txn_uuid FROM accounting.transactions WHERE serial_id = v_txn_serial_id;

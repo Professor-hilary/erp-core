@@ -228,11 +228,11 @@ FOR EACH ROW EXECUTE FUNCTION accounting.revert_account_balance();
 
 -- USE
 --SELECT accounting.post_transaction(
---    '2025-04-01',
 --    'INV-001',
 --    'Customer invoice',
 --    1,
 --    'invoice',
+--    '2025-04-01',
 --    '[
 --        {"account_ref": "110100", "debit": 1000.00, "credit": 0, "memo": "Sales"},
 --        {"account_ref": 42,       "debit": 0,      "credit": 1000.00, "memo": "AR"}

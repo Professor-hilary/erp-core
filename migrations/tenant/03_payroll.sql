@@ -213,11 +213,11 @@ BEGIN
 
     -- Post to GL
     v_txn_serial_id := accounting.post_transaction(
-        v_payrun.payment_date,
         format('Payroll - %s to %s', v_payrun.pay_period_start, v_payrun.pay_period_end),
         'Payroll Posting',
         p_payrun_user_uuid,
         'payroll',
+        v_payrun.payment_date,
         v_lines
     );
 

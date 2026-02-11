@@ -45,6 +45,7 @@ async fn create_entry(
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<CreateJournalEntry>,
 ) -> Result<impl IntoResponse, AppError> {
+    tracing::debug!("Post trax api");
     let service: TransactionService<PostgresTransactionRepo> =
         TransactionService::new(PostgresTransactionRepo::new());
     let entry: JournalEntryWithLines = service

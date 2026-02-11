@@ -226,11 +226,11 @@ BEGIN
 
     -- GL posting (AR / Revenue)
     v_txn_serial_id := accounting.post_transaction(
-        v_invoice.issue_date,
         v_invoice.invoice_number,
         'Invoice Posting',
         p_user,
         'invoice',
+        v_invoice.issue_date,
         jsonb_build_array(
             jsonb_build_object(
                 'account_ref', p_receivables_code,
@@ -296,7 +296,7 @@ BEGIN
         jsonb_build_object('account_ref', p_receivables_code, 'debit', 0, 'credit', v_payment.amount, 'memo', v_payment.payment_number)
     );
     v_txn_serial_id := accounting.post_transaction(
-        v_payment.payment_date, v_payment.payment_number, 'Payment Receipt', p_user, 'payment', v_lines
+        v_payment.payment_number, 'Payment Receipt', p_user, 'payment', v_payment.payment_date, v_lines
     );
     SELECT uuid INTO v_txn_uuid FROM accounting.transactions WHERE serial_id = v_txn_serial_id;
     IF v_txn_uuid IS NULL THEN RAISE EXCEPTION 'Failed to retrieve GL transaction UUID'; END IF;

@@ -1,7 +1,7 @@
 // src/features/inventory/handlers.rs
 use axum::{
     Extension, Router,
-    extract::{Json, Path, State},
+    extract::{Path, State},
     response::Response,
     routing::{delete, get, patch, post},
 };
@@ -10,7 +10,7 @@ use uuid::Uuid;
 
 use crate::{
     features::inventory::{repository::PostgresInventoryRepo, services::InventoryService},
-    infrastructure::{errors::AppError, responses::ApiResponse},
+    infrastructure::{appjson_errors::AppJson, errors::AppError, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,
     models::inventory::{
         CreateItem, CreateItemCategory, CreateWarehouse, Item, ItemCategory, PostPurchase,
@@ -43,7 +43,7 @@ pub fn router() -> Router<Arc<AppState>> {
 async fn http_create_item(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    Json(payload): Json<CreateItem>,
+    AppJson(payload): AppJson<CreateItem>,
 ) -> Result<Response, AppError> {
     let repo: PostgresInventoryRepo = PostgresInventoryRepo::new();
     let service: InventoryService<PostgresInventoryRepo> = InventoryService::new(repo);
@@ -56,7 +56,7 @@ async fn http_create_item(
 async fn http_create_warehouse(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    Json(payload): Json<CreateWarehouse>,
+    AppJson(payload): AppJson<CreateWarehouse>,
 ) -> Result<Response, AppError> {
     let repo: PostgresInventoryRepo = PostgresInventoryRepo::new();
     let service: InventoryService<PostgresInventoryRepo> = InventoryService::new(repo);
@@ -69,7 +69,7 @@ async fn http_create_warehouse(
 async fn http_create_item_category(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    Json(payload): Json<CreateItemCategory>,
+    AppJson(payload): AppJson<CreateItemCategory>,
 ) -> Result<Response, AppError> {
     let repo: PostgresInventoryRepo = PostgresInventoryRepo::new();
     let service: InventoryService<PostgresInventoryRepo> = InventoryService::new(repo);
@@ -156,7 +156,7 @@ async fn http_update_item(
     State(_state): State<Arc<AppState>>,
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
-    Json(payload): Json<CreateItem>,
+    AppJson(payload): AppJson<CreateItem>,
 ) -> Result<Response, AppError> {
     let repo: PostgresInventoryRepo = PostgresInventoryRepo::new();
     let service: InventoryService<PostgresInventoryRepo> = InventoryService::new(repo);
@@ -170,7 +170,7 @@ async fn http_update_item_category(
     State(_state): State<Arc<AppState>>,
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
-    Json(payload): Json<CreateItemCategory>,
+    AppJson(payload): AppJson<CreateItemCategory>,
 ) -> Result<Response, AppError> {
     let repo: PostgresInventoryRepo = PostgresInventoryRepo::new();
     let service: InventoryService<PostgresInventoryRepo> = InventoryService::new(repo);
@@ -184,7 +184,7 @@ async fn http_update_warehouse(
     State(_state): State<Arc<AppState>>,
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
-    Json(payload): Json<CreateWarehouse>,
+    AppJson(payload): AppJson<CreateWarehouse>,
 ) -> Result<Response, AppError> {
     let repo: PostgresInventoryRepo = PostgresInventoryRepo::new();
     let service: InventoryService<PostgresInventoryRepo> = InventoryService::new(repo);
@@ -236,7 +236,7 @@ async fn http_delete_warehouse(
 async fn http_cash_purchase(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    Json(payload): Json<PostPurchase>,
+    AppJson(payload): AppJson<PostPurchase>,
 ) -> Result<Response, AppError> {
     let repo: PostgresInventoryRepo = PostgresInventoryRepo::new();
     let service: InventoryService<PostgresInventoryRepo> = InventoryService::new(repo);
@@ -252,7 +252,7 @@ async fn http_cash_purchase(
 async fn http_post_sale(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    Json(payload): Json<PostSale>,
+    AppJson(payload): AppJson<PostSale>,
 ) -> Result<Response, AppError> {
     let repo: PostgresInventoryRepo = PostgresInventoryRepo::new();
     let service: InventoryService<PostgresInventoryRepo> = InventoryService::new(repo);
