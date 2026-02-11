@@ -10,7 +10,7 @@ use uuid::Uuid;
 
 use crate::{
     features::workforce::{repository::PostgresHrRepo, services::HrService},
-    infrastructure::{errors::AppError, responses::ApiResponse},
+    interface::api::{errors::AppError, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,
     models::employee::{CreateDepartment, CreateEmployee, CreateJobTitle},
     state::AppState,

@@ -1,6 +1,6 @@
 // src/features/payroll/repository.rs
 use crate::{
-    infrastructure::errors::AppError,
+    interface::api::errors::AppError,
     models::payrun::{CreatePayrun, CreatePayslip, Payrun, Payslip, PostPayrun},
 };
 use async_trait::async_trait;

@@ -1,8 +1,10 @@
 // src/features/hr/repository.rs
-use crate::infrastructure::errors::AppError;
-use crate::models::employee::{
-    CreateDepartment, CreateEmployee, CreateJobTitle, Department, Employee, EmployeeResponse,
-    JobTitle, SupervisorResponse,
+use crate::{
+    interface::api::errors::AppError,
+    models::employee::{
+        CreateDepartment, CreateEmployee, CreateJobTitle, Department, Employee, EmployeeResponse,
+        JobTitle, SupervisorResponse,
+    },
 };
 use async_trait::async_trait;
 use sqlx::PgPool;

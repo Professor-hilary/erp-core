@@ -1,5 +1,5 @@
 use crate::{
-    infrastructure::errors::AppError,
+    interface::api::errors::AppError,
     models::vendor::{ApplyPayment, Bill, CreateBill, CreateVendor, Payment, PostBill, Vendor},
 };
 use async_trait::async_trait;
@@ -222,10 +222,9 @@ impl VendorRepository for PostgresVendorRepo {
         user_id: Uuid,
         payload: &PostBill,
     ) -> Result<i64, AppError> {
-        sqlx::query(r#"SELECT payables.post_bill($1, $2, $3, $4)"#)
+        sqlx::query(r#"SELECT payables.post_bill($1, $2, $3)"#)
             .bind(payload.bill_serial_id)
             .bind(user_id)
-            .bind(&payload.inventory_account)
             .bind(&payload.payables_account)
             .execute(pool)
             .await?;

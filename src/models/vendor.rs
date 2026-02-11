@@ -102,7 +102,7 @@ pub struct CreateBillItem {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PostBill {
     pub bill_serial_id: i64,
-    pub inventory_account: String,
+    // pub inventory_account: String,
     pub payables_account: String,
 }
 

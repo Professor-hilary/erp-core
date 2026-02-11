@@ -8,7 +8,7 @@ use uuid::Uuid;
 
 use crate::{
     features::transactions::repository::TransactionRepository,
-    infrastructure::errors::AppError,
+    interface::api::errors::AppError,
     middleware::auth::AuthenticatedTenant,
     models::transaction::{
         CreateJournalEntry, JournalEntry, JournalEntryWithLines, LedgerFilter, LedgerRowDto,

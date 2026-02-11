@@ -1,6 +1,5 @@
 // src/features/company/repository.rs
-use crate::infrastructure::errors::AppError;
-use crate::models::company::{Company, UpdateCompanyDto};
+use crate::{interface::api::errors::AppError, models::company::{Company, UpdateCompanyDto}};
 use async_trait::async_trait;
 use chrono::NaiveDate;
 use sqlx::{Executor, Postgres};

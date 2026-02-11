@@ -12,7 +12,7 @@ use uuid::Uuid;
 
 use crate::{
     features::transactions::{repository::PostgresTransactionRepo, services::TransactionService},
-    infrastructure::{errors::AppError, responses::ApiResponse},
+    interface::api::{errors::AppError, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,
     models::transaction::{
         CreateJournalEntry, JournalEntry, JournalEntryWithLines, LedgerFilter, UpdateJournalEntry,

@@ -1,7 +1,7 @@
 // src/features/inventory/service.rs
 use crate::{
     features::inventory::repository::InventoryRepository,
-    infrastructure::errors::AppError,
+    interface::api::errors::AppError,
     models::inventory::{
         CreateItem, CreateItemCategory, CreateWarehouse, Item, ItemCategory, PostPurchase,
         PostSale, Warehouse,

@@ -1,8 +1,7 @@
-use crate::features::vendors::repository::VendorRepository;
-use crate::models::vendor::{ApplyPayment, Bill, CreateBill, Payment, PostBill};
 use crate::{
-    infrastructure::errors::AppError,
-    models::vendor::{CreateVendor, Vendor},
+    features::vendors::repository::VendorRepository,
+    interface::api::errors::AppError,
+    models::vendor::{ApplyPayment, Bill, CreateBill, CreateVendor, Payment, PostBill, Vendor},
 };
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -82,7 +81,11 @@ impl<R: VendorRepository> VendorService<R> {
         self.repo.list_vendor_bills(pool, vendor_uuid).await
     }
 
-    pub async fn apply_payment(&self, pool: &PgPool, cmd: ApplyPayment) -> Result<Payment, AppError> {
+    pub async fn apply_payment(
+        &self,
+        pool: &PgPool,
+        cmd: ApplyPayment,
+    ) -> Result<Payment, AppError> {
         self.repo.apply_payment(pool, cmd).await
     }
 }

@@ -10,7 +10,7 @@ use uuid::Uuid;
 
 use crate::{
     features::inventory::{repository::PostgresInventoryRepo, services::InventoryService},
-    infrastructure::{appjson_errors::AppJson, errors::AppError, responses::ApiResponse},
+    interface::api::{json_errors::AppJson, errors::AppError, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,
     models::inventory::{
         CreateItem, CreateItemCategory, CreateWarehouse, Item, ItemCategory, PostPurchase,

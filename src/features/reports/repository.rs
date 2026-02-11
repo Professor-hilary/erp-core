@@ -1,6 +1,6 @@
 // src/features/reports/repository.rs
 use crate::{
-    infrastructure::errors::AppError,
+    interface::api::errors::AppError,
     models::reports::{
         ApAgingDto, ArAgingDto, BalanceSheetCompareRow, BalanceSheetRow, CashFlowRow,
         CashbookRowDto, CashflowGroup, CashflowItem, CustomerStatementDto, EquityChangeRow,
@@ -11,8 +11,7 @@ use crate::{
 use async_trait::async_trait;
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
-use sqlx::PgPool;
-use sqlx::Row;
+use sqlx::{PgPool, Row};
 use uuid::Uuid;
 
 #[derive(Serialize, Debug, Clone, Deserialize)]

@@ -1,8 +1,9 @@
-use crate::features::customers::repository::CustomerRepository;
-use crate::models::customers::{ApplyPayment, CreateInvoice, Invoice, Payment, PostInvoice};
 use crate::{
-    infrastructure::errors::AppError,
-    models::customers::{CreateCustomer, Customer},
+    features::customers::repository::CustomerRepository,
+    interface::api::errors::AppError,
+    models::customers::{
+        ApplyPayment, CreateCustomer, CreateInvoice, Customer, Invoice, Payment, PostInvoice,
+    },
 };
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -86,7 +87,11 @@ impl<R: CustomerRepository> CustomerService<R> {
         self.repo.list_customer_invoices(pool, vendor_uuid).await
     }
 
-    pub async fn apply_payment(&self, pool: &PgPool, cmd: ApplyPayment) -> Result<Payment, AppError> {
+    pub async fn apply_payment(
+        &self,
+        pool: &PgPool,
+        cmd: ApplyPayment,
+    ) -> Result<Payment, AppError> {
         self.repo.apply_payment(pool, cmd).await
     }
 }

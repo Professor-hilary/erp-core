@@ -202,12 +202,10 @@ ORDER BY v.serial_id, COALESCE(b.serial_id, 0), p.payment_date DESC NULLS LAST;
 -- ========================================
 -- FUNCTIONS
 -- ========================================
-
--- Payables post bill function (credit purchase)
+-- Payables post bill function (credit purchase) V2.0
 CREATE OR REPLACE FUNCTION payables.post_bill(
     p_bill_serial_id bigint,
     p_user uuid,
-    p_expense_code text,
     p_payable_code text
 ) RETURNS void LANGUAGE plpgsql
 AS $$
@@ -215,72 +213,197 @@ DECLARE
     v_bill payables.bills%ROWTYPE;
     v_txn_serial_id bigint;
     v_txn_uuid uuid;
-    v_exp_account_uuid uuid;
     v_payable_account_uuid uuid;
-    r record;
 BEGIN
+    -- Lock bill row to prevent race conditions
     SELECT * INTO v_bill FROM payables.bills
-    WHERE serial_id = p_bill_serial_id;
+        WHERE serial_id = p_bill_serial_id
+        FOR UPDATE;
 
-    IF v_bill.posted THEN RETURN; END IF;
-
-    v_txn_serial_id := accounting.post_transaction(
-        v_bill.bill_number,
-        'Vendor Bill',
-        p_user,
-        'bill',
-        v_bill.bill_date,
-        '[]'::jsonb
-    );
-
-    SELECT uuid INTO v_txn_uuid
-    FROM accounting.transactions WHERE serial_id = v_txn_serial_id;
-
-    -- Look up inventory account by serial_id
-    SELECT uuid INTO v_exp_account_uuid
-    FROM accounting.accounts
-    WHERE code = p_expense_code;
-    IF v_exp_account_uuid IS NULL THEN
-        RAISE EXCEPTION 'Account not found for code: %', p_expense_code;
+    -- Idempotency guard
+    IF v_bill.posted THEN
+        RAISE EXCEPTION 'Bill already posted';
     END IF;
 
-    -- Look up payables account by serial_id
-    SELECT uuid INTO v_payable_account_uuid
-    FROM accounting.accounts
-    WHERE code = p_payable_code;
+    -- Resolce payables account
+    SELECT uuid INTO v_payable_account_uuid FROM accounting.accounts
+        WHERE code = p_payable_code;
+
     IF v_payable_account_uuid IS NULL THEN
-        RAISE EXCEPTION 'Account not found for code: %', p_payable_code;
+        RAISE EXCEPTION 'Payables account not found: %', p_payable_code;
     END IF;
 
-    INSERT INTO accounting.transaction_entries (
-        transaction_uuid, account_uuid, line_no,
-        amount, debit, credit, memo
-    ) VALUES (
-        v_txn_uuid, v_exp_account_uuid, 1, v_bill.total_amount,
-        v_bill.total_amount, 0, 'Inventory billed on credit'
-    ), (
-        v_txn_uuid, v_payable_account_uuid, 2, -(v_bill.total_amount),
-        0, v_bill.total_amount, 'Account payable credit purchase'
+    -- Create empty GL transaction shell
+    v_txn_serial_id := accounting.post_transaction(
+        v_bill.bill_number, 'Vendor Bill', p_user, 'bill', v_bill.bill_date, '[]'::jsonb
     );
 
-    FOR r IN
-        SELECT * FROM payables.bill_items WHERE bill_uuid = v_bill.uuid
-    LOOP
-        PERFORM inventory.post_purchase(
-            r.stock_item_id::bigint, NULL, r.quantity, r.unit_price, 'bill', p_bill_serial_id,
-            p_user, p_payable_code, v_txn_uuid
-        );
-    END LOOP;
+    SELECT uuid INTO v_txn_uuid FROM accounting.transactions
+        WHERE serial_id = v_txn_serial_id;
 
-    UPDATE payables.bills
-    SET posted = TRUE, gl_transaction_uuid = v_txn_uuid
+    -------------------------------------------------------------------------------------
+    -- Insert all accounting lines in ONE atomic statement
+    -------------------------------------------------------------------------------------
+    WITH asset_totals AS (
+        SELECT
+            -- i.asset_account AS account_code, bi.total AS amount
+            a.uuid AS account_uuid, bi.total AS amount
+            FROM payables.bill_items bi
+            JOIN inventory.items i ON i.serial_id = bi.stock_item_id
+            JOIN accounting.accounts a ON a.code = i.asset_account
+            WHERE bi.bill_uuid = v_bill.uuid
+            GROUP BY a.uuid
+    ),
+    all_lines AS (
+        -- Debit asset accounts
+        SELECT account_uuid, amount, 'debit' AS entry_type FROM asset_totals
+
+        UNION ALL
+
+        -- Credit payables
+        SELECT v_payable_account_uuid, v_bill.total_amount, 'credit'
+    )
+    INSERT INTO accounting.transaction_entries (
+        transaction_uuid, account_uuid, line_no, amount, debit, credit, memo
+    )
+    SELECT
+        v_txn_uuid, account_uuid,
+        ROW_NUMBER() OVER (
+            ORDER BY
+                CASE WHEN entry_type = 'debit' THEN 1 ELSE 2 END,
+                account_uuid
+        ) AS line_no,
+        CASE WHEN entry_type = 'debit' THEN amount ELSE -amount END,
+        CASE WHEN entry_type = 'debit' THEN amount ELSE 0 END,
+        CASE WHEN entry_type = 'credit' THEN amount ELSE 0 END,
+        CASE
+            WHEN entry_type = 'debit' THEN 'Inventory billed on credit'
+            ELSE 'Account payable credit purchase'
+        END
+    FROM all_lines;
+
+    -------------------------------------------------------------------------------------
+    -- Inventory qauntity movement (no GL touch here)
+    -------------------------------------------------------------------------------------
+    PERFORM inventory.post_purchase(
+        bi.stock_item_id::bigint, NULL, bi.quantity, bi.unit_price, 'bill',
+        p_bill_serial_id, p_user, p_payable_code, v_txn_uuid
+    )
+    FROM payables.bill_items bi WHERE bi.bill_uuid = v_bill.uuid;
+
+    -------------------------------------------------------------------------------------
+    -- Mark bill as posted
+    -------------------------------------------------------------------------------------
+    UPDATE payables.bills SET posted = TRUE, gl_transaction_uuid = v_txn_date
     WHERE serial_id = p_bill_serial_id;
 
-    UPDATE payables.vendors
-    SET current_balance = current_balance + v_bill.total_amount
+    -------------------------------------------------------------------------------------
+    -- Update vendor balance
+    -------------------------------------------------------------------------------------
+    UPDATE payables.vendors SET current_balance = current_balance + v_bill.total_amount
     WHERE uuid = v_bill.vendor_uuid;
+
 END;
 $$;
+
+
+-- Payables post bill function (credit purchase)
+-- CREATE OR REPLACE FUNCTION payables.post_bill(
+--     p_bill_serial_id bigint,
+--     p_user uuid,
+--     p_payable_code text
+-- ) RETURNS void LANGUAGE plpgsql
+-- AS $$
+-- DECLARE
+--     v_bill payables.bills%ROWTYPE;
+--     v_txn_serial_id bigint;
+--     v_txn_uuid uuid;
+--     v_exp_account_uuid uuid;
+--     v_payable_account_uuid uuid;
+--     r record;
+-- BEGIN
+--     SELECT * INTO v_bill FROM payables.bills
+--     WHERE serial_id = p_bill_serial_id;
+
+--     -- Prevent double posting bills
+--     IF v_bill.posted THEN
+--         RAISE EXCEPTION 'Bill already posted';
+--     END IF;
+
+--     v_txn_serial_id := accounting.post_transaction(
+--         v_bill.bill_number,
+--         'Vendor Bill',
+--         p_user,
+--         'bill',
+--         v_bill.bill_date,
+--         '[]'::jsonb
+--     );
+
+--     SELECT uuid INTO v_txn_uuid
+--     FROM accounting.transactions WHERE serial_id = v_txn_serial_id;
+
+--     -- Look up inventory account by serial_id
+--     -- SELECT uuid INTO v_exp_account_uuid
+--     -- FROM accounting.accounts
+--     -- WHERE code = p_inventory_code;
+
+--     -- -- Prevent double posting bills
+--     -- IF v_exp_account_uuid IS NULL THEN
+--     --     RAISE EXCEPTION 'Account not found for code: %', p_inventory_code;
+--     -- END IF;
+
+--     -- Sum bill item costs group by asset account, then post to asset account balances
+--     INSERT INTO accounting.transaction_entries (
+--         transaction_uuid, account_uuid, line_no, amount, debit, credit, memo
+--     ) SELECT
+--         v_txn_uuid, a.uuid, ROW_NUMBER() OVER (), bi.total, bi.total, 0,
+--         'Inventory billed on credit'
+--     FROM payables.bill_items bi
+--     JOIN inventory.items i ON i.serial_id = bi.stock_item_id
+--     JOIN accounting.accounts a ON a.code = i.asset_account
+--     WHERE bi.bill_uuid = v_bill.uuid
+--     GROUP BY a.uuid;
+
+--     -- Look up payables account by serial_id
+--     SELECT uuid INTO v_payable_account_uuid
+--     FROM accounting.accounts
+--     WHERE code = p_payable_code;
+--     IF v_payable_account_uuid IS NULL THEN
+--         RAISE EXCEPTION 'Account not found for code: %', p_payable_code;
+--     END IF;
+
+--     -- Post the payables balance, the asset accounts are already updated
+--     INSERT INTO accounting.transaction_entries (
+--         transaction_uuid, account_uuid, line_no,
+--         amount, debit, credit, memo
+--     ) VALUES /* (
+--         v_txn_uuid, v_exp_account_uuid, 1, v_bill.total_amount,
+--         v_bill.total_amount, 0, 'Inventory billed on credit'
+--     ), */ (
+--         v_txn_uuid, v_payable_account_uuid, ROW_NUMBER() OVER (), -(v_bill.total_amount),
+--         0, v_bill.total_amount, 'Account payable credit purchase'
+--     );
+
+--     FOR r IN
+--         SELECT * FROM payables.bill_items WHERE bill_uuid = v_bill.uuid
+--     LOOP
+--         PERFORM inventory.post_purchase(
+--             r.stock_item_id::bigint, NULL, r.quantity, r.unit_price, 'bill', p_bill_serial_id,
+--             p_user, p_payable_code, v_txn_uuid
+--         );
+--     END LOOP;
+
+--     UPDATE payables.bills
+--     SET posted = TRUE, gl_transaction_uuid = v_txn_uuid
+--     WHERE serial_id = p_bill_serial_id;
+
+--     UPDATE payables.vendors
+--     SET current_balance = current_balance + v_bill.total_amount
+--     WHERE uuid = v_bill.vendor_uuid;
+-- END;
+-- $$;
+
+
 
 -- Bill payment function (payment for credit purchase)
 CREATE OR REPLACE FUNCTION payables.post_payment(

@@ -1,12 +1,12 @@
 // src/features/reports/services.rs
-use crate::models::reports::{
-    ApAgingDto, ArAgingDto, BalanceSheetCompareRow, BalanceSheetRow, CashFlowRow, CashbookRowDto,
-    CashflowGroup, CustomerStatementDto, EquityChangeRow, IncomeStatementRow,
-    InventoryValuationDto, PayrollSummaryDto, TrialBalanceRow,
-};
 use crate::{
     features::reports::repository::{ForceReload, ReportRepository},
-    infrastructure::errors::AppError,
+    interface::api::errors::AppError,
+    models::reports::{
+        ApAgingDto, ArAgingDto, BalanceSheetCompareRow, BalanceSheetRow, CashFlowRow,
+        CashbookRowDto, CashflowGroup, CustomerStatementDto, EquityChangeRow, IncomeStatementRow,
+        InventoryValuationDto, PayrollSummaryDto, TrialBalanceRow,
+    },
 };
 use chrono::NaiveDate;
 use sqlx::PgPool;

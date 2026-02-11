@@ -9,7 +9,7 @@ use uuid::Uuid;
 
 use crate::{
     features::customers::{repository::PostgresCustomerRepo, services::CustomerService},
-    infrastructure::{errors::AppError, responses::ApiResponse},
+    interface::api::{errors::AppError, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,
     models::customers::{ApplyPayment, CreateCustomer, CreateInvoice, Customer, PostInvoice},
     state::AppState,

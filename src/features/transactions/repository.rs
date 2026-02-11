@@ -6,10 +6,12 @@ use serde_json::json;
 use sqlx::{Error, PgPool};
 use uuid::Uuid;
 
-use crate::infrastructure::errors::AppError;
-use crate::models::transaction::{
-    CreateJournalEntry, JournalEntry, JournalEntryLine, JournalEntryWithLines, LedgerFilter,
-    LedgerRowDto, TransactionLineInput, UpdateJournalEntry,
+use crate::{
+    interface::api::errors::AppError,
+    models::transaction::{
+        CreateJournalEntry, JournalEntry, JournalEntryLine, JournalEntryWithLines, LedgerFilter,
+        LedgerRowDto, TransactionLineInput, UpdateJournalEntry,
+    },
 };
 
 #[async_trait]

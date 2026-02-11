@@ -10,7 +10,7 @@ use uuid::Uuid;
 
 use crate::{
     features::vendors::{repository::PostgresVendorRepo, services::VendorService},
-    infrastructure::{errors::AppError, responses::ApiResponse},
+    interface::api::{errors::AppError, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,
     models::vendor::{ApplyPayment, CreateBill, CreateVendor, PostBill, Vendor},
     state::AppState,

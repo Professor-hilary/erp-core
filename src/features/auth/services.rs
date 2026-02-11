@@ -1,7 +1,7 @@
 // src/features/auth/services.rs
 use crate::{
     features::auth::repository::UserRepository,
-    infrastructure::errors::AppError,
+    interface::api::errors::AppError,
     models::{
         dto::JwtClaims,
         user::{CreateUser, LoginUser, User, UserCompany},

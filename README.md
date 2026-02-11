@@ -546,31 +546,18 @@ curl -sX POST http://127.0.0.1:8080/api/customers/create/invoice \
 # Create Bill
 ```python
 curl -sX POST http://127.0.0.1:8080/api/vendors/create/bill \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "bill_number":   "BILL-12HD44",
-    "vendor_uuid":   "019b380e-9636-7d76-97a5-30cc179d070e",
-    "bill_date":     "2025-01-10",
-    "due_date":      "2025-01-30",
-    "reference":     "invoice",
-    "currency":      "UGX",
-    "items": [
-      {
-        "stock_item_id": 1,
-        "description":   "Description of nature of product A",
-        "quantity":      "100",
-        "tax_rate":      "18",
-        "unit_price":    "25000"
-      },
-      {
-        "stock_item_id": 2,
-        "description":   "Description of nature of product B",
-        "quantity":      "1000",
-        "tax_rate":      "18",
-        "unit_price":    "9000"
-      }
-    ]
-  }' \
-  | jq
+-H "Authorization: Bearer $TOKEN" \
+-H "Content-Type: application/json" \
+-d '{
+  "bill_number": "BILL-CR-001",
+  "vendor_uuid": "019c46a7-471c-721a-8f80-dffeb368810d",
+  "bill_date": "2026-01-05",
+  "due_date": "2026-01-25",
+  "reference": "invoice",
+  "currency": "UGX",
+  "items": [
+    {"stock_item_id": 2,"description":"Microcontrollers","quantity":"50","tax_rate":"18","unit_price":"15000"},
+    {"stock_item_id": 3,"description":"PCB Boards","quantity":"30","tax_rate":"18","unit_price":"9000"}
+  ]
+}' | jq
 ```

@@ -13,7 +13,7 @@ use crate::{
     features::{
         accounts, company, customers, inventory, payroll, reports, transactions, vendors, workforce,
     },
-    infrastructure::errors::AppError,
+    interface::api::errors::AppError,
     middleware::{auth::AuthenticatedUser, layer::auth_middleware},
 };
 

@@ -10,7 +10,8 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::{
-    infrastructure::{database::tenant_resolver::get_tenant_pool, errors::AppError},
+    infrastructure::database::tenant_resolver::get_tenant_pool,
+    interface::api::errors::AppError,
     middleware::auth::{AuthenticatedTenant, AuthenticatedUser},
     models::dto::{JwtClaims, PeriodRow},
     state::{AppState, PeriodInfo},

@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 // src/features/accounts/repositories.rs
 use crate::{
-    infrastructure::errors::AppError,
+    interface::api::errors::AppError,
     models::{
         account::{Account, CreateAccount},
         dto::FinancialPeriodDto,

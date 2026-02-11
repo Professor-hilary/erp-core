@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use crate::{
     features::accounts::repository::AccountRepository,
-    infrastructure::errors::AppError,
+    interface::api::errors::AppError,
     models::{
         account::{Account, CreateAccount},
         dto::FinancialPeriodDto,

@@ -1,6 +1,7 @@
 // src/main.rs
 mod features;
 mod infrastructure;
+mod interface;
 mod middleware;
 mod models;
 mod routes;

@@ -1,4 +1,4 @@
-// src/models/item.rs (for inventory)
+// src/models/item.rs
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;

@@ -1,7 +1,7 @@
 // src/features/auth/handlers.rs
 use crate::{
     features::auth::{AuthService, repository::PostgresUserRepo},
-    infrastructure::{appjson_errors::AppJson, errors::AppError, responses::ApiResponse},
+    interface::api::{json_errors::AppJson, errors::AppError, responses::ApiResponse},
     models::user::{CreateUser, LoginUser},
     state::AppState,
 };

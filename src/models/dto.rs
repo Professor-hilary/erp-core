@@ -1,5 +1,5 @@
-use chrono::NaiveDate;
 // src/models/dto.rs
+use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;

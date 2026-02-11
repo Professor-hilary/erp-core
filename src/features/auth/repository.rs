@@ -1,5 +1,5 @@
 // src/features/auth/repository.rs
-use crate::infrastructure::errors::AppError;
+use crate::interface::api::errors::AppError;
 use crate::models::user::{User, UserCompany};
 use async_trait::async_trait;
 use sqlx::PgPool;

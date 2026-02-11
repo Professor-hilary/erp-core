@@ -1,5 +1,5 @@
 use crate::{
-    infrastructure::errors::AppError,
+    interface::api::errors::AppError,
     models::customers::{
         ApplyPayment, CreateCustomer, CreateInvoice, Customer, Invoice, Payment, PostInvoice,
     },

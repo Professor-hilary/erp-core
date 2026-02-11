@@ -1,8 +1,12 @@
 // src/features/hr/service.rs
-use crate::models::employee::{
-    CreateDepartment, CreateEmployee, CreateJobTitle, Department, Employee, EmployeeResponse, JobTitle
+use crate::{
+    features::workforce::repository::HrRepository,
+    interface::api::errors::AppError,
+    models::employee::{
+        CreateDepartment, CreateEmployee, CreateJobTitle, Department, Employee, EmployeeResponse,
+        JobTitle,
+    },
 };
-use crate::{features::workforce::repository::HrRepository, infrastructure::errors::AppError};
 use sqlx::PgPool;
 use uuid::Uuid;
 

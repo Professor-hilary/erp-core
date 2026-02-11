@@ -10,7 +10,7 @@ use uuid::Uuid;
 
 use crate::{
     features::payroll::{repository::PostgresPayrollRepo, services::PayrollService},
-    infrastructure::{errors::AppError, responses::ApiResponse},
+    interface::api::{errors::AppError, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,
     models::payrun::{CreatePayrun, Payrun, Payslip, PostPayrun},
     state::AppState,

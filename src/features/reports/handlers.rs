@@ -15,7 +15,7 @@ use crate::{
         repository::{ForceReload, PostgresReportRepo},
         services::ReportService,
     },
-    infrastructure::{errors::AppError, responses::ApiResponse},
+    interface::api::{errors::AppError, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,
     state::AppState,
 };

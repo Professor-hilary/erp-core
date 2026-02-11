@@ -1,7 +1,7 @@
 // src/features/payroll/service.rs
 use crate::{
     features::payroll::repository::PayrollRepository,
-    infrastructure::errors::AppError,
+    interface::api::errors::AppError,
     models::payrun::{CreatePayrun, Payrun, Payslip, PostPayrun},
 };
 use sqlx::PgPool;

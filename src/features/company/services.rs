@@ -5,7 +5,8 @@ use crate::{
         auth::{AuthService, repository::PostgresUserRepo},
         company::repository::{CompanyRepository, PostgresCompanyRepository},
     },
-    infrastructure::{database::tenant_provisioner::TenantProvisioner, errors::AppError},
+    infrastructure::database::tenant_provisioner::TenantProvisioner,
+    interface::api::errors::AppError,
     models::{
         account::CoaTemplate,
         company::{Company, CreateCompanyDto, CreateInitialPeriod, PeriodType},
@@ -121,11 +122,7 @@ impl CompanyService {
         )?;
 
         accounting_repo
-            .create_initial_period(
-                &tenant_pool,
-                period_dto.start_date,
-                period_end,
-            )
+            .create_initial_period(&tenant_pool, period_dto.start_date, period_end)
             .await?;
 
         println!(

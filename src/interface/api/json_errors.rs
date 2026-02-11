@@ -8,7 +8,7 @@ use axum::{
 };
 use serde::de::DeserializeOwned;
 
-use crate::infrastructure::errors::AppError;
+use crate::interface::api::errors::AppError;
 
 #[derive(Clone)]
 pub struct AppJson<T>(pub T);
