@@ -247,7 +247,7 @@ BEGIN
     WITH asset_totals AS (
         SELECT
             -- i.asset_account AS account_code, bi.total AS amount
-            a.uuid AS account_uuid, bi.total AS amount
+            a.uuid AS account_uuid, SUM(bi.total) AS amount
             FROM payables.bill_items bi
             JOIN inventory.items i ON i.serial_id = bi.stock_item_id
             JOIN accounting.accounts a ON a.code = i.asset_account

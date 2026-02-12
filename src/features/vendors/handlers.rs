@@ -1,6 +1,6 @@
 use axum::{
     Extension, Router,
-    extract::{Json, Path, State},
+    extract::{Path, State},
     response::Response,
     routing::{delete, get, patch, post},
 };
@@ -10,9 +10,9 @@ use uuid::Uuid;
 
 use crate::{
     features::vendors::{repository::PostgresVendorRepo, services::VendorService},
-    interface::api::{errors::AppError, responses::ApiResponse},
+    interface::api::{errors::AppError, json_errors::AppJson, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,
-    models::vendor::{ApplyPayment, CreateBill, CreateVendor, PostBill, Vendor},
+    models::vendor::{ApplyPayment, Bill, CreateBill, CreateVendor, Payment, PostBill, Vendor},
     state::AppState,
 };
 
@@ -32,7 +32,7 @@ pub fn router() -> Router<Arc<AppState>> {
 async fn http_create_vendor(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    Json(payload): Json<CreateVendor>,
+    AppJson(payload): AppJson<CreateVendor>,
 ) -> Result<Response, AppError> {
     let repo: PostgresVendorRepo = PostgresVendorRepo::new();
     let service: VendorService<PostgresVendorRepo> = VendorService::new(repo);
@@ -67,7 +67,7 @@ async fn http_update_vendor(
     State(_state): State<Arc<AppState>>,
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
-    Json(payload): Json<CreateVendor>,
+    AppJson(payload): AppJson<CreateVendor>,
 ) -> Result<Response, AppError> {
     let repo: PostgresVendorRepo = PostgresVendorRepo::new();
     let service: VendorService<PostgresVendorRepo> = VendorService::new(repo);
@@ -93,11 +93,11 @@ async fn http_delete_vendor(
 async fn http_create_bill(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    Json(payload): Json<CreateBill>,
+    AppJson(payload): AppJson<CreateBill>,
 ) -> Result<Response, AppError> {
     let repo: PostgresVendorRepo = PostgresVendorRepo::new();
     let service: VendorService<PostgresVendorRepo> = VendorService::new(repo);
-    let bill = service.create_bill(&user.tenant_pool, &payload).await?;
+    let bill: Bill = service.create_bill(&user.tenant_pool, &payload).await?;
 
     Ok(ApiResponse::created(bill, "Bill created successfully"))
 }
@@ -105,11 +105,11 @@ async fn http_create_bill(
 async fn http_post_bill(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    Json(payload): Json<PostBill>,
+    AppJson(payload): AppJson<PostBill>,
 ) -> Result<Response, AppError> {
     let repo: PostgresVendorRepo = PostgresVendorRepo::new();
     let service: VendorService<PostgresVendorRepo> = VendorService::new(repo);
-    let bill_id = service
+    let bill_id: i64 = service
         .post_bill(&user.tenant_pool, user.user_id, &payload)
         .await?;
 
@@ -119,11 +119,11 @@ async fn http_post_bill(
 async fn http_apply_bill_payment(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    Json(payload): Json<ApplyPayment>,
+    AppJson(payload): AppJson<ApplyPayment>,
 ) -> Result<Response, AppError> {
     let repo: PostgresVendorRepo = PostgresVendorRepo::new();
     let service: VendorService<PostgresVendorRepo> = VendorService::new(repo);
-    let payment = service.apply_payment(&user.tenant_pool, payload).await?;
+    let payment: Payment = service.apply_payment(&user.tenant_pool, payload).await?;
     Ok(ApiResponse::success(
         payment,
         "Bill payment applied successfully",
@@ -137,6 +137,6 @@ async fn http_list_vendor_bills(
 ) -> Result<Response, AppError> {
     let repo: PostgresVendorRepo = PostgresVendorRepo::new();
     let service: VendorService<PostgresVendorRepo> = VendorService::new(repo);
-    let bills = service.list_vendor_bills(&user.tenant_pool, uuid).await?;
+    let bills: Vec<Bill> = service.list_vendor_bills(&user.tenant_pool, uuid).await?;
     Ok(ApiResponse::success(bills, "Vendor bills found"))
 }
