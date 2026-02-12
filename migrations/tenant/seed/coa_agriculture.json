@@ -20,7 +20,7 @@
       "is_contra": false
     },
     {
-      "code": "111000",
+      "code": "110100",
       "name": "Cash on Hand",
       "category": "asset",
       "parent_code": "110000",
@@ -28,7 +28,7 @@
       "is_contra": false
     },
     {
-      "code": "112000",
+      "code": "110200",
       "name": "Bank Accounts",
       "category": "asset",
       "parent_code": "110000",
@@ -36,7 +36,7 @@
       "is_contra": false
     },
     {
-      "code": "113000",
+      "code": "110300",
       "name": "Accounts Receivable",
       "category": "asset",
       "parent_code": "110000",
@@ -44,15 +44,15 @@
       "is_contra": false
     },
     {
-      "code": "113100",
+      "code": "110301",
       "name": "Allowance for Doubtful Accounts",
       "category": "asset",
-      "parent_code": "113000",
+      "parent_code": "110300",
       "normal_balance": "cr",
       "is_contra": true
     },
     {
-      "code": "114000",
+      "code": "110400",
       "name": "Notes Receivable",
       "category": "asset",
       "parent_code": "110000",
@@ -60,7 +60,7 @@
       "is_contra": false
     },
     {
-      "code": "115000",
+      "code": "110500",
       "name": "Short-term Investments",
       "category": "asset",
       "parent_code": "110000",
@@ -68,7 +68,7 @@
       "is_contra": false
     },
     {
-      "code": "116000",
+      "code": "110600",
       "name": "Advances to Suppliers",
       "category": "asset",
       "parent_code": "110000",
@@ -76,7 +76,7 @@
       "is_contra": false
     },
     {
-      "code": "117000",
+      "code": "110700",
       "name": "Other Current Assets",
       "category": "asset",
       "parent_code": "110000",
@@ -84,55 +84,55 @@
       "is_contra": false
     },
     {
-      "code": "120000",
-      "name": "Biological Assets",
+      "code": "110800",
+      "name": "Current Biological Assets",
       "category": "asset",
       "parent_code": "110000",
       "normal_balance": "dr",
       "is_contra": false
     },
     {
-      "code": "121000",
+      "code": "110801",
       "name": "Growing Crops",
       "category": "asset",
-      "parent_code": "120000",
+      "parent_code": "110800",
       "normal_balance": "dr",
       "is_contra": false
     },
     {
-      "code": "122000",
+      "code": "110802",
       "name": "Livestock",
       "category": "asset",
-      "parent_code": "120000",
+      "parent_code": "110800",
       "normal_balance": "dr",
       "is_contra": false
     },
     {
-      "code": "123000",
+      "code": "110803",
       "name": "Harvested Produce Inventory",
       "category": "asset",
-      "parent_code": "110000",
+      "parent_code": "110800",
       "normal_balance": "dr",
       "is_contra": false
     },
     {
-      "code": "124000",
+      "code": "110804",
       "name": "Bearer Plants",
       "category": "asset",
-      "parent_code": "120000",
+      "parent_code": "110800",
       "normal_balance": "dr",
       "is_contra": false
     },
     {
-      "code": "125000",
+      "code": "110805",
       "name": "Agricultural Produce Inventory",
       "category": "asset",
-      "parent_code": "120000",
+      "parent_code": "110800",
       "normal_balance": "dr",
       "is_contra": false
     },
     {
-      "code": "130000",
+      "code": "110900",
       "name": "Prepaid Expenses",
       "category": "asset",
       "parent_code": "110000",
@@ -140,55 +140,55 @@
       "is_contra": false
     },
     {
-      "code": "131000",
+      "code": "110901",
       "name": "Prepaid Seeds & Fertilizer",
       "category": "asset",
-      "parent_code": "130000",
+      "parent_code": "110900",
       "normal_balance": "dr",
       "is_contra": false
     },
     {
-      "code": "132000",
+      "code": "110902",
       "name": "Prepaid Insurance",
       "category": "asset",
-      "parent_code": "130000",
+      "parent_code": "110900",
       "normal_balance": "dr",
       "is_contra": false
     },
     {
-      "code": "132000",
+      "code": "110903",
       "name": "Other Prepayments",
       "category": "asset",
-      "parent_code": "130000",
+      "parent_code": "110900",
       "normal_balance": "dr",
       "is_contra": false
     },
     {
-      "code": "133000",
+      "code": "110904",
       "name": "Prepaid Rent",
       "category": "asset",
-      "parent_code": "130000",
+      "parent_code": "110900",
       "normal_balance": "dr",
       "is_contra": false
     },
     {
-      "code": "134000",
+      "code": "110905",
       "name": "Prepaid Utilities",
       "category": "asset",
-      "parent_code": "130000",
+      "parent_code": "110900",
       "normal_balance": "dr",
       "is_contra": false
     },
     {
-      "code": "135000",
+      "code": "110906",
       "name": "Prepaid Advertising",
       "category": "asset",
-      "parent_code": "130000",
+      "parent_code": "110900",
       "normal_balance": "dr",
       "is_contra": false
     },
     {
-      "code": "140000",
+      "code": "120000",
       "name": "Non-Current Assets",
       "category": "asset",
       "parent_code": "100000",
@@ -196,138 +196,138 @@
       "is_contra": false
     },
     {
-      "code": "141000",
+      "code": "120100",
       "name": "Land & Improvements",
       "category": "asset",
-      "parent_code": "140000",
+      "parent_code": "120000",
       "normal_balance": "dr",
       "is_contra": false
     },
     {
-      "code": "141100",
+      "code": "120101",
       "name": "Farmland",
       "category": "asset",
-      "parent_code": "141000",
+      "parent_code": "120100",
       "normal_balance": "dr",
       "is_contra": false
     },
     {
-      "code": "141200",
+      "code": "120102",
       "name": "Irrigation Systems",
       "category": "asset",
-      "parent_code": "141000",
+      "parent_code": "120100",
       "normal_balance": "dr",
       "is_contra": false
     },
     {
-      "code": "142000",
+      "code": "120200",
       "name": "Farm Equipment",
       "category": "asset",
-      "parent_code": "140000",
+      "parent_code": "120000",
       "normal_balance": "dr",
       "is_contra": false
     },
     {
-      "code": "143000",
+      "code": "120300",
       "name": "Accumulated Depreciation",
       "category": "asset",
-      "parent_code": "140000",
+      "parent_code": "120000",
       "normal_balance": "cr",
       "is_contra": true
     },
     {
-      "code": "144000",
+      "code": "120400",
       "name": "Buildings and Structures",
       "category": "asset",
-      "parent_code": "140000",
+      "parent_code": "120000",
       "normal_balance": "dr",
       "is_contra": false
     },
     {
-      "code": "144100",
+      "code": "120401",
       "name": "Barns and Sheds",
       "category": "asset",
-      "parent_code": "144000",
+      "parent_code": "120500",
       "normal_balance": "dr",
       "is_contra": false
     },
     {
-      "code": "144200",
+      "code": "120402",
       "name": "Greenhouses",
       "category": "asset",
-      "parent_code": "144000",
+      "parent_code": "120500",
       "normal_balance": "dr",
       "is_contra": false
     },
     {
-      "code": "144300",
+      "code": "120403",
       "name": "Storage Facilities",
       "category": "asset",
-      "parent_code": "144000",
+      "parent_code": "120400",
       "normal_balance": "dr",
       "is_contra": false
     },
     {
-      "code": "145000",
+      "code": "120404",
       "name": "Accumulated Depreciation - Buildings",
       "category": "asset",
-      "parent_code": "140000",
+      "parent_code": "120400",
       "normal_balance": "cr",
       "is_contra": true
     },
     {
-      "code": "146000",
+      "code": "120500",
       "name": "Machinery and Tools",
       "category": "asset",
-      "parent_code": "140000",
+      "parent_code": "120000",
       "normal_balance": "dr",
       "is_contra": false
     },
     {
-      "code": "147000",
+      "code": "120501",
       "name": "Accumulated Depreciation - Machinery",
       "category": "asset",
-      "parent_code": "140000",
+      "parent_code": "120500",
       "normal_balance": "cr",
       "is_contra": true
     },
     {
-      "code": "148000",
+      "code": "120600",
       "name": "Vehicles and Tractors",
       "category": "asset",
-      "parent_code": "140000",
+      "parent_code": "120000",
       "normal_balance": "dr",
       "is_contra": false
     },
     {
-      "code": "149000",
+      "code": "120601",
       "name": "Accumulated Depreciation - Vehicles",
       "category": "asset",
-      "parent_code": "140000",
+      "parent_code": "120000",
       "normal_balance": "cr",
       "is_contra": true
     },
     {
-      "code": "150000",
+      "code": "120700",
       "name": "Intangible Assets",
       "category": "asset",
-      "parent_code": "140000",
+      "parent_code": "120000",
       "normal_balance": "dr",
       "is_contra": false
     },
     {
-      "code": "151000",
+      "code": "120701",
       "name": "Patents and Licenses",
       "category": "asset",
-      "parent_code": "150000",
+      "parent_code": "120700",
       "normal_balance": "dr",
       "is_contra": false
     },
     {
-      "code": "152000",
+      "code": "120702",
       "name": "Accumulated Amortization - Intangibles",
       "category": "asset",
-      "parent_code": "150000",
+      "parent_code": "120700",
       "normal_balance": "cr",
       "is_contra": true
     },
@@ -348,7 +348,7 @@
       "is_contra": false
     },
     {
-      "code": "211000",
+      "code": "210100",
       "name": "Accounts Payable",
       "category": "liability",
       "parent_code": "210000",
@@ -356,7 +356,7 @@
       "is_contra": false
     },
     {
-      "code": "212000",
+      "code": "210200",
       "name": "Accrued Labor",
       "category": "liability",
       "parent_code": "210000",
@@ -364,7 +364,7 @@
       "is_contra": false
     },
     {
-      "code": "213000",
+      "code": "210300",
       "name": "Taxes Payable",
       "category": "liability",
       "parent_code": "210000",
@@ -372,7 +372,7 @@
       "is_contra": false
     },
     {
-      "code": "214000",
+      "code": "210400",
       "name": "Other Accrued Expenditures",
       "category": "liability",
       "parent_code": "210000",
@@ -380,7 +380,7 @@
       "is_contra": false
     },
     {
-      "code": "215000",
+      "code": "210500",
       "name": "Short-term Loans Payable",
       "category": "liability",
       "parent_code": "210000",
@@ -388,7 +388,7 @@
       "is_contra": false
     },
     {
-      "code": "216000",
+      "code": "210600",
       "name": "Current Portion of Long-term Debt",
       "category": "liability",
       "parent_code": "210000",
@@ -396,7 +396,7 @@
       "is_contra": false
     },
     {
-      "code": "217000",
+      "code": "210700",
       "name": "Accrued Interest Payable",
       "category": "liability",
       "parent_code": "210000",
@@ -404,7 +404,7 @@
       "is_contra": false
     },
     {
-      "code": "218000",
+      "code": "210800",
       "name": "Payroll Liabilities",
       "category": "liability",
       "parent_code": "210000",
@@ -412,7 +412,7 @@
       "is_contra": false
     },
     {
-      "code": "219000",
+      "code": "210900",
       "name": "Sales Tax Payable",
       "category": "liability",
       "parent_code": "210000",
@@ -428,7 +428,7 @@
       "is_contra": false
     },
     {
-      "code": "221000",
+      "code": "220100",
       "name": "Agricultural Loan - Long Term",
       "category": "liability",
       "parent_code": "220000",
@@ -436,7 +436,7 @@
       "is_contra": false
     },
     {
-      "code": "222000",
+      "code": "220200",
       "name": "Equipment Loan",
       "category": "liability",
       "parent_code": "220000",
@@ -444,7 +444,7 @@
       "is_contra": false
     },
     {
-      "code": "223000",
+      "code": "220300",
       "name": "Lease Liability",
       "category": "liability",
       "parent_code": "220000",
@@ -452,7 +452,7 @@
       "is_contra": false
     },
     {
-      "code": "224000",
+      "code": "220400",
       "name": "Mortgage Payable",
       "category": "liability",
       "parent_code": "220000",
@@ -460,7 +460,7 @@
       "is_contra": false
     },
     {
-      "code": "225000",
+      "code": "220500",
       "name": "Deferred Tax Liability",
       "category": "liability",
       "parent_code": "220000",
@@ -484,7 +484,7 @@
       "is_contra": false
     },
     {
-      "code": "311000",
+      "code": "310100",
       "name": "Owner's Capital",
       "category": "equity",
       "parent_code": "310000",
@@ -492,7 +492,7 @@
       "is_contra": false
     },
     {
-      "code": "312000",
+      "code": "310200",
       "name": "Owner's Drawings",
       "category": "equity",
       "parent_code": "310000",
@@ -500,7 +500,7 @@
       "is_contra": true
     },
     {
-      "code": "313000",
+      "code": "310300",
       "name": "Retained Earnings",
       "category": "equity",
       "parent_code": "310000",
@@ -508,7 +508,7 @@
       "is_contra": false
     },
     {
-      "code": "314000",
+      "code": "310400",
       "name": "Revaluation Reserve",
       "category": "equity",
       "parent_code": "310000",
@@ -532,7 +532,7 @@
       "is_contra": false
     },
     {
-      "code": "411000",
+      "code": "410100",
       "name": "Crop Sales Revenue",
       "category": "income",
       "parent_code": "410000",
@@ -540,7 +540,7 @@
       "is_contra": false
     },
     {
-      "code": "412000",
+      "code": "410200",
       "name": "Livestock Sales Revenue",
       "category": "income",
       "parent_code": "410000",
@@ -548,7 +548,7 @@
       "is_contra": false
     },
     {
-      "code": "413000",
+      "code": "410300",
       "name": "Processed Products Sales",
       "category": "income",
       "parent_code": "410000",
@@ -556,7 +556,7 @@
       "is_contra": false
     },
     {
-      "code": "414000",
+      "code": "410400",
       "name": "Dairy Sales Revenue",
       "category": "income",
       "parent_code": "410000",
@@ -564,7 +564,7 @@
       "is_contra": false
     },
     {
-      "code": "415000",
+      "code": "410500",
       "name": "Meat and Poultry Sales",
       "category": "income",
       "parent_code": "410000",
@@ -580,7 +580,7 @@
       "is_contra": false
     },
     {
-      "code": "421000",
+      "code": "420100",
       "name": "Rental Income from Farm Assets",
       "category": "income",
       "parent_code": "420000",
@@ -588,7 +588,7 @@
       "is_contra": false
     },
     {
-      "code": "422000",
+      "code": "420200",
       "name": "Interest Income",
       "category": "income",
       "parent_code": "420000",
@@ -596,7 +596,7 @@
       "is_contra": false
     },
     {
-      "code": "423000",
+      "code": "420300",
       "name": "Gain on Sale of Assets",
       "category": "income",
       "parent_code": "420000",
@@ -652,7 +652,7 @@
       "is_contra": false
     },
     {
-      "code": "511000",
+      "code": "510100",
       "name": "Seeds Expense",
       "category": "expense",
       "parent_code": "510000",
@@ -660,7 +660,7 @@
       "is_contra": false
     },
     {
-      "code": "512000",
+      "code": "510200",
       "name": "Fertilizer Expense",
       "category": "expense",
       "parent_code": "510000",
@@ -668,7 +668,7 @@
       "is_contra": false
     },
     {
-      "code": "513000",
+      "code": "510300",
       "name": "Pesticides and Herbicides",
       "category": "expense",
       "parent_code": "510000",
@@ -684,7 +684,7 @@
       "is_contra": false
     },
     {
-      "code": "521000",
+      "code": "520100",
       "name": "Livestock Feed",
       "category": "expense",
       "parent_code": "520000",
@@ -692,7 +692,7 @@
       "is_contra": false
     },
     {
-      "code": "522000",
+      "code": "520200",
       "name": "Veterinary Services",
       "category": "expense",
       "parent_code": "520000",
@@ -700,7 +700,7 @@
       "is_contra": false
     },
     {
-      "code": "523000",
+      "code": "520300",
       "name": "Breeding Costs",
       "category": "expense",
       "parent_code": "520000",
@@ -716,7 +716,7 @@
       "is_contra": false
     },
     {
-      "code": "531000",
+      "code": "530100",
       "name": "Wages and Salaries",
       "category": "expense",
       "parent_code": "530000",
@@ -724,7 +724,7 @@
       "is_contra": false
     },
     {
-      "code": "532000",
+      "code": "530200",
       "name": "Payroll Taxes",
       "category": "expense",
       "parent_code": "530000",
@@ -732,7 +732,7 @@
       "is_contra": false
     },
     {
-      "code": "533000",
+      "code": "530300",
       "name": "Employee Benefits",
       "category": "expense",
       "parent_code": "530000",
@@ -748,7 +748,7 @@
       "is_contra": false
     },
     {
-      "code": "541000",
+      "code": "540100",
       "name": "Fuel Costs",
       "category": "expense",
       "parent_code": "540000",
@@ -756,7 +756,7 @@
       "is_contra": false
     },
     {
-      "code": "542000",
+      "code": "540200",
       "name": "Equipment Rental",
       "category": "expense",
       "parent_code": "540000",
@@ -764,7 +764,7 @@
       "is_contra": false
     },
     {
-      "code": "543000",
+      "code": "540300",
       "name": "Maintenance and Repairs - Equipment",
       "category": "expense",
       "parent_code": "540000",
@@ -780,7 +780,7 @@
       "is_contra": false
     },
     {
-      "code": "551000",
+      "code": "550100",
       "name": "Water Usage Costs",
       "category": "expense",
       "parent_code": "550000",
@@ -788,7 +788,7 @@
       "is_contra": false
     },
     {
-      "code": "552000",
+      "code": "550200",
       "name": "Irrigation Maintenance",
       "category": "expense",
       "parent_code": "550000",
@@ -804,7 +804,7 @@
       "is_contra": false
     },
     {
-      "code": "561000",
+      "code": "560100",
       "name": "Electricity",
       "category": "expense",
       "parent_code": "560000",
@@ -812,7 +812,7 @@
       "is_contra": false
     },
     {
-      "code": "562000",
+      "code": "560200",
       "name": "Gas and Heating",
       "category": "expense",
       "parent_code": "560000",
@@ -828,7 +828,7 @@
       "is_contra": false
     },
     {
-      "code": "571000",
+      "code": "570100",
       "name": "Packaging and Storage",
       "category": "expense",
       "parent_code": "570000",
@@ -836,7 +836,7 @@
       "is_contra": false
     },
     {
-      "code": "572000",
+      "code": "570200",
       "name": "Transportation Costs",
       "category": "expense",
       "parent_code": "570000",
@@ -860,7 +860,7 @@
       "is_contra": false
     },
     {
-      "code": "611000",
+      "code": "610100",
       "name": "Office Supplies",
       "category": "expense",
       "parent_code": "610000",
@@ -868,7 +868,7 @@
       "is_contra": false
     },
     {
-      "code": "612000",
+      "code": "610200",
       "name": "Telephone and Internet",
       "category": "expense",
       "parent_code": "610000",
@@ -876,7 +876,7 @@
       "is_contra": false
     },
     {
-      "code": "613000",
+      "code": "610300",
       "name": "Administrative Salaries",
       "category": "expense",
       "parent_code": "610000",
@@ -892,7 +892,7 @@
       "is_contra": false
     },
     {
-      "code": "621000",
+      "code": "620100",
       "name": "Crop Insurance",
       "category": "expense",
       "parent_code": "620000",
@@ -900,7 +900,7 @@
       "is_contra": false
     },
     {
-      "code": "622000",
+      "code": "620200",
       "name": "Liability Insurance",
       "category": "expense",
       "parent_code": "620000",
@@ -916,7 +916,7 @@
       "is_contra": false
     },
     {
-      "code": "631000",
+      "code": "630100",
       "name": "Depreciation - Farm Equipment",
       "category": "expense",
       "parent_code": "630000",
@@ -924,7 +924,7 @@
       "is_contra": false
     },
     {
-      "code": "632000",
+      "code": "630200",
       "name": "Depreciation - Buildings",
       "category": "expense",
       "parent_code": "630000",
@@ -940,7 +940,7 @@
       "is_contra": false
     },
     {
-      "code": "641000",
+      "code": "640100",
       "name": "Interest Expense",
       "category": "expense",
       "parent_code": "640000",

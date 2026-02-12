@@ -20,7 +20,7 @@
       "is_contra": false
     },
     {
-      "code": "111000",
+      "code": "110100",
       "name": "Cash on Hand",
       "category": "asset",
       "parent_code": "110000",
@@ -28,7 +28,7 @@
       "is_contra": false
     },
     {
-      "code": "112000",
+      "code": "110200",
       "name": "Bank Accounts",
       "category": "asset",
       "parent_code": "110000",
@@ -36,7 +36,7 @@
       "is_contra": false
     },
     {
-      "code": "113000",
+      "code": "110300",
       "name": "Accounts Receivable",
       "category": "asset",
       "parent_code": "110000",
@@ -44,31 +44,31 @@
       "is_contra": false
     },
     {
-      "code": "113100",
+      "code": "110301",
       "name": "Patient Receivables",
       "category": "asset",
-      "parent_code": "113000",
+      "parent_code": "110300",
       "normal_balance": "dr",
       "is_contra": false
     },
     {
-      "code": "113200",
+      "code": "110302",
       "name": "Insurance Receivables",
       "category": "asset",
-      "parent_code": "113000",
+      "parent_code": "110300",
       "normal_balance": "dr",
       "is_contra": false
     },
     {
-      "code": "113300",
+      "code": "110303",
       "name": "Allowance for Doubtful Accounts",
       "category": "asset",
-      "parent_code": "113000",
+      "parent_code": "110300",
       "normal_balance": "cr",
       "is_contra": true
     },
     {
-      "code": "114000",
+      "code": "110400",
       "name": "Prepaid Expenses",
       "category": "asset",
       "parent_code": "110000",
@@ -76,39 +76,39 @@
       "is_contra": false
     },
     {
-      "code": "114100",
+      "code": "110401",
       "name": "Prepaid Insurance",
       "category": "asset",
-      "parent_code": "114000",
+      "parent_code": "110400",
       "normal_balance": "dr",
       "is_contra": false
     },
     {
-      "code": "114200",
+      "code": "110402",
       "name": "Prepaid Medical Licenses",
       "category": "asset",
-      "parent_code": "114000",
+      "parent_code": "110400",
       "normal_balance": "dr",
       "is_contra": false
     },
     {
-      "code": "114300",
+      "code": "110403",
       "name": "Prepaid Rent",
       "category": "asset",
-      "parent_code": "114000",
+      "parent_code": "110400",
       "normal_balance": "dr",
       "is_contra": false
     },
     {
-      "code": "114400",
+      "code": "110404",
       "name": "Prepaid Maintenance Contracts",
       "category": "asset",
-      "parent_code": "114000",
+      "parent_code": "110400",
       "normal_balance": "dr",
       "is_contra": false
     },
     {
-      "code": "115000",
+      "code": "110500",
       "name": "Short-term Investments",
       "category": "asset",
       "parent_code": "110000",
@@ -116,7 +116,7 @@
       "is_contra": false
     },
     {
-      "code": "116000",
+      "code": "110600",
       "name": "Other Current Assets",
       "category": "asset",
       "parent_code": "110000",
@@ -132,7 +132,7 @@
       "is_contra": false
     },
     {
-      "code": "121000",
+      "code": "120100",
       "name": "Medical Supplies",
       "category": "asset",
       "parent_code": "120000",
@@ -140,7 +140,7 @@
       "is_contra": false
     },
     {
-      "code": "122000",
+      "code": "120200",
       "name": "Pharmaceuticals Inventory",
       "category": "asset",
       "parent_code": "120000",
@@ -148,7 +148,7 @@
       "is_contra": false
     },
     {
-      "code": "123000",
+      "code": "120300",
       "name": "Lab Reagents & Consumables",
       "category": "asset",
       "parent_code": "120000",
@@ -156,7 +156,7 @@
       "is_contra": false
     },
     {
-      "code": "124000",
+      "code": "120400",
       "name": "Vaccines Inventory",
       "category": "asset",
       "parent_code": "120000",
@@ -164,7 +164,7 @@
       "is_contra": false
     },
     {
-      "code": "125000",
+      "code": "120500",
       "name": "Orthopedic & Surgical Implants",
       "category": "asset",
       "parent_code": "120000",
@@ -180,7 +180,7 @@
       "is_contra": false
     },
     {
-      "code": "131000",
+      "code": "130100",
       "name": "Property, Plant & Equipment",
       "category": "asset",
       "parent_code": "130000",
@@ -188,71 +188,71 @@
       "is_contra": false
     },
     {
-      "code": "131100",
+      "code": "130101",
       "name": "Land & Buildings",
       "category": "asset",
-      "parent_code": "131000",
+      "parent_code": "130100",
       "normal_balance": "dr",
       "is_contra": false
     },
     {
-      "code": "131200",
+      "code": "130102",
       "name": "Medical Equipment",
       "category": "asset",
-      "parent_code": "131000",
+      "parent_code": "130100",
       "normal_balance": "dr",
       "is_contra": false
     },
     {
-      "code": "131300",
+      "code": "130103",
       "name": "X-Ray & Imaging Machines",
       "category": "asset",
-      "parent_code": "131000",
+      "parent_code": "130100",
       "normal_balance": "dr",
       "is_contra": false
     },
     {
-      "code": "131400",
+      "code": "130104",
       "name": "Furniture & Fixtures",
       "category": "asset",
-      "parent_code": "131000",
+      "parent_code": "130100",
       "normal_balance": "dr",
       "is_contra": false
     },
     {
-      "code": "131500",
+      "code": "130105",
       "name": "Vehicles",
       "category": "asset",
-      "parent_code": "131000",
+      "parent_code": "130100",
       "normal_balance": "dr",
       "is_contra": false
     },
     {
-      "code": "131600",
+      "code": "130106",
       "name": "Computer & IT Equipment",
       "category": "asset",
-      "parent_code": "131000",
+      "parent_code": "130100",
       "normal_balance": "dr",
       "is_contra": false
     },
     {
-      "code": "131700",
+      "code": "130107",
       "name": "Laboratory Equipment",
       "category": "asset",
-      "parent_code": "131000",
+      "parent_code": "130100",
       "normal_balance": "dr",
       "is_contra": false
     },
     {
-      "code": "131800",
+      "code": "130108",
       "name": "Surgical Instruments",
       "category": "asset",
-      "parent_code": "131000",
+      "parent_code": "130100",
       "normal_balance": "dr",
       "is_contra": false
     },
     {
-      "code": "132000",
+      "code": "130200",
       "name": "Accumulated Depreciation",
       "category": "asset",
       "parent_code": "130000",
@@ -260,47 +260,47 @@
       "is_contra": true
     },
     {
-      "code": "132100",
+      "code": "130201",
       "name": "Acc. Dep. - Buildings",
       "category": "asset",
-      "parent_code": "132000",
+      "parent_code": "130200",
       "normal_balance": "cr",
       "is_contra": true
     },
     {
-      "code": "132200",
+      "code": "132202",
       "name": "Acc. Dep. - Medical Equipment",
       "category": "asset",
-      "parent_code": "132000",
+      "parent_code": "130200",
       "normal_balance": "cr",
       "is_contra": true
     },
     {
-      "code": "132300",
+      "code": "132303",
       "name": "Acc. Dep. - Imaging Equipment",
       "category": "asset",
-      "parent_code": "132000",
+      "parent_code": "130200",
       "normal_balance": "cr",
       "is_contra": true
     },
     {
-      "code": "132400",
+      "code": "132404",
       "name": "Acc. Dep. - Furniture",
       "category": "asset",
-      "parent_code": "132000",
+      "parent_code": "130200",
       "normal_balance": "cr",
       "is_contra": true
     },
     {
-      "code": "132500",
+      "code": "132505",
       "name": "Acc. Dep. - Vehicles",
       "category": "asset",
-      "parent_code": "132000",
+      "parent_code": "130200",
       "normal_balance": "cr",
       "is_contra": true
     },
     {
-      "code": "133000",
+      "code": "130300",
       "name": "Intangible Assets",
       "category": "asset",
       "parent_code": "130000",
@@ -308,23 +308,23 @@
       "is_contra": false
     },
     {
-      "code": "133100",
+      "code": "130301",
       "name": "Software & EHR Systems",
       "category": "asset",
-      "parent_code": "133000",
+      "parent_code": "130300",
       "normal_balance": "dr",
       "is_contra": false
     },
     {
-      "code": "133200",
+      "code": "130302",
       "name": "Goodwill",
       "category": "asset",
-      "parent_code": "133000",
+      "parent_code": "130300",
       "normal_balance": "dr",
       "is_contra": false
     },
     {
-      "code": "134000",
+      "code": "130400",
       "name": "Accumulated Amortization",
       "category": "asset",
       "parent_code": "130000",
@@ -332,7 +332,7 @@
       "is_contra": true
     },
     {
-      "code": "135000",
+      "code": "130500",
       "name": "Capital Work in Progress",
       "category": "asset",
       "parent_code": "130000",
@@ -356,7 +356,7 @@
       "is_contra": false
     },
     {
-      "code": "211000",
+      "code": "210100",
       "name": "Accounts Payable",
       "category": "liability",
       "parent_code": "210000",
@@ -364,7 +364,7 @@
       "is_contra": false
     },
     {
-      "code": "212000",
+      "code": "210200",
       "name": "Accrued Salaries & Wages",
       "category": "liability",
       "parent_code": "210000",
@@ -372,7 +372,7 @@
       "is_contra": false
     },
     {
-      "code": "213000",
+      "code": "210300",
       "name": "Accrued Bonuses",
       "category": "liability",
       "parent_code": "210000",
@@ -380,7 +380,7 @@
       "is_contra": false
     },
     {
-      "code": "214000",
+      "code": "210400",
       "name": "Taxes Payable",
       "category": "liability",
       "parent_code": "210000",
@@ -388,7 +388,7 @@
       "is_contra": false
     },
     {
-      "code": "215000",
+      "code": "210500",
       "name": "Patient Refunds Payable",
       "category": "liability",
       "parent_code": "210000",
@@ -396,7 +396,7 @@
       "is_contra": false
     },
     {
-      "code": "216000",
+      "code": "210600",
       "name": "Accrued Expenses",
       "category": "liability",
       "parent_code": "210000",
@@ -404,7 +404,7 @@
       "is_contra": false
     },
     {
-      "code": "217000",
+      "code": "210700",
       "name": "Accrued Interest",
       "category": "liability",
       "parent_code": "210000",
@@ -412,7 +412,7 @@
       "is_contra": false
     },
     {
-      "code": "218000",
+      "code": "210800",
       "name": "Current Portion of Long-Term Debt",
       "category": "liability",
       "parent_code": "210000",
@@ -420,7 +420,7 @@
       "is_contra": false
     },
     {
-      "code": "219000",
+      "code": "210900",
       "name": "Payroll Taxes Payable",
       "category": "liability",
       "parent_code": "210000",
@@ -436,7 +436,7 @@
       "is_contra": false
     },
     {
-      "code": "221000",
+      "code": "220100",
       "name": "Long-Term Medical Equipment Loan",
       "category": "liability",
       "parent_code": "220000",
@@ -444,7 +444,7 @@
       "is_contra": false
     },
     {
-      "code": "222000",
+      "code": "220200",
       "name": "Mortgage Payable",
       "category": "liability",
       "parent_code": "220000",
@@ -452,7 +452,7 @@
       "is_contra": false
     },
     {
-      "code": "223000",
+      "code": "220300",
       "name": "Lease Liabilities - Long Term",
       "category": "liability",
       "parent_code": "220000",
@@ -460,7 +460,7 @@
       "is_contra": false
     },
     {
-      "code": "224000",
+      "code": "220400",
       "name": "Deferred Tax Liability",
       "category": "liability",
       "parent_code": "220000",
@@ -484,7 +484,7 @@
       "is_contra": false
     },
     {
-      "code": "311000",
+      "code": "310100",
       "name": "Owner's Capital",
       "category": "equity",
       "parent_code": "310000",
@@ -492,7 +492,7 @@
       "is_contra": false
     },
     {
-      "code": "312000",
+      "code": "310200",
       "name": "Owner's Drawings",
       "category": "equity",
       "parent_code": "310000",
@@ -500,7 +500,7 @@
       "is_contra": true
     },
     {
-      "code": "313000",
+      "code": "310300",
       "name": "Retained Earnings",
       "category": "equity",
       "parent_code": "310000",
@@ -508,7 +508,7 @@
       "is_contra": false
     },
     {
-      "code": "314000",
+      "code": "310400",
       "name": "Revaluation Reserve",
       "category": "equity",
       "parent_code": "310000",
@@ -532,7 +532,7 @@
       "is_contra": false
     },
     {
-      "code": "411000",
+      "code": "410100",
       "name": "Consultation Fees",
       "category": "income",
       "parent_code": "410000",
@@ -540,7 +540,7 @@
       "is_contra": false
     },
     {
-      "code": "412000",
+      "code": "410200",
       "name": "Laboratory Services",
       "category": "income",
       "parent_code": "410000",
@@ -548,7 +548,7 @@
       "is_contra": false
     },
     {
-      "code": "413000",
+      "code": "410300",
       "name": "Imaging & Diagnostics",
       "category": "income",
       "parent_code": "410000",
@@ -556,7 +556,7 @@
       "is_contra": false
     },
     {
-      "code": "414000",
+      "code": "410400",
       "name": "Inpatient Services",
       "category": "income",
       "parent_code": "410000",
@@ -564,7 +564,7 @@
       "is_contra": false
     },
     {
-      "code": "415000",
+      "code": "410500",
       "name": "Outpatient Services",
       "category": "income",
       "parent_code": "410000",
@@ -572,7 +572,7 @@
       "is_contra": false
     },
     {
-      "code": "416000",
+      "code": "410600",
       "name": "Surgical Procedures",
       "category": "income",
       "parent_code": "410000",
@@ -580,7 +580,7 @@
       "is_contra": false
     },
     {
-      "code": "417000",
+      "code": "410700",
       "name": "Emergency Services",
       "category": "income",
       "parent_code": "410000",
@@ -596,7 +596,7 @@
       "is_contra": false
     },
     {
-      "code": "421000",
+      "code": "420100",
       "name": "Prescription Sales",
       "category": "income",
       "parent_code": "420000",
@@ -604,7 +604,7 @@
       "is_contra": false
     },
     {
-      "code": "422000",
+      "code": "420200",
       "name": "Over-the-Counter Sales",
       "category": "income",
       "parent_code": "420000",
@@ -620,7 +620,7 @@
       "is_contra": false
     },
     {
-      "code": "431000",
+      "code": "430100",
       "name": "Insurance Reimbursements",
       "category": "income",
       "parent_code": "430000",
@@ -628,7 +628,7 @@
       "is_contra": false
     },
     {
-      "code": "432000",
+      "code": "430200",
       "name": "Government Grants",
       "category": "income",
       "parent_code": "430000",
@@ -636,7 +636,7 @@
       "is_contra": false
     },
     {
-      "code": "433000",
+      "code": "430300",
       "name": "Cafeteria & Other Sales",
       "category": "income",
       "parent_code": "430000",
@@ -644,7 +644,7 @@
       "is_contra": false
     },
     {
-      "code": "434000",
+      "code": "430400",
       "name": "Gain on Disposal of Assets",
       "category": "income",
       "parent_code": "430000",
@@ -660,7 +660,7 @@
       "is_contra": true
     },
     {
-      "code": "441000",
+      "code": "440100",
       "name": "Discounts & Allowances",
       "category": "income",
       "parent_code": "440000",
@@ -668,7 +668,7 @@
       "is_contra": true
     },
     {
-      "code": "442000",
+      "code": "440200",
       "name": "Bad Debt Expense",
       "category": "income",
       "parent_code": "440000",
@@ -676,7 +676,7 @@
       "is_contra": true
     },
     {
-      "code": "443000",
+      "code": "440300",
       "name": "Contractual Adjustments",
       "category": "income",
       "parent_code": "440000",
@@ -732,7 +732,7 @@
       "is_contra": false
     },
     {
-      "code": "541000",
+      "code": "540100",
       "name": "Doctors' Fees",
       "category": "expense",
       "parent_code": "540000",
@@ -740,7 +740,7 @@
       "is_contra": false
     },
     {
-      "code": "542000",
+      "code": "540200",
       "name": "Nurses & Technicians",
       "category": "expense",
       "parent_code": "540000",
@@ -748,7 +748,7 @@
       "is_contra": false
     },
     {
-      "code": "543000",
+      "code": "540300",
       "name": "Physician Salaries",
       "category": "expense",
       "parent_code": "540000",
@@ -756,7 +756,7 @@
       "is_contra": false
     },
     {
-      "code": "544000",
+      "code": "540400",
       "name": "Resident & Intern Stipends",
       "category": "expense",
       "parent_code": "540000",
@@ -764,7 +764,7 @@
       "is_contra": false
     },
     {
-      "code": "545000",
+      "code": "540500",
       "name": "Payroll Taxes - Clinical",
       "category": "expense",
       "parent_code": "540000",
@@ -772,7 +772,7 @@
       "is_contra": false
     },
     {
-      "code": "546000",
+      "code": "540600",
       "name": "Employee Benefits - Clinical",
       "category": "expense",
       "parent_code": "540000",
@@ -796,7 +796,7 @@
       "is_contra": false
     },
     {
-      "code": "611000",
+      "code": "610100",
       "name": "Administrative Staff Salaries",
       "category": "expense",
       "parent_code": "610000",
@@ -804,7 +804,7 @@
       "is_contra": false
     },
     {
-      "code": "612000",
+      "code": "610200",
       "name": "Payroll Taxes - Administrative",
       "category": "expense",
       "parent_code": "610000",
@@ -812,7 +812,7 @@
       "is_contra": false
     },
     {
-      "code": "613000",
+      "code": "610300",
       "name": "Employee Benefits - Administrative",
       "category": "expense",
       "parent_code": "610000",
@@ -828,7 +828,7 @@
       "is_contra": false
     },
     {
-      "code": "621000",
+      "code": "620100",
       "name": "Electricity",
       "category": "expense",
       "parent_code": "620000",
@@ -836,7 +836,7 @@
       "is_contra": false
     },
     {
-      "code": "622000",
+      "code": "620200",
       "name": "Water & Waste Disposal",
       "category": "expense",
       "parent_code": "620000",
@@ -844,7 +844,7 @@
       "is_contra": false
     },
     {
-      "code": "623000",
+      "code": "620300",
       "name": "Facility Maintenance",
       "category": "expense",
       "parent_code": "620000",
@@ -852,7 +852,7 @@
       "is_contra": false
     },
     {
-      "code": "624000",
+      "code": "620400",
       "name": "Housekeeping & Laundry",
       "category": "expense",
       "parent_code": "620000",
@@ -868,7 +868,7 @@
       "is_contra": false
     },
     {
-      "code": "631000",
+      "code": "630100",
       "name": "Biomedical Waste Management",
       "category": "expense",
       "parent_code": "630000",
@@ -884,7 +884,7 @@
       "is_contra": false
     },
     {
-      "code": "641000",
+      "code": "640100",
       "name": "Malpractice Insurance",
       "category": "expense",
       "parent_code": "640000",
@@ -892,7 +892,7 @@
       "is_contra": false
     },
     {
-      "code": "642000",
+      "code": "640200",
       "name": "Property Insurance",
       "category": "expense",
       "parent_code": "640000",
@@ -908,7 +908,7 @@
       "is_contra": false
     },
     {
-      "code": "651000",
+      "code": "650100",
       "name": "Legal & Compliance",
       "category": "expense",
       "parent_code": "650000",
@@ -916,7 +916,7 @@
       "is_contra": false
     },
     {
-      "code": "652000",
+      "code": "650200",
       "name": "Audit & Certification",
       "category": "expense",
       "parent_code": "650000",
@@ -924,7 +924,7 @@
       "is_contra": false
     },
     {
-      "code": "653000",
+      "code": "650300",
       "name": "Continuing Medical Education",
       "category": "expense",
       "parent_code": "650000",
@@ -940,7 +940,7 @@
       "is_contra": false
     },
     {
-      "code": "661000",
+      "code": "660100",
       "name": "Depreciation - Vehicles",
       "category": "expense",
       "parent_code": "660000",
@@ -948,7 +948,7 @@
       "is_contra": false
     },
     {
-      "code": "662000",
+      "code": "660200",
       "name": "Amortization - Software",
       "category": "expense",
       "parent_code": "660000",
@@ -964,7 +964,7 @@
       "is_contra": false
     },
     {
-      "code": "671000",
+      "code": "670100",
       "name": "Office Supplies",
       "category": "expense",
       "parent_code": "670000",
@@ -972,7 +972,7 @@
       "is_contra": false
     },
     {
-      "code": "672000",
+      "code": "670200",
       "name": "Telephone & Internet",
       "category": "expense",
       "parent_code": "670000",
@@ -980,7 +980,7 @@
       "is_contra": false
     },
     {
-      "code": "673000",
+      "code": "670300",
       "name": "Marketing & Advertising",
       "category": "expense",
       "parent_code": "670000",
@@ -988,7 +988,7 @@
       "is_contra": false
     },
     {
-      "code": "674000",
+      "code": "670400",
       "name": "Bank Charges",
       "category": "expense",
       "parent_code": "670000",
@@ -996,7 +996,7 @@
       "is_contra": false
     },
     {
-      "code": "675000",
+      "code": "670500",
       "name": "Loss on Disposal of Assets",
       "category": "expense",
       "parent_code": "670000",

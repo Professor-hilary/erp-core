@@ -20,7 +20,7 @@
             "is_contra": false
         },
         {
-            "code": "111000",
+            "code": "110100",
             "name": "Cash on Hand",
             "category": "asset",
             "parent_code": "110000",
@@ -28,7 +28,7 @@
             "is_contra": false
         },
         {
-            "code": "112000",
+            "code": "110200",
             "name": "Bank Accounts",
             "category": "asset",
             "parent_code": "110000",
@@ -36,7 +36,7 @@
             "is_contra": false
         },
         {
-            "code": "113000",
+            "code": "110300",
             "name": "Accounts Receivable",
             "category": "asset",
             "parent_code": "110000",
@@ -44,15 +44,15 @@
             "is_contra": false
         },
         {
-            "code": "113100",
+            "code": "110301",
             "name": "Allowance for Doubtful Accounts",
             "category": "asset",
-            "parent_code": "113000",
+            "parent_code": "110300",
             "normal_balance": "cr",
             "is_contra": true
         },
         {
-            "code": "114000",
+            "code": "110400",
             "name": "Short-term Investments",
             "category": "asset",
             "parent_code": "110000",
@@ -60,7 +60,7 @@
             "is_contra": false
         },
         {
-            "code": "115000",
+            "code": "110500",
             "name": "Other Receivables",
             "category": "asset",
             "parent_code": "110000",
@@ -68,7 +68,7 @@
             "is_contra": false
         },
         {
-            "code": "116000",
+            "code": "110600",
             "name": "Advances to Suppliers",
             "category": "asset",
             "parent_code": "110000",
@@ -76,7 +76,7 @@
             "is_contra": false
         },
         {
-            "code": "117000",
+            "code": "110900",
             "name": "Other Current Assets",
             "category": "asset",
             "parent_code": "110000",
@@ -84,7 +84,7 @@
             "is_contra": false
         },
         {
-            "code": "120000",
+            "code": "110700",
             "name": "Inventory",
             "category": "asset",
             "parent_code": "110000",
@@ -92,63 +92,63 @@
             "is_contra": false
         },
         {
-            "code": "121000",
+            "code": "110701",
             "name": "Raw Materials Inventory",
             "category": "asset",
-            "parent_code": "120000",
+            "parent_code": "110700",
             "normal_balance": "dr",
             "is_contra": false
         },
         {
-            "code": "122000",
+            "code": "110702",
             "name": "Work in Progress (WIP)",
             "category": "asset",
-            "parent_code": "120000",
+            "parent_code": "110700",
             "normal_balance": "dr",
             "is_contra": false
         },
         {
-            "code": "123000",
+            "code": "110703",
             "name": "Finished Goods Inventory",
             "category": "asset",
-            "parent_code": "120000",
+            "parent_code": "110700",
             "normal_balance": "dr",
             "is_contra": false
         },
         {
-            "code": "124000",
+            "code": "110704",
             "name": "Factory Supplies",
             "category": "asset",
-            "parent_code": "120000",
+            "parent_code": "110700",
             "normal_balance": "dr",
             "is_contra": false
         },
         {
-            "code": "125000",
+            "code": "110705",
             "name": "Packaging Materials Inventory",
             "category": "asset",
-            "parent_code": "120000",
+            "parent_code": "110700",
             "normal_balance": "dr",
             "is_contra": false
         },
         {
-            "code": "126000",
+            "code": "110706",
             "name": "Maintenance Supplies",
             "category": "asset",
-            "parent_code": "120000",
+            "parent_code": "110700",
             "normal_balance": "dr",
             "is_contra": false
         },
         {
-            "code": "127000",
+            "code": "110707",
             "name": "Scrap Inventory",
             "category": "asset",
-            "parent_code": "120000",
+            "parent_code": "110700",
             "normal_balance": "dr",
             "is_contra": false
         },
         {
-            "code": "130000",
+            "code": "110800",
             "name": "Prepaid Expenses",
             "category": "asset",
             "parent_code": "110000",
@@ -156,39 +156,39 @@
             "is_contra": false
         },
         {
-            "code": "131000",
+            "code": "110801",
             "name": "Prepaid Insurance",
             "category": "asset",
-            "parent_code": "130000",
+            "parent_code": "110800",
             "normal_balance": "dr",
             "is_contra": false
         },
         {
-            "code": "132000",
+            "code": "110802",
             "name": "Prepaid Rent",
             "category": "asset",
-            "parent_code": "130000",
+            "parent_code": "110800",
             "normal_balance": "dr",
             "is_contra": false
         },
         {
-            "code": "133000",
+            "code": "110803",
             "name": "Prepaid Maintenance",
             "category": "asset",
-            "parent_code": "130000",
+            "parent_code": "110800",
             "normal_balance": "dr",
             "is_contra": false
         },
         {
-            "code": "134000",
+            "code": "110804",
             "name": "Prepaid Taxes",
             "category": "asset",
-            "parent_code": "130000",
+            "parent_code": "110800",
             "normal_balance": "dr",
             "is_contra": false
         },
         {
-            "code": "140000",
+            "code": "120000",
             "name": "Non-Current Assets",
             "category": "asset",
             "parent_code": "100000",
@@ -196,138 +196,138 @@
             "is_contra": false
         },
         {
-            "code": "141000",
+            "code": "120100",
             "name": "Property, Plant & Equipment",
             "category": "asset",
-            "parent_code": "140000",
+            "parent_code": "120000",
             "normal_balance": "dr",
             "is_contra": false
         },
         {
-            "code": "141100",
+            "code": "120101",
             "name": "Land",
             "category": "asset",
-            "parent_code": "141000",
+            "parent_code": "120100",
             "normal_balance": "dr",
             "is_contra": false
         },
         {
-            "code": "141200",
+            "code": "120102",
             "name": "Factory Building",
             "category": "asset",
-            "parent_code": "141000",
+            "parent_code": "120100",
             "normal_balance": "dr",
             "is_contra": false
         },
         {
-            "code": "141300",
+            "code": "120103",
             "name": "Machinery & Equipment",
             "category": "asset",
-            "parent_code": "141000",
+            "parent_code": "120100",
             "normal_balance": "dr",
             "is_contra": false
         },
         {
-            "code": "141400",
+            "code": "120104",
             "name": "Vehicles",
             "category": "asset",
-            "parent_code": "141000",
+            "parent_code": "120100",
             "normal_balance": "dr",
             "is_contra": false
         },
         {
-            "code": "141500",
+            "code": "120105",
             "name": "Furniture & Office Equipment",
             "category": "asset",
-            "parent_code": "141000",
+            "parent_code": "120100",
             "normal_balance": "dr",
             "is_contra": false
         },
         {
-            "code": "141600",
+            "code": "120106",
             "name": "Leasehold Improvements",
             "category": "asset",
-            "parent_code": "141000",
+            "parent_code": "120100",
             "normal_balance": "dr",
             "is_contra": false
         },
         {
-            "code": "142000",
+            "code": "120200",
             "name": "Accumulated Depreciation",
             "category": "asset",
-            "parent_code": "140000",
+            "parent_code": "120000",
             "normal_balance": "cr",
             "is_contra": true
         },
         {
-            "code": "142100",
+            "code": "120201",
             "name": "Acc. Dep. - Factory Building",
             "category": "asset",
-            "parent_code": "142000",
+            "parent_code": "120200",
             "normal_balance": "cr",
             "is_contra": true
         },
         {
-            "code": "142200",
+            "code": "120202",
             "name": "Acc. Dep. - Machinery",
             "category": "asset",
-            "parent_code": "142000",
+            "parent_code": "120200",
             "normal_balance": "cr",
             "is_contra": true
         },
         {
-            "code": "142300",
+            "code": "120203",
             "name": "Acc. Dep. - Vehicles",
             "category": "asset",
-            "parent_code": "142000",
+            "parent_code": "120200",
             "normal_balance": "cr",
             "is_contra": true
         },
         {
-            "code": "142400",
+            "code": "120204",
             "name": "Acc. Dep. - Leasehold Improvements",
             "category": "asset",
-            "parent_code": "142000",
+            "parent_code": "120200",
             "normal_balance": "cr",
             "is_contra": true
         },
         {
-            "code": "143000",
+            "code": "120300",
             "name": "Intangible Assets",
             "category": "asset",
-            "parent_code": "140000",
+            "parent_code": "120000",
             "normal_balance": "dr",
             "is_contra": false
         },
         {
-            "code": "143100",
+            "code": "120301",
             "name": "Patents & Trademarks",
             "category": "asset",
-            "parent_code": "143000",
+            "parent_code": "120300",
             "normal_balance": "dr",
             "is_contra": false
         },
         {
-            "code": "143200",
+            "code": "120302",
             "name": "Software Licenses",
             "category": "asset",
-            "parent_code": "143000",
+            "parent_code": "120300",
             "normal_balance": "dr",
             "is_contra": false
         },
         {
-            "code": "144000",
+            "code": "120400",
             "name": "Accumulated Amortization",
             "category": "asset",
-            "parent_code": "140000",
+            "parent_code": "120000",
             "normal_balance": "cr",
             "is_contra": true
         },
         {
-            "code": "145000",
+            "code": "120500",
             "name": "Capital Work in Progress",
             "category": "asset",
-            "parent_code": "140000",
+            "parent_code": "120000",
             "normal_balance": "dr",
             "is_contra": false
         },
@@ -348,7 +348,7 @@
             "is_contra": false
         },
         {
-            "code": "211000",
+            "code": "210100",
             "name": "Accounts Payable",
             "category": "liability",
             "parent_code": "210000",
@@ -356,7 +356,7 @@
             "is_contra": false
         },
         {
-            "code": "212000",
+            "code": "210200",
             "name": "Accrued Wages",
             "category": "liability",
             "parent_code": "210000",
@@ -364,7 +364,7 @@
             "is_contra": false
         },
         {
-            "code": "213000",
+            "code": "210300",
             "name": "Taxes Payable",
             "category": "liability",
             "parent_code": "210000",
@@ -372,7 +372,7 @@
             "is_contra": false
         },
         {
-            "code": "214000",
+            "code": "210400",
             "name": "Accrued Expenses",
             "category": "liability",
             "parent_code": "210000",
@@ -380,7 +380,7 @@
             "is_contra": false
         },
         {
-            "code": "215000",
+            "code": "210500",
             "name": "Accrued Utilities",
             "category": "liability",
             "parent_code": "210000",
@@ -388,7 +388,7 @@
             "is_contra": false
         },
         {
-            "code": "216000",
+            "code": "210600",
             "name": "Current Portion of Long-Term Debt",
             "category": "liability",
             "parent_code": "210000",
@@ -396,7 +396,7 @@
             "is_contra": false
         },
         {
-            "code": "217000",
+            "code": "210700",
             "name": "Sales Tax Payable",
             "category": "liability",
             "parent_code": "210000",
@@ -404,7 +404,7 @@
             "is_contra": false
         },
         {
-            "code": "218000",
+            "code": "210800",
             "name": "Payroll Taxes Payable",
             "category": "liability",
             "parent_code": "210000",
@@ -420,7 +420,7 @@
             "is_contra": false
         },
         {
-            "code": "221000",
+            "code": "220100",
             "name": "Long-Term Bank Loan",
             "category": "liability",
             "parent_code": "220000",
@@ -428,7 +428,7 @@
             "is_contra": false
         },
         {
-            "code": "222000",
+            "code": "220200",
             "name": "Equipment Loans",
             "category": "liability",
             "parent_code": "220000",
@@ -436,7 +436,7 @@
             "is_contra": false
         },
         {
-            "code": "223000",
+            "code": "220300",
             "name": "Mortgage Payable",
             "category": "liability",
             "parent_code": "220000",
@@ -444,7 +444,7 @@
             "is_contra": false
         },
         {
-            "code": "224000",
+            "code": "220400",
             "name": "Deferred Tax Liability",
             "category": "liability",
             "parent_code": "220000",
@@ -468,7 +468,7 @@
             "is_contra": false
         },
         {
-            "code": "311000",
+            "code": "310100",
             "name": "Owner's Capital",
             "category": "equity",
             "parent_code": "310000",
@@ -476,7 +476,7 @@
             "is_contra": false
         },
         {
-            "code": "312000",
+            "code": "310200",
             "name": "Owner's Drawings",
             "category": "equity",
             "parent_code": "310000",
@@ -484,7 +484,7 @@
             "is_contra": true
         },
         {
-            "code": "313000",
+            "code": "310300",
             "name": "Retained Earnings",
             "category": "equity",
             "parent_code": "310000",
@@ -492,7 +492,7 @@
             "is_contra": false
         },
         {
-            "code": "314000",
+            "code": "310400",
             "name": "Revaluation Reserve",
             "category": "equity",
             "parent_code": "310000",
@@ -516,7 +516,7 @@
             "is_contra": false
         },
         {
-            "code": "411000",
+            "code": "410100",
             "name": "Sales Returns",
             "category": "income",
             "parent_code": "410000",
@@ -524,7 +524,7 @@
             "is_contra": true
         },
         {
-            "code": "412000",
+            "code": "410200",
             "name": "Scrap Sales",
             "category": "income",
             "parent_code": "400000",
@@ -532,7 +532,7 @@
             "is_contra": false
         },
         {
-            "code": "413000",
+            "code": "410300",
             "name": "Sales Discounts",
             "category": "income",
             "parent_code": "400000",
@@ -540,7 +540,7 @@
             "is_contra": true
         },
         {
-            "code": "414000",
+            "code": "410400",
             "name": "Sales Allowances",
             "category": "income",
             "parent_code": "400000",
@@ -556,7 +556,7 @@
             "is_contra": false
         },
         {
-            "code": "421000",
+            "code": "420100",
             "name": "Interest Income",
             "category": "income",
             "parent_code": "420000",
@@ -564,7 +564,7 @@
             "is_contra": false
         },
         {
-            "code": "422000",
+            "code": "420200",
             "name": "Gain on Sale of Assets",
             "category": "income",
             "parent_code": "420000",
@@ -588,7 +588,7 @@
             "is_contra": false
         },
         {
-            "code": "511000",
+            "code": "510100",
             "name": "Raw Materials Purchases",
             "category": "expense",
             "parent_code": "510000",
@@ -596,7 +596,7 @@
             "is_contra": false
         },
         {
-            "code": "512000",
+            "code": "510200",
             "name": "Purchase Discounts",
             "category": "expense",
             "parent_code": "510000",
@@ -604,7 +604,7 @@
             "is_contra": true
         },
         {
-            "code": "513000",
+            "code": "510300",
             "name": "Freight-In",
             "category": "expense",
             "parent_code": "510000",
@@ -620,7 +620,7 @@
             "is_contra": false
         },
         {
-            "code": "521000",
+            "code": "520100",
             "name": "Factory Wages",
             "category": "expense",
             "parent_code": "520000",
@@ -628,7 +628,7 @@
             "is_contra": false
         },
         {
-            "code": "522000",
+            "code": "520200",
             "name": "Overtime Premium",
             "category": "expense",
             "parent_code": "520000",
@@ -636,7 +636,7 @@
             "is_contra": false
         },
         {
-            "code": "523000",
+            "code": "520300",
             "name": "Payroll Taxes - Factory",
             "category": "expense",
             "parent_code": "520000",
@@ -652,7 +652,7 @@
             "is_contra": false
         },
         {
-            "code": "531000",
+            "code": "530100",
             "name": "Subcontracted Production",
             "category": "expense",
             "parent_code": "530000",
@@ -668,7 +668,7 @@
             "is_contra": false
         },
         {
-            "code": "541000",
+            "code": "540100",
             "name": "Factory Rent",
             "category": "expense",
             "parent_code": "540000",
@@ -676,7 +676,7 @@
             "is_contra": false
         },
         {
-            "code": "542000",
+            "code": "540200",
             "name": "Utilities - Factory",
             "category": "expense",
             "parent_code": "540000",
@@ -684,7 +684,7 @@
             "is_contra": false
         },
         {
-            "code": "543000",
+            "code": "540300",
             "name": "Depreciation - Machinery",
             "category": "expense",
             "parent_code": "540000",
@@ -692,7 +692,7 @@
             "is_contra": false
         },
         {
-            "code": "544000",
+            "code": "540400",
             "name": "Indirect Labor",
             "category": "expense",
             "parent_code": "540000",
@@ -700,7 +700,7 @@
             "is_contra": false
         },
         {
-            "code": "545000",
+            "code": "540500",
             "name": "Factory Supplies Expense",
             "category": "expense",
             "parent_code": "540000",
@@ -708,7 +708,7 @@
             "is_contra": false
         },
         {
-            "code": "546000",
+            "code": "540600",
             "name": "Maintenance & Repairs",
             "category": "expense",
             "parent_code": "540000",
@@ -716,7 +716,7 @@
             "is_contra": false
         },
         {
-            "code": "547000",
+            "code": "540700",
             "name": "Electricity - Factory",
             "category": "expense",
             "parent_code": "540000",
@@ -724,7 +724,7 @@
             "is_contra": false
         },
         {
-            "code": "548000",
+            "code": "540800",
             "name": "Water & Gas - Factory",
             "category": "expense",
             "parent_code": "540000",
@@ -732,7 +732,7 @@
             "is_contra": false
         },
         {
-            "code": "549000",
+            "code": "540900",
             "name": "Property Taxes - Factory",
             "category": "expense",
             "parent_code": "540000",
@@ -740,7 +740,7 @@
             "is_contra": false
         },
         {
-            "code": "550000",
+            "code": "541000",
             "name": "Indirect Materials",
             "category": "expense",
             "parent_code": "540000",
@@ -764,7 +764,7 @@
             "is_contra": false
         },
         {
-            "code": "611000",
+            "code": "610100",
             "name": "Freight-Out",
             "category": "expense",
             "parent_code": "610000",
@@ -772,7 +772,7 @@
             "is_contra": false
         },
         {
-            "code": "612000",
+            "code": "610200",
             "name": "Sales Salaries",
             "category": "expense",
             "parent_code": "610000",
@@ -780,7 +780,7 @@
             "is_contra": false
         },
         {
-            "code": "613000",
+            "code": "610300",
             "name": "Commissions",
             "category": "expense",
             "parent_code": "610000",
@@ -788,7 +788,7 @@
             "is_contra": false
         },
         {
-            "code": "614000",
+            "code": "610400",
             "name": "Advertising",
             "category": "expense",
             "parent_code": "610000",
@@ -796,7 +796,7 @@
             "is_contra": false
         },
         {
-            "code": "615000",
+            "code": "610500",
             "name": "Travel & Entertainment - Sales",
             "category": "expense",
             "parent_code": "610000",
@@ -812,7 +812,7 @@
             "is_contra": false
         },
         {
-            "code": "621000",
+            "code": "620100",
             "name": "Office Salaries",
             "category": "expense",
             "parent_code": "620000",
@@ -820,7 +820,7 @@
             "is_contra": false
         },
         {
-            "code": "622000",
+            "code": "620200",
             "name": "Office Rent",
             "category": "expense",
             "parent_code": "620000",
@@ -828,7 +828,7 @@
             "is_contra": false
         },
         {
-            "code": "623000",
+            "code": "620300",
             "name": "Administrative Salaries",
             "category": "expense",
             "parent_code": "620000",
@@ -836,7 +836,7 @@
             "is_contra": false
         },
         {
-            "code": "624000",
+            "code": "620400",
             "name": "Office Supplies",
             "category": "expense",
             "parent_code": "620000",
@@ -844,7 +844,7 @@
             "is_contra": false
         },
         {
-            "code": "625000",
+            "code": "620500",
             "name": "Telephone & Internet",
             "category": "expense",
             "parent_code": "620000",
@@ -852,7 +852,7 @@
             "is_contra": false
         },
         {
-            "code": "626000",
+            "code": "620600",
             "name": "Insurance - General",
             "category": "expense",
             "parent_code": "620000",
@@ -860,7 +860,7 @@
             "is_contra": false
         },
         {
-            "code": "627000",
+            "code": "620700",
             "name": "Professional Fees",
             "category": "expense",
             "parent_code": "620000",
@@ -868,7 +868,7 @@
             "is_contra": false
         },
         {
-            "code": "628000",
+            "code": "620800",
             "name": "Depreciation - Office",
             "category": "expense",
             "parent_code": "620000",
@@ -884,7 +884,7 @@
             "is_contra": false
         },
         {
-            "code": "641000",
+            "code": "640100",
             "name": "Interest Expense",
             "category": "expense",
             "parent_code": "640000",
@@ -892,7 +892,7 @@
             "is_contra": false
         },
         {
-            "code": "642000",
+            "code": "640200",
             "name": "Bad Debt Expense",
             "category": "expense",
             "parent_code": "640000",
@@ -900,7 +900,7 @@
             "is_contra": false
         },
         {
-            "code": "643000",
+            "code": "640300",
             "name": "Loss on Disposal of Assets",
             "category": "expense",
             "parent_code": "640000",

@@ -88,6 +88,7 @@ pub struct PostPurchase {
     pub reference_type: Option<String>,
     pub reference_serial_id: Option<i64>,
     pub cash_account_code: String,
+    pub vat_account_code: String,
 }
 
 #[derive(Debug, Deserialize)]

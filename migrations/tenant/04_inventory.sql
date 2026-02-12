@@ -385,15 +385,16 @@ $$;
 
 -- Post purchase (cash or credit)
 CREATE OR REPLACE FUNCTION inventory.post_purchase(
-    p_item_serial_id      bigint,
-    p_warehouse_serial_id bigint,
-    p_quantity            numeric,
-    p_unit_cost           numeric,
-    p_reference_type      text, -- 'bill', 'cash_purchase', 'adjustment', etc.
-    p_reference_serial_id bigint,
-    p_user                uuid,
-    p_source_account      text DEFAULT NULL,
-    p_gl_transaction_uuid uuid DEFAULT NULL
+    p_item_serial_id        bigint,
+    p_warehouse_serial_id   bigint,
+    p_quantity              numeric,
+    p_unit_cost             numeric,
+    p_reference_type        text, -- 'bill', 'cash_purchase', 'adjustment', etc.
+    p_reference_serial_id   bigint,
+    p_user                  uuid,
+    p_source_account        text DEFAULT NULL, -- Cash/Bank  purchase
+    p_tax_account           text DEFAULT NULL, -- Cash/Bank  purchase
+    p_gl_transaction_uuid   uuid DEFAULT NULL  -- For Credit purchase
 ) RETURNS uuid
 LANGUAGE plpgsql AS $$
 DECLARE

@@ -44,7 +44,7 @@
             "is_contra": false
         },
         {
-            "code": "110310",
+            "code": "110301",
             "name": "Allowance for Loan Losses",
             "category": "asset",
             "parent_code": "110300",
@@ -108,7 +108,7 @@
             "is_contra": false
         },
         {
-            "code": "112000",
+            "code": "111100",
             "name": "Treasury Bills & Government Securities - Short Term",
             "category": "asset",
             "parent_code": "110000",
@@ -116,7 +116,7 @@
             "is_contra": false
         },
         {
-            "code": "113000",
+            "code": "111300",
             "name": "Equity Investments - Short Term",
             "category": "asset",
             "parent_code": "110000",
@@ -476,7 +476,7 @@
             "is_contra": false
         },
         {
-            "code": "301000",
+            "code": "310000",
             "name": "Share Capital",
             "category": "equity",
             "parent_code": "300000",
@@ -484,7 +484,7 @@
             "is_contra": false
         },
         {
-            "code": "302000",
+            "code": "320000",
             "name": "Retained Earnings",
             "category": "equity",
             "parent_code": "300000",
@@ -492,7 +492,7 @@
             "is_contra": false
         },
         {
-            "code": "303000",
+            "code": "330000",
             "name": "Reserves – Statutory",
             "category": "equity",
             "parent_code": "300000",
@@ -500,7 +500,7 @@
             "is_contra": false
         },
         {
-            "code": "304000",
+            "code": "340000",
             "name": "Reserves – Regulatory",
             "category": "equity",
             "parent_code": "300000",
@@ -508,7 +508,7 @@
             "is_contra": false
         },
         {
-            "code": "305000",
+            "code": "350000",
             "name": "Other Comprehensive Income",
             "category": "equity",
             "parent_code": "300000",
@@ -524,7 +524,7 @@
             "is_contra": false
         },
         {
-            "code": "401000",
+            "code": "410000",
             "name": "Interest Income – Loans",
             "category": "income",
             "parent_code": "400000",
@@ -532,7 +532,7 @@
             "is_contra": false
         },
         {
-            "code": "402000",
+            "code": "420000",
             "name": "Interest Income – Investments",
             "category": "income",
             "parent_code": "400000",
@@ -540,7 +540,7 @@
             "is_contra": false
         },
         {
-            "code": "403000",
+            "code": "430000",
             "name": "Fee & Commission Income",
             "category": "income",
             "parent_code": "400000",
@@ -548,7 +548,7 @@
             "is_contra": false
         },
         {
-            "code": "404000",
+            "code": "440000",
             "name": "Trading & Investment Gains",
             "category": "income",
             "parent_code": "400000",
@@ -556,7 +556,7 @@
             "is_contra": false
         },
         {
-            "code": "405000",
+            "code": "450000",
             "name": "Foreign Exchange Gains",
             "category": "income",
             "parent_code": "400000",
@@ -564,15 +564,7 @@
             "is_contra": false
         },
         {
-            "code": "406000",
-            "name": "Dividend Income",
-            "category": "income",
-            "parent_code": "400000",
-            "normal_balance": "cr",
-            "is_contra": false
-        },
-        {
-            "code": "407000",
+            "code": "460000",
             "name": "Other Operating Income",
             "category": "income",
             "parent_code": "400000",
@@ -580,7 +572,7 @@
             "is_contra": false
         },
         {
-            "code": "408000",
+            "code": "470000",
             "name": "Loan Recovery Income",
             "category": "income",
             "parent_code": "400000",
@@ -588,7 +580,7 @@
             "is_contra": false
         },
         {
-            "code": "409000",
+            "code": "480000",
             "name": "Rental Income",
             "category": "income",
             "parent_code": "400000",
@@ -596,7 +588,7 @@
             "is_contra": false
         },
         {
-            "code": "410000",
+            "code": "490000",
             "name": "Other Non-Operating Income",
             "category": "income",
             "parent_code": "400000",
@@ -612,7 +604,7 @@
             "is_contra": false
         },
         {
-            "code": "501000",
+            "code": "510000",
             "name": "Interest Expense - Customer Deposits",
             "category": "expense",
             "parent_code": "500000",
@@ -620,7 +612,7 @@
             "is_contra": false
         },
         {
-            "code": "502000",
+            "code": "520000",
             "name": "Interest Expense - Borrowings",
             "category": "expense",
             "parent_code": "500000",
@@ -628,7 +620,7 @@
             "is_contra": false
         },
         {
-            "code": "503000",
+            "code": "530000",
             "name": "Interest Expense - Debt Securities",
             "category": "expense",
             "parent_code": "500000",
@@ -636,7 +628,7 @@
             "is_contra": false
         },
         {
-            "code": "504000",
+            "code": "540000",
             "name": "Loan Loss Expense (Direct)",
             "category": "expense",
             "parent_code": "500000",
@@ -644,7 +636,7 @@
             "is_contra": false
         },
         {
-            "code": "505000",
+            "code": "550000",
             "name": "Fees Paid to Intermediaries (Direct)",
             "category": "expense",
             "parent_code": "500000",
@@ -652,7 +644,7 @@
             "is_contra": false
         },
         {
-            "code": "506000",
+            "code": "560000",
             "name": "Transaction Costs (Direct - Trading)",
             "category": "expense",
             "parent_code": "500000",
@@ -660,7 +652,7 @@
             "is_contra": false
         },
         {
-            "code": "507000",
+            "code": "570000",
             "name": "Commission Paid on Loans",
             "category": "expense",
             "parent_code": "500000",
@@ -668,7 +660,7 @@
             "is_contra": false
         },
         {
-            "code": "508000",
+            "code": "580000",
             "name": "Other Direct Costs",
             "category": "expense",
             "parent_code": "500000",

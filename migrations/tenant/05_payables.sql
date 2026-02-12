@@ -206,7 +206,8 @@ ORDER BY v.serial_id, COALESCE(b.serial_id, 0), p.payment_date DESC NULLS LAST;
 CREATE OR REPLACE FUNCTION payables.post_bill(
     p_bill_serial_id bigint,
     p_user uuid,
-    p_payable_code text
+    p_payable_code text,
+    p_vat_tax_code text
 ) RETURNS void LANGUAGE plpgsql
 AS $$
 DECLARE
@@ -214,6 +215,7 @@ DECLARE
     v_txn_serial_id bigint;
     v_txn_uuid uuid;
     v_payable_account_uuid uuid;
+    v_input_vat_account_uuid uuid;
 BEGIN
     -- Lock bill row to prevent race conditions
     SELECT * INTO v_bill FROM payables.bills
@@ -225,12 +227,20 @@ BEGIN
         RAISE EXCEPTION 'Bill already posted';
     END IF;
 
-    -- Resolce payables account
+    -- Resolve payables account
     SELECT uuid INTO v_payable_account_uuid FROM accounting.accounts
         WHERE code = p_payable_code;
 
     IF v_payable_account_uuid IS NULL THEN
-        RAISE EXCEPTION 'Payables account not found with code: %', p_payable_code;
+        RAISE EXCEPTION 'Payables account not found for code: %', p_payable_code;
+    END IF;
+
+    -- Resolve tax account
+    SELECT uuid INTO v_input_vat_account_uuid FROM accounting.accounts
+        WHERE code = p_vat_tax_code;
+
+    IF v_input_vat_account_uuid IS NULL THEN
+        RAISE EXCEPTION 'VAT tax account not found for code: %', p_vat_tax_code;
     END IF;
 
     -- Create empty GL transaction shell
@@ -246,7 +256,9 @@ BEGIN
     -------------------------------------------------------------------------------------
     WITH asset_totals AS (
         SELECT
-            a.uuid AS account_uuid, SUM(bi.total) AS amount
+            a.uuid AS account_uuid,
+            -- SUM(bi.total) AS amount
+            SUM(bi.quantity * bi.unit_price) as amount
             FROM payables.bill_items bi
             JOIN inventory.items i ON i.serial_id = bi.stock_item_id
             JOIN accounting.accounts a ON a.code = i.asset_account
@@ -254,12 +266,17 @@ BEGIN
             GROUP BY a.uuid
     ),
     all_lines AS (
-        -- Debit asset accounts
+        -- Debit asset accounts (net, i.e., cost excluding tax)
         SELECT account_uuid, amount, 'debit' AS entry_type FROM asset_totals
 
         UNION ALL
 
-        -- Credit payables
+        -- Debit input VAT from vendor
+        SELECT v_input_vat_account_uuid, v_bill.tax_amount, 'debit'
+
+        UNION ALL
+
+        -- Credit payables (gross, i.e., cost including tax)
         SELECT v_payable_account_uuid, (v_bill.total_amount + v_bill.tax_amount), 'credit'
     )
     INSERT INTO accounting.transaction_entries (
@@ -286,7 +303,7 @@ BEGIN
     -------------------------------------------------------------------------------------
     PERFORM inventory.post_purchase(
         bi.stock_item_id::bigint, i.warehouse_serial, bi.quantity, bi.unit_price, 'bill',
-        p_bill_serial_id, p_user, p_payable_code, v_txn_uuid
+        p_bill_serial_id, p_user, p_payable_code, null, v_txn_uuid
     )
     FROM payables.bill_items bi
     JOIN inventory.items i ON i.serial_id = bi.stock_item_id
@@ -301,7 +318,8 @@ BEGIN
     -------------------------------------------------------------------------------------
     -- Update vendor balance
     -------------------------------------------------------------------------------------
-    UPDATE payables.vendors SET current_balance = current_balance + v_bill.total_amount
+    UPDATE payables.vendors
+    SET current_balance = current_balance + v_bill.total_amount + v_bill.tax_amount
     WHERE uuid = v_bill.vendor_uuid;
 
 END;

@@ -222,10 +222,11 @@ impl VendorRepository for PostgresVendorRepo {
         user_id: Uuid,
         payload: &PostBill,
     ) -> Result<i64, AppError> {
-        sqlx::query(r#"SELECT payables.post_bill($1, $2, $3)"#)
+        sqlx::query(r#"SELECT payables.post_bill($1, $2, $3, $4)"#)
             .bind(payload.bill_serial_id)
             .bind(user_id)
             .bind(&payload.payables_account)
+            .bind(&payload.vat_tax_account)
             .execute(pool)
             .await?;
 
