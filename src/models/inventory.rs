@@ -6,22 +6,23 @@ use uuid::Uuid;
 
 #[derive(Debug, FromRow, Serialize, Deserialize, Clone)]
 pub struct Item {
-    pub uuid: Uuid,
-    pub serial_id: Option<i64>,
-    pub sku: String,
-    pub name: String,
-    pub category_uuid: Option<Uuid>,
-    pub description: Option<String>,
-    pub unit: String,
-    pub selling_price: bigdecimal::BigDecimal,
-    pub track_quantity: bool,
-    pub reorder_level: bigdecimal::BigDecimal,
-    pub asset_account: String,
-    pub cogs_account: Option<String>,
-    pub income_account: String,
-    pub status: String,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
+    pub uuid: Uuid,                            // Default uuid
+    pub serial_id: Option<i64>,                // Integer ID for easy query
+    pub warehouse_serial: i64,                 // Required to track movements
+    pub sku: String,                           // Useful for user
+    pub name: String,                          // Required
+    pub category_uuid: Option<Uuid>,           // Based on whatever criteria
+    pub description: Option<String>,           // Relevant but not necessary
+    pub unit: String,                          // UOM e.g. boxes, litres, pieces...
+    pub selling_price: bigdecimal::BigDecimal, // Selling price, will soon remove this
+    pub track_quantity: bool,                  // Relevant for the future
+    pub reorder_level: bigdecimal::BigDecimal, // When to make new purchase order
+    pub asset_account: String,                 // Account for tracking asset
+    pub cogs_account: Option<String>,          // Account for expensing purchases
+    pub income_account: String,                // Sales or revenue account
+    pub status: String,                        // ...?
+    pub created_at: DateTime<Utc>,             // Useful for timeseries
+    pub updated_at: DateTime<Utc>,             // Useful for timeseries
 }
 
 #[derive(Debug, FromRow, Serialize, Deserialize, Clone)]
@@ -58,6 +59,7 @@ pub struct CreateItemCategory {
 pub struct CreateItem {
     pub sku: String,
     pub name: String,
+    pub warehouse_serial: i64,
     pub category_uuid: Option<Uuid>,
     pub description: Option<String>,
     pub unit: Option<String>,

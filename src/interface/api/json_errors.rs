@@ -13,7 +13,7 @@ use crate::interface::api::errors::AppError;
 #[derive(Clone)]
 pub struct AppJson<T>(pub T);
 
-// Helper to dig into the wrapped serd_path_to_error::Error<serd_json::Error>
+/// Helper to dig into the wrapped serd_path_to_error::Error<serd_json::Error>
 fn serde_path_error_message<E>(err: &E) -> String
 where
     E: StdError + 'static,

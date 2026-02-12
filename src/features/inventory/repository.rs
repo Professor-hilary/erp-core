@@ -132,7 +132,7 @@ impl InventoryRepository for PostgresInventoryRepo {
         let item: Item = sqlx::query_as::<_, Item>(
             r#"
                 INSERT INTO inventory.items (
-                    sku, name, category_uuid, description, unit, selling_price,
+                    sku, name, category_uuid, warehouse_serial, description, unit, selling_price,
                     track_quantity, reorder_level, asset_account, cogs_account,
                     income_account
                 )
@@ -146,6 +146,7 @@ impl InventoryRepository for PostgresInventoryRepo {
         .bind(&payload.name)
         .bind(payload.category_uuid)
         .bind(&payload.description)
+        .bind(&payload.warehouse_serial)
         .bind(&payload.unit)
         .bind(payload.selling_price.as_ref())
         .bind(payload.track_quantity)
@@ -280,7 +281,11 @@ impl InventoryRepository for PostgresInventoryRepo {
         let item: Item = sqlx::query_as::<_, Item>(
             r#"
                 UPDATE inventory.items
-                SET sku=$1, name=$2, category_uuid=$3, description=$4,
+                SET
+                    sku=COALESCE($1, sku),
+                    name=COALESCE($2 name),
+                    category_uuid=COALESCE($3, category_uuid),
+                    description=COALESCE($4, description),
                     unit=COALESCE($5, unit),
                     selling_price=COALESCE($7, selling_price),
                     track_quantity=COALESCE($8, track_quantity),
@@ -288,6 +293,7 @@ impl InventoryRepository for PostgresInventoryRepo {
                     asset_account=COALESCE($10, asset_account),
                     cogs_account=COALESCE($11, cogs_account),
                     income_account=COALESCE($12, income_account),
+                    warehouse_serial=COALESCE($13, warehouse_serial),
                     updated_at=now()
                 WHERE uuid=$13
                 RETURNING *
@@ -304,6 +310,7 @@ impl InventoryRepository for PostgresInventoryRepo {
         .bind(&payload.asset_account)
         .bind(&payload.cogs_account)
         .bind(&payload.income_account)
+        .bind(&payload.warehouse_serial)
         .bind(uuid)
         .fetch_one(pool)
         .await?;

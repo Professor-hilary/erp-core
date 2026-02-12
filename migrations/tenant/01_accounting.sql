@@ -51,15 +51,15 @@ CREATE TABLE accounting.financial_periods(
 -----------------------------------------------------------------
 CREATE TABLE accounting.transactions (
     uuid       UUID        DEFAULT uuidv7() PRIMARY KEY,
-    serial_id  BIGSERIAL   NOT NULL UNIQUE,               -- front-end id
+    serial_id  BIGSERIAL   NOT NULL UNIQUE,               -- front-end friendly id
 
     txn_date   DATE        NOT NULL,
     reference  TEXT,
     description TEXT,
-    created_by UUID,                                 -- fk to system.users (keep your own PK type)
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
     posted     BOOLEAN     DEFAULT TRUE,                -- drafts/approval
-    module     TEXT                                    -- e.g., 'invoice', 'payment', 'journal'
+    module     TEXT,                                    -- e.g., 'invoice', 'payment', 'journal'
+    created_by UUID,                                    -- fk to system.users
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 
 CREATE INDEX ON accounting.transactions (txn_date);

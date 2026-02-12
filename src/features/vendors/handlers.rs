@@ -113,7 +113,10 @@ async fn http_post_bill(
         .post_bill(&user.tenant_pool, user.user_id, &payload)
         .await?;
 
-    Ok(ApiResponse::success(bill_id, "Bill posted successfully"))
+    Ok(ApiResponse::success(
+        format!("Bill serial id: {bill_id}"),
+        "Bill posted successfully",
+    ))
 }
 
 async fn http_apply_bill_payment(
