@@ -1,5 +1,5 @@
 -- Create schema
-CREATE SCHEMA accounting;
+CREATE SCHEMA IF NOT EXISTS accounting;
 -- UUID extension Enabled automatically (required for uuidv7())
 -- Sequences
 CREATE SEQUENCE accounting.accounts_serial_id_seq;

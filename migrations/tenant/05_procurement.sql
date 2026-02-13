@@ -1,5 +1,5 @@
 -- ===============================================
--- PAYABLES MODULE - FULL SCHEMA
+-- PROCUREMENT MODULE - FULL SCHEMA
 -- Run this ONCE after `accounting` schema exists
 -- ===============================================
 
@@ -10,7 +10,7 @@ CREATE SCHEMA IF NOT EXISTS procurement;
 -- SEQUENCES
 -- ========================================
 CREATE SEQUENCE IF NOT EXISTS procurement.vendors_serial_id_seq;
-CREATE SEQUENCE IF NOT EXISTS procurement.bills_serial_id_seq;
+CREATE SEQUENCE IF NOT EXISTS procurement.purchases_serial_id_seq;
 CREATE SEQUENCE IF NOT EXISTS procurement.purchase_items_serial_id_seq;
 CREATE SEQUENCE IF NOT EXISTS procurement.payments_serial_id_seq;
 CREATE SEQUENCE IF NOT EXISTS procurement.payment_applications_serial_id_seq;
@@ -41,11 +41,11 @@ CREATE TABLE IF NOT EXISTS procurement.vendors (
 );
 
 -- ========================================
--- TABLE: bills
+-- TABLE: purchases
 -- ========================================
 CREATE TABLE IF NOT EXISTS procurement.purchases (
     uuid uuid DEFAULT uuidv7() NOT NULL,
-    serial_id bigint DEFAULT nextval('procurement.bills_serial_id_seq') NOT NULL,
+    serial_id bigint DEFAULT nextval('procurement.purchases_serial_id_seq') NOT NULL,
     bill_number text NOT NULL,
     vendor_uuid uuid NOT NULL,
     bill_date date NOT NULL,
@@ -62,12 +62,12 @@ CREATE TABLE IF NOT EXISTS procurement.purchases (
     paid_at timestamptz,
     created_at timestamptz DEFAULT now(),
     updated_at timestamptz DEFAULT now(),
-    CONSTRAINT bills_pkey PRIMARY KEY (uuid),
-    CONSTRAINT bills_serial_id_key UNIQUE (serial_id),
-    CONSTRAINT bills_bill_number_key UNIQUE (bill_number),
-    CONSTRAINT bills_vendor_uuid_fkey
+    CONSTRAINT purchases_pkey PRIMARY KEY (uuid),
+    CONSTRAINT purchases_serial_id_key UNIQUE (serial_id),
+    CONSTRAINT purchases_bill_number_key UNIQUE (bill_number),
+    CONSTRAINT purchases_vendor_uuid_fkey
         FOREIGN KEY (vendor_uuid) REFERENCES procurement.vendors(uuid) ON DELETE RESTRICT,
-    CONSTRAINT bills_gl_transaction_uuid_fkey
+    CONSTRAINT purchases_gl_transaction_uuid_fkey
         FOREIGN KEY (gl_transaction_uuid) REFERENCES accounting.transactions(uuid)
 );
 
@@ -440,10 +440,10 @@ $$;
 -- ========================================
 -- INDEXES
 -- ========================================
-CREATE INDEX IF NOT EXISTS idx_bills_vendor ON procurement.purchases(vendor_uuid);
-CREATE INDEX IF NOT EXISTS idx_bills_due_date ON procurement.purchases(due_date);
-CREATE INDEX IF NOT EXISTS idx_bills_status ON procurement.purchases(payment_status);
-CREATE INDEX IF NOT EXISTS idx_bills_balance ON procurement.purchases(balance_due) WHERE balance_due > 0;
+CREATE INDEX IF NOT EXISTS idx_purchases_vendor ON procurement.purchases(vendor_uuid);
+CREATE INDEX IF NOT EXISTS idx_purchases_due_date ON procurement.purchases(due_date);
+CREATE INDEX IF NOT EXISTS idx_purchases_status ON procurement.purchases(payment_status);
+CREATE INDEX IF NOT EXISTS idx_purchases_balance ON procurement.purchases(balance_due) WHERE balance_due > 0;
 CREATE INDEX IF NOT EXISTS idx_payments_vendor ON procurement.payments(vendor_uuid);
 CREATE INDEX IF NOT EXISTS idx_payments_date ON procurement.payments(payment_date DESC);
 CREATE INDEX IF NOT EXISTS idx_vendors_code ON procurement.vendors(code);

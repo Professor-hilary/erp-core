@@ -159,8 +159,7 @@ impl CustomerRepository for PostgresCustomerRepo {
                 due_date,
                 total_amount,
                 tax_amount,
-                balance_due,
-                currency
+                balance_due
             )
             VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
             RETURNING *
@@ -173,7 +172,7 @@ impl CustomerRepository for PostgresCustomerRepo {
         .bind(&payload.total_amount)
         .bind(&payload.tax_amount)
         .bind(&payload.total_amount)
-        .bind(&payload.currency)
+        // .bind(&payload.currency)
         .fetch_one(&mut *tx)
         .await?;
 

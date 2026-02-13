@@ -13,9 +13,9 @@ use crate::{
     interface::api::{json_errors::AppJson, errors::AppError, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,
     models::inventory::{
-        CreateItem, CreateItemCategory, CreateWarehouse, Item, ItemCategory, PostPurchase,
+        CreateItem, CreateItemCategory, CreateWarehouse, Item, ItemCategory,
         PostSale, Warehouse,
-    },
+    },models::vendor::CreateBill,
     state::AppState,
 };
 
@@ -236,7 +236,7 @@ async fn http_delete_warehouse(
 async fn http_cash_purchase(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    AppJson(payload): AppJson<PostPurchase>,
+    AppJson(payload): AppJson<CreateBill>,
 ) -> Result<Response, AppError> {
     let repo: PostgresInventoryRepo = PostgresInventoryRepo::new();
     let service: InventoryService<PostgresInventoryRepo> = InventoryService::new(repo);

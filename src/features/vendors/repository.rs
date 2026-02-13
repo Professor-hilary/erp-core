@@ -62,7 +62,7 @@ impl VendorRepository for PostgresVendorRepo {
     ) -> Result<Vendor, AppError> {
         let vendor: Vendor = sqlx::query_as::<_, Vendor>(
             r#"
-            INSERT INTO payables.vendors (code, name, email, phone, address, credit_limit, current_balance)
+            INSERT INTO procurement.vendors (code, name, email, phone, address, credit_limit, current_balance)
             VALUES ($1,$2,$3,$4,$5,COALESCE($6,0),0)
             RETURNING *
             "#,
@@ -79,7 +79,7 @@ impl VendorRepository for PostgresVendorRepo {
     }
 
     async fn list(&self, pool: &PgPool, _user_id: Uuid) -> Result<Vec<Vendor>, AppError> {
-        let vendors: Vec<Vendor> = sqlx::query_as::<_, Vendor>("SELECT * FROM payables.vendors")
+        let vendors: Vec<Vendor> = sqlx::query_as::<_, Vendor>("SELECT * FROM procurement.vendors")
             .fetch_all(pool)
             .await?;
         Ok(vendors)
@@ -87,7 +87,7 @@ impl VendorRepository for PostgresVendorRepo {
 
     async fn get(&self, pool: &PgPool, uuid: Uuid, _user_id: Uuid) -> Result<Vendor, AppError> {
         let vendor: Vendor =
-            sqlx::query_as::<_, Vendor>("SELECT * FROM payables.vendors WHERE uuid = $1")
+            sqlx::query_as::<_, Vendor>("SELECT * FROM procurement.vendors WHERE uuid = $1")
                 .bind(uuid)
                 .fetch_optional(pool)
                 .await?
@@ -104,7 +104,7 @@ impl VendorRepository for PostgresVendorRepo {
     ) -> Result<Vendor, AppError> {
         let vendor: Vendor = sqlx::query_as::<_, Vendor>(
             r#"
-                UPDATE payables.vendors
+                UPDATE procurement.vendors
                 SET name=$1, email=$2, phone=$3, address=$4,
                     credit_limit=COALESCE($5, credit_limit)
                 WHERE uuid=$6 RETURNING *
@@ -123,7 +123,7 @@ impl VendorRepository for PostgresVendorRepo {
 
     async fn delete(&self, pool: &PgPool, uuid: Uuid, _user_id: Uuid) -> Result<(), AppError> {
         let res: sqlx::postgres::PgQueryResult =
-            sqlx::query("DELETE FROM payables.vendors WHERE uuid = $1")
+            sqlx::query("DELETE FROM procurement.vendors WHERE uuid = $1")
                 .bind(uuid)
                 .execute(pool)
                 .await?;
@@ -141,15 +141,14 @@ impl VendorRepository for PostgresVendorRepo {
 
         let bill: Bill = sqlx::query_as::<_, Bill>(
             r#"
-            INSERT INTO payables.bills (
+            INSERT INTO procurement.purchases (
                 bill_number,
                 vendor_uuid,
                 bill_date,
                 due_date,
                 reference,
                 total_amount,
-                tax_amount,
-                currency
+                tax_amount
             )
             VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
             RETURNING *
@@ -162,7 +161,7 @@ impl VendorRepository for PostgresVendorRepo {
         .bind(&payload.reference)
         .bind(&payload.total_amount)
         .bind(&payload.tax_amount)
-        .bind(&payload.currency)
+        // .bind(&payload.currency)
         .fetch_one(&mut *tx)
         .await?;
 
@@ -173,7 +172,7 @@ impl VendorRepository for PostgresVendorRepo {
 
             sqlx::query(
                 r#"
-                INSERT INTO payables.bill_items (
+                INSERT INTO procurement.purchase_items (
                     bill_uuid,
                     stock_item_id,
                     description,
@@ -202,7 +201,7 @@ impl VendorRepository for PostgresVendorRepo {
         // Update bill with total and tax computed from items' meta
         sqlx::query(
             r#"
-                UPDATE payables.bills SET total_amount=$1, tax_amount=$2
+                UPDATE procurement.purchases SET total_amount=$1, tax_amount=$2
                     WHERE uuid=$3 RETURNING *
             "#,
         )
@@ -222,7 +221,7 @@ impl VendorRepository for PostgresVendorRepo {
         user_id: Uuid,
         payload: &PostBill,
     ) -> Result<i64, AppError> {
-        sqlx::query(r#"SELECT payables.post_bill($1, $2, $3, $4)"#)
+        sqlx::query(r#"SELECT procurement.post_bill($1, $2, $3, $4)"#)
             .bind(payload.bill_serial_id)
             .bind(user_id)
             .bind(&payload.payables_account)
@@ -241,7 +240,7 @@ impl VendorRepository for PostgresVendorRepo {
         let bills = sqlx::query_as::<_, Bill>(
             r#"
             SELECT *
-            FROM payables.bills
+            FROM procurement.purchases
             WHERE vendor_uuid = $1
             ORDER BY bill_date DESC
             "#,
@@ -256,7 +255,7 @@ impl VendorRepository for PostgresVendorRepo {
     async fn apply_payment(&self, pool: &PgPool, cmd: ApplyPayment) -> Result<Payment, AppError> {
         let mut tx = pool.begin().await?;
 
-        let payment = sqlx::query_as::<_, Payment>(r#"SELECT payables.apply_payment($1, $2, $3)"#)
+        let payment = sqlx::query_as::<_, Payment>(r#"SELECT procurement.apply_payment($1, $2, $3)"#)
             .bind(cmd.payment_serial_id)
             .bind(cmd.bill_serial_id)
             .bind(&cmd.amount)

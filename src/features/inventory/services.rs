@@ -2,10 +2,10 @@
 use crate::{
     features::inventory::repository::InventoryRepository,
     interface::api::errors::AppError,
-    models::inventory::{
-        CreateItem, CreateItemCategory, CreateWarehouse, Item, ItemCategory, PostPurchase,
+    models::{inventory::{
+        CreateItem, CreateItemCategory, CreateWarehouse, Item, ItemCategory,
         PostSale, Warehouse,
-    },
+    }, vendor::CreateBill, },
 };
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -172,9 +172,9 @@ impl<R: InventoryRepository> InventoryService<R> {
         &self,
         tenant_pool: &PgPool,
         user_id: Uuid,
-        payload: &PostPurchase,
-    ) -> Result<(), AppError> {
-        self.repo.post_purchase(tenant_pool, user_id, payload).await
+        payload: &CreateBill,
+    ) -> Result<crate::models::vendor::Bill, AppError> {
+        self.repo.cash_purchase(tenant_pool, user_id, payload).await
     }
 
     pub async fn post_sale(

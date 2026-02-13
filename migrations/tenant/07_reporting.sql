@@ -1,7 +1,7 @@
 -- ========================================
 -- REPORTING MODULE - FULL SCHEMA (GLOBAL-READY)
 -- Run this ONCE after all core modules exist:
---   accounting, payables, receivables, payroll, inventory
+--   accounting, procurement, receivables, payroll, inventory
 -- ========================================
 
 -- Enable UUID extension (if not already)
@@ -122,8 +122,8 @@ SELECT
         WHEN b.due_date >= CURRENT_DATE - 90 THEN '61-90'
         ELSE 'Over 90'
     END AS aging_bucket
-FROM payables.bills b
-JOIN payables.vendors v ON v.uuid = b.vendor_uuid
+FROM procurement.purchases b
+JOIN procurement.vendors v ON v.uuid = b.vendor_uuid
 WHERE b.status NOT IN ('Paid', 'Cancelled') AND b.balance_due > 0
 ORDER BY v.name, b.due_date
 WITH NO DATA;

@@ -1,12 +1,17 @@
 // src/features/inventory/repository.rs
 use crate::{
     interface::api::errors::AppError,
-    models::inventory::{
-        CreateItem, CreateItemCategory, CreateWarehouse, Item, ItemCategory, PostPurchase,
-        PostSale, Warehouse,
+    models::{
+        inventory::{
+            CreateItem, CreateItemCategory, CreateWarehouse, Item, ItemCategory, PostSale,
+            Warehouse,
+        },
+        vendor::Bill,
+        vendor::CreateBill,
     },
 };
 use async_trait::async_trait;
+use bigdecimal::BigDecimal;
 use sqlx::{PgPool, postgres::PgQueryResult};
 use uuid::Uuid;
 
@@ -99,12 +104,12 @@ pub trait InventoryRepository: Send + Sync {
     ) -> Result<(), AppError>;
 
     // Other repo methods (purchase and sale)
-    async fn post_purchase(
+    async fn cash_purchase(
         &self,
         pool: &PgPool,
         user_id: Uuid,
-        payload: &PostPurchase,
-    ) -> Result<(), AppError>;
+        payload: &CreateBill,
+    ) -> Result<Bill, AppError>;
     async fn post_sale(
         &self,
         pool: &PgPool,
@@ -297,7 +302,7 @@ impl InventoryRepository for PostgresInventoryRepo {
                     updated_at=now()
                 WHERE uuid=$13
                 RETURNING *
-            "#
+            "#,
         )
         .bind(&payload.sku)
         .bind(&payload.name)
@@ -409,25 +414,94 @@ impl InventoryRepository for PostgresInventoryRepo {
         }
     }
 
-    async fn post_purchase(
+    async fn cash_purchase(
         &self,
         pool: &PgPool,
-        user_id: Uuid,
-        payload: &PostPurchase,
-    ) -> Result<(), AppError> {
-        sqlx::query("SELECT inventory.post_purchase($1, $2, $3, $4, $5, $6, $7, $8, $9)")
-            .bind(&payload.item_serial_id)
-            .bind(&payload.warehouse_serial_id)
-            .bind(&payload.quantity)
-            .bind(&payload.unit_cost)
-            .bind(&payload.reference_type)
-            .bind(&payload.reference_serial_id)
-            .bind(user_id)
-            .bind(&payload.cash_account_code)
-            .bind(&payload.vat_account_code)
-            .execute(pool)
+        _user_id: Uuid,
+        payload: &CreateBill,
+    ) -> Result<Bill, AppError> {
+        let mut tx: sqlx::Transaction<'_, sqlx::Postgres> = pool.begin().await?;
+        let mut total_cost: BigDecimal = Default::default();
+        let mut tax_amount: BigDecimal = Default::default();
+
+        let bill: Bill = sqlx::query_as::<_, Bill>(
+            r#"
+            INSERT INTO procurement.purchases (
+                bill_number,
+                vendor_uuid,
+                bill_date,
+                due_date,
+                reference,
+                total_amount,
+                tax_amount,
+                settlement_type,
+                paid_at,
+                payment_status
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'paid')
+            RETURNING *
+            "#,
+        )
+        .bind(&payload.bill_number)
+        .bind(payload.vendor_uuid)
+        .bind(payload.bill_date)
+        .bind(payload.due_date)
+        .bind(&payload.reference)
+        .bind(&payload.total_amount)
+        .bind(&payload.tax_amount)
+        .bind(&payload.settlement_type)
+        .bind(&payload.paid_at)
+        .fetch_one(&mut *tx)
+        .await?;
+
+        for item in &payload.items {
+            let total_before_tax: BigDecimal = &item.quantity * &item.unit_price;
+            let gross_tax: BigDecimal = &total_before_tax * (&item.tax_rate / 100);
+            let total_after_tax: BigDecimal = &total_before_tax + &gross_tax;
+
+            sqlx::query(
+                r#"
+                INSERT INTO procurement.purchase_items (
+                    bill_uuid,
+                    stock_item_id,
+                    description,
+                    quantity,
+                    unit_price,
+                    tax_rate,
+                    total
+                )
+                VALUES ($1,$2,$3,$4,$5,$6,$7)
+                "#,
+            )
+            .bind(bill.uuid)
+            .bind(&item.stock_item_id)
+            .bind(&item.description)
+            .bind(&item.quantity)
+            .bind(&item.unit_price)
+            .bind(&item.tax_rate)
+            .bind(&total_after_tax)
+            .execute(&mut *tx)
             .await?;
-        Ok(())
+
+            total_cost += &total_before_tax;
+            tax_amount += &gross_tax;
+        }
+
+        // Update bill with total and tax computed from items' meta
+        sqlx::query(
+            r#"
+                UPDATE procurement.purchases SET total_amount=$1, tax_amount=$2
+                    WHERE uuid=$3 RETURNING *
+            "#,
+        )
+        .bind(&total_cost)
+        .bind(&tax_amount)
+        .bind(bill.uuid)
+        .execute(&mut *tx)
+        .await?;
+
+        tx.commit().await?;
+        Ok(bill)
     }
 
     async fn post_sale(

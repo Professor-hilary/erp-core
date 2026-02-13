@@ -36,13 +36,15 @@ pub struct Bill {
     pub bill_date: NaiveDate,
     pub due_date: NaiveDate,
     pub reference: Option<String>,
+    pub settlement_type: Option<String>,
+    pub payment_status: Option<String>,
     pub total_amount: Option<BigDecimal>,
     pub tax_amount: Option<BigDecimal>,
     pub balance_due: Option<BigDecimal>,
-    pub currency: String,
-    pub status: String,
+    // pub currency: String,
     pub posted: bool,
     pub gl_transaction_uuid: Option<Uuid>,
+    pub paid_at: DateTime<Utc>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -57,7 +59,7 @@ pub struct Payment {
     pub method: String,
     pub reference: Option<String>,
     pub amount: BigDecimal,
-    pub currency: String,
+    // pub currency: String,
     pub applied_amount: BigDecimal,
     pub unapplied_amount: BigDecimal,
     pub gl_transaction_uuid: Option<Uuid>,
@@ -71,11 +73,14 @@ pub struct CreateBill {
     pub vendor_uuid: Uuid,
     pub bill_date: NaiveDate,
     pub due_date: NaiveDate,
+    pub settlement_type: Option<String>,
+    pub payment_status: Option<String>,
     pub reference: Option<String>,
-    pub currency: Option<String>,
+    // pub currency: Option<String>,
     pub tax_amount: Option<BigDecimal>,
     pub total_amount: Option<BigDecimal>,
-    pub items: Vec<CreateBillItem>,
+    pub paid_at: Option<DateTime<Utc>>,
+    pub items: Vec<CreatePurchaseItem>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -86,11 +91,11 @@ pub struct CreatePayment {
     pub method: String,
     pub reference: Option<String>,
     pub amount: BigDecimal,
-    pub currency: String,
+    // pub currency: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct CreateBillItem {
+pub struct CreatePurchaseItem {
     pub stock_item_id: i64,
     pub description: String,
     pub quantity: BigDecimal,
