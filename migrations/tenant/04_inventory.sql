@@ -393,7 +393,6 @@ CREATE OR REPLACE FUNCTION inventory.post_purchase(
     p_reference_serial_id   bigint,
     p_user                  uuid,
     p_source_account        text DEFAULT NULL, -- Cash/Bank  purchase
-    p_tax_account           text DEFAULT NULL, -- Cash/Bank  purchase
     p_gl_transaction_uuid   uuid DEFAULT NULL  -- For Credit purchase
 ) RETURNS uuid
 LANGUAGE plpgsql AS $$

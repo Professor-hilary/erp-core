@@ -1,6 +1,6 @@
 use crate::{
     interface::api::errors::AppError,
-    models::vendor::{ApplyPayment, Bill, CreateBill, CreateVendor, Payment, PostBill, Vendor},
+    models::vendor::{ApplyPayment, Purchase, CreatePurchase, CreateVendor, Payment, PostPurchase, Vendor},
 };
 use async_trait::async_trait;
 use bigdecimal::BigDecimal;
@@ -26,20 +26,20 @@ pub trait VendorRepository: Send + Sync {
     ) -> Result<Vendor, AppError>;
     async fn delete(&self, pool: &PgPool, uuid: Uuid, user_id: Uuid) -> Result<(), AppError>;
 
-    async fn create_bill(&self, pool: &PgPool, payload: &CreateBill) -> Result<Bill, AppError>;
+    async fn create_bill(&self, pool: &PgPool, payload: &CreatePurchase) -> Result<Purchase, AppError>;
 
     async fn post_bill(
         &self,
         pool: &PgPool,
         user_id: Uuid,
-        payload: &PostBill,
+        payload: &PostPurchase,
     ) -> Result<i64, AppError>;
 
     async fn list_vendor_bills(
         &self,
         pool: &PgPool,
         vendor_uuid: Uuid,
-    ) -> Result<Vec<Bill>, AppError>;
+    ) -> Result<Vec<Purchase>, AppError>;
 
     async fn apply_payment(&self, pool: &PgPool, cmd: ApplyPayment) -> Result<Payment, AppError>;
 }
@@ -134,12 +134,12 @@ impl VendorRepository for PostgresVendorRepo {
         }
     }
 
-    async fn create_bill(&self, pool: &PgPool, payload: &CreateBill) -> Result<Bill, AppError> {
+    async fn create_bill(&self, pool: &PgPool, payload: &CreatePurchase) -> Result<Purchase, AppError> {
         let mut tx: sqlx::Transaction<'_, sqlx::Postgres> = pool.begin().await?;
         let mut total_cost: BigDecimal = Default::default();
         let mut tax_amount: BigDecimal = Default::default();
 
-        let bill: Bill = sqlx::query_as::<_, Bill>(
+        let bill: Purchase = sqlx::query_as::<_, Purchase>(
             r#"
             INSERT INTO procurement.purchases (
                 bill_number,
@@ -219,13 +219,13 @@ impl VendorRepository for PostgresVendorRepo {
         &self,
         pool: &PgPool,
         user_id: Uuid,
-        payload: &PostBill,
+        payload: &PostPurchase,
     ) -> Result<i64, AppError> {
-        sqlx::query(r#"SELECT procurement.post_bill($1, $2, $3, $4)"#)
+        sqlx::query(r#"SELECT procurement.procure_stock($1, $2, $3, $4, null)"#)
             .bind(payload.bill_serial_id)
             .bind(user_id)
-            .bind(&payload.payables_account)
             .bind(&payload.vat_tax_account)
+            .bind(&payload.payables_account)
             .execute(pool)
             .await?;
 
@@ -236,8 +236,8 @@ impl VendorRepository for PostgresVendorRepo {
         &self,
         pool: &PgPool,
         vendor_uuid: Uuid,
-    ) -> Result<Vec<Bill>, AppError> {
-        let bills = sqlx::query_as::<_, Bill>(
+    ) -> Result<Vec<Purchase>, AppError> {
+        let bills = sqlx::query_as::<_, Purchase>(
             r#"
             SELECT *
             FROM procurement.purchases

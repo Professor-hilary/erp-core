@@ -6,8 +6,7 @@ use crate::{
             CreateItem, CreateItemCategory, CreateWarehouse, Item, ItemCategory, PostSale,
             Warehouse,
         },
-        vendor::Bill,
-        vendor::CreateBill,
+        vendor::{Purchase, CreatePurchase, PostPurchase},
     },
 };
 use async_trait::async_trait;
@@ -103,13 +102,22 @@ pub trait InventoryRepository: Send + Sync {
         user_id: Uuid,
     ) -> Result<(), AppError>;
 
-    // Other repo methods (purchase and sale)
+    // Create purchase order
     async fn cash_purchase(
         &self,
         pool: &PgPool,
         user_id: Uuid,
-        payload: &CreateBill,
-    ) -> Result<Bill, AppError>;
+        payload: &CreatePurchase,
+    ) -> Result<Purchase, AppError>;
+
+    // Proceed to procure
+    async fn post_purchase(
+        &self,
+        pool: &PgPool,
+        user_id: Uuid,
+        payload: &PostPurchase,
+    ) -> Result<i64, AppError>;
+
     async fn post_sale(
         &self,
         pool: &PgPool,
@@ -418,13 +426,13 @@ impl InventoryRepository for PostgresInventoryRepo {
         &self,
         pool: &PgPool,
         _user_id: Uuid,
-        payload: &CreateBill,
-    ) -> Result<Bill, AppError> {
+        payload: &CreatePurchase,
+    ) -> Result<Purchase, AppError> {
         let mut tx: sqlx::Transaction<'_, sqlx::Postgres> = pool.begin().await?;
         let mut total_cost: BigDecimal = Default::default();
         let mut tax_amount: BigDecimal = Default::default();
 
-        let bill: Bill = sqlx::query_as::<_, Bill>(
+        let bill: Purchase = sqlx::query_as::<_, Purchase>(
             r#"
             INSERT INTO procurement.purchases (
                 bill_number,
@@ -502,6 +510,25 @@ impl InventoryRepository for PostgresInventoryRepo {
 
         tx.commit().await?;
         Ok(bill)
+    }
+
+    async fn post_purchase(
+        &self,
+        pool: &PgPool,
+        user_id: Uuid,
+        payload: &PostPurchase,
+    ) -> Result<i64, AppError> {
+        sqlx::query(r#"
+                SELECT procurement.procure_stock($1, $2, $3, null, $4)
+            "#)
+            .bind(payload.bill_serial_id)
+            .bind(user_id)
+            .bind(&payload.vat_tax_account)
+            .bind(&payload.cash_account)
+            .execute(pool)
+            .await?;
+
+        Ok(payload.bill_serial_id)
     }
 
     async fn post_sale(

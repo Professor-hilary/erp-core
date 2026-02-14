@@ -229,7 +229,7 @@ impl ReportRepository for PostgresReportRepo {
     ) -> Result<Vec<ArAgingDto>, AppError> {
         let rows = sqlx::query_as::<_, ArAgingDto>(
             r#"SELECT * FROM reporting.ar_aging_detailed WHERE customer_serial_id = (
-                    SELECT serial_id FROM receivables.customers WHERE uuid = $1
+                    SELECT serial_id FROM sales.customers WHERE uuid = $1
                 )"#,
         )
         .bind(customer_uuid)
@@ -363,7 +363,7 @@ impl ReportRepository for PostgresReportRepo {
             r#"
             SELECT cb.*
             FROM reporting.cashbook cb
-            JOIN receivables.invoices i ON i.serial_id = cb.txn_serial_id  -- adapt as needed
+            JOIN sales.turnover i ON i.serial_id = cb.txn_serial_id  -- adapt as needed
             WHERE i.customer_uuid = $1
               AND cb.txn_date BETWEEN $2 AND $3
             ORDER BY cb.txn_date DESC

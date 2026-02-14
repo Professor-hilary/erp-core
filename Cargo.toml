@@ -2,13 +2,26 @@
 name = "chiefalry_accountant_backend"
 version = "0.1.0"
 edition = "2024"
+authors = ["Okuonzi Hilary"]
+description = "Backend ERP system for Chiefalry ERP"
+license = "MIT"
+repository = "https://github.com/Professor-hilary/erp-core"
 
 [dependencies]
+# Web framework
 axum = "0.8.7"
+tower = { version = "0.5.2", features = ["util"] }
+tower-http = { version = "0.6.6", features = ["cors", "request-id", "trace"] }
+
+# Async runtime
 tokio = { version = "1.39", features = ["full"] }
+
+# Serialization
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 urlencoding = "2.1"
+
+# Database
 sqlx = { version = "0.8.6", features = [
     "postgres",
     "runtime-tokio-rustls",
@@ -18,22 +31,30 @@ sqlx = { version = "0.8.6", features = [
     "migrate",              # migrations
     "bigdecimal",           # ← This enables BigDecimal support for NUMERIC
 ] }
+
+# Data types
 bigdecimal = { version = "0.4", features = ["serde"] }
-dotenv = "0.15"
+chrono = { version = "0.4", features = ["serde"] }
+dashmap = "6.1.0"
+uuid = { version = "1.7", features = ["v4", "serde"] }
+
+# Auth and security
 jsonwebtoken = { version = "10.2.0", features = ["rust_crypto"] }
 bcrypt = "0.17.1"
-chrono = { version = "0.4", features = ["serde"] }
-tower = { version = "0.5.2", features = ["util"] }
-tower-http = { version = "0.6.6", features = ["cors", "request-id", "trace"] }
+
+# Observability
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
-uuid = { version = "1.7", features = ["v4", "serde"] }
+
+# Error handling
 thiserror = "2.0.17"
-async-trait = "0.1"
-dashmap = "6.1.0"
-rand = "0.9.2"
-moka = {version = "0.12", features = ["future"]} # future for async cache
 anyhow = "1.0"
+
+# Utilities
+async-trait = "0.1"
+dotenv = "0.15"
+moka = {version = "0.12", features = ["future"]} # future for async cache
+rand = "0.9.2"
+serde_path_to_error = "0.1.20"
 strum = {version = "0.27.2", features = ["derive"]}
 strum_macros = "0.27.2"
-serde_path_to_error = "0.1.20"

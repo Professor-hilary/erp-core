@@ -68,7 +68,7 @@ impl CustomerRepository for PostgresCustomerRepo {
     ) -> Result<Customer, AppError> {
         let cust: Customer = sqlx::query_as::<_, Customer>(
             r#"
-            INSERT INTO receivables.customers (name, code, email, phone, billing_address, credit_limit, current_balance)
+            INSERT INTO sales.customers (name, code, email, phone, billing_address, credit_limit, current_balance)
             VALUES ($1,$2,$3,$4,$5, COALESCE($6,0),0)
             RETURNING *
             "#,
@@ -86,7 +86,7 @@ impl CustomerRepository for PostgresCustomerRepo {
 
     async fn list(&self, pool: &PgPool, _user_id: Uuid) -> Result<Vec<Customer>, AppError> {
         let rows: Vec<Customer> =
-            sqlx::query_as::<_, Customer>("SELECT * FROM receivables.customers")
+            sqlx::query_as::<_, Customer>("SELECT * FROM sales.customers")
                 .fetch_all(pool)
                 .await?;
         Ok(rows)
@@ -94,7 +94,7 @@ impl CustomerRepository for PostgresCustomerRepo {
 
     async fn get(&self, pool: &PgPool, uuid: Uuid, _user_id: Uuid) -> Result<Customer, AppError> {
         let cust: Customer =
-            sqlx::query_as::<_, Customer>("SELECT * FROM receivables.customers WHERE uuid = $1")
+            sqlx::query_as::<_, Customer>("SELECT * FROM sales.customers WHERE uuid = $1")
                 .bind(uuid)
                 .fetch_optional(pool)
                 .await?
@@ -111,7 +111,7 @@ impl CustomerRepository for PostgresCustomerRepo {
     ) -> Result<Customer, AppError> {
         let cust: Customer = sqlx::query_as::<_, Customer>(
             r#"
-            UPDATE receivables.customers
+            UPDATE sales.customers
             SET name=$1, email=$2, phone=$3, billing_address=$4,
                 credit_limit=COALESCE($5, credit_limit)
             WHERE uuid=$6
@@ -130,7 +130,7 @@ impl CustomerRepository for PostgresCustomerRepo {
     }
 
     async fn delete(&self, pool: &PgPool, uuid: Uuid, _user_id: Uuid) -> Result<u64, AppError> {
-        let res: PgQueryResult = sqlx::query("DELETE FROM receivables.customers WHERE uuid = $1")
+        let res: PgQueryResult = sqlx::query("DELETE FROM sales.customers WHERE uuid = $1")
             .bind(uuid)
             .execute(pool)
             .await?;
@@ -152,7 +152,7 @@ impl CustomerRepository for PostgresCustomerRepo {
 
         let invoice: Invoice = sqlx::query_as::<_, Invoice>(
             r#"
-            INSERT INTO receivables.invoices (
+            INSERT INTO sales.turnover (
                 invoice_number,
                 customer_uuid,
                 issue_date,
@@ -183,7 +183,7 @@ impl CustomerRepository for PostgresCustomerRepo {
 
             sqlx::query(
                 r#"
-                INSERT INTO receivables.invoice_items (
+                INSERT INTO sales.turnover_items (
                     invoice_uuid,
                     stock_item_id,
                     description,
@@ -212,7 +212,7 @@ impl CustomerRepository for PostgresCustomerRepo {
         // Update invoice with total and tax computed from items' meta
         sqlx::query(
             r#"
-                UPDATE receivables.invoices SET total_amount=$1, tax_amount=$2
+                UPDATE sales.turnover SET total_amount=$1, tax_amount=$2
                     WHERE uuid=$3 RETURNING *
             "#,
         )
@@ -234,7 +234,7 @@ impl CustomerRepository for PostgresCustomerRepo {
     ) -> Result<Invoice, AppError> {
         let invoice = sqlx::query_as::<_, Invoice>(
             r#"
-            SELECT receivables.post_invoice($1, $2, $3, $4)
+            SELECT sales.post_turnover($1, $2, $3, $4)
             "#,
         )
         .bind(payload.invoice_serial_id)
@@ -256,7 +256,7 @@ impl CustomerRepository for PostgresCustomerRepo {
         let invoices = sqlx::query_as::<_, Invoice>(
             r#"
             SELECT *
-            FROM receivables.invoices
+            FROM sales.turnover
             WHERE customer_uuid = $1
             ORDER BY issue_date DESC
             "#,
@@ -272,7 +272,7 @@ impl CustomerRepository for PostgresCustomerRepo {
         let mut tx = pool.begin().await?;
 
         let payment =
-            sqlx::query_as::<_, Payment>(r#"SELECT receivables.apply_payment($1, $2, $3)"#)
+            sqlx::query_as::<_, Payment>(r#"SELECT sales.apply_payment($1, $2, $3)"#)
                 .bind(cmd.payment_serial_id)
                 .bind(cmd.invoice_serial_id)
                 .bind(&cmd.amount)

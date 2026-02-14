@@ -28,7 +28,7 @@ pub struct CreateVendor {
 }
 
 #[derive(Debug, Serialize, Deserialize, FromRow)]
-pub struct Bill {
+pub struct Purchase {
     pub uuid: Uuid,
     pub serial_id: i64,
     pub bill_number: String,
@@ -41,10 +41,9 @@ pub struct Bill {
     pub total_amount: Option<BigDecimal>,
     pub tax_amount: Option<BigDecimal>,
     pub balance_due: Option<BigDecimal>,
-    // pub currency: String,
     pub posted: bool,
     pub gl_transaction_uuid: Option<Uuid>,
-    pub paid_at: DateTime<Utc>,
+    pub paid_at: NaiveDate,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -59,7 +58,6 @@ pub struct Payment {
     pub method: String,
     pub reference: Option<String>,
     pub amount: BigDecimal,
-    // pub currency: String,
     pub applied_amount: BigDecimal,
     pub unapplied_amount: BigDecimal,
     pub gl_transaction_uuid: Option<Uuid>,
@@ -68,7 +66,7 @@ pub struct Payment {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct CreateBill {
+pub struct CreatePurchase {
     pub bill_number: String,
     pub vendor_uuid: Uuid,
     pub bill_date: NaiveDate,
@@ -76,10 +74,9 @@ pub struct CreateBill {
     pub settlement_type: Option<String>,
     pub payment_status: Option<String>,
     pub reference: Option<String>,
-    // pub currency: Option<String>,
     pub tax_amount: Option<BigDecimal>,
     pub total_amount: Option<BigDecimal>,
-    pub paid_at: Option<DateTime<Utc>>,
+    pub paid_at: Option<NaiveDate>,
     pub items: Vec<CreatePurchaseItem>,
 }
 
@@ -91,7 +88,6 @@ pub struct CreatePayment {
     pub method: String,
     pub reference: Option<String>,
     pub amount: BigDecimal,
-    // pub currency: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -105,10 +101,11 @@ pub struct CreatePurchaseItem {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct PostBill {
+pub struct PostPurchase {
     pub bill_serial_id: i64,
     pub vat_tax_account: String,
-    pub payables_account: String,
+    pub payables_account: Option<String>,
+    pub cash_account: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

@@ -12,7 +12,7 @@ use crate::{
     features::vendors::{repository::PostgresVendorRepo, services::VendorService},
     interface::api::{errors::AppError, json_errors::AppJson, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,
-    models::vendor::{ApplyPayment, Bill, CreateBill, CreateVendor, Payment, PostBill, Vendor},
+    models::vendor::{ApplyPayment, Purchase, CreatePurchase, CreateVendor, Payment, PostPurchase, Vendor},
     state::AppState,
 };
 
@@ -93,11 +93,11 @@ async fn http_delete_vendor(
 async fn http_create_bill(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    AppJson(payload): AppJson<CreateBill>,
+    AppJson(payload): AppJson<CreatePurchase>,
 ) -> Result<Response, AppError> {
     let repo: PostgresVendorRepo = PostgresVendorRepo::new();
     let service: VendorService<PostgresVendorRepo> = VendorService::new(repo);
-    let bill: Bill = service.create_bill(&user.tenant_pool, &payload).await?;
+    let bill: Purchase = service.create_bill(&user.tenant_pool, &payload).await?;
 
     Ok(ApiResponse::created(bill, "Bill created successfully"))
 }
@@ -105,7 +105,7 @@ async fn http_create_bill(
 async fn http_post_bill(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    AppJson(payload): AppJson<PostBill>,
+    AppJson(payload): AppJson<PostPurchase>,
 ) -> Result<Response, AppError> {
     let repo: PostgresVendorRepo = PostgresVendorRepo::new();
     let service: VendorService<PostgresVendorRepo> = VendorService::new(repo);
@@ -140,6 +140,6 @@ async fn http_list_vendor_bills(
 ) -> Result<Response, AppError> {
     let repo: PostgresVendorRepo = PostgresVendorRepo::new();
     let service: VendorService<PostgresVendorRepo> = VendorService::new(repo);
-    let bills: Vec<Bill> = service.list_vendor_bills(&user.tenant_pool, uuid).await?;
+    let bills: Vec<Purchase> = service.list_vendor_bills(&user.tenant_pool, uuid).await?;
     Ok(ApiResponse::success(bills, "Vendor bills found"))
 }

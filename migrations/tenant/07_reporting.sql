@@ -96,8 +96,8 @@ SELECT
         WHEN i.due_date >= CURRENT_DATE - 90 THEN '61-90'
         ELSE 'Over 90'
     END AS aging_bucket
-FROM receivables.invoices i
-JOIN receivables.customers c ON c.uuid = i.customer_uuid
+FROM sales.turnover i
+JOIN sales.customers c ON c.uuid = i.customer_uuid
 WHERE i.status NOT IN ('Paid', 'Cancelled') AND i.balance_due > 0
 ORDER BY c.name, i.due_date
 WITH NO DATA;
@@ -124,7 +124,7 @@ SELECT
     END AS aging_bucket
 FROM procurement.purchases b
 JOIN procurement.vendors v ON v.uuid = b.vendor_uuid
-WHERE b.status NOT IN ('Paid', 'Cancelled') AND b.balance_due > 0
+WHERE b.payment_status NOT IN ('paid', 'cancelled') AND b.balance_due > 0
 ORDER BY v.name, b.due_date
 WITH NO DATA;
 
@@ -182,10 +182,10 @@ SELECT
     p.payment_number,
     p.amount AS payment_amount,
     p.payment_date
-FROM receivables.customers c
-LEFT JOIN receivables.invoices i ON i.customer_uuid = c.uuid
-LEFT JOIN receivables.payment_applications pa ON pa.invoice_uuid = i.uuid
-LEFT JOIN receivables.payments p ON p.uuid = pa.payment_uuid
+FROM sales.customers c
+LEFT JOIN sales.turnover i ON i.customer_uuid = c.uuid
+LEFT JOIN sales.payment_applications pa ON pa.invoice_uuid = i.uuid
+LEFT JOIN sales.payments p ON p.uuid = pa.payment_uuid
 WITH NO DATA;
 
 -- ===============================================================

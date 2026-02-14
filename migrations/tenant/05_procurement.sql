@@ -54,12 +54,11 @@ CREATE TABLE IF NOT EXISTS procurement.purchases (
     total_amount numeric(18, 2) DEFAULT 0,
     tax_amount numeric(18, 2) DEFAULT 0,
     balance_due numeric(18, 2) DEFAULT 0,
-    -- currency text DEFAULT 'UGX',
     settlement_type text DEFAULT 'credit' CHECK(settlement_type IN ('credit', 'cash')),
     payment_status text DEFAULT 'unpaid' CHECK(settlement_type IN ('unpaid', 'paid', 'partial', 'cancelled')),
     posted boolean DEFAULT false,
     gl_transaction_uuid uuid,
-    paid_at timestamptz,
+    paid_at date,
     created_at timestamptz DEFAULT now(),
     updated_at timestamptz DEFAULT now(),
     CONSTRAINT purchases_pkey PRIMARY KEY (uuid),
@@ -204,8 +203,8 @@ ORDER BY v.serial_id, COALESCE(b.serial_id, 0), p.payment_date DESC NULLS LAST;
 -- ========================================
 -- FUNCTIONS
 -- ========================================
--- Payables post bill function (credit purchase) V2.0
-CREATE OR REPLACE FUNCTION procurement.post_purchase(
+-- Vendor post bill function (credit or cash purchase) V3.0
+CREATE OR REPLACE FUNCTION procurement.procure_stock(
     p_bill_serial_id bigint,
     p_user uuid,
     p_vat_tax_code text,
@@ -232,11 +231,13 @@ BEGIN
     END IF;
 
     -- Resolve procurement account
-    SELECT uuid INTO v_payable_account_uuid FROM accounting.accounts
-        WHERE code = p_payable_code;
+    IF v_bill.settlement_type = 'credit' THEN
+        SELECT uuid INTO v_payable_account_uuid FROM accounting.accounts
+            WHERE code = p_payable_code;
 
-    IF v_payable_account_uuid IS NULL THEN
-        RAISE EXCEPTION 'Payables account not found for code: %', p_payable_code;
+        IF v_payable_account_uuid IS NULL THEN
+            RAISE EXCEPTION 'Payables account not found for code: %', p_payable_code;
+        END IF;
     END IF;
 
     -- Resolve cash account for cash purchases
@@ -322,7 +323,7 @@ BEGIN
     -------------------------------------------------------------------------------------
     PERFORM inventory.post_purchase(
         bi.stock_item_id::bigint, i.warehouse_serial, bi.quantity, bi.unit_price, 'bill',
-        p_bill_serial_id, p_user, p_payable_code, null, v_txn_uuid
+        p_bill_serial_id, p_user, p_payable_code, v_txn_uuid
     )
     FROM procurement.purchase_items bi
     JOIN inventory.items i ON i.serial_id = bi.stock_item_id
@@ -352,7 +353,7 @@ BEGIN
     -------------------------------------------------------------------------------------
     -- Update vendor balance
     -------------------------------------------------------------------------------------
-    IF v-bill.settlement_type = 'credit' THEN
+    IF v_bill.settlement_type = 'credit' THEN
         UPDATE procurement.vendors
         SET current_balance = current_balance + v_bill.total_amount + v_bill.tax_amount
         WHERE uuid = v_bill.vendor_uuid;
