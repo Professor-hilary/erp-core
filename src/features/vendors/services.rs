@@ -1,3 +1,4 @@
+// src/routes/vendors/service.rs
 use crate::{
     features::vendors::repository::VendorRepository,
     interface::api::errors::AppError,

@@ -272,7 +272,6 @@ BEGIN
     WITH asset_totals AS (
         SELECT
             a.uuid AS account_uuid,
-            -- SUM(bi.total) AS amount
             SUM(bi.quantity * bi.unit_price) as amount
             FROM procurement.purchase_items bi
             JOIN inventory.items i ON i.serial_id = bi.stock_item_id

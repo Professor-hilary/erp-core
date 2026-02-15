@@ -2,11 +2,12 @@
 use crate::{
     interface::api::errors::AppError,
     models::{
+        customers::{CreateInvoice, Invoice},
         inventory::{
             CreateItem, CreateItemCategory, CreateWarehouse, Item, ItemCategory, PostSale,
             Warehouse,
         },
-        vendor::{Purchase, CreatePurchase, PostPurchase},
+        vendor::{CreatePurchase, PostPurchase, Purchase},
     },
 };
 use async_trait::async_trait;
@@ -117,6 +118,12 @@ pub trait InventoryRepository: Send + Sync {
         user_id: Uuid,
         payload: &PostPurchase,
     ) -> Result<i64, AppError>;
+
+    async fn create_sale_order(
+        &self,
+        pool: &PgPool,
+        payload: &CreateInvoice,
+    ) -> Result<Invoice, AppError>;
 
     async fn post_sale(
         &self,
@@ -512,21 +519,107 @@ impl InventoryRepository for PostgresInventoryRepo {
         Ok(bill)
     }
 
+    async fn create_sale_order(
+        &self,
+        pool: &PgPool,
+        payload: &CreateInvoice,
+    ) -> Result<Invoice, AppError> {
+        let mut tx: sqlx::Transaction<'_, sqlx::Postgres> = pool.begin().await?;
+        let mut total_cost: BigDecimal = Default::default();
+        let mut tax_amount: BigDecimal = Default::default();
+
+        let invoice: Invoice = sqlx::query_as::<_, Invoice>(
+            r#"
+            INSERT INTO sales.turnover (
+                invoice_number,
+                customer_uuid,
+                issue_date,
+                due_date,
+                total_amount,
+                tax_amount,
+                balance_due
+            )
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+            RETURNING *
+            "#,
+        )
+        .bind(&payload.invoice_number)
+        .bind(payload.customer_uuid)
+        .bind(payload.issue_date)
+        .bind(payload.due_date)
+        .bind(&payload.total_amount)
+        .bind(&payload.tax_amount)
+        .bind(&payload.total_amount)
+        .fetch_one(&mut *tx)
+        .await?;
+
+        for item in &payload.items {
+            let total_before_tax: BigDecimal = &item.quantity * &item.unit_price;
+            let gross_tax: BigDecimal = &total_before_tax * (&item.tax_rate / 100);
+            let total_after_tax: BigDecimal = &total_before_tax + &gross_tax;
+
+            sqlx::query(
+                r#"
+                INSERT INTO sales.turnover_items (
+                    invoice_uuid,
+                    stock_item_id,
+                    description,
+                    quantity,
+                    unit_price,
+                    tax_rate,
+                    total
+                )
+                VALUES ($1,$2,$3,$4,$5,$6,$7)
+                "#,
+            )
+            .bind(invoice.uuid)
+            .bind(&item.stock_item_id)
+            .bind(&item.description)
+            .bind(&item.quantity)
+            .bind(&item.unit_price)
+            .bind(&item.tax_rate)
+            .bind(&total_after_tax)
+            .execute(&mut *tx)
+            .await?;
+
+            total_cost += &total_before_tax;
+            tax_amount += &gross_tax;
+        }
+
+        // Update invoice with total and tax computed from items' meta
+        sqlx::query(
+            r#"
+                UPDATE sales.turnover SET total_amount=$1, tax_amount=$2
+                    WHERE uuid=$3 RETURNING *
+            "#,
+        )
+        .bind(&total_cost)
+        .bind(&tax_amount)
+        .bind(invoice.uuid)
+        .execute(&mut *tx)
+        .await?;
+
+        tx.commit().await?;
+        Ok(invoice)
+    }
+
     async fn post_purchase(
         &self,
         pool: &PgPool,
         user_id: Uuid,
         payload: &PostPurchase,
     ) -> Result<i64, AppError> {
-        sqlx::query(r#"
+        sqlx::query(
+            r#"
                 SELECT procurement.procure_stock($1, $2, $3, null, $4)
-            "#)
-            .bind(payload.bill_serial_id)
-            .bind(user_id)
-            .bind(&payload.vat_tax_account)
-            .bind(&payload.cash_account)
-            .execute(pool)
-            .await?;
+            "#,
+        )
+        .bind(payload.bill_serial_id)
+        .bind(user_id)
+        .bind(&payload.vat_tax_account)
+        .bind(&payload.cash_account)
+        .execute(pool)
+        .await?;
 
         Ok(payload.bill_serial_id)
     }

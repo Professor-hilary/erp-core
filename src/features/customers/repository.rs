@@ -146,7 +146,7 @@ impl CustomerRepository for PostgresCustomerRepo {
         pool: &PgPool,
         payload: &CreateInvoice,
     ) -> Result<Invoice, AppError> {
-        let mut tx = pool.begin().await?;
+        let mut tx: sqlx::Transaction<'_, sqlx::Postgres> = pool.begin().await?;
         let mut total_cost: BigDecimal = Default::default();
         let mut tax_amount: BigDecimal = Default::default();
 

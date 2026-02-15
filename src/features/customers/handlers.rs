@@ -11,7 +11,7 @@ use crate::{
     features::customers::{repository::PostgresCustomerRepo, services::CustomerService},
     interface::api::{errors::AppError, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,
-    models::customers::{ApplyPayment, CreateCustomer, CreateInvoice, Customer, PostInvoice},
+    models::customers::{ApplyPayment, CreateCustomer, CreateInvoice, Customer, Invoice, Payment, PostInvoice},
     state::AppState,
 };
 
@@ -99,7 +99,7 @@ async fn http_create_invoice(
 ) -> Result<Response, AppError> {
     let repo: PostgresCustomerRepo = PostgresCustomerRepo::new();
     let service: CustomerService<PostgresCustomerRepo> = CustomerService::new(repo);
-    let invoice = service.create_invoice(&user.tenant_pool, &payload).await?;
+    let invoice: Invoice = service.create_invoice(&user.tenant_pool, &payload).await?;
     Ok(ApiResponse::success(
         invoice,
         "Customer invoice created successfully",
@@ -111,9 +111,9 @@ async fn http_post_invoice(
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<PostInvoice>,
 ) -> Result<Response, AppError> {
-    let repo = PostgresCustomerRepo::new();
-    let service = CustomerService::new(repo);
-    let invoice = service
+    let repo: PostgresCustomerRepo = PostgresCustomerRepo::new();
+    let service: CustomerService<PostgresCustomerRepo> = CustomerService::new(repo);
+    let invoice: Invoice = service
         .post_invoice(&user.tenant_pool, user.user_id, &payload)
         .await?;
     Ok(ApiResponse::success(invoice, "Customer invoice posted"))
@@ -124,9 +124,9 @@ async fn http_apply_invoice_payment(
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<ApplyPayment>,
 ) -> Result<Response, AppError> {
-    let repo = PostgresCustomerRepo::new();
-    let service = CustomerService::new(repo);
-    let payment = service.apply_payment(&user.tenant_pool, payload).await?;
+    let repo: PostgresCustomerRepo = PostgresCustomerRepo::new();
+    let service: CustomerService<PostgresCustomerRepo> = CustomerService::new(repo);
+    let payment: Payment = service.apply_payment(&user.tenant_pool, payload).await?;
     Ok(ApiResponse::success(
         payment,
         "Customer invoice payment applied",
@@ -138,9 +138,9 @@ async fn http_list_invoices(
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
 ) -> Result<Response, AppError> {
-    let repo = PostgresCustomerRepo::new();
-    let service = CustomerService::new(repo);
-    let invoices = service
+    let repo: PostgresCustomerRepo = PostgresCustomerRepo::new();
+    let service: CustomerService<PostgresCustomerRepo> = CustomerService::new(repo);
+    let invoices: Vec<Invoice> = service
         .list_customer_invoice(&user.tenant_pool, uuid)
         .await?;
     Ok(ApiResponse::success(invoices, "Customer invoices found"))

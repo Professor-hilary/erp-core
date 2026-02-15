@@ -12,9 +12,14 @@ use crate::{
     features::inventory::{repository::PostgresInventoryRepo, services::InventoryService},
     interface::api::{errors::AppError, json_errors::AppJson, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,
-    models::{inventory::{
-        CreateItem, CreateItemCategory, CreateWarehouse, Item, ItemCategory, PostSale, Warehouse,
-    }, vendor::{CreatePurchase, PostPurchase}},
+    models::{
+        customers::{CreateInvoice, Invoice},
+        inventory::{
+            CreateItem, CreateItemCategory, CreateWarehouse, Item, ItemCategory, PostSale,
+            Warehouse,
+        },
+        vendor::{CreatePurchase, PostPurchase, Purchase},
+    },
     state::AppState,
 };
 
@@ -25,7 +30,8 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/create/warehouse", post(http_create_warehouse))
         .route("/create/cash-purchase", post(http_cash_purchase))
         .route("/post/cash-purchase", post(http_post_purchase))
-        .route("/create/cash-sale", post(http_post_sale))
+        .route("/create/cash-sale", post(http_cash_sale))
+        .route("/post/cash-sale", post(http_post_sale))
         .route("/list/inventory", get(http_list_items))
         .route("/list/categories", get(http_list_item_categories))
         .route("/list/warehouses", get(http_list_warehouses))
@@ -240,12 +246,26 @@ async fn http_cash_purchase(
 ) -> Result<Response, AppError> {
     let repo: PostgresInventoryRepo = PostgresInventoryRepo::new();
     let service: InventoryService<PostgresInventoryRepo> = InventoryService::new(repo);
-    let purchase = service
+    let purchase: Purchase = service
         .purchase(&user.tenant_pool, user.user_id, &payload)
         .await?;
     Ok(ApiResponse::success(
         purchase,
         "Purchase order created, unposted to GL",
+    ))
+}
+
+async fn http_cash_sale(
+    State(_state): State<Arc<AppState>>,
+    Extension(user): Extension<AuthenticatedTenant>,
+    AppJson(payload): AppJson<CreateInvoice>,
+) -> Result<Response, AppError> {
+    let repo: PostgresInventoryRepo = PostgresInventoryRepo::new();
+    let service: InventoryService<PostgresInventoryRepo> = InventoryService::new(repo);
+    let purchase: Invoice = service.create_sale(&user.tenant_pool, &payload).await?;
+    Ok(ApiResponse::success(
+        purchase,
+        "Sale order created, unposted to GL",
     ))
 }
 
@@ -261,7 +281,6 @@ async fn http_post_sale(
         .await?;
     Ok(ApiResponse::success((), "Sale posted to inventory and GL"))
 }
-
 
 async fn http_post_purchase(
     State(_state): State<Arc<AppState>>,

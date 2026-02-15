@@ -455,55 +455,65 @@ CREATE OR REPLACE FUNCTION inventory.post_sale(
     p_item_serial_id      bigint,
     p_warehouse_serial_id bigint,
     p_quantity            numeric,
-    p_selling_price       numeric,
+    -- p_selling_price       numeric,
     p_reference_type      text, -- 'invoice', 'cash-sale', 'mobile-money', 'virtual-card'
     p_reference_serial_id bigint,
     p_user                uuid,
-    p_cash_code           text DEFAULT NULL,
+    -- p_cash_code           text DEFAULT NULL,
     p_gl_transaction_uuid uuid DEFAULT NULL
-) RETURNS uuid
+) RETURNS numeric
 LANGUAGE plpgsql AS $$
 DECLARE
     v_item           inventory.items%ROWTYPE;
-    v_warehouse_uuid uuid;
-    v_total_revenue  numeric(18,2) := p_quantity * p_selling_price;
+    -- v_warehouse_uuid uuid;
+    -- v_total_revenue  numeric(18,2) := p_quantity * p_selling_price;
     v_cogs           numeric(18,2);
 BEGIN
     SELECT * INTO v_item FROM inventory.items WHERE serial_id = p_item_serial_id;
     IF NOT FOUND THEN RAISE EXCEPTION 'Item not found'; END IF;
 
-    SELECT uuid INTO v_warehouse_uuid
-    FROM inventory.warehouses WHERE serial_id = p_warehouse_serial_id;
-    IF NOT FOUND THEN RAISE EXCEPTION 'Warehouse not found'; END IF;
+    -- SELECT uuid INTO v_warehouse_uuid
+    -- FROM inventory.warehouses WHERE serial_id = p_warehouse_serial_id;
+    -- IF NOT FOUND THEN RAISE EXCEPTION 'Warehouse not found'; END IF;
 
+    -- Deplete inventory
     v_cogs := inventory.deplete_inventory(
         p_item_serial_id, p_warehouse_serial_id, p_quantity,
         p_reference_type, p_reference_serial_id, p_user, p_gl_transaction_uuid
     );
 
     -- Post COGS
-    PERFORM accounting.post_transaction(
-        'COGS-' || p_reference_serial_id, 'Cost of Goods Sold',
-        p_user, 'cogs',CURRENT_DATE,
-        jsonb_build_array(
-            jsonb_build_object('account_ref', v_item.cogs_account, 'debit', v_cogs, 'credit', 0),
-            jsonb_build_object('account_ref', v_item.asset_account, 'debit', 0, 'credit', v_cogs)
-        )
-    );
+    -- PERFORM accounting.post_transaction(
+    --     'COGS-' || p_reference_serial_id, 'Cost of Goods Sold',
+    --     p_user, 'cogs',CURRENT_DATE,
+    --     jsonb_build_array(
+    --         jsonb_build_object('account_ref', v_item.cogs_account, 'debit', v_cogs, 'credit', 0),
+    --         jsonb_build_object('account_ref', v_item.asset_account, 'debit', 0, 'credit', v_cogs)
+    --     )
+    -- );
 
     -- Cash sale revenue
-    IF p_cash_code IS NOT NULL AND p_gl_transaction_uuid IS NULL THEN
-        PERFORM accounting.post_transaction(
-            'SALE-' || p_reference_serial_id, 'Cash Sale',
-            p_user, 'sale',CURRENT_DATE,
-            jsonb_build_array(
-                jsonb_build_object('account_ref', p_cash_code, 'debit', v_total_revenue, 'credit', 0),
-                jsonb_build_object('account_ref', v_item.income_account, 'debit', 0, 'credit', v_total_revenue)
-            )
-        );
-    END IF;
+    -- IF p_cash_code IS NOT NULL AND p_gl_transaction_uuid IS NULL THEN
+    --     PERFORM accounting.post_transaction(
+    --         'SALE-' || p_reference_serial_id, 'Cash Sale',
+    --         p_user, 'sale',CURRENT_DATE,
+    --         jsonb_build_array(
+    --             jsonb_build_object('account_ref', p_cash_code, 'debit', v_total_revenue, 'credit', 0),
+    --             jsonb_build_object('account_ref', v_item.income_account, 'debit', 0, 'credit', v_total_revenue)
+    --         )
+    --     );
+    -- END IF;
 
-    RETURN p_gl_transaction_uuid;
+    -- Post COGS ONLY
+    INSERT INTO accounting.transaction_entries(
+        transaction_uuid, account_ref, debit, credit, memo
+    ) VALUES (
+        p_gl_transaction_uuid, v_item.cogs_account, v_cogs, 0, 'Cost Of Goods Sold'
+    ),(
+        p_gl_transaction_uuid, v_item.asset_account, 0, v_item.asset_account, 'Inventory reduction'
+    );
+
+    RETURN v_cogs;
 END;
 $$;
 

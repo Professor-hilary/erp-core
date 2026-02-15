@@ -1,6 +1,9 @@
+// src/routes/vendors/repository.rs
 use crate::{
     interface::api::errors::AppError,
-    models::vendor::{ApplyPayment, Purchase, CreatePurchase, CreateVendor, Payment, PostPurchase, Vendor},
+    models::vendor::{
+        ApplyPayment, CreatePurchase, CreateVendor, Payment, PostPurchase, Purchase, Vendor,
+    },
 };
 use async_trait::async_trait;
 use bigdecimal::BigDecimal;
@@ -26,7 +29,11 @@ pub trait VendorRepository: Send + Sync {
     ) -> Result<Vendor, AppError>;
     async fn delete(&self, pool: &PgPool, uuid: Uuid, user_id: Uuid) -> Result<(), AppError>;
 
-    async fn create_bill(&self, pool: &PgPool, payload: &CreatePurchase) -> Result<Purchase, AppError>;
+    async fn create_bill(
+        &self,
+        pool: &PgPool,
+        payload: &CreatePurchase,
+    ) -> Result<Purchase, AppError>;
 
     async fn post_bill(
         &self,
@@ -134,7 +141,11 @@ impl VendorRepository for PostgresVendorRepo {
         }
     }
 
-    async fn create_bill(&self, pool: &PgPool, payload: &CreatePurchase) -> Result<Purchase, AppError> {
+    async fn create_bill(
+        &self,
+        pool: &PgPool,
+        payload: &CreatePurchase,
+    ) -> Result<Purchase, AppError> {
         let mut tx: sqlx::Transaction<'_, sqlx::Postgres> = pool.begin().await?;
         let mut total_cost: BigDecimal = Default::default();
         let mut tax_amount: BigDecimal = Default::default();
@@ -161,7 +172,6 @@ impl VendorRepository for PostgresVendorRepo {
         .bind(&payload.reference)
         .bind(&payload.total_amount)
         .bind(&payload.tax_amount)
-        // .bind(&payload.currency)
         .fetch_one(&mut *tx)
         .await?;
 
@@ -237,7 +247,7 @@ impl VendorRepository for PostgresVendorRepo {
         pool: &PgPool,
         vendor_uuid: Uuid,
     ) -> Result<Vec<Purchase>, AppError> {
-        let bills = sqlx::query_as::<_, Purchase>(
+        let bills: Vec<Purchase> = sqlx::query_as::<_, Purchase>(
             r#"
             SELECT *
             FROM procurement.purchases
@@ -253,15 +263,16 @@ impl VendorRepository for PostgresVendorRepo {
     }
 
     async fn apply_payment(&self, pool: &PgPool, cmd: ApplyPayment) -> Result<Payment, AppError> {
-        let mut tx = pool.begin().await?;
+        let mut tx: sqlx::Transaction<'_, sqlx::Postgres> = pool.begin().await?;
 
-        let payment = sqlx::query_as::<_, Payment>(r#"SELECT procurement.apply_payment($1, $2, $3)"#)
-            .bind(cmd.payment_serial_id)
-            .bind(cmd.bill_serial_id)
-            .bind(&cmd.amount)
-            .fetch_optional(&mut *tx)
-            .await?
-            .ok_or(AppError::NotFound("Failed to apply payment".into()))?;
+        let payment =
+            sqlx::query_as::<_, Payment>(r#"SELECT procurement.apply_payment($1, $2, $3)"#)
+                .bind(cmd.payment_serial_id)
+                .bind(cmd.bill_serial_id)
+                .bind(&cmd.amount)
+                .fetch_optional(&mut *tx)
+                .await?
+                .ok_or(AppError::NotFound("Failed to apply payment".into()))?;
 
         tx.commit().await?;
 

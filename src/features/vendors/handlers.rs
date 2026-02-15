@@ -1,3 +1,4 @@
+// src/routes/vendors/handler.rs
 use axum::{
     Extension, Router,
     extract::{Path, State},
@@ -12,7 +13,9 @@ use crate::{
     features::vendors::{repository::PostgresVendorRepo, services::VendorService},
     interface::api::{errors::AppError, json_errors::AppJson, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,
-    models::vendor::{ApplyPayment, Purchase, CreatePurchase, CreateVendor, Payment, PostPurchase, Vendor},
+    models::vendor::{
+        ApplyPayment, CreatePurchase, CreateVendor, Payment, PostPurchase, Purchase, Vendor,
+    },
     state::AppState,
 };
 
