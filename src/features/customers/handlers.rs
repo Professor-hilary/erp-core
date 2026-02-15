@@ -11,7 +11,9 @@ use crate::{
     features::customers::{repository::PostgresCustomerRepo, services::CustomerService},
     interface::api::{errors::AppError, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,
-    models::customers::{ApplyPayment, CreateCustomer, CreateInvoice, Customer, Invoice, Payment, PostInvoice},
+    models::customers::{
+        ApplyPayment, CreateCustomer, CreateTurnover, Customer, Payment, PostTurnover, Turnover,
+    },
     state::AppState,
 };
 
@@ -95,11 +97,11 @@ async fn http_delete_customer(
 async fn http_create_invoice(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    Json(payload): Json<CreateInvoice>,
+    Json(payload): Json<CreateTurnover>,
 ) -> Result<Response, AppError> {
     let repo: PostgresCustomerRepo = PostgresCustomerRepo::new();
     let service: CustomerService<PostgresCustomerRepo> = CustomerService::new(repo);
-    let invoice: Invoice = service.create_invoice(&user.tenant_pool, &payload).await?;
+    let invoice: Turnover = service.create_invoice(&user.tenant_pool, &payload).await?;
     Ok(ApiResponse::success(
         invoice,
         "Customer invoice created successfully",
@@ -109,11 +111,11 @@ async fn http_create_invoice(
 async fn http_post_invoice(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    Json(payload): Json<PostInvoice>,
+    Json(payload): Json<PostTurnover>,
 ) -> Result<Response, AppError> {
     let repo: PostgresCustomerRepo = PostgresCustomerRepo::new();
     let service: CustomerService<PostgresCustomerRepo> = CustomerService::new(repo);
-    let invoice: Invoice = service
+    let invoice: Turnover = service
         .post_invoice(&user.tenant_pool, user.user_id, &payload)
         .await?;
     Ok(ApiResponse::success(invoice, "Customer invoice posted"))
@@ -140,7 +142,7 @@ async fn http_list_invoices(
 ) -> Result<Response, AppError> {
     let repo: PostgresCustomerRepo = PostgresCustomerRepo::new();
     let service: CustomerService<PostgresCustomerRepo> = CustomerService::new(repo);
-    let invoices: Vec<Invoice> = service
+    let invoices: Vec<Turnover> = service
         .list_customer_invoice(&user.tenant_pool, uuid)
         .await?;
     Ok(ApiResponse::success(invoices, "Customer invoices found"))

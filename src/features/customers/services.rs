@@ -2,7 +2,7 @@ use crate::{
     features::customers::repository::CustomerRepository,
     interface::api::errors::AppError,
     models::customers::{
-        ApplyPayment, CreateCustomer, CreateInvoice, Customer, Invoice, Payment, PostInvoice,
+        ApplyPayment, CreateCustomer, CreateTurnover, Customer, Payment, PostTurnover, Turnover,
     },
 };
 use sqlx::PgPool;
@@ -65,8 +65,8 @@ impl<R: CustomerRepository> CustomerService<R> {
     pub async fn create_invoice(
         &self,
         tenant_pool: &PgPool,
-        payload: &CreateInvoice,
-    ) -> Result<Invoice, AppError> {
+        payload: &CreateTurnover,
+    ) -> Result<Turnover, AppError> {
         self.repo.create_invoice(tenant_pool, payload).await
     }
 
@@ -74,8 +74,8 @@ impl<R: CustomerRepository> CustomerService<R> {
         &self,
         pool: &PgPool,
         user_id: Uuid,
-        payload: &PostInvoice,
-    ) -> Result<Invoice, AppError> {
+        payload: &PostTurnover,
+    ) -> Result<Turnover, AppError> {
         self.repo.post_invoice(pool, user_id, payload).await
     }
 
@@ -83,7 +83,7 @@ impl<R: CustomerRepository> CustomerService<R> {
         &self,
         pool: &PgPool,
         vendor_uuid: Uuid,
-    ) -> Result<Vec<Invoice>, AppError> {
+    ) -> Result<Vec<Turnover>, AppError> {
         self.repo.list_customer_invoices(pool, vendor_uuid).await
     }
 

@@ -3,7 +3,7 @@ use crate::{
     features::inventory::repository::InventoryRepository,
     interface::api::errors::AppError,
     models::{
-        customers::{CreateInvoice, Invoice},
+        customers::{CreateTurnover, Turnover},
         inventory::{
             CreateItem, CreateItemCategory, CreateWarehouse, Item, ItemCategory, PostSale,
             Warehouse,
@@ -193,8 +193,8 @@ impl<R: InventoryRepository> InventoryService<R> {
     pub async fn create_sale(
         &self,
         tenant_pool: &PgPool,
-        payload: &CreateInvoice,
-    ) -> Result<Invoice, AppError> {
+        payload: &CreateTurnover,
+    ) -> Result<Turnover, AppError> {
         self.repo.create_sale_order(tenant_pool, payload).await
     }
 

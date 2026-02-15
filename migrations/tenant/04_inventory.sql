@@ -482,28 +482,6 @@ BEGIN
         p_reference_type, p_reference_serial_id, p_user, p_gl_transaction_uuid
     );
 
-    -- Post COGS
-    -- PERFORM accounting.post_transaction(
-    --     'COGS-' || p_reference_serial_id, 'Cost of Goods Sold',
-    --     p_user, 'cogs',CURRENT_DATE,
-    --     jsonb_build_array(
-    --         jsonb_build_object('account_ref', v_item.cogs_account, 'debit', v_cogs, 'credit', 0),
-    --         jsonb_build_object('account_ref', v_item.asset_account, 'debit', 0, 'credit', v_cogs)
-    --     )
-    -- );
-
-    -- Cash sale revenue
-    -- IF p_cash_code IS NOT NULL AND p_gl_transaction_uuid IS NULL THEN
-    --     PERFORM accounting.post_transaction(
-    --         'SALE-' || p_reference_serial_id, 'Cash Sale',
-    --         p_user, 'sale',CURRENT_DATE,
-    --         jsonb_build_array(
-    --             jsonb_build_object('account_ref', p_cash_code, 'debit', v_total_revenue, 'credit', 0),
-    --             jsonb_build_object('account_ref', v_item.income_account, 'debit', 0, 'credit', v_total_revenue)
-    --         )
-    --     );
-    -- END IF;
-
     -- Post COGS ONLY
     INSERT INTO accounting.transaction_entries(
         transaction_uuid, account_ref, debit, credit, memo

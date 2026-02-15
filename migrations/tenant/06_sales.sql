@@ -212,9 +212,7 @@ DECLARE
     v_turnover sales.turnover%ROWTYPE;
     v_txn_serial_id bigint;
     v_txn_uuid uuid;
-    -- v_receivable_account_uuid uuid;
-    -- v_cash_account_uuid uuid;
-    v_main_account uuid; -- Acc Receivable or Cash
+    v_main_account uuid; -- Receivable or Cash
     v_revenue_account uuid;
     v_output_vat_account_uuid uuid;
 BEGIN
@@ -267,29 +265,6 @@ BEGIN
         v_turnover.issue_date, '[]'::jsonb
     );
 
-    -- GL posting (AR / Revenue)
-    -- v_txn_serial_id := accounting.post_transaction(
-    --     v_invoice.invoice_number,
-    --     'Invoice Posting',
-    --     p_user,
-    --     'invoice',
-    --     v_invoice.issue_date,
-    --     jsonb_build_array(
-    --         jsonb_build_object(
-    --             'account_ref', p_receivables_code,
-    --             'debit', v_invoice.total_amount,
-    --             'credit', 0,
-    --             'memo', 'Accounts Receivable'
-    --         ),
-    --         jsonb_build_object(
-    --             'account_ref', p_revenue_code,
-    --             'debit', 0,
-    --             'credit', v_invoice.total_amount,
-    --             'memo', 'Revenue'
-    --         )
-    --     )
-    -- );
-
     SELECT uuid INTO v_txn_uuid FROM accounting.transactions WHERE serial_id = v_txn_serial_id;
 
     -------------------------------------------------------------------------------------
@@ -337,33 +312,6 @@ BEGIN
             ELSE 'Account receivable credit sale'
         END
     FROM all_lines;
-
-    --------------------------------------------------------------------
-    -- FINANCIAL ENTRIES (AR + Revenue + VAT)
-    --------------------------------------------------------------------
-    -- INSERT INTO accounting.transaction_entries(
-    --     transaction_uuid, account_uuid, line_no, debit, credit, memo
-    -- ) VALUES (
-    --     -- DR Cash / Receivable (gross)
-    --     v_txn_uuid, v_main_account, 1, v_turnover.total_amount + v_turnover.tax_amount, 0, 'Customer charged'
-    -- ), (
-    --     -- CR Revenue (net)
-    --     v_txn_uuid, v_revenue_account, 2, 0, v_turnover.total_amount, 'Revenue Received'
-    -- ), (
-    --     -- CR VAT Output
-    --     v_txn_uuid, v_output_vat_account_uuid, 3, 0, v_turnover.tax_amount, 'Output VAT'
-    -- );
-
-    -- Inventory delegation (credit sale)
-    -- FOR r IN
-    --     SELECT * FROM sales.turnover_items
-    --     WHERE invoice_uuid = v_invoice.uuid
-    -- LOOP
-    --     PERFORM inventory.post_sale(
-    --         r.stock_item_id, NULL, r.quantity, r.unit_price, 'invoice', p_invoice_serial_id,
-    --         p_user, NULL, v_txn_uuid
-    --     );
-    -- END LOOP;
 
     --------------------------------------------------------------------
     -- INVENTORY (COGS)
@@ -466,9 +414,9 @@ BEGIN
     UPDATE sales.turnover
     SET balance_due = balance_due - p_amount,
         status = CASE
-            WHEN balance_due - p_amount <= 0 THEN 'Paid'
-            WHEN balance_due - p_amount < total_amount THEN 'Partial'
-            ELSE 'Unpaid'
+            WHEN balance_due - p_amount <= 0 THEN 'paid'
+            WHEN balance_due - p_amount < total_amount THEN 'partial'
+            ELSE 'unpaid'
         END,
         updated_at = now()
     WHERE uuid = v_invoice_uuid;

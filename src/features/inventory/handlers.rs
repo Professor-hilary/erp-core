@@ -13,7 +13,7 @@ use crate::{
     interface::api::{errors::AppError, json_errors::AppJson, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,
     models::{
-        customers::{CreateInvoice, Invoice},
+        customers::{CreateTurnover, Turnover},
         inventory::{
             CreateItem, CreateItemCategory, CreateWarehouse, Item, ItemCategory, PostSale,
             Warehouse,
@@ -258,11 +258,11 @@ async fn http_cash_purchase(
 async fn http_cash_sale(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    AppJson(payload): AppJson<CreateInvoice>,
+    AppJson(payload): AppJson<CreateTurnover>,
 ) -> Result<Response, AppError> {
     let repo: PostgresInventoryRepo = PostgresInventoryRepo::new();
     let service: InventoryService<PostgresInventoryRepo> = InventoryService::new(repo);
-    let purchase: Invoice = service.create_sale(&user.tenant_pool, &payload).await?;
+    let purchase: Turnover = service.create_sale(&user.tenant_pool, &payload).await?;
     Ok(ApiResponse::success(
         purchase,
         "Sale order created, unposted to GL",

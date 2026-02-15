@@ -2,7 +2,7 @@
 use crate::{
     interface::api::errors::AppError,
     models::{
-        customers::{CreateInvoice, Invoice},
+        customers::{CreateTurnover, Turnover},
         inventory::{
             CreateItem, CreateItemCategory, CreateWarehouse, Item, ItemCategory, PostSale,
             Warehouse,
@@ -122,8 +122,8 @@ pub trait InventoryRepository: Send + Sync {
     async fn create_sale_order(
         &self,
         pool: &PgPool,
-        payload: &CreateInvoice,
-    ) -> Result<Invoice, AppError>;
+        payload: &CreateTurnover,
+    ) -> Result<Turnover, AppError>;
 
     async fn post_sale(
         &self,
@@ -522,13 +522,13 @@ impl InventoryRepository for PostgresInventoryRepo {
     async fn create_sale_order(
         &self,
         pool: &PgPool,
-        payload: &CreateInvoice,
-    ) -> Result<Invoice, AppError> {
+        payload: &CreateTurnover,
+    ) -> Result<Turnover, AppError> {
         let mut tx: sqlx::Transaction<'_, sqlx::Postgres> = pool.begin().await?;
         let mut total_cost: BigDecimal = Default::default();
         let mut tax_amount: BigDecimal = Default::default();
 
-        let invoice: Invoice = sqlx::query_as::<_, Invoice>(
+        let invoice: Turnover = sqlx::query_as::<_, Turnover>(
             r#"
             INSERT INTO sales.turnover (
                 invoice_number,
@@ -537,9 +537,10 @@ impl InventoryRepository for PostgresInventoryRepo {
                 due_date,
                 total_amount,
                 tax_amount,
-                balance_due
+                settlement_type,
+                paid_at
             )
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, now())
             RETURNING *
             "#,
         )
@@ -549,7 +550,7 @@ impl InventoryRepository for PostgresInventoryRepo {
         .bind(payload.due_date)
         .bind(&payload.total_amount)
         .bind(&payload.tax_amount)
-        .bind(&payload.total_amount)
+        .bind(&payload.settlement_type)
         .fetch_one(&mut *tx)
         .await?;
 

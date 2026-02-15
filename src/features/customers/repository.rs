@@ -1,7 +1,7 @@
 use crate::{
     interface::api::errors::AppError,
     models::customers::{
-        ApplyPayment, CreateCustomer, CreateInvoice, Customer, Invoice, Payment, PostInvoice,
+        ApplyPayment, CreateCustomer, CreateTurnover, Customer, Payment, PostTurnover, Turnover,
     },
 };
 use async_trait::async_trait;
@@ -31,21 +31,21 @@ pub trait CustomerRepository: Send + Sync {
     async fn create_invoice(
         &self,
         pool: &PgPool,
-        payload: &CreateInvoice,
-    ) -> Result<Invoice, AppError>;
+        payload: &CreateTurnover,
+    ) -> Result<Turnover, AppError>;
 
     async fn post_invoice(
         &self,
         pool: &PgPool,
         user_id: Uuid,
-        payload: &PostInvoice,
-    ) -> Result<Invoice, AppError>;
+        payload: &PostTurnover,
+    ) -> Result<Turnover, AppError>;
 
     async fn list_customer_invoices(
         &self,
         pool: &PgPool,
         vendor_uuid: Uuid,
-    ) -> Result<Vec<Invoice>, AppError>;
+    ) -> Result<Vec<Turnover>, AppError>;
 
     async fn apply_payment(&self, pool: &PgPool, cmd: ApplyPayment) -> Result<Payment, AppError>;
 }
@@ -85,10 +85,9 @@ impl CustomerRepository for PostgresCustomerRepo {
     }
 
     async fn list(&self, pool: &PgPool, _user_id: Uuid) -> Result<Vec<Customer>, AppError> {
-        let rows: Vec<Customer> =
-            sqlx::query_as::<_, Customer>("SELECT * FROM sales.customers")
-                .fetch_all(pool)
-                .await?;
+        let rows: Vec<Customer> = sqlx::query_as::<_, Customer>("SELECT * FROM sales.customers")
+            .fetch_all(pool)
+            .await?;
         Ok(rows)
     }
 
@@ -144,13 +143,13 @@ impl CustomerRepository for PostgresCustomerRepo {
     async fn create_invoice(
         &self,
         pool: &PgPool,
-        payload: &CreateInvoice,
-    ) -> Result<Invoice, AppError> {
+        payload: &CreateTurnover,
+    ) -> Result<Turnover, AppError> {
         let mut tx: sqlx::Transaction<'_, sqlx::Postgres> = pool.begin().await?;
         let mut total_cost: BigDecimal = Default::default();
         let mut tax_amount: BigDecimal = Default::default();
 
-        let invoice: Invoice = sqlx::query_as::<_, Invoice>(
+        let invoice: Turnover = sqlx::query_as::<_, Turnover>(
             r#"
             INSERT INTO sales.turnover (
                 invoice_number,
@@ -159,9 +158,10 @@ impl CustomerRepository for PostgresCustomerRepo {
                 due_date,
                 total_amount,
                 tax_amount,
-                balance_due
+                balance_due,
+                settlement_type
             )
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, 'credit')
             RETURNING *
             "#,
         )
@@ -172,7 +172,6 @@ impl CustomerRepository for PostgresCustomerRepo {
         .bind(&payload.total_amount)
         .bind(&payload.tax_amount)
         .bind(&payload.total_amount)
-        // .bind(&payload.currency)
         .fetch_one(&mut *tx)
         .await?;
 
@@ -230,9 +229,9 @@ impl CustomerRepository for PostgresCustomerRepo {
         &self,
         pool: &PgPool,
         user_id: Uuid,
-        payload: &PostInvoice,
-    ) -> Result<Invoice, AppError> {
-        let invoice = sqlx::query_as::<_, Invoice>(
+        payload: &PostTurnover,
+    ) -> Result<Turnover, AppError> {
+        let invoice = sqlx::query_as::<_, Turnover>(
             r#"
             SELECT sales.post_turnover($1, $2, $3, $4)
             "#,
@@ -252,8 +251,8 @@ impl CustomerRepository for PostgresCustomerRepo {
         &self,
         pool: &PgPool,
         customer_uuid: Uuid,
-    ) -> Result<Vec<Invoice>, AppError> {
-        let invoices = sqlx::query_as::<_, Invoice>(
+    ) -> Result<Vec<Turnover>, AppError> {
+        let invoices = sqlx::query_as::<_, Turnover>(
             r#"
             SELECT *
             FROM sales.turnover
@@ -271,14 +270,13 @@ impl CustomerRepository for PostgresCustomerRepo {
     async fn apply_payment(&self, pool: &PgPool, cmd: ApplyPayment) -> Result<Payment, AppError> {
         let mut tx = pool.begin().await?;
 
-        let payment =
-            sqlx::query_as::<_, Payment>(r#"SELECT sales.apply_payment($1, $2, $3)"#)
-                .bind(cmd.payment_serial_id)
-                .bind(cmd.invoice_serial_id)
-                .bind(&cmd.amount)
-                .fetch_optional(&mut *tx)
-                .await?
-                .ok_or(AppError::NotFound("Payment not found".into()))?;
+        let payment = sqlx::query_as::<_, Payment>(r#"SELECT sales.apply_payment($1, $2, $3)"#)
+            .bind(cmd.payment_serial_id)
+            .bind(cmd.invoice_serial_id)
+            .bind(&cmd.amount)
+            .fetch_optional(&mut *tx)
+            .await?
+            .ok_or(AppError::NotFound("Payment not found".into()))?;
 
         tx.commit().await?;
 
