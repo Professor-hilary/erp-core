@@ -55,7 +55,7 @@ CREATE TABLE IF NOT EXISTS sales.turnover (
     status text DEFAULT DEFAULT 'unpaid' CHECK(settlement_type IN ('unpaid', 'paid', 'partial', 'cancelled')),
     posted boolean DEFAULT false,
     gl_transaction_uuid uuid,
-    paid_at date,
+    paid_at timestamptz,
     created_at timestamptz DEFAULT now(),
     updated_at timestamptz DEFAULT now(),
     CONSTRAINT invoices_pkey PRIMARY KEY (uuid),
@@ -200,157 +200,298 @@ ORDER BY c.serial_id, COALESCE(i.serial_id, 0), p.payment_date DESC NULLS LAST;
 -- FUNCTIONS
 -- ================================================================================
 -- Customer post sale function (credit or cash) V3.0
+-- CREATE OR REPLACE FUNCTION sales.post_turnover(
+--     p_turnover_serial_id bigint,
+--     p_user uuid,
+--     p_receivables_code text,
+--     p_revenue_code text,
+--     p_output_vat_code text,
+--     p_cash_account_code text DEFAULT null
+-- ) RETURNS void LANGUAGE plpgsql AS $$
+-- DECLARE
+--     v_turnover sales.turnover%ROWTYPE;
+--     v_txn_serial_id bigint;
+--     v_txn_uuid uuid;
+--     v_main_account uuid; -- Receivable or Cash
+--     v_revenue_account uuid;
+--     v_output_vat_account_uuid uuid;
+-- BEGIN
+--     -- Load turnover with chosen serial id
+--     SELECT * INTO v_turnover FROM sales.turnover
+--         WHERE serial_id = p_turnover_serial_id FOR UPDATE;
+
+--     IF NOT FOUND THEN
+--         RAISE EXCEPTION 'Invoice % not found', p_invoice_serial_id;
+--     END IF;
+
+--     IF v_turnover.posted THEN RETURN; END IF;
+
+--     -- Resolve procurement account
+--     IF v_turnover.settlement_type = 'credit' THEN
+--         SELECT uuid INTO v_main_account FROM accounting.accounts
+--             WHERE code = p_receivables_code;
+
+--         IF v_main_account IS NULL THEN
+--             RAISE EXCEPTION 'Receivables account not found for code: %', p_receivables_code;
+--         END IF;
+--     END IF;
+
+--     -- Resolve cash account for cash purchases
+--     IF v_turnover.settlement_type = 'cash' THEN
+--         SELECT uuid INTO v_main_account FROM accounting.accounts
+--             WHERE code = p_cash_account_code;
+
+--         IF v_main_account IS NULL THEN
+--             RAISE EXCEPTION 'Cash account not found for code: %', p_cash_account_code;
+--         END IF;
+--     END IF;
+
+--     -- Resolve tax account
+--     SELECT uuid INTO v_output_vat_account_uuid FROM accounting.accounts
+--         WHERE code = p_output_vat_code;
+
+--     IF v_output_vat_account_uuid IS NULL THEN
+--         RAISE EXCEPTION 'VAT tax account not found for code: %', p_output_vat_code;
+--     END IF;
+
+--     -- Create transaction shell
+--     v_txn_serial_id := accounting.post_transaction(
+--         v_turnover.invoice_number,
+--         CASE
+--             WHEN p_cash_account_code IS NULL THEN 'Credit Sale'
+--             ELSE 'Cash Sale'
+--         END,
+--         p_user, 'turnover',
+--         v_turnover.issue_date, '[]'::jsonb
+--     );
+
+--     SELECT uuid INTO v_txn_uuid FROM accounting.transactions WHERE serial_id = v_txn_serial_id;
+
+--     -------------------------------------------------------------------------------------
+--     -- Insert all accounting lines in ONE atomic statement
+--     -------------------------------------------------------------------------------------
+--     WITH asset_totals AS (
+--         SELECT
+--             a.uuid AS account_uuid,
+--             SUM(ti.quantity * ti.unit_price) as amount
+--         FROM sales.turnover_items ti
+--         JOIN inventory.items i ON i.serial_id = ti.stock_item_id
+--         JOIN accounting.accounts a ON a.code = i.asset_account
+--         WHERE ti.invoice_uuid = v_turnover.uuid
+--         GROUP BY a.uuid
+--     ),
+--     all_lines AS (
+--         -- Debit Receivable or Cash - full amount + tax
+--         SELECT v_main_account, (v_turnover.total_amount + v_turnover.tax_amount),
+--             'debit' AS side, 'Customer payment (cash/credit sale)' AS memo
+
+--         UNION ALL
+
+--         -- Credit output VAT payable
+--         SELECT v_output_vat_account_uuid, v_turnover.tax_amount, 'credit',
+--             'Output VAT on sale'
+
+--         UNION ALL
+--         -- Credit revenue - net of tax
+--         SELECT account_uuid, amount, 'credit' AS entry_type, 'Sales revenue'
+--             FROM asset_totals
+
+--     )
+--     INSERT INTO accounting.transaction_entries (
+--         transaction_uuid, account_uuid, line_no, amount, debit, credit, memo
+--     )
+--     SELECT
+--         v_txn_uuid, account_uuid,
+--         ROW_NUMBER() OVER (
+--             ORDER BY
+--                 CASE WHEN entry_type = 'debit' THEN 1 ELSE 2 END,
+--                 account_uuid
+--         ) AS line_no,
+--         CASE WHEN entry_type = 'debit' THEN amount ELSE -amount END,
+--         CASE WHEN entry_type = 'debit' THEN amount ELSE 0 END,
+--         CASE WHEN entry_type = 'credit' THEN amount ELSE 0 END,
+--         CASE
+--             WHEN entry_type = 'debit' THEN 'Inventory billed on credit'
+--             ELSE 'Account receivable credit sale'
+--         END
+--     FROM all_lines;
+
+--     --------------------------------------------------------------------
+--     -- INVENTORY (COGS)
+--     --------------------------------------------------------------------
+--     PERFORM inventory.post_sale(
+--         ti.stock_item_id, i.warehouse_serial, ti.quantity, 'turnover', p_turnover_serial_id,
+--         p_user, v_txn_uuid
+--     )
+--     FROM sales.turnover_items ti
+--     JOIN inventory.items i ON i.serial_id = ti.stock_item_id
+--     WHERE ti.invoice_uuid = v_turnover.uuid;
+
+--     --------------------------------------------------------------------
+--     -- MARK POSTED
+--     --------------------------------------------------------------------
+--     UPDATE sales.turnover
+--     SET posted = TRUE,
+--         gl_transaction_uuid = v_txn_uuid,
+--         status = CASE
+--             WHEN settlement_type = 'cash' THEN 'paid'
+--             ELSE status
+--         END,
+--         balance_due = CASE
+--             WHEN settlement_type = 'cash' THEN 0
+--             ELSE (total_amount + tax_amount)
+--         END,
+--         paid_at = CASE
+--             WHEN settlement_type = 'cash' THEN now()
+--             ELSE NULL
+--         END,
+--         updated_at = now()
+--     WHERE uuid = v_turnover.uuid;
+
+--     --------------------------------------------------------------------
+--     -- UPDATE CUSTOMER BALANCE
+--     --------------------------------------------------------------------
+--     IF v_turnover.settlement_type = 'credit' THEN
+--         UPDATE sales.customers SET
+--             current_balance = current_balance + v_turnover.total_amount + v_turnover.tax_amount,
+--             updated_at = now()
+--         WHERE uuid = v_turnover.customer_uuid;
+--     END IF;
+
+-- END;
+-- $$;
+
+-- Customer post sale function (credit or cash) V4.0
 CREATE OR REPLACE FUNCTION sales.post_turnover(
-    p_turnover_serial_id bigint,
-    p_user uuid,
-    p_receivables_code text,
-    p_revenue_code text,
-    p_output_vat_code text,
-    p_cash_account_code text DEFAULT null
-) RETURNS void LANGUAGE plpgsql AS $$
+    p_turnover_serial_id   bigint,
+    p_user                 uuid,
+    p_output_vat_code      text,
+    p_receivables_code     text DEFAULT NULL,
+    p_revenue_code         text DEFAULT NULL,       -- fallback/default revenue account code
+    p_cash_account_code    text DEFAULT NULL
+) RETURNS void
+LANGUAGE plpgsql
+AS $$
 DECLARE
-    v_turnover sales.turnover%ROWTYPE;
-    v_txn_serial_id bigint;
-    v_txn_uuid uuid;
-    v_main_account uuid; -- Receivable or Cash
-    v_revenue_account uuid;
-    v_output_vat_account_uuid uuid;
+    v_turnover        sales.turnover%ROWTYPE;
+    v_txn_serial_id   bigint;
+    v_txn_uuid        uuid;
+    v_main_account    uuid;
+    v_output_vat_uuid uuid;
 BEGIN
-    -- Load turnover with chosen serial id
-    SELECT * INTO v_turnover FROM sales.turnover
-        WHERE serial_id = p_turnover_serial_id FOR UPDATE;
+    SELECT * INTO v_turnover
+    FROM sales.turnover
+    WHERE serial_id = p_turnover_serial_id
+    FOR UPDATE;
 
     IF NOT FOUND THEN
-        RAISE EXCEPTION 'Invoice % not found', p_invoice_serial_id;
+        RAISE EXCEPTION 'Turnover % not found', p_turnover_serial_id;
     END IF;
 
     IF v_turnover.posted THEN RETURN; END IF;
 
-    -- Resolve procurement account
+    -- Resolve main account
     IF v_turnover.settlement_type = 'credit' THEN
-        SELECT uuid INTO v_main_account FROM accounting.accounts
-            WHERE code = p_receivables_code;
-
+        SELECT uuid INTO v_main_account
+        FROM accounting.accounts WHERE code = p_receivables_code;
         IF v_main_account IS NULL THEN
-            RAISE EXCEPTION 'Receivables account not found for code: %', p_receivables_code;
+            RAISE EXCEPTION 'Receivables account not found: %', p_receivables_code;
+        END IF;
+    ELSE
+        SELECT uuid INTO v_main_account
+        FROM accounting.accounts WHERE code = p_cash_account_code;
+        IF v_main_account IS NULL THEN
+            RAISE EXCEPTION 'Cash account not found: %', p_cash_account_code;
         END IF;
     END IF;
 
-    -- Resolve cash account for cash purchases
-    IF v_turnover.settlement_type = 'cash' THEN
-        SELECT uuid INTO v_main_account FROM accounting.accounts
-            WHERE code = p_cash_account_code;
-
-        IF v_main_account IS NULL THEN
-            RAISE EXCEPTION 'Cash account not found for code: %', p_cash_account_code;
-        END IF;
+    -- Output VAT
+    SELECT uuid INTO v_output_vat_uuid
+    FROM accounting.accounts WHERE code = p_output_vat_code;
+    IF v_output_vat_uuid IS NULL THEN
+        RAISE EXCEPTION 'Output VAT account not found: %', p_output_vat_code;
     END IF;
 
-    -- Resolve tax account
-    SELECT uuid INTO v_output_vat_account_uuid FROM accounting.accounts
-        WHERE code = p_output_vat_code;
-
-    IF v_output_vat_account_uuid IS NULL THEN
-        RAISE EXCEPTION 'VAT tax account not found for code: %', p_output_vat_code;
-    END IF;
-
-    -- Create transaction shell
+    -- Create GL transaction
     v_txn_serial_id := accounting.post_transaction(
         v_turnover.invoice_number,
-        CASE
-            WHEN p_cash_account_code IS NULL THEN 'Credit Sale'
-            ELSE 'Cash Sale'
-        END,
-        p_user, 'turnover',
-        v_turnover.issue_date, '[]'::jsonb
+        CASE WHEN v_turnover.settlement_type = 'cash' THEN 'Cash Sale' ELSE 'Credit Sale' END,
+        p_user, 'turnover', v_turnover.issue_date, '[]'::jsonb
     );
 
-    SELECT uuid INTO v_txn_uuid FROM accounting.transactions WHERE serial_id = v_txn_serial_id;
+    SELECT uuid INTO v_txn_uuid
+    FROM accounting.transactions WHERE serial_id = v_txn_serial_id;
 
-    -------------------------------------------------------------------------------------
-    -- Insert all accounting lines in ONE atomic statement
-    -------------------------------------------------------------------------------------
-    WITH asset_totals AS (
+    -- Journal lines: Revenue + main + VAT only
+    WITH revenue_grouped AS (
         SELECT
-            a.uuid AS account_uuid,
-            SUM(ti.quantity * ti.unit_price) as amount
-            FROM sales.turnover_items ti
-            JOIN inventory.items i ON i.serial_id = ti.stock_item_id
-            JOIN accounting.accounts a ON a.code = i.asset_account
-            WHERE ti.invoice_uuid = v_turnover.uuid
-            GROUP BY a.uuid
+            COALESCE(i.income_account,
+                     (SELECT uuid FROM accounting.accounts WHERE code = p_revenue_code)
+            ) AS account_uuid,
+            SUM(ti.quantity * ti.unit_price)::numeric(18,2) AS net_amount
+        FROM sales.turnover_items ti
+        JOIN inventory.items i ON i.serial_id = ti.stock_item_id
+        WHERE ti.invoice_uuid = v_turnover.uuid
+        GROUP BY COALESCE(i.income_account, (SELECT uuid FROM accounting.accounts WHERE code = p_revenue_code))
     ),
     all_lines AS (
-        -- Credit stock, deplete stock demand customer (cost excluding tax)
-        SELECT account_uuid, amount, 'debit' AS entry_type FROM asset_totals
+        -- Debit: gross amount
+        SELECT v_main_account AS account_uuid,
+               (v_turnover.total_amount + v_turnover.tax_amount)::numeric(18,2) AS amount,
+               'debit' AS side,
+               CASE WHEN v_turnover.settlement_type = 'cash' THEN 'Cash received – sale' ELSE 'Accounts receivable – sale' END AS memo
 
         UNION ALL
-
-        -- Credit output VAT from customer
-        SELECT v_input_vat_account_uuid, v_turnover.tax_amount, 'credit'
+        -- Credit: revenue (net, grouped if multiple income accounts)
+        SELECT account_uuid, net_amount, 'credit', 'Sales revenue'
+        FROM revenue_grouped
 
         UNION ALL
-
-        -- Debit receivables or cash based on purchase type
-        SELECT v_main_account, (v_turnover.total_amount + v_turnover.tax_amount), 'credit'
+        -- Credit: output VAT
+        SELECT v_output_vat_uuid, v_turnover.tax_amount::numeric(18,2), 'credit', 'Output VAT collected'
     )
     INSERT INTO accounting.transaction_entries (
         transaction_uuid, account_uuid, line_no, amount, debit, credit, memo
     )
     SELECT
-        v_txn_uuid, account_uuid,
+        v_txn_uuid,
+        account_uuid,
         ROW_NUMBER() OVER (
-            ORDER BY
-                CASE WHEN entry_type = 'debit' THEN 1 ELSE 2 END,
-                account_uuid
-        ) AS line_no,
-        CASE WHEN entry_type = 'debit' THEN amount ELSE -amount END,
-        CASE WHEN entry_type = 'debit' THEN amount ELSE 0 END,
-        CASE WHEN entry_type = 'credit' THEN amount ELSE 0 END,
-        CASE
-            WHEN entry_type = 'debit' THEN 'Inventory billed on credit'
-            ELSE 'Account receivable credit sale'
-        END
+            ORDER BY CASE side WHEN 'debit' THEN 0 ELSE 1 END, memo, account_uuid
+        )::integer AS line_no,
+        CASE WHEN side = 'debit' THEN amount ELSE -amount END,
+        CASE WHEN side = 'debit' THEN amount ELSE 0 END,
+        CASE WHEN side = 'credit' THEN amount ELSE 0 END,
+        memo
     FROM all_lines;
 
-    --------------------------------------------------------------------
-    -- INVENTORY (COGS)
-    --------------------------------------------------------------------
+    -- Post COGS & inventory reduction (per item, already correct)
     PERFORM inventory.post_sale(
-        ti.stock_item_id, i.warehouse_serial, ti.quantity, 'turnover', p_turnover_serial_id,
-        p_user, v_txn_uuid
+        ti.stock_item_id,
+        i.warehouse_serial,
+        ti.quantity,
+        'turnover',
+        p_turnover_serial_id,
+        p_user,
+        v_txn_uuid
     )
     FROM sales.turnover_items ti
     JOIN inventory.items i ON i.serial_id = ti.stock_item_id
     WHERE ti.invoice_uuid = v_turnover.uuid;
 
-    --------------------------------------------------------------------
-    -- MARK POSTED
-    --------------------------------------------------------------------
+    -- Mark posted & update customer balance
     UPDATE sales.turnover
     SET posted = TRUE,
         gl_transaction_uuid = v_txn_uuid,
-        status = CASE
-            WHEN settlement_type = 'cash' THEN 'paid'
-            ELSE status
-        END,
-        balance_due = CASE
-            WHEN settlement_type = 'cash' THEN 0
-            ELSE (total_amount + tax_amount)
-        END,
-        paid_at = CASE
-            WHEN settlement_type = 'cash' THEN now()
-            ELSE NULL
-        END,
+        status = CASE WHEN settlement_type = 'cash' THEN 'paid' ELSE status END,
+        balance_due = CASE WHEN settlement_type = 'cash' THEN 0 ELSE (total_amount + tax_amount) END,
+        paid_at = CASE WHEN settlement_type = 'cash' THEN now() ELSE NULL END,
         updated_at = now()
     WHERE uuid = v_turnover.uuid;
 
-    --------------------------------------------------------------------
-    -- UPDATE CUSTOMER BALANCE
-    --------------------------------------------------------------------
     IF v_turnover.settlement_type = 'credit' THEN
-        UPDATE sales.customers SET
-            current_balance = current_balance + v_turnover.total_amount + v_turnover.tax_amount,
+        UPDATE sales.customers
+        SET current_balance = current_balance + v_turnover.total_amount + v_turnover.tax_amount,
             updated_at = now()
         WHERE uuid = v_turnover.customer_uuid;
     END IF;

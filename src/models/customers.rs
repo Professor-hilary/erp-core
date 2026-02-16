@@ -36,7 +36,7 @@ pub struct Turnover {
     pub customer_uuid: Uuid,
     pub issue_date: NaiveDate,
     pub due_date: NaiveDate,
-    pub paid_at: NaiveDate,
+    pub paid_at:  Option<DateTime<Utc>>,
     pub total_amount: Option<BigDecimal>,
     pub tax_amount: Option<BigDecimal>,
     pub balance_due: Option<BigDecimal>,
@@ -99,8 +99,10 @@ pub struct CreateTurnoverItem {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PostTurnover {
     pub invoice_serial_id: i64,
-    pub receivable_code: String,
+    pub receivable_code: Option<String>,
     pub revenue_code: String,
+    pub cash_account_code: Option<String>,
+    pub output_vat_code: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

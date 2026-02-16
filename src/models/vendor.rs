@@ -43,7 +43,7 @@ pub struct Purchase {
     pub balance_due: Option<BigDecimal>,
     pub posted: bool,
     pub gl_transaction_uuid: Option<Uuid>,
-    pub paid_at: NaiveDate,
+    pub paid_at: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -76,7 +76,7 @@ pub struct CreatePurchase {
     pub reference: Option<String>,
     pub tax_amount: Option<BigDecimal>,
     pub total_amount: Option<BigDecimal>,
-    pub paid_at: Option<NaiveDate>,
+    pub paid_at: Option<DateTime<Utc>>,
     pub items: Vec<CreatePurchaseItem>,
 }
 

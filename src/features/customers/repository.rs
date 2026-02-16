@@ -5,8 +5,8 @@ use crate::{
     },
 };
 use async_trait::async_trait;
-use bigdecimal::BigDecimal;
-use sqlx::{PgPool, postgres::PgQueryResult};
+use bigdecimal::{BigDecimal, Zero};
+use sqlx::{PgPool, Row, postgres::PgQueryResult};
 use uuid::Uuid;
 
 #[async_trait]
@@ -146,7 +146,7 @@ impl CustomerRepository for PostgresCustomerRepo {
         payload: &CreateTurnover,
     ) -> Result<Turnover, AppError> {
         let mut tx: sqlx::Transaction<'_, sqlx::Postgres> = pool.begin().await?;
-        let mut total_cost: BigDecimal = Default::default();
+        let mut net_revenue: BigDecimal = Default::default();
         let mut tax_amount: BigDecimal = Default::default();
 
         let invoice: Turnover = sqlx::query_as::<_, Turnover>(
@@ -176,8 +176,42 @@ impl CustomerRepository for PostgresCustomerRepo {
         .await?;
 
         for item in &payload.items {
-            let total_before_tax: BigDecimal = &item.quantity * &item.unit_price;
-            let gross_tax: BigDecimal = &total_before_tax * (&item.tax_rate / 100);
+            let selling_price: BigDecimal = if item.unit_price > BigDecimal::zero() {
+                item.unit_price.clone()
+            } else {
+                // Fetch default selling price from items table
+                let row_opt = sqlx::query(
+                    r#"SELECT selling_price FROM inventory.items WHERE serial_id = $1"#,
+                )
+                .bind(item.stock_item_id)
+                .fetch_optional(&mut *tx)
+                .await?;
+
+                let default_price: BigDecimal = match row_opt {
+                    Some(row) => row
+                        .try_get::<BigDecimal, _>("selling_price")
+                        .map_err(|e: sqlx::Error| AppError::Database(e))?,
+                    None => {
+                        return Err(AppError::NotFound(format!(
+                            "Item with serial id {} not been found",
+                            item.stock_item_id
+                        )));
+                    }
+                };
+
+                if default_price <= BigDecimal::zero() {
+                    return Err(AppError::Internal(format!(
+                        "Item {} has no valid selling price",
+                        item.stock_item_id
+                    )));
+                }
+
+                default_price
+            };
+
+            let total_before_tax: BigDecimal = &item.quantity * &selling_price;
+            let gross_tax: BigDecimal =
+                &total_before_tax * (&item.tax_rate / BigDecimal::from(100));
             let total_after_tax: BigDecimal = &total_before_tax + &gross_tax;
 
             sqlx::query(
@@ -198,13 +232,13 @@ impl CustomerRepository for PostgresCustomerRepo {
             .bind(&item.stock_item_id)
             .bind(&item.description)
             .bind(&item.quantity)
-            .bind(&item.unit_price)
+            .bind(&selling_price)
             .bind(&item.tax_rate)
             .bind(&total_after_tax)
             .execute(&mut *tx)
             .await?;
 
-            total_cost += &total_before_tax;
+            net_revenue += &total_before_tax;
             tax_amount += &gross_tax;
         }
 
@@ -215,7 +249,7 @@ impl CustomerRepository for PostgresCustomerRepo {
                     WHERE uuid=$3 RETURNING *
             "#,
         )
-        .bind(&total_cost)
+        .bind(&net_revenue)
         .bind(&tax_amount)
         .bind(invoice.uuid)
         .execute(&mut *tx)
@@ -232,12 +266,11 @@ impl CustomerRepository for PostgresCustomerRepo {
         payload: &PostTurnover,
     ) -> Result<Turnover, AppError> {
         let invoice = sqlx::query_as::<_, Turnover>(
-            r#"
-            SELECT sales.post_turnover($1, $2, $3, $4)
-            "#,
+            r#"SELECT sales.post_turnover($1, $2, $3, $4)"#,
         )
         .bind(payload.invoice_serial_id)
         .bind(user_id)
+        .bind(&payload.output_vat_code)
         .bind(&payload.receivable_code)
         .bind(&payload.revenue_code)
         .fetch_optional(pool)
@@ -268,9 +301,9 @@ impl CustomerRepository for PostgresCustomerRepo {
     }
 
     async fn apply_payment(&self, pool: &PgPool, cmd: ApplyPayment) -> Result<Payment, AppError> {
-        let mut tx = pool.begin().await?;
+        let mut tx: sqlx::Transaction<'_, sqlx::Postgres> = pool.begin().await?;
 
-        let payment = sqlx::query_as::<_, Payment>(r#"SELECT sales.apply_payment($1, $2, $3)"#)
+        let payment: Payment = sqlx::query_as::<_, Payment>(r#"SELECT sales.apply_payment($1, $2, $3)"#)
             .bind(cmd.payment_serial_id)
             .bind(cmd.invoice_serial_id)
             .bind(&cmd.amount)

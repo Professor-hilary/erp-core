@@ -2,17 +2,19 @@
 use crate::{
     interface::api::errors::AppError,
     models::{
-        customers::{CreateTurnover, Turnover},
+        customers::{CreateTurnover, PostTurnover, Turnover},
         inventory::{
-            CreateItem, CreateItemCategory, CreateWarehouse, Item, ItemCategory, PostSale,
-            Warehouse,
+            CreateItem, CreateItemCategory, CreateWarehouse, Item, ItemCategory, Warehouse,
         },
         vendor::{CreatePurchase, PostPurchase, Purchase},
     },
 };
 use async_trait::async_trait;
-use bigdecimal::BigDecimal;
-use sqlx::{PgPool, postgres::PgQueryResult};
+use bigdecimal::{BigDecimal, Zero};
+use sqlx::{
+    PgPool, Row, Transaction,
+    postgres::{PgQueryResult, PgRow},
+};
 use uuid::Uuid;
 
 #[async_trait]
@@ -129,8 +131,8 @@ pub trait InventoryRepository: Send + Sync {
         &self,
         pool: &PgPool,
         user_id: Uuid,
-        payload: &PostSale,
-    ) -> Result<(), AppError>;
+        payload: &PostTurnover,
+    ) -> Result<Turnover, AppError>;
 }
 
 pub struct PostgresInventoryRepo;
@@ -435,7 +437,7 @@ impl InventoryRepository for PostgresInventoryRepo {
         _user_id: Uuid,
         payload: &CreatePurchase,
     ) -> Result<Purchase, AppError> {
-        let mut tx: sqlx::Transaction<'_, sqlx::Postgres> = pool.begin().await?;
+        let mut tx: Transaction<'_, sqlx::Postgres> = pool.begin().await?;
         let mut total_cost: BigDecimal = Default::default();
         let mut tax_amount: BigDecimal = Default::default();
 
@@ -524,7 +526,7 @@ impl InventoryRepository for PostgresInventoryRepo {
         pool: &PgPool,
         payload: &CreateTurnover,
     ) -> Result<Turnover, AppError> {
-        let mut tx: sqlx::Transaction<'_, sqlx::Postgres> = pool.begin().await?;
+        let mut tx: Transaction<'_, sqlx::Postgres> = pool.begin().await?;
         let mut total_cost: BigDecimal = Default::default();
         let mut tax_amount: BigDecimal = Default::default();
 
@@ -538,9 +540,10 @@ impl InventoryRepository for PostgresInventoryRepo {
                 total_amount,
                 tax_amount,
                 settlement_type,
+                status,
                 paid_at
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, now())
+            VALUES ($1, $2, $3, $4, $5, $6, 'cash', 'paid', now())
             RETURNING *
             "#,
         )
@@ -550,13 +553,46 @@ impl InventoryRepository for PostgresInventoryRepo {
         .bind(payload.due_date)
         .bind(&payload.total_amount)
         .bind(&payload.tax_amount)
-        .bind(&payload.settlement_type)
         .fetch_one(&mut *tx)
         .await?;
 
         for item in &payload.items {
-            let total_before_tax: BigDecimal = &item.quantity * &item.unit_price;
-            let gross_tax: BigDecimal = &total_before_tax * (&item.tax_rate / 100);
+            let selling_price: BigDecimal = if item.unit_price > BigDecimal::zero() {
+                item.unit_price.clone()
+            } else {
+                // Fetch default selling price from items table
+                let row_opt: Option<PgRow> = sqlx::query(
+                    r#"SELECT selling_price FROM inventory.items WHERE serial_id = $1"#,
+                )
+                .bind(item.stock_item_id)
+                .fetch_optional(&mut *tx)
+                .await?;
+
+                let default_price: BigDecimal = match row_opt {
+                    Some(row) => row
+                        .try_get::<BigDecimal, _>("selling_price")
+                        .map_err(|e: sqlx::Error| AppError::Database(e))?,
+                    None => {
+                        return Err(AppError::NotFound(format!(
+                            "Item with serial id {} not been found",
+                            item.stock_item_id
+                        )));
+                    }
+                };
+
+                if default_price <= BigDecimal::zero() {
+                    return Err(AppError::Internal(format!(
+                        "Item {} has no valid selling price",
+                        item.stock_item_id
+                    )));
+                }
+
+                default_price
+            };
+
+            let total_before_tax: BigDecimal = &item.quantity * &selling_price;
+            let gross_tax: BigDecimal =
+                &total_before_tax * (&item.tax_rate / BigDecimal::from(100));
             let total_after_tax: BigDecimal = &total_before_tax + &gross_tax;
 
             sqlx::query(
@@ -577,7 +613,7 @@ impl InventoryRepository for PostgresInventoryRepo {
             .bind(&item.stock_item_id)
             .bind(&item.description)
             .bind(&item.quantity)
-            .bind(&item.unit_price)
+            .bind(&selling_price)
             .bind(&item.tax_rate)
             .bind(&total_after_tax)
             .execute(&mut *tx)
@@ -590,8 +626,11 @@ impl InventoryRepository for PostgresInventoryRepo {
         // Update invoice with total and tax computed from items' meta
         sqlx::query(
             r#"
-                UPDATE sales.turnover SET total_amount=$1, tax_amount=$2
-                    WHERE uuid=$3 RETURNING *
+                UPDATE sales.turnover
+                SET
+                    total_amount=$1,
+                    tax_amount=$2
+                WHERE uuid=$3 RETURNING *
             "#,
         )
         .bind(&total_cost)
@@ -629,19 +668,20 @@ impl InventoryRepository for PostgresInventoryRepo {
         &self,
         pool: &PgPool,
         user_id: Uuid,
-        payload: &PostSale,
-    ) -> Result<(), AppError> {
-        sqlx::query("SELECT inventory.post_sale($1, $2, $3, $4, $5, $6, $7, $8)")
-            .bind(payload.item_serial_id)
-            .bind(payload.warehouse_serial_id)
-            .bind(&payload.quantity)
-            .bind(&payload.unit_cost)
-            .bind(&payload.reference_type)
-            .bind(payload.reference_serial_id)
-            .bind(user_id)
-            .bind(&payload.cash_account_code)
-            .execute(pool)
-            .await?;
-        Ok(())
+        payload: &PostTurnover,
+    ) -> Result<Turnover, AppError> {
+        let sale: Turnover = sqlx::query_as::<_, Turnover>(
+            r#"SELECT sales.post_turnover($1, $2, $3, null, $4, $5)"#,
+        )
+        .bind(payload.invoice_serial_id)
+        .bind(user_id)
+        .bind(&payload.output_vat_code)
+        .bind(&payload.revenue_code)
+        .bind(&payload.cash_account_code)
+        .fetch_optional(pool)
+        .await?
+        .ok_or(AppError::NotFound("Cash sale posting failed".into()))?;
+
+        Ok(sale)
     }
 }

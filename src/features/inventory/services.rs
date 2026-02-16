@@ -3,9 +3,9 @@ use crate::{
     features::inventory::repository::InventoryRepository,
     interface::api::errors::AppError,
     models::{
-        customers::{CreateTurnover, Turnover},
+        customers::{CreateTurnover, PostTurnover, Turnover},
         inventory::{
-            CreateItem, CreateItemCategory, CreateWarehouse, Item, ItemCategory, PostSale,
+            CreateItem, CreateItemCategory, CreateWarehouse, Item, ItemCategory,
             Warehouse,
         },
         vendor::{CreatePurchase, PostPurchase},
@@ -202,8 +202,8 @@ impl<R: InventoryRepository> InventoryService<R> {
         &self,
         tenant_pool: &PgPool,
         user_id: Uuid,
-        payload: &PostSale,
-    ) -> Result<(), AppError> {
+        payload: &PostTurnover,
+    ) -> Result<Turnover, AppError> {
         self.repo.post_sale(tenant_pool, user_id, payload).await
     }
 }

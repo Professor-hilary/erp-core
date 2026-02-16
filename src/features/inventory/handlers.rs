@@ -13,9 +13,9 @@ use crate::{
     interface::api::{errors::AppError, json_errors::AppJson, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,
     models::{
-        customers::{CreateTurnover, Turnover},
+        customers::{CreateTurnover, PostTurnover, Turnover},
         inventory::{
-            CreateItem, CreateItemCategory, CreateWarehouse, Item, ItemCategory, PostSale,
+            CreateItem, CreateItemCategory, CreateWarehouse, Item, ItemCategory,
             Warehouse,
         },
         vendor::{CreatePurchase, PostPurchase, Purchase},
@@ -272,7 +272,7 @@ async fn http_cash_sale(
 async fn http_post_sale(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    AppJson(payload): AppJson<PostSale>,
+    AppJson(payload): AppJson<PostTurnover>,
 ) -> Result<Response, AppError> {
     let repo: PostgresInventoryRepo = PostgresInventoryRepo::new();
     let service: InventoryService<PostgresInventoryRepo> = InventoryService::new(repo);
