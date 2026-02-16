@@ -207,7 +207,7 @@ CREATE OR REPLACE FUNCTION sales.post_turnover(
     p_receivables_code     text DEFAULT NULL,
     p_revenue_code         text DEFAULT NULL, -- fallback revenue account code
     p_cash_account_code    text DEFAULT NULL
-) RETURNS void
+) RETURNS sales.turnover
 LANGUAGE plpgsql
 AS $$
 DECLARE
@@ -226,7 +226,9 @@ BEGIN
         RAISE EXCEPTION 'Turnover % not found', p_turnover_serial_id;
     END IF;
 
-    IF v_turnover.posted THEN RETURN; END IF;
+    IF v_turnover.posted THEN RETURN
+        RAISE EXCEPTION 'Turnover % already posted', p_turnover_serial_id;
+    END IF;
 
     -- Resolve main account
     IF v_turnover.settlement_type = 'credit' THEN
@@ -334,6 +336,7 @@ BEGIN
         WHERE uuid = v_turnover.customer_uuid;
     END IF;
 
+    RETURN v_turnover;
 END;
 $$;
 
