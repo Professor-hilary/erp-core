@@ -465,16 +465,13 @@ CREATE OR REPLACE FUNCTION inventory.post_sale(
 LANGUAGE plpgsql AS $$
 DECLARE
     v_item           inventory.items%ROWTYPE;
-    -- v_warehouse_uuid uuid;
-    -- v_total_revenue  numeric(18,2) := p_quantity * p_selling_price;
     v_cogs           numeric(18,2);
 BEGIN
     SELECT * INTO v_item FROM inventory.items WHERE serial_id = p_item_serial_id;
-    IF NOT FOUND THEN RAISE EXCEPTION 'Item not found'; END IF;
 
-    -- SELECT uuid INTO v_warehouse_uuid
-    -- FROM inventory.warehouses WHERE serial_id = p_warehouse_serial_id;
-    -- IF NOT FOUND THEN RAISE EXCEPTION 'Warehouse not found'; END IF;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Item not found for serial id %', p_item_serial_id;
+    END IF;
 
     -- Deplete inventory
     v_cogs := inventory.deplete_inventory(
@@ -482,13 +479,17 @@ BEGIN
         p_reference_type, p_reference_serial_id, p_user, p_gl_transaction_uuid
     );
 
-    -- Post COGS ONLY
+    -- Post COGS and inventory reduction using correct column names
     INSERT INTO accounting.transaction_entries(
-        transaction_uuid, account_ref, debit, credit, memo
+        transaction_uuid, account_uuid, line_no, amount, debit, credit, memo
     ) VALUES (
-        p_gl_transaction_uuid, v_item.cogs_account, v_cogs, 0, 'Cost Of Goods Sold'
+        p_gl_transaction_uuid,
+            (SELECT uuid FROM accounting.accounts WHERE code = v_item.cogs_account),
+        1, v_cogs, v_cogs, 0, 'Cost Of Goods Sold'
     ),(
-        p_gl_transaction_uuid, v_item.asset_account, 0, v_item.asset_account, 'Inventory reduction'
+        p_gl_transaction_uuid,
+            (SELECT uuid FROM accounting.accounts WHERE code = v_item.asset_account),
+        2, -v_cogs, 0, v_cogs, 'Inventory reduction'
     );
 
     RETURN v_cogs;
