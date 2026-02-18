@@ -3,3 +3,4 @@
 /Cargo.lock
 /decision-engine/vcpkg_installed
 /decision-engine/vcpkg
+/decision-engine/build
