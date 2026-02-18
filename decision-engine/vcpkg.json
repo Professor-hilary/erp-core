@@ -1,0 +1,17 @@
+{
+  "name": "recommendation-engine",
+  "version-string": "0.1.0",
+  "dependencies": [
+    "nlohmann-json",
+    "spdlog",
+    "dlib"
+  ],
+  "features": {
+    "dlib": {
+      "description": "dlib ML library",
+      "dependencies": [
+        { "name": "dlib", "features": ["no-gui", "blas"] }
+      ]
+    }
+  }
+}

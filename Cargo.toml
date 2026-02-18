@@ -7,7 +7,17 @@ description = "Backend ERP system for Chiefalry ERP"
 license = "MIT"
 repository = "https://github.com/Professor-hilary/erp-core"
 
+[workspace]
+members = [
+    ".",                        # root crate (erps engine)
+    "decision-engine/rust-bridge"    # child crate
+]
+
+resolver = "2"
+
 [dependencies]
+# decision-engine-bridge = { path = "decision-engine/rust-bridge" }
+
 # Web framework
 axum = "0.8.7"
 tower = { version = "0.5.2", features = ["util"] }
