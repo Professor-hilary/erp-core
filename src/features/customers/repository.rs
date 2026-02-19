@@ -229,7 +229,7 @@ impl CustomerRepository for PostgresCustomerRepo {
                 "#,
             )
             .bind(invoice.uuid)
-            .bind(&item.stock_item_id)
+            .bind(item.stock_item_id)
             .bind(&item.description)
             .bind(&item.quantity)
             .bind(&selling_price)

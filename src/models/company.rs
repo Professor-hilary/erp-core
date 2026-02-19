@@ -88,3 +88,11 @@ pub struct CreateInitialPeriod {
     pub start_date: NaiveDate,
     pub custom_end_date: Option<NaiveDate>,
 }
+
+pub struct DatabaseInfo {
+    pub name: String,
+    pub role: String,
+    pub password: String,
+    pub host: String,
+    pub port: i32,
+}

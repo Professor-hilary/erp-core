@@ -39,7 +39,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         std::env::var("COA_SEED_PATH").unwrap_or_else(|_| "./migrations/tenant/seed".to_string());
 
     // Ensure master DB exists -> Create if running first time
-    let _ = init_master(
+    init_master(
         &super_psql_url,
         &master_name,
         &master_user,
@@ -80,7 +80,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         master_pool,
         jwt_secret,
         tenant_pools: DashMap::new(),
-        coa_seed_path: coa_seed_path,
+        coa_seed_path,
         period_cache: Cache::builder()
             .time_to_live(Duration::from_secs(300))
             .max_capacity(1000)

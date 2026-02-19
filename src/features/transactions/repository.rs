@@ -209,7 +209,7 @@ impl TransactionRepository for PostgresTransactionRepo {
         .bind(user_id)
         .fetch_optional(&mut *tx)
         .await
-        .map_err(|e| AppError::Database(e))?
+        .map_err(AppError::Database)?
         .ok_or(AppError::NotFound("Draft entry not found or already posted".into()))?;
 
         // If lines are provided, delete old lines and insert new ones
@@ -219,7 +219,7 @@ impl TransactionRepository for PostgresTransactionRepo {
                 .bind(uuid)
                 .execute(&mut *tx)
                 .await
-                .map_err(|e| AppError::Database(e))?;
+                .map_err(AppError::Database)?;
 
             // Insert new lines using stored procedure logic
             let _lines_json: Vec<serde_json::Value> = lines
@@ -262,7 +262,7 @@ impl TransactionRepository for PostgresTransactionRepo {
                 .bind(&line.memo)
                 .execute(&mut *tx)
                 .await
-                .map_err(|e| AppError::Database(e))?;
+                .map_err(AppError::Database)?;
                 line_no += 1;
             }
         }
@@ -280,7 +280,7 @@ impl TransactionRepository for PostgresTransactionRepo {
             RETURNING *
             "#,
         )
-        .bind(&journal.txn_date)
+        .bind(journal.txn_date)
         .bind(&journal.reference)
         .bind(&journal.description)
         .bind(&journal.module)
@@ -288,9 +288,9 @@ impl TransactionRepository for PostgresTransactionRepo {
         .bind(user_id)
         .fetch_one(&mut *tx)
         .await
-        .map_err(|e| AppError::Database(e))?;
+        .map_err(AppError::Database)?;
 
-        tx.commit().await.map_err(|e| AppError::Database(e))?;
+        tx.commit().await.map_err(AppError::Database)?;
         Ok(updated_entry)
     }
 
@@ -307,7 +307,7 @@ impl TransactionRepository for PostgresTransactionRepo {
         .bind(user_id)
         .execute(pool)
         .await
-        .map_err(|e| AppError::Database(e))?;
+        .map_err(AppError::Database)?;
 
         if result.rows_affected() == 0 {
             return Err(AppError::NotFound(
@@ -331,7 +331,7 @@ impl TransactionRepository for PostgresTransactionRepo {
         .bind(user_id)
         .fetch_optional(pool)
         .await
-        .map_err(|e| AppError::Database(e))?;
+        .map_err(AppError::Database)?;
 
         let Some(header) = header else {
             return Ok(None);
@@ -360,7 +360,7 @@ impl TransactionRepository for PostgresTransactionRepo {
         .bind(uuid)
         .fetch_all(pool)
         .await
-        .map_err(|e| AppError::Database(e))?;
+        .map_err(AppError::Database)?;
 
         Ok(Some(JournalEntryWithLines { header, lines }))
     }
@@ -376,7 +376,7 @@ impl TransactionRepository for PostgresTransactionRepo {
         .bind(user_id)
         .fetch_all(pool)
         .await
-        .map_err(|e| AppError::Database(e))?;
+        .map_err(AppError::Database)?;
 
         let mut transactions: Vec<JournalEntryWithLines> = Vec::with_capacity(headers.len());
 
@@ -404,7 +404,7 @@ impl TransactionRepository for PostgresTransactionRepo {
             .bind(header.uuid)
             .fetch_all(pool)
             .await
-            .map_err(|e| AppError::Database(e))?;
+            .map_err(AppError::Database)?;
 
             transactions.push(JournalEntryWithLines { header, lines });
         }
@@ -431,7 +431,7 @@ impl TransactionRepository for PostgresTransactionRepo {
         .bind(offset)
         .fetch_all(pool)
         .await
-        .map_err(|e| AppError::Database(e))?;
+        .map_err(AppError::Database)?;
 
         Ok(entries)
     }
@@ -494,7 +494,7 @@ impl TransactionRepository for PostgresTransactionRepo {
         .bind(account_uuid)
         .fetch_one(pool)
         .await
-        .map_err(|e| AppError::Database(e))?;
+        .map_err(AppError::Database)?;
 
         Ok(bal.0.unwrap_or(BigDecimal::zero()))
     }

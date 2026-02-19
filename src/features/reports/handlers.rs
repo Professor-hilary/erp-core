@@ -17,6 +17,10 @@ use crate::{
     },
     interface::api::{errors::AppError, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,
+    models::reports::{
+        BalanceSheetCompareRow, BalanceSheetRow, CashFlowRow, EquityChangeRow, IncomeStatementRow,
+        TrialBalanceRow,
+    },
     state::AppState,
 };
 
@@ -70,10 +74,10 @@ async fn http_balancesheet(
     let as_of = NaiveDate::parse_from_str(&as_of, "%Y-%m-%d")
         .map_err(|e| AppError::BadRequest(format!("invalid date: {}", e)))?;
 
-    let report = service
+    let report: Vec<BalanceSheetRow> = service
         .balancesheet(&user.tenant_pool, as_of)
         .await
-        .map_err(|e| AppError::Internal(format!("{}", e.to_string())))?;
+        .map_err(|e| AppError::Internal(e.to_string()))?;
 
     Ok(ApiResponse::created(report, "Report created"))
 }
@@ -98,10 +102,10 @@ async fn http_balancesheet_compare(
     let repo: PostgresReportRepo = PostgresReportRepo::new();
     let service: ReportService<PostgresReportRepo> = ReportService::new(repo);
 
-    let report = service
+    let report: Vec<BalanceSheetCompareRow> = service
         .balancesheet_compare(&user.tenant_pool, start, end)
         .await
-        .map_err(|e| AppError::Internal(format!("{}", e.to_string())))?;
+        .map_err(|e: AppError| AppError::Internal(e.to_string()))?;
 
     Ok(ApiResponse::success(report, "Report updated"))
 }
@@ -118,18 +122,18 @@ async fn http_income(
     let end =
         q.to.unwrap_or_else(|| chrono::Local::now().naive_local().to_string());
 
-    let start = NaiveDate::parse_from_str(&start, "%Y-%m-%d")
-        .map_err(|e| AppError::BadRequest(format!("invalid date: {}", e)))?;
+    let start: NaiveDate = NaiveDate::parse_from_str(&start, "%Y-%m-%d")
+        .map_err(|e: chrono::ParseError| AppError::BadRequest(format!("invalid date: {}", e)))?;
     let end = NaiveDate::parse_from_str(&end, "%Y-%m-%d")
         .map_err(|e| AppError::BadRequest(format!("invalid date: {}", e)))?;
 
     let repo: PostgresReportRepo = PostgresReportRepo::new();
     let service: ReportService<PostgresReportRepo> = ReportService::new(repo);
 
-    let report = service
+    let report: Vec<IncomeStatementRow> = service
         .income_statement(&user.tenant_pool, start, end)
         .await
-        .map_err(|e| AppError::Internal(format!("{}", e.to_string())))?;
+        .map_err(|e| AppError::Internal(e.to_string()))?;
 
     Ok(ApiResponse::success(report, "Reports fetched"))
 }
@@ -182,7 +186,7 @@ async fn http_cf_direct(
     let report = service
         .cf_direct(&user.tenant_pool, start, end)
         .await
-        .map_err(|e| AppError::Internal(format!("{}", e.to_string())))?;
+        .map_err(|e| AppError::Internal(e.to_string()))?;
 
     Ok(ApiResponse::success(report, "Report updated"))
 }
@@ -198,18 +202,18 @@ async fn http_cf_indirect(
     let end =
         q.to.unwrap_or_else(|| chrono::Local::now().naive_local().to_string());
 
-    let start = NaiveDate::parse_from_str(&start, "%Y-%m-%d")
-        .map_err(|e| AppError::BadRequest(format!("invalid date: {}", e)))?;
-    let end = NaiveDate::parse_from_str(&end, "%Y-%m-%d")
-        .map_err(|e| AppError::BadRequest(format!("invalid date: {}", e)))?;
+    let start: NaiveDate = NaiveDate::parse_from_str(&start, "%Y-%m-%d")
+        .map_err(|e: chrono::ParseError| AppError::BadRequest(format!("invalid date: {}", e)))?;
+    let end: NaiveDate = NaiveDate::parse_from_str(&end, "%Y-%m-%d")
+        .map_err(|e: chrono::ParseError| AppError::BadRequest(format!("invalid date: {}", e)))?;
 
     let repo: PostgresReportRepo = PostgresReportRepo::new();
     let service: ReportService<PostgresReportRepo> = ReportService::new(repo);
 
-    let report = service
+    let report: Vec<CashFlowRow> = service
         .cf_indirect(&user.tenant_pool, start, end)
         .await
-        .map_err(|e| AppError::Internal(format!("{}", e.to_string())))?;
+        .map_err(|e: AppError| AppError::Internal(e.to_string()))?;
 
     Ok(ApiResponse::success(
         report,
@@ -222,24 +226,24 @@ async fn http_change_equity(
     Query(q): Query<DateRangeQuery>,
     Extension(user): Extension<AuthenticatedTenant>,
 ) -> Result<Response, AppError> {
-    let start = q
+    let start: String = q
         .from
         .unwrap_or_else(|| chrono::Local::now().naive_local().to_string());
-    let end =
+    let end: String =
         q.to.unwrap_or_else(|| chrono::Local::now().naive_local().to_string());
 
-    let start = NaiveDate::parse_from_str(&start, "%Y-%m-%d")
-        .map_err(|e| AppError::BadRequest(format!("invalid date: {}", e)))?;
-    let end = NaiveDate::parse_from_str(&end, "%Y-%m-%d")
-        .map_err(|e| AppError::BadRequest(format!("invalid date: {}", e)))?;
+    let start: NaiveDate = NaiveDate::parse_from_str(&start, "%Y-%m-%d")
+        .map_err(|e: chrono::ParseError| AppError::BadRequest(format!("invalid date: {}", e)))?;
+    let end: NaiveDate = NaiveDate::parse_from_str(&end, "%Y-%m-%d")
+        .map_err(|e: chrono::ParseError| AppError::BadRequest(format!("invalid date: {}", e)))?;
 
     let repo: PostgresReportRepo = PostgresReportRepo::new();
     let service: ReportService<PostgresReportRepo> = ReportService::new(repo);
 
-    let report = service
+    let report: Vec<EquityChangeRow> = service
         .change_of_equity(&user.tenant_pool, start, end)
         .await
-        .map_err(|e| AppError::Internal(format!("{}", e.to_string())))?;
+        .map_err(|e| AppError::Internal(e.to_string()))?;
 
     Ok(ApiResponse::success(
         report,
@@ -302,17 +306,17 @@ async fn http_trial_balance(
     let repo: PostgresReportRepo = PostgresReportRepo::new();
     let service: ReportService<PostgresReportRepo> = ReportService::new(repo);
 
-    let as_of = q
+    let as_of: String = q
         .as_of
         .unwrap_or_else(|| chrono::Local::now().naive_local().to_string());
 
-    let as_of = NaiveDate::parse_from_str(&as_of, "%Y-%m-%d")
-        .map_err(|e| AppError::BadRequest(format!("invalid date: {}", e)))?;
+    let as_of: NaiveDate = NaiveDate::parse_from_str(&as_of, "%Y-%m-%d")
+        .map_err(|e: chrono::ParseError| AppError::BadRequest(format!("invalid date: {}", e)))?;
 
-    let report = service
+    let report: Vec<TrialBalanceRow> = service
         .trial_balance(&user.tenant_pool, as_of)
         .await
-        .map_err(|e| AppError::Internal(format!("{}", e.to_string())))?;
+        .map_err(|e: AppError| AppError::Internal(e.to_string()))?;
 
     Ok(ApiResponse::success(report, "Report fetched"))
 }

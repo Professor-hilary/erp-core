@@ -133,13 +133,13 @@ impl PayrollRepository for PostgresPayrollRepo {
         payload: &PostPayrun,
     ) -> Result<(), AppError> {
         sqlx::query("SELECT payroll.post_payrun($1, $2, $3, $4, $5, $6, $7)")
-            .bind(&payload.payrun_serial_id)
-            .bind(&payload.labor_expense_id)
-            .bind(&payload.income_tax_id)
-            .bind(&payload.social_security_id)
-            .bind(&payload.cash_account_uuid)
+            .bind(payload.payrun_serial_id)
+            .bind(payload.labor_expense_id)
+            .bind(payload.income_tax_id)
+            .bind(payload.social_security_id)
+            .bind(payload.cash_account_uuid)
             .bind(user_id)
-            .bind(&payload.payroll_payable)
+            .bind(payload.payroll_payable)
             .execute(pool)
             .await?;
         Ok(())

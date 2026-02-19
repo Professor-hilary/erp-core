@@ -1,23 +1,13 @@
 // src/features/auth/repository.rs
 use crate::interface::api::errors::AppError;
-use crate::models::user::{User, UserCompany};
+use crate::models::user::{CreateUser, User, UserCompany};
 use async_trait::async_trait;
 use sqlx::PgPool;
 use uuid::Uuid;
 
 #[async_trait]
 pub trait UserRepository: Send + Sync {
-    async fn create(
-        &self,
-        email: &str,
-        password_hash: &str,
-        firstname: &str,
-        othername: Option<String>,
-        telephone: Option<String>,
-        avatar_url: Option<String>,
-        timezone: Option<String>,
-        pref_language: Option<String>,
-    ) -> Result<User, AppError>;
+    async fn create(&self, user: CreateUser, password_hash: &str) -> Result<User, AppError>;
 
     async fn find_by_email(&self, email: &str) -> Result<Option<User>, AppError>;
 
@@ -46,17 +36,7 @@ impl PostgresUserRepo {
 impl UserRepository for PostgresUserRepo {
     /// # Create Company
     /// Create a new user and password for company operations.
-    async fn create(
-        &self,
-        email: &str,
-        password_hash: &str,
-        firstname: &str,
-        othername: Option<String>,
-        telephone: Option<String>,
-        avatar_url: Option<String>,
-        timezone: Option<String>,
-        pref_language: Option<String>,
-    ) -> Result<User, AppError> {
+    async fn create(&self, user: CreateUser, password_hash: &str) -> Result<User, AppError> {
         let user = sqlx::query_as::<_, User>(
             "INSERT INTO users (
                 email,
@@ -69,14 +49,14 @@ impl UserRepository for PostgresUserRepo {
                 pref_language
             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *",
         )
-        .bind(email)
+        .bind(user.email)
         .bind(password_hash)
-        .bind(firstname)
-        .bind(othername)
-        .bind(telephone)
-        .bind(avatar_url)
-        .bind(timezone)
-        .bind(pref_language)
+        .bind(&user.first_name)
+        .bind(&user.other_name)
+        .bind(user.telephone)
+        .bind(user.avatar_url)
+        .bind(user.timezone)
+        .bind(user.pref_language)
         .fetch_one(&self.pool)
         .await
         .map_err(|e| match e {

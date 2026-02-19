@@ -26,131 +26,96 @@ pub async fn auth_middleware(
     let path: String = request.uri().path().to_string();
     let method: Method = request.method().clone();
 
+    // =========================================================================================
+    // Skip tenant context for company creation
+    // =========================================================================================
+
+    // APIs that don't need tenant information
     let is_company_create: bool = method == Method::POST
         && (path.ends_with("/create") && path.contains("/companies") || path == "/companies");
 
     let is_switch_company: bool = method == Method::POST && path.contains("/switch-company");
 
+    // Middleware only for create company route
+    let auth_header: &str = request
+        .headers()
+        .get("authorization")
+        .and_then(|h: &HeaderValue| h.to_str().ok())
+        .and_then(|h: &str| h.strip_prefix("Bearer "))
+        .ok_or(AppError::Unauthorized(
+            "You have no valid authorization to perform this action".into(),
+        ))?;
+
+    // Check for correct token from user request
+    let token_data: TokenData<JwtClaims> = decode::<JwtClaims>(
+        auth_header,
+        &DecodingKey::from_secret(state.jwt_secret.as_ref()),
+        &Validation::default(),
+    )
+    .map_err(|_| AppError::Unauthorized("Invalid token, kindly login".into()))?;
+
+    // Only insert AuthenticatedUser, ignore tenant claim
+    let user_id: Uuid = token_data.claims.sub;
+    request
+        .extensions_mut()
+        .insert(AuthenticatedUser { user_id });
+
     // =========================================================================================
-    // Skip tenant context for company creation
+    // All other routes protected by authenticated tenant
     // =========================================================================================
-    if is_company_create || is_switch_company {
-        // Middleware only for create company route
-        let auth_header: &str = request
-            .headers()
-            .get("authorization")
-            .and_then(|h: &HeaderValue| h.to_str().ok())
-            .and_then(|h: &str| h.strip_prefix("Bearer "))
-            .ok_or(AppError::Unauthorized(
-                "You need to log in to perform this action".into(),
-            ))?;
+    if !(is_company_create || is_switch_company)
+        && let (Some(company_id), Some(_tenant_db)) =
+            (token_data.claims.company_id, token_data.claims.tenant_db)
+    {
+        let pool = get_tenant_pool(&state, company_id)
+            .await
+            .map_err(|e: sqlx::Error| AppError::Unauthorized(e.to_string()))?;
 
-        println!("RAW TOKEN RECEIVED: {}", auth_header);
+        let pool_clone: sqlx::Pool<sqlx::Postgres> = pool.clone(); // cheap Arc clone
 
-        let token_data: TokenData<JwtClaims> = decode::<JwtClaims>(
-            auth_header,
-            &DecodingKey::from_secret(state.jwt_secret.as_ref()),
-            &Validation::default(),
-        )
-        .map_err(|_| AppError::Unauthorized("Invalid or expired token".into()))?;
-
-        // Only insert AuthenticatedUser, ignore tenant claim
-        let user_id: Uuid = token_data.claims.sub;
-        request
-            .extensions_mut()
-            .insert(AuthenticatedUser { user_id });
-
-        return Ok(next.run(request).await);
-    } else {
-        // =========================================================================================
-        // All other routes protected by authenticated tenant
-        // =========================================================================================
-        let auth_header: &str = request
-            .headers()
-            .get("authorization")
-            .and_then(|h: &HeaderValue| h.to_str().ok())
-            .and_then(|h: &str| h.strip_prefix("Bearer "))
-            .ok_or(AppError::Unauthorized(
-                "You have no valid authorization to perform this action!".into(),
-            ))?;
-
-        let token_data: TokenData<JwtClaims> = decode::<JwtClaims>(
-            auth_header,
-            &DecodingKey::from_secret(state.jwt_secret.as_ref()),
-            &Validation::default(),
-        )
-        .map_err(|_| AppError::Unauthorized("Invalid or expired token".into()))?;
-
-        println!(
-            "DECODED CLAIMS: company_id:{:?}, tenant_db:{:?}, sub:{:?}",
-            token_data.claims.company_id, token_data.claims.tenant_db, token_data.claims.sub
-        );
-
-        let user_id: Uuid = Uuid::parse_str(&token_data.claims.sub.to_string())
-            .map_err(|_| AppError::Unauthorized("Invalid user ID in token".into()))?;
-
-        // Always insert the basic user
-        request
-            .extensions_mut()
-            .insert(AuthenticatedUser { user_id });
-
-        // Try to insert tenant context — silently fail (it's optional)
-        // Inside your auth_middleware else branch, after getting pool
-
-        match (token_data.claims.company_id, token_data.claims.tenant_db) {
-            (Some(company_id), Some(_tenant_db)) => {
-                let pool = get_tenant_pool(&state, company_id)
-                    .await
-                    .map_err(|e: sqlx::Error| AppError::Unauthorized(e.to_string()))?;
-
-                let pool_clone: sqlx::Pool<sqlx::Postgres> = pool.clone(); // cheap Arc clone
-
-                // Make sure period dates are in cache else fetch one
-                let period: PeriodInfo = state
-                    .period_cache
-                    .try_get_with(company_id, {
-                        async move {
-                            let row_opt: Option<PeriodRow> = sqlx::query_as::<_, PeriodRow>(
-                                r#"
+        // Make sure period dates are in cache else fetch one
+        let period: PeriodInfo = state
+            .period_cache
+            .try_get_with(company_id, {
+                async move {
+                    let row_opt: Option<PeriodRow> = sqlx::query_as::<_, PeriodRow>(
+                        r#"
                                 SELECT uuid, start_date, end_date, is_locked
                                 FROM accounting.financial_periods
                                 WHERE is_open = true
                                 ORDER BY start_date DESC LIMIT 1
                                 "#,
-                            )
-                            .fetch_optional(&pool_clone)
-                            .await
-                            .map_err(|e: sqlx::Error| anyhow::anyhow!("Database error: {}", e))?;
-
-                            let row: PeriodRow = row_opt.ok_or_else(|| {
-                                anyhow::anyhow!("No open financial period for this company")
-                            })?;
-
-                            Ok(PeriodInfo {
-                                _uuid: row.uuid,
-                                start_date: row.start_date,
-                                end_date: row.end_date,
-                                is_locked: row.is_locked.unwrap_or(false),
-                            })
-                        }
-                    })
+                    )
+                    .fetch_optional(&pool_clone)
                     .await
-                    .map_err(|cache_err: Arc<anyhow::Error>| {
-                        AppError::Internal(format!("Period cache failed: {}", cache_err))
+                    .map_err(|e: sqlx::Error| anyhow::anyhow!("Database error: {}", e))?;
+
+                    let row: PeriodRow = row_opt.ok_or_else(|| {
+                        anyhow::anyhow!("No open financial period for this company")
                     })?;
 
-                request.extensions_mut().insert(AuthenticatedTenant {
-                    user_id,
-                    company_id,
-                    tenant_pool: pool,
-                    current_period_start: period.start_date,
-                    current_period_end: period.end_date,
-                    period_is_locked: period.is_locked,
-                });
-            }
-            _ => (),
-        }
+                    Ok(PeriodInfo {
+                        _uuid: row.uuid,
+                        start_date: row.start_date,
+                        end_date: row.end_date,
+                        is_locked: row.is_locked.unwrap_or(false),
+                    })
+                }
+            })
+            .await
+            .map_err(|cache_err: Arc<anyhow::Error>| {
+                AppError::Internal(format!("Period cache failed: {}", cache_err))
+            })?;
 
-        Ok(next.run(request).await)
+        request.extensions_mut().insert(AuthenticatedTenant {
+            user_id,
+            company_id,
+            tenant_pool: pool,
+            current_period_start: period.start_date,
+            current_period_end: period.end_date,
+            period_is_locked: period.is_locked,
+        });
     }
+
+    Ok(next.run(request).await)
 }

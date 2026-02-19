@@ -61,9 +61,9 @@ impl<R: TransactionRepository> TransactionService<R> {
 
         // Make sure the financial period is not locked
         if tenant.period_is_locked {
-            return Err(AppError::Forbidden(format!(
-                "Cannot post to a locked financial period"
-            )));
+            return Err(AppError::Forbidden(
+                "Cannot post to a locked financial period".to_string(),
+            ));
         }
 
         // Make sure at least one debit and one credit transaction line exist

@@ -30,7 +30,7 @@ where
 
         let inner: String = path_err.inner().to_string();
 
-        let pos: String = if let Some(_) = path_err.inner().source() {
+        let pos: String = if path_err.inner().source().is_some() {
             if let Some(sje) = find_source::<serde_json::Error>(path_err.inner()) {
                 format!(" (line {}, column {}", sje.line(), sje.column())
             } else {

@@ -9,7 +9,7 @@ use crate::{
     interface::api::errors::AppError,
     models::{
         account::CoaTemplate,
-        company::{Company, CreateCompanyDto, CreateInitialPeriod, PeriodType},
+        company::{Company, CreateCompanyDto, CreateInitialPeriod, DatabaseInfo, PeriodType},
     },
     state::AppState,
 };
@@ -46,6 +46,8 @@ impl CompanyService {
 
         let tenant_db_name: String = format!("tenant_{}", slug);
 
+
+
         // Step 3: Seed Chart of Accounts
         Self::seed_coa(&tenant_pool, &req.industry, &state.coa_seed_path)
             .await
@@ -57,25 +59,10 @@ impl CompanyService {
         let company: Company = repo
             .create(
                 &mut *tx,
-                &req.name,
                 &slug,
                 &tenant_db_name,
                 &tenant_db_uri,
-                &req.industry,
-                &req.currency,
-                &req.business_type,
-                &req.country,
-                req.company_email,
-                req.legal_name,
-                req.telephone,
-                req.website,
-                req.co_address,
-                req.city,
-                req.co_state,
-                req.zip_code,
-                req.tax_id,
-                req.period_start,
-                Some(req.period_type.clone().unwrap().to_string()),
+                &req,
                 user_id,
             )
             .await
@@ -95,11 +82,13 @@ impl CompanyService {
             user_id,
             &tenant_db_uri,
             company.uuid,
-            db_name,
-            db_role,
-            db_pass,
-            db_host,
-            db_port,
+            DatabaseInfo {
+                name: db_name,
+                role: db_role,
+                password: db_pass,
+                host: db_host,
+                port: db_port
+            },
         )
         .await
         .map_err(|_| AppError::Internal("Failed to update company secrets tables".into()))?;

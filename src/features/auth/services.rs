@@ -38,19 +38,7 @@ impl<R: UserRepository> AuthService<R> {
         let password_hash: String = hash(&user.password, DEFAULT_COST)
             .map_err(|_| AppError::Internal("Failed to hash password".into()))?;
 
-        let created_user: User = self
-            .repo
-            .create(
-                &user.email,
-                &password_hash,
-                &user.first_name,
-                user.other_name,
-                user.telephone,
-                user.avatar_url,
-                user.timezone,
-                user.pref_language,
-            )
-            .await?;
+        let created_user: User = self.repo.create(user, &password_hash).await?;
 
         // this will automatically return None because at registration, no company is created
         let user_company: Option<UserCompany> =
@@ -87,25 +75,25 @@ impl<R: UserRepository> AuthService<R> {
         let user_company: Option<UserCompany> = self.repo.get_user_company(db_user.uuid).await?;
 
         // Only load tenant pool if company exists AND has valid tenant URL
-        if let Some(uc) = &user_company {
-            if let Some(company_uuid) = uc.company_id {
-                match self.repo.get_tenant_url(Some(company_uuid)).await? {
-                    Some(tenant_url) => {
-                        // Valid company setup - load pool
-                        if let Err(e) =
-                            Self::ensure_tenant_pool(&state, company_uuid, &tenant_url).await
-                        {
-                            tracing::warn!("Tenant pool load failed: {:?}", e);
-                        }
+        if let Some(uc) = &user_company
+            && let Some(company_uuid) = uc.company_id
+        {
+            match self.repo.get_tenant_url(Some(company_uuid)).await? {
+                Some(tenant_url) => {
+                    // Valid company setup - load pool
+                    if let Err(e) =
+                        Self::ensure_tenant_pool(&state, company_uuid, &tenant_url).await
+                    {
+                        tracing::warn!("Tenant pool load failed: {:?}", e);
                     }
-                    None => {
-                        // Company exists but incomplete set up - treat as no company
-                        if cfg!(debug_assertions) {
-                            println!(
-                                "Company {} exists but missing tenant URL - treating as no company",
-                                company_uuid
-                            );
-                        }
+                }
+                None => {
+                    // Company exists but incomplete set up - treat as no company
+                    if cfg!(debug_assertions) {
+                        println!(
+                            "Company {} exists but missing tenant URL - treating as no company",
+                            company_uuid
+                        );
                     }
                 }
             }
@@ -182,7 +170,7 @@ impl<R: UserRepository> AuthService<R> {
             .ok_or(AppError::Internal("Tenant Url missing".to_string()))?;
 
         // Lazy Load ensures company database is loaded
-        Self::ensure_tenant_pool(&_state, company_id, tenant_url.as_ref()).await?;
+        Self::ensure_tenant_pool(&_state, company_id, tenant_url).await?;
         self.generate_token(user_id, Some(company_id), tenant_db)
     }
 

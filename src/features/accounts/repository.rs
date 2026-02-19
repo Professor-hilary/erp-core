@@ -105,11 +105,11 @@ impl AccountRepository for PostgresAccountRepo {
             ) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *",
         )
         .bind(&acc.name)
-        .bind(&acc.category.to_lowercase())
+        .bind(acc.category.to_lowercase())
         .bind(&acc.code)
         .bind(&acc.parent_code)
         .bind(&acc.normal_balance)
-        .bind(&acc.is_contra)
+        .bind(acc.is_contra)
         .fetch_one(pool)
         .await?;
         Ok(account)
@@ -230,7 +230,7 @@ impl AccountRepository for PostgresAccountRepo {
         .bind(end_date)
         .execute(pool)
         .await
-        .map_err(|e| AppError::Database(e))?;
+        .map_err(AppError::Database)?;
 
         Ok(())
     }
@@ -275,7 +275,9 @@ impl AccountRepository for PostgresAccountRepo {
         .rows_affected();
 
         if updated == 0 {
-            return Err(AppError::NotFound("Period not found or closed already".into()));
+            return Err(AppError::NotFound(
+                "Period not found or closed already".into(),
+            ));
         }
 
         // Invalidate cached period

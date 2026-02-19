@@ -195,7 +195,7 @@ impl VendorRepository for PostgresVendorRepo {
                 "#,
             )
             .bind(bill.uuid)
-            .bind(&item.stock_item_id)
+            .bind(item.stock_item_id)
             .bind(&item.description)
             .bind(&item.quantity)
             .bind(&item.unit_price)

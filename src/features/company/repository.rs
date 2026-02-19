@@ -1,7 +1,9 @@
 // src/features/company/repository.rs
-use crate::{interface::api::errors::AppError, models::company::{Company, UpdateCompanyDto}};
+use crate::{
+    interface::api::errors::AppError,
+    models::company::{Company, CreateCompanyDto, DatabaseInfo, UpdateCompanyDto},
+};
 use async_trait::async_trait;
-use chrono::NaiveDate;
 use sqlx::{Executor, Postgres};
 use uuid::Uuid;
 
@@ -12,25 +14,10 @@ pub trait CompanyRepository: Send + Sync {
     async fn create<'e, E: Executor<'e, Database = Postgres>>(
         &self,
         executor: E,
-        name: &str,
         slug: &str,
         tenant_db_name: &str,
         tenant_db_uri: &str,
-        industry: &str,
-        currency: &str,
-        business_type: &str,
-        country: &str,
-        company_email: Option<String>,
-        legal_name: Option<String>,
-        telephone: Option<String>,
-        website: Option<String>,
-        co_address: Option<String>,
-        city: Option<String>,
-        co_state: Option<String>,
-        zip_code: Option<String>,
-        tax_id: Option<String>,
-        period_start: Option<NaiveDate>,
-        period_type: Option<String>,
+        company: &CreateCompanyDto,
         created_by: Uuid,
     ) -> Result<Company, AppError>;
 
@@ -51,11 +38,7 @@ pub trait CompanyRepository: Send + Sync {
         user_id: Uuid,
         tenant_db_uri: &str,
         company_id: Uuid,
-        tenant_db_name: String,
-        tenant_db_role: String,
-        tenant_db_pass: String,
-        tenant_db_host: String,
-        tenant_db_port: i32,
+        connection: DatabaseInfo,
     ) -> Result<(), AppError>;
 
     /// # Find By Id
@@ -106,25 +89,10 @@ impl CompanyRepository for PostgresCompanyRepository {
     async fn create<'e, E: Executor<'e, Database = Postgres>>(
         &self,
         executor: E,
-        name: &str,
         slug: &str,
         tenant_db_name: &str,
         tenant_db_uri: &str,
-        industry: &str,
-        currency: &str,
-        business_type: &str,
-        country: &str,
-        company_email: Option<String>,
-        legal_name: Option<String>,
-        telephone: Option<String>,
-        website: Option<String>,
-        co_address: Option<String>,
-        city: Option<String>,
-        co_state: Option<String>,
-        zip_code: Option<String>,
-        tax_id: Option<String>,
-        period_start: Option<NaiveDate>,
-        period_type: Option<String>,
+        company: &CreateCompanyDto,
         created_by: Uuid,
     ) -> Result<Company, AppError> {
         let company: Company = sqlx::query_as::<_, Company>(
@@ -141,26 +109,26 @@ impl CompanyRepository for PostgresCompanyRepository {
             ) RETURNING *
             "#,
         )
-        .bind(name)
+        .bind(&company.name)
         .bind(slug)
         .bind(tenant_db_name)
         .bind(tenant_db_uri)
-        .bind(industry)
-        .bind(business_type)
+        .bind(&company.industry)
+        .bind(&company.business_type)
         .bind(created_by)
-        .bind(country)
-        .bind(currency)
-        .bind(company_email)
-        .bind(legal_name)
-        .bind(telephone)
-        .bind(website)
-        .bind(co_address)
-        .bind(city)
-        .bind(co_state)
-        .bind(zip_code)
-        .bind(tax_id)
-        .bind(period_start)
-        .bind(period_type)
+        .bind(&company.country)
+        .bind(&company.currency)
+        .bind(&company.company_email)
+        .bind(&company.legal_name)
+        .bind(&company.telephone)
+        .bind(&company.website)
+        .bind(&company.co_address)
+        .bind(&company.city)
+        .bind(&company.co_state)
+        .bind(&company.zip_code)
+        .bind(&company.tax_id)
+        .bind(company.period_start)
+        .bind(Some(company.period_type.clone().unwrap().to_string()))
         .fetch_one(executor)
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
@@ -195,11 +163,7 @@ impl CompanyRepository for PostgresCompanyRepository {
         user_id: Uuid,
         tenant_db_uri: &str,
         company_id: Uuid,
-        tenant_db_name: String,
-        tenant_db_role: String,
-        tenant_db_pass: String,
-        tenant_db_host: String,
-        tenant_db_port: i32,
+        connection: DatabaseInfo,
     ) -> Result<(), AppError> {
         // assume `company_id` is known and `tenant_url` is built
         sqlx::query(
@@ -219,11 +183,11 @@ impl CompanyRepository for PostgresCompanyRepository {
         )
         .bind(company_id)
         .bind(serde_json::json!({ "tenant_url": tenant_db_uri }))
-        .bind(tenant_db_name)
-        .bind(tenant_db_host)
-        .bind(tenant_db_port)
-        .bind(tenant_db_role)
-        .bind(tenant_db_pass)
+        .bind(connection.name)
+        .bind(connection.host)
+        .bind(connection.port)
+        .bind(connection.role)
+        .bind(connection.password)
         .bind(user_id)
         .execute(executor)
         .await

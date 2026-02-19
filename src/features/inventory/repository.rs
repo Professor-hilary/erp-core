@@ -168,7 +168,7 @@ impl InventoryRepository for PostgresInventoryRepo {
         .bind(&payload.name)
         .bind(payload.category_uuid)
         .bind(&payload.description)
-        .bind(&payload.warehouse_serial)
+        .bind(payload.warehouse_serial)
         .bind(&payload.unit)
         .bind(payload.selling_price.as_ref())
         .bind(payload.track_quantity)
@@ -332,7 +332,7 @@ impl InventoryRepository for PostgresInventoryRepo {
         .bind(&payload.asset_account)
         .bind(&payload.cogs_account)
         .bind(&payload.income_account)
-        .bind(&payload.warehouse_serial)
+        .bind(payload.warehouse_serial)
         .bind(uuid)
         .fetch_one(pool)
         .await?;
@@ -467,7 +467,7 @@ impl InventoryRepository for PostgresInventoryRepo {
         .bind(&payload.total_amount)
         .bind(&payload.tax_amount)
         .bind(&payload.settlement_type)
-        .bind(&payload.paid_at)
+        .bind(payload.paid_at)
         .fetch_one(&mut *tx)
         .await?;
 
@@ -491,7 +491,7 @@ impl InventoryRepository for PostgresInventoryRepo {
                 "#,
             )
             .bind(bill.uuid)
-            .bind(&item.stock_item_id)
+            .bind(item.stock_item_id)
             .bind(&item.description)
             .bind(&item.quantity)
             .bind(&item.unit_price)
@@ -610,7 +610,7 @@ impl InventoryRepository for PostgresInventoryRepo {
                 "#,
             )
             .bind(invoice.uuid)
-            .bind(&item.stock_item_id)
+            .bind(item.stock_item_id)
             .bind(&item.description)
             .bind(&item.quantity)
             .bind(&selling_price)
