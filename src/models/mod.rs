@@ -10,3 +10,4 @@ pub mod reports;
 pub mod transaction;
 pub mod user;
 pub mod vendor;
+pub mod manufacturing;

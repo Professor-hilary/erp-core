@@ -9,3 +9,4 @@ pub mod reports;
 pub mod transactions;
 pub mod vendors;
 pub mod workforce;
+pub mod manufacturing;

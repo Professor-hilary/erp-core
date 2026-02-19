@@ -11,7 +11,8 @@ use axum::{
 use crate::{
     AppState,
     features::{
-        accounts, company, customers, inventory, payroll, reports, transactions, vendors, workforce,
+        accounts, company, customers, inventory, manufacturing, payroll, reports, transactions,
+        vendors, workforce,
     },
     interface::api::errors::AppError,
     middleware::{auth::AuthenticatedUser, layer::auth_middleware},
@@ -49,6 +50,9 @@ pub fn create_router(state: Arc<AppState>) -> Router {
     let report_routes: Router<Arc<AppState>> = reports::handlers::router().layer(
         middleware::from_fn_with_state(state.clone(), auth_middleware),
     );
+    let manufacturing_routes: Router<Arc<AppState>> = manufacturing::handlers::router().layer(
+        middleware::from_fn_with_state(state.clone(), auth_middleware),
+    );
 
     Router::new()
         // CHECK THAT SERVER IS UP AND RUNING
@@ -68,6 +72,7 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .nest("/api/reports", report_routes)
         .nest("/api/vendors", vendor_routes)
         .nest("/api/workforce", employee_routes)
+        .nest("/api/manufacturing", manufacturing_routes)
         // Catch unprocessable error code 422
         // .layer(middleware::from_fn(map_client_errors))
         // CORS & global state

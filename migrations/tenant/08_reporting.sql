@@ -781,6 +781,95 @@ FULL OUTER JOIN bs2 USING (code)
 ORDER BY path;
 $$ LANGUAGE sql STABLE;
 
+-- ===================================================
+-- 6 Manufacturing Statement
+-- ===================================================
+CREATE OR REPLACE FUNCTION manufacturing.get_cost_of_goods_manufactured(
+    p_start_date date,
+    p_end_date   date
+)
+RETURNS TABLE (
+    description text,
+    amount      numeric(18,2)
+)
+LANGUAGE sql
+STABLE
+AS $$
+    WITH
+    -- Beginning WIP balance (as of start_date)
+    beg_wip AS (
+        SELECT COALESCE(SUM(te.debit - te.credit), 0) AS beginning_wip
+        FROM accounting.transaction_entries te
+        JOIN accounting.transactions tx ON tx.uuid = te.transaction_uuid
+        JOIN accounting.accounts a ON a.uuid = te.account_uuid
+        WHERE a.code = '1310'  -- WIP account code; adjust
+          AND tx.txn_date < p_start_date
+    ),
+
+    -- Direct materials used (issues to production)
+    direct_materials_used AS (
+        SELECT COALESCE(SUM(mi.total_cost), 0) AS amount
+        FROM manufacturing.material_issues mi
+        JOIN manufacturing.production_orders po ON po.uuid = mi.production_order_uuid
+        WHERE po.actual_completion_date BETWEEN p_start_date AND p_end_date
+          OR (po.actual_completion_date IS NULL AND po.start_date <= p_end_date)
+    ),
+
+    -- Direct labor applied
+    direct_labor AS (
+        SELECT COALESCE(SUM(ca.amount), 0) AS amount
+        FROM manufacturing.cost_applications ca
+        JOIN manufacturing.production_orders po ON po.uuid = ca.production_order_uuid
+        WHERE ca.type = 'DirectLabor'
+          AND (po.actual_completion_date BETWEEN p_start_date AND p_end_date
+               OR (po.actual_completion_date IS NULL AND po.start_date <= p_end_date))
+    ),
+
+    -- Applied overhead
+    applied_overhead AS (
+        SELECT COALESCE(SUM(ca.amount), 0) AS amount
+        FROM manufacturing.cost_applications ca
+        JOIN manufacturing.production_orders po ON po.uuid = ca.production_order_uuid
+        WHERE ca.type = 'Overhead'
+          AND (po.actual_completion_date BETWEEN p_start_date AND p_end_date
+               OR (po.actual_completion_date IS NULL AND po.start_date <= p_end_date))
+    ),
+
+    -- Total manufacturing costs
+    total_manuf_costs AS (
+        SELECT
+            dm.amount + dl.amount + ao.amount AS total_manufacturing_costs
+        FROM direct_materials_used dm, direct_labor dl, applied_overhead ao
+    ),
+
+    -- Ending WIP balance (as of end_date)
+    end_wip AS (
+        SELECT COALESCE(SUM(te.debit - te.credit), 0) AS ending_wip
+        FROM accounting.transaction_entries te
+        JOIN accounting.transactions tx ON tx.uuid = te.transaction_uuid
+        JOIN accounting.accounts a ON a.uuid = te.account_uuid
+        WHERE a.code = '1310'  -- WIP
+          AND tx.txn_date <= p_end_date
+    ),
+
+    -- COGM calculation
+    cogm_calc AS (
+        SELECT
+            bw.beginning_wip + tmc.total_manufacturing_costs - ew.ending_wip AS cogs_manufactured
+        FROM beg_wip bw, total_manuf_costs tmc, end_wip ew
+    )
+
+    -- Formatted output (like a schedule)
+    SELECT 'Direct Materials Used' AS description, dm.amount FROM direct_materials_used dm
+    UNION ALL SELECT 'Direct Labor' , dl.amount FROM direct_labor dl
+    UNION ALL SELECT 'Manufacturing Overhead Applied', ao.amount FROM applied_overhead ao
+    UNION ALL SELECT 'Total Manufacturing Costs', tmc.total_manufacturing_costs FROM total_manuf_costs tmc
+    UNION ALL SELECT 'Beginning WIP Inventory', bw.beginning_wip FROM beg_wip bw
+    UNION ALL SELECT 'Less: Ending WIP Inventory', -ew.ending_wip FROM end_wip ew
+    UNION ALL SELECT 'Cost of Goods Manufactured', cc.cogs_manufactured FROM cogm_calc cc;
+$$;
+
+
 
 -- Example of uses
 -- SELECT * FROM reporting.get_balance_sheet('2024-12-31');

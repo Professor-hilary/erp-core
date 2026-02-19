@@ -49,11 +49,13 @@ CREATE TABLE IF NOT EXISTS inventory.items (
     category_uuid     uuid        REFERENCES inventory.item_categories(uuid) ON DELETE SET NULL,
     description       text,
     unit              text        DEFAULT 'pcs',
+    item_type text not null default 'Purchased' check (item_type in ('Purchased', 'Manufactured', 'Service', 'Non-inventory')),
     selling_price     numeric(18,2) DEFAULT 0,
     track_quantity    boolean     DEFAULT true,
     reorder_level     numeric(18,4) DEFAULT 0,
-    valuation_method  text        NOT NULL DEFAULT 'FIFO'
-        CHECK (valuation_method IN ('FIFO', 'LIFO', 'WAVG')),
+    valuation_method  text        NOT NULL DEFAULT 'FIFO' CHECK (valuation_method IN ('FIFO', 'LIFO', 'WAVG')),
+    bom_uuid uuid,          -- For manufacturing bill of materials
+    routing_uuid uuid,      -- For routing production
     asset_account     text,
     cogs_account      text,
     income_account    text,
@@ -71,13 +73,24 @@ CREATE TABLE IF NOT EXISTS inventory.movements (
     reference_type      text,
     reference_id        bigint,
     financial_period_uuid uuid      REFERENCES accounting.financial_periods(uuid),
-    movement_type       text        CHECK (movement_type IN ('OPENING', 'PURCHASE', 'SALE', 'ADJUSTMENT', 'TRANSFER')),
+    movement_type       text,
     quantity            numeric(18,4) NOT NULL,
     unit_cost           numeric(18,4) DEFAULT 0,
     total_cost          numeric(18,2) GENERATED ALWAYS AS (quantity * unit_cost) STORED,
     direction           text        NOT NULL CHECK (direction IN ('IN', 'OUT')),
     gl_transaction_uuid uuid        REFERENCES accounting.transactions(uuid),
-    created_at          timestamptz DEFAULT now()
+    created_at          timestamptz DEFAULT now(),
+
+    constraint movements_movement_type_check
+		check(movement_type in (
+			'OPENING', 'PURCHASE', 'SALE', 'ADJUSTMENT', 'TRANSFER',
+			'ISSUE_TO_PROD',	-- Raw -> WIP (direct materials)
+			'LABOR_APPLIED', 	-- Direct labor to WIP
+			'OVERHEAD_APPLIED',	-- Overhead applied to WIP
+			'PROD_COMPLETION',	-- WIP -> Finished Goods
+			'PROD_SCRAP',		-- scrap / yield loss
+			'PROD_RETURN'		-- return unused materials from prod to raw
+		))
 );
 
 -- Single inventory stock adjustment not reliable - updates one inventory item per adjustment
@@ -239,7 +252,8 @@ CREATE OR REPLACE FUNCTION inventory.deplete_inventory(
     p_reference_type      text,
     p_reference_serial_id bigint,
     p_user                uuid,
-    p_gl_transaction_uuid uuid DEFAULT NULL
+    p_gl_transaction_uuid uuid DEFAULT NULL,
+    p_wip_code            text default NULL
 ) RETURNS numeric(18,2)  -- total COGS
 LANGUAGE plpgsql AS $$
 DECLARE
@@ -250,6 +264,7 @@ DECLARE
     v_remaining      numeric(18,4) := p_quantity_needed;
     v_avg_cost       numeric(18,4);
     v_order          text;
+    v_wip_account    uuid;
 BEGIN
     SELECT * INTO v_item FROM inventory.items WHERE serial_id = p_item_serial_id;
     IF NOT FOUND THEN RAISE EXCEPTION 'Item not found'; END IF;
@@ -260,6 +275,9 @@ BEGIN
 
     PERFORM inventory.check_stock_sufficient(v_item.uuid, v_warehouse_uuid, p_quantity_needed);
 
+    ----------------------------------------------------------------------
+    -- Valuation logic
+    ----------------------------------------------------------------------
     IF v_item.valuation_method = 'WAVG' THEN
         -- Lock the wavg row to prevent concurrent depletions
         SELECT current_avg_cost INTO v_avg_cost
@@ -268,7 +286,7 @@ BEGIN
         FOR UPDATE;
 
         IF v_avg_cost IS NULL AND p_quantity_needed > 0 THEN
-            RAISE EXCEPTION 'No weighted average cost history for item % in warehouse %', p_item_serial_id, p_warehouse_serial_id;
+            RAISE EXCEPTION 'No WAVG cost history for item % in warehouse %', p_item_serial_id, p_warehouse_serial_id;
         END IF;
 
         v_cogs := p_quantity_needed * v_avg_cost;
@@ -327,9 +345,24 @@ BEGIN
         item_uuid, warehouse_uuid, reference_type, reference_id, movement_type,
         quantity, unit_cost, direction, gl_transaction_uuid
     ) VALUES (
-        v_item.uuid, v_warehouse_uuid, p_reference_type, p_reference_serial_id, 'SALE',
+        v_item.uuid, v_warehouse_uuid, p_reference_type, p_reference_serial_id,
+        CASE WHEN p_reference_type = 'PRODUCTION' THEN 'ISSUE_TO_PROD' ELSE 'SALE' END,
         p_quantity_needed, v_cogs / NULLIF(p_quantity_needed, 0), 'OUT', p_gl_transaction_uuid
     );
+
+    -- For production Issue -> post to WIP (if GL provided)
+    IF p_gl_transaction_uuid IS NOT NULL AND p_reference_type = 'PRODUCTION' THEN
+        SELECT uuid INTO v_wip_account FROM accounting.accounts WHERE code = p_wip_code;
+
+        INSERT INTO accounting.transaction_entries (
+            transaction_uuid, account_uuid, line_no, amount, debit, credit, memo
+        ) VALUES
+            (p_gl_transaction_uuid, v_wip_account, 1, v_cogs, v_cogs, 0, 'Materials Issued to production'),
+            (p_gl_transaction_uuid,
+                (SELECT uuid FROM accounting.accounts WHERE code = v_item.asset_account),
+                2, v_cogs, 0, v_cogs, 'Raw materials issued'
+            );
+	END IF;
 
     RETURN v_cogs;
 END;
@@ -522,14 +555,3 @@ CREATE INDEX idx_adjustment_lines_item   ON inventory.adjustment_lines(item_uuid
 -- Optional: prevent duplicate items in same adjustment
 CREATE UNIQUE INDEX idx_adjustment_lines_unique_item
     ON inventory.adjustment_lines (adjustment_header_uuid, item_uuid);
-
--- ============================================================================
--- IMPORTANT
--- ============================================================================
-/*
-  - Only movements table blocks posting into locked periods.
-  - Updates to lots / wavg_warehouse / adjustments can still happen after lock → use application logic / UI restrictions.
-  - Adjustments table supports multiple items per record (good for MVP).
-  - Test thoroughly: opening → purchase → sale → check lots / wavg / GL balance.
-*/
-
