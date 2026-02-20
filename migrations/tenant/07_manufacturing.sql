@@ -7,9 +7,6 @@
 -- Create schema
 CREATE SCHEMA IF NOT EXISTS manufacturing;
 
--- Raw Materials, WIP, Finished Goods – separate asset accounts or sub-ledgers
--- (You can use accounting.accounts with codes like 1300-Raw, 1310-WIP, 1320-FG)
-
 -- Production Orders / Jobs (header)
 CREATE table if not exists manufacturing.production_orders (
     uuid uuid DEFAULT uuidv7() PRIMARY KEY,
@@ -115,26 +112,6 @@ CREATE TABLE if not exists manufacturing.completions (
     CONSTRAINT fk_completions_order FOREIGN KEY (production_order_uuid) REFERENCES manufacturing.production_orders(uuid)
 );
 
--- Typical codes for manufacturing (adjust numbering to fit your CoA)
--- Raw Materials, WIP, Finished Goods → separate sub-accounts under Inventory (Asset)
--- Overhead control + applied → temporary / clearing accounts
-
--- INSERT INTO accounting.accounts (code, name, category, parent_code, normal_balance, is_contra)
--- VALUES
-    -- Assets – Inventory sub-ledgers
-    -- ('1300', 'Raw Materials Inventory',     'Asset', '1200', 'DR', false),   -- parent = main Inventory or Current Assets
-    -- ('1310', 'Work in Process Inventory',   'Asset', '1200', 'DR', false),
-    -- ('1320', 'Finished Goods Inventory',    'Asset', '1200', 'DR', false),
-
-    -- -- Manufacturing Overhead – actual costs go here (debit)
-    -- ('501000', 'Manufacturing Overhead Control','Expense','500000','DR', false),  -- parent = Cost of Goods Sold / Manufacturing Expenses
-
-    -- -- Applied Overhead – credit when applied to WIP
-    -- ('501010', 'Manufacturing Overhead Applied','Expense','500000','CR', true),   -- contra-like, will net against control at period end
-
-    -- -- Optional: separate variance if you want more detail
-    -- ('501020', 'Over/Under Applied Overhead Adj','Expense','500000','DR', false); -- usually temporary, cleared to COGS
-
 -- Predetermined Overhead Rate Table (new table)
 -- Most manufacturing systems store the rate per period/division (e.g. per direct labor hour, machine hour, or direct labor cost).
 CREATE TABLE IF NOT EXISTS manufacturing.overhead_rates (
@@ -159,8 +136,10 @@ CREATE TABLE IF NOT EXISTS manufacturing.overhead_rates (
 -- Helper Function: Apply Overhead to a Production Order
 CREATE OR REPLACE FUNCTION manufacturing.apply_overhead_to_order(
     p_production_order_uuid uuid,
-    p_activity_amount numeric,               -- e.g. actual direct labor hours used on this order
-    p_user              uuid
+    p_activity_amount       numeric, -- e.g. actual direct labor hours used on this order
+    p_wip_account           text,
+    p_overhead_control_code text,
+    p_user                  uuid
 ) RETURNS numeric(18,2)     -- applied amount
 LANGUAGE plpgsql
 AS $$
@@ -186,8 +165,8 @@ BEGIN
     v_applied_amount := p_activity_amount * v_rate;
 
     -- Get account UUIDs (adjust codes if needed)
-    SELECT uuid INTO v_wip_account_uuid     FROM accounting.accounts WHERE code = '1310';
-    SELECT uuid INTO v_applied_account_uuid FROM accounting.accounts WHERE code = '5110';
+    SELECT uuid INTO v_wip_account_uuid     FROM accounting.accounts WHERE code = p_wip_account;
+    SELECT uuid INTO v_applied_account_uuid FROM accounting.accounts WHERE code = p_overhead_control_code;
 
     -- Create GL transaction (applied overhead)
     -- accounting.post_transaction(...) → your existing function; adapt parameters
@@ -227,8 +206,9 @@ $$;
 CREATE OR REPLACE FUNCTION manufacturing.complete_production_order(
     p_order_uuid          uuid,
     p_completed_quantity  numeric(18,4),
-    p_completion_date     date DEFAULT CURRENT_DATE,
-    p_user                uuid
+    p_user                uuid,
+    p_wip_account         text,
+    p_completion_date     date DEFAULT CURRENT_DATE
 ) RETURNS uuid   -- returns the GL transaction uuid
 LANGUAGE plpgsql
 AS $$
@@ -238,6 +218,7 @@ DECLARE
     v_total_cost  numeric(18,2);
     v_unit_cost   numeric(18,4);
     v_fg_account  uuid;
+    v_werehouse_account  uuid;
     v_wip_account uuid;
     v_txn_uuid    uuid;
     v_movement_uuid uuid;
@@ -258,7 +239,7 @@ BEGIN
     SELECT COALESCE(SUM(te.debit - te.credit), 0) INTO v_total_cost
     FROM accounting.transaction_entries te
     JOIN accounting.transactions tx ON tx.uuid = te.transaction_uuid
-    WHERE te.account_uuid = (SELECT uuid FROM accounting.accounts WHERE code = '1310')
+    WHERE te.account_uuid = (SELECT uuid FROM accounting.accounts WHERE code = p_wip_account)
       AND tx.memo LIKE '%' || v_order.order_number || '%';   -- rough filter - improve!
 
     IF v_total_cost <= 0 THEN
@@ -277,8 +258,9 @@ BEGIN
         '[]'::jsonb
     );
 
-    SELECT uuid INTO v_wip_account FROM accounting.accounts WHERE code = '1310';
+    SELECT uuid INTO v_wip_account FROM accounting.accounts WHERE code = p_wip_account;
     SELECT uuid INTO v_fg_account  FROM accounting.accounts WHERE code = v_product.asset_account;
+    SELECT uuid INTO v_werehouse_account FROM accounting.accounts WHERE serial_id = warehouse_serial;
 
     -- Dr FG Inventory, Cr WIP
     INSERT INTO accounting.transaction_entries (
@@ -304,6 +286,13 @@ BEGIN
         p_completion_date
     ) RETURNING uuid INTO v_movement_uuid;
 
+    -- Record completion (WIP -> FG)
+    INSERT INTO manufacturing.completions (
+        production_order_uuid, quantity_completed, unit_cost, completed_at
+    ) VALUES (
+        p_order_uuid, p_completed_quantity, v_unit_cost, p_completion_date
+    );
+
     -- If FIFO/LIFO → create new lot for FG
     IF v_product.valuation_method IN ('FIFO','LIFO') THEN
         INSERT INTO inventory.lots (
@@ -317,8 +306,11 @@ BEGIN
         );
     ELSIF v_product.valuation_method = 'WAVG' THEN
         INSERT INTO inventory.wavg_warehouse (item_uuid, warehouse_uuid, total_quantity, total_cost)
-        VALUES (v_product.uuid, ..., p_completed_quantity, v_total_cost)
-        ON CONFLICT ... DO UPDATE ...;
+        VALUES (v_product.uuid, v_werehouse_account, p_completed_quantity, v_total_cost)
+        ON CONFLICT (item_uuid, warehouse_uuid) DO UPDATE SET
+            total_quantity = inventory.wavg_warehouse.total_quantity + p_completed_quantity,
+            total_cost     = inventory.wavg_warehouse.total_cost     + (p_completed_quantity * v_unit_cost),
+            last_updated_at = now();
     END IF;
 
     -- Update order
@@ -333,7 +325,7 @@ BEGIN
 END;
 $$;
 
--- Manual Variance Proration (full version)
+-- Manual Variance Proration (prorate variance to WIP/FG/COGS for better accuracy and materiality)
 CREATE OR REPLACE PROCEDURE manufacturing.prorate_variance(
     p_variance_amount         numeric(18,2),     -- > 0 = under-applied, < 0 = over-applied
     p_user_uuid               uuid,
@@ -491,91 +483,109 @@ BEGIN
 END;
 $$;
 
--- Period-End Overhead Adjustment Procedure (Over/Under Applied)
-CREATE OR REPLACE PROCEDURE manufacturing.adjust_over_under_applied_overhead(
-    p_period_start date,
-    p_period_end   date,
-    p_user         uuid
-)
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    v_actual_overhead   numeric(18,2);
-    v_applied_overhead  numeric(18,2);
-    v_variance          numeric(18,2);
-    v_cogs_uuid         uuid;
-    v_control_uuid      uuid;
-    v_txn_uuid          uuid;
-BEGIN
-    -- Total actual overhead (debits to control account in period)
-    SELECT COALESCE(SUM(te.debit - te.credit), 0) INTO v_actual_overhead
-    FROM accounting.transaction_entries te
-    JOIN accounting.transactions tx ON tx.uuid = te.transaction_uuid
-    JOIN accounting.accounts a ON a.uuid = te.account_uuid
-    WHERE a.code = '5100'  -- Manufacturing Overhead Control
-      AND tx.transaction_date BETWEEN p_period_start AND p_period_end;
+-- Period-End Overhead Adjustment Procedure (Over/Under Applied) - Not Accurate, Proration WINS
+-- CREATE OR REPLACE PROCEDURE manufacturing.adjust_over_under_applied_overhead(
+--     p_period_start  date,
+--     p_period_end    date,
+--     p_cogs_code     text,
+--     p_control_code  text,
+--     p_control_applied  text,
+--     p_user          uuid
+-- )
+-- LANGUAGE plpgsql
+-- AS $$
+-- DECLARE
+--     v_actual_overhead   numeric(18,2);
+--     v_applied_overhead  numeric(18,2);
+--     v_variance          numeric(18,2);
+--     v_cogs_uuid         uuid;
+--     v_control_uuid      uuid;
+--     v_txn_uuid          uuid;
+-- BEGIN
+--     -- Total actual overhead (debits to control account in period)
+--     SELECT COALESCE(SUM(te.debit - te.credit), 0) INTO v_actual_overhead
+--     FROM accounting.transaction_entries te
+--     JOIN accounting.transactions tx ON tx.uuid = te.transaction_uuid
+--     JOIN accounting.accounts a ON a.uuid = te.account_uuid
+--     WHERE a.code = p_control_code  -- Manufacturing Overhead Control
+--       AND tx.transaction_date BETWEEN p_period_start AND p_period_end;
 
-    -- Total applied overhead (credits to applied account in period)
-    SELECT COALESCE(SUM(te.credit - te.debit), 0) INTO v_applied_overhead
-    FROM accounting.transaction_entries te
-    JOIN accounting.transactions tx ON tx.uuid = te.transaction_uuid
-    JOIN accounting.accounts a ON a.uuid = te.account_uuid
-    WHERE a.code = '5110'  -- Manufacturing Overhead Applied
-      AND tx.transaction_date BETWEEN p_period_start AND p_period_end;
+--     -- Total applied overhead (credits to applied account in period)
+--     SELECT COALESCE(SUM(te.credit - te.debit), 0) INTO v_applied_overhead
+--     FROM accounting.transaction_entries te
+--     JOIN accounting.transactions tx ON tx.uuid = te.transaction_uuid
+--     JOIN accounting.accounts a ON a.uuid = te.account_uuid
+--     WHERE a.code = p_control_applied  -- Manufacturing Overhead Applied
+--       AND tx.transaction_date BETWEEN p_period_start AND p_period_end;
 
-    v_variance := v_actual_overhead - v_applied_overhead;
+--     v_variance := v_actual_overhead - v_applied_overhead;
 
-    IF v_variance = 0 THEN
-        RAISE NOTICE 'Overhead perfectly applied - no adjustment needed';
-        RETURN;
-    END IF;
+--     IF v_variance = 0 THEN
+--         RAISE NOTICE 'Overhead perfectly applied - no adjustment needed';
+--         RETURN;
+--     END IF;
 
-    SELECT uuid INTO v_cogs_uuid   FROM accounting.accounts WHERE code = '5200'; -- COGS
-    SELECT uuid INTO v_control_uuid FROM accounting.accounts WHERE code = '5100';
+--     SELECT uuid INTO v_cogs_uuid   FROM accounting.accounts WHERE code = p_cogs_code; -- COGS
+--     SELECT uuid INTO v_control_uuid FROM accounting.accounts WHERE code = p_control_code;
 
-    v_txn_uuid := accounting.post_transaction(
-        'OVERHEAD-ADJ-' || to_char(p_period_end, 'YYYYMM'),
-        'Over/Under Applied Overhead Adjustment',
-        p_user,
-        'adjustment',
-        p_period_end,
-        '[]'::jsonb
-    );
+--     v_txn_uuid := accounting.post_transaction(
+--         'OVERHEAD-ADJ-' || to_char(p_period_end, 'YYYYMM'),
+--         'Over/Under Applied Overhead Adjustment',
+--         p_user,
+--         'adjustment',
+--         p_period_end,
+--         '[]'::jsonb
+--     );
 
-    -- Simple method: close variance to COGS (most common for small/medium businesses)
-    IF v_variance > 0 THEN
-        -- Under-applied → increase COGS
-        INSERT INTO accounting.transaction_entries (transaction_uuid, account_uuid, line_no, amount, debit, credit, memo)
-        VALUES
-            (v_txn_uuid, v_cogs_uuid,   1, v_variance, v_variance, 0, 'Under-applied overhead adjustment'),
-            (v_txn_uuid, v_control_uuid,2, v_variance, 0, v_variance, 'Under-applied overhead adjustment');
-    ELSE
-        -- Over-applied → reduce COGS
-        INSERT INTO accounting.transaction_entries (transaction_uuid, account_uuid, line_no, amount, debit, credit, memo)
-        VALUES
-            (v_txn_uuid, v_cogs_uuid,   1, -v_variance, 0, -v_variance, 'Over-applied overhead adjustment'),
-            (v_txn_uuid, v_control_uuid,2, -v_variance, -v_variance, 0, 'Over-applied overhead adjustment');
-    END IF;
+--     -- Simple method: close variance to COGS (most common for small/medium businesses)
+--     IF v_variance > 0 THEN
+--         -- Under-applied → increase COGS
+--         INSERT INTO accounting.transaction_entries (transaction_uuid, account_uuid, line_no, amount, debit, credit, memo)
+--         VALUES
+--             (v_txn_uuid, v_cogs_uuid,   1, v_variance, v_variance, 0, 'Under-applied overhead adjustment'),
+--             (v_txn_uuid, v_control_uuid,2, v_variance, 0, v_variance, 'Under-applied overhead adjustment');
+--     ELSE
+--         -- Over-applied → reduce COGS
+--         INSERT INTO accounting.transaction_entries (transaction_uuid, account_uuid, line_no, amount, debit, credit, memo)
+--         VALUES
+--             (v_txn_uuid, v_cogs_uuid,   1, -v_variance, 0, -v_variance, 'Over-applied overhead adjustment'),
+--             (v_txn_uuid, v_control_uuid,2, -v_variance, -v_variance, 0, 'Over-applied overhead adjustment');
+--     END IF;
 
-    -- Optional: clear applied account (or leave for audit trail)
-    -- You can also prorate variance to WIP/FG/COGS if material – more accurate but complex
-END;
-$$;
+--     -- Optional: clear applied account (or leave for audit trail)
+-- END;
+-- $$;
 
--- View: Total inventory by stage
-CREATE OR REPLACE VIEW inventory.manufacturing_inventory_summary AS
-SELECT
-    a.code,
-    a.name,
-    COALESCE(SUM(te.debit - te.credit), 0) AS current_balance
-FROM accounting.accounts a
-LEFT JOIN accounting.transaction_entries te ON te.account_uuid = a.uuid
-WHERE a.code IN ('1300','1310','1320')
-GROUP BY a.code, a.name;
+-- Typical codes for manufacturing (adjust numbering to fit your CoA)
+-- Raw Materials, WIP, Finished Goods → separate sub-accounts under Inventory (Asset)
+-- Overhead control + applied → temporary / clearing accounts
 
--- View: Overhead variance quick check (for current open period)
--- CREATE OR REPLACE VIEW manufacturing.overhead_variance_current AS
--- SELECT
---     (SELECT COALESCE(SUM(debit - credit),0) FROM ... WHERE code='5100' AND tx.transaction_date >= date_trunc('month', CURRENT_DATE)) AS actual,
---     (SELECT COALESCE(SUM(credit - debit),0) FROM ... WHERE code='5110' AND tx.transaction_date >= date_trunc('month', CURRENT_DATE)) AS applied,
---     actual - applied AS variance;
+-- INSERT INTO accounting.accounts (code, name, category, parent_code, normal_balance, is_contra)
+-- VALUES
+    -- Assets – Inventory sub-ledgers
+    -- ('1300', 'Raw Materials Inventory',     'Asset', '1200', 'DR', false),   -- parent = main Inventory or Current Assets
+    -- ('1310', 'Work in Process Inventory',   'Asset', '1200', 'DR', false),
+    -- ('1320', 'Finished Goods Inventory',    'Asset', '1200', 'DR', false),
+
+    -- -- Manufacturing Overhead – actual costs go here (debit)
+    -- ('501000', 'Manufacturing Overhead Control','Expense','500000','DR', false),  -- parent = Cost of Goods Sold / Manufacturing Expenses
+
+    -- -- Applied Overhead – credit when applied to WIP
+    -- ('501010', 'Manufacturing Overhead Applied','Expense','500000','CR', true),   -- contra-like, will net against control at period end
+
+    -- -- Optional: separate variance if you want more detail
+    -- ('501020', 'Over/Under Applied Overhead Adj','Expense','500000','DR', false); -- usually temporary, cleared to COGS
+
+/*
+    NOTES:
+        Three standard methods of overhead adjustments at the end of a financial period:
+        1. Close Entire Variance to COGS
+            All over or under applied overhead goes to Cost of Goods Sold:
+            Fast, Simple, Common
+        2. Prorate Across WIP, FG, and COGS
+            Spread the variance accross WIP, FG and COGS Used When:
+            inventory is material, desire for reasonable accuracy
+        3. The Pure Method
+            Recomputation using actual overhead rate, involves bactracking to get
+            actual overhead and reapply corrected ones
+*/

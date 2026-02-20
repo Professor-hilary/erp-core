@@ -4,7 +4,7 @@ use crate::{
         auth::{AuthService, repository::PostgresUserRepo},
         company::services::CompanyService,
     },
-    interface::api::{json_errors::AppJson, errors::AppError, responses::ApiResponse},
+    interface::api::{errors::AppError, json_errors::AppJson, responses::ApiResponse},
     middleware::auth::{AuthenticatedTenant, AuthenticatedUser},
     models::company::{Company, CreateCompanyDto, UpdateCompanyDto},
     state::AppState,

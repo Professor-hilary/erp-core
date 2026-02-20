@@ -31,11 +31,12 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/materials-issuance", post(raw_material_issuance_route))
         .route("/overhead-application", post(apply_overhead_route))
         .route("/complete-production", post(complete_order_route))
-        .route("/bom", post(create_bom_route))
+        .route("/create/bom", post(create_bom_route))
         .route("/bom/{uuid}", get(get_bom_route))
         .route("/default-product/{uuid}", get(default_bom_route))
 }
 
+/// POST /manufacturing/production-order
 async fn new_order_route(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
@@ -50,6 +51,7 @@ async fn new_order_route(
     }
 }
 
+/// POST /manufacturing/variance-allocation
 async fn prorate_variance_route(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
@@ -64,6 +66,7 @@ async fn prorate_variance_route(
     }
 }
 
+/// POST /manufacturing/materials-issuance
 async fn raw_material_issuance_route(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
@@ -78,6 +81,7 @@ async fn raw_material_issuance_route(
     }
 }
 
+/// POST /manufacturing/overhead-application
 async fn apply_overhead_route(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
@@ -92,6 +96,7 @@ async fn apply_overhead_route(
     }
 }
 
+/// POST /manufacturing/complete-production
 async fn complete_order_route(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
@@ -106,6 +111,7 @@ async fn complete_order_route(
     }
 }
 
+/// POST /manufacturing/create/bom
 async fn create_bom_route(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
@@ -123,6 +129,7 @@ async fn create_bom_route(
     }
 }
 
+/// GET /manufacturing/bom/:uuid
 async fn get_bom_route(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
@@ -138,6 +145,7 @@ async fn get_bom_route(
     }
 }
 
+/// GET /manufacturing/default-product/{uuid}
 async fn default_bom_route(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
