@@ -1,21 +1,28 @@
 // src/features/accounts/handlers.rs
 use crate::{
     features::manufacturing::{repository::ManufacturingRepo, services::ManufacturingService},
-    interface::api::{errors::AppError, responses::ApiResponse},
+    interface::api::{errors::AppError, json_errors::AppJson, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,
     models::manufacturing::{
-        ApplyOverheadDto, CompleteProductionOrderDto, CreateProductionOrderDto, IssueMaterialDto,
-        ProrateVarianceDto,
+        ApplyOverheadDto, CompleteProductionOrderDto, CreateBomHeaderDto, CreateBomLineDto,
+        CreateProductionOrderDto, IssueMaterialDto, ProrateVarianceDto,
     },
     state::AppState,
 };
 use axum::{
     Extension, Router,
-    extract::{Json, State},
+    extract::{Path, State},
     response::Response,
-    routing::{/* delete, get, patch, */ post},
+    routing::{/* delete, patch, */ get, post},
 };
 use std::sync::Arc;
+use uuid::Uuid;
+
+#[derive(Debug, serde::Deserialize)]
+pub struct CreateBomPayload {
+    pub header: CreateBomHeaderDto,
+    pub lines: Vec<CreateBomLineDto>,
+}
 
 pub fn router() -> Router<Arc<AppState>> {
     Router::new()
@@ -24,12 +31,15 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/materials-issuance", post(raw_material_issuance_route))
         .route("/overhead-application", post(apply_overhead_route))
         .route("/complete-production", post(complete_order_route))
+        .route("/bom", post(create_bom_route))
+        .route("/bom/{uuid}", get(get_bom_route))
+        .route("/default-product/{uuid}", get(default_bom_route))
 }
 
 async fn new_order_route(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    Json(payload): Json<CreateProductionOrderDto>,
+    AppJson(payload): AppJson<CreateProductionOrderDto>,
 ) -> Result<Response, AppError> {
     let repo: ManufacturingRepo = ManufacturingRepo::new(user.tenant_pool);
     let service: ManufacturingService = ManufacturingService::new(repo);
@@ -43,7 +53,7 @@ async fn new_order_route(
 async fn prorate_variance_route(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    Json(payload): Json<ProrateVarianceDto>,
+    AppJson(payload): AppJson<ProrateVarianceDto>,
 ) -> Result<Response, AppError> {
     let repo: ManufacturingRepo = ManufacturingRepo::new(user.tenant_pool);
     let service: ManufacturingService = ManufacturingService::new(repo);
@@ -57,7 +67,7 @@ async fn prorate_variance_route(
 async fn raw_material_issuance_route(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    Json(payload): Json<IssueMaterialDto>,
+    AppJson(payload): AppJson<IssueMaterialDto>,
 ) -> Result<Response, AppError> {
     let repo: ManufacturingRepo = ManufacturingRepo::new(user.tenant_pool);
     let service: ManufacturingService = ManufacturingService::new(repo);
@@ -71,7 +81,7 @@ async fn raw_material_issuance_route(
 async fn apply_overhead_route(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    Json(payload): Json<ApplyOverheadDto>,
+    AppJson(payload): AppJson<ApplyOverheadDto>,
 ) -> Result<Response, AppError> {
     let repo: ManufacturingRepo = ManufacturingRepo::new(user.tenant_pool);
     let service: ManufacturingService = ManufacturingService::new(repo);
@@ -85,13 +95,60 @@ async fn apply_overhead_route(
 async fn complete_order_route(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    Json(payload): Json<CompleteProductionOrderDto>,
+    AppJson(payload): AppJson<CompleteProductionOrderDto>,
 ) -> Result<Response, AppError> {
     let repo: ManufacturingRepo = ManufacturingRepo::new(user.tenant_pool);
     let service: ManufacturingService = ManufacturingService::new(repo);
 
     match service.complete_order(payload, user.user_id).await {
         Ok(result) => Ok(ApiResponse::created(result, "Production Completed")),
+        Err(e) => Err(AppError::Internal(e.to_string())),
+    }
+}
+
+async fn create_bom_route(
+    State(_state): State<Arc<AppState>>,
+    Extension(user): Extension<AuthenticatedTenant>,
+    AppJson(payload): AppJson<CreateBomPayload>,
+) -> Result<Response, AppError> {
+    let repo: ManufacturingRepo = ManufacturingRepo::new(user.tenant_pool);
+    let service: ManufacturingService = ManufacturingService::new(repo);
+
+    match service
+        .create_bom(payload.header, payload.lines, user.user_id)
+        .await
+    {
+        Ok(result) => Ok(ApiResponse::created(result, "BOM Created")),
+        Err(e) => Err(AppError::Internal(e.to_string())),
+    }
+}
+
+async fn get_bom_route(
+    State(_state): State<Arc<AppState>>,
+    Extension(user): Extension<AuthenticatedTenant>,
+    Path(uuid): Path<Uuid>,
+) -> Result<Response, AppError> {
+    let repo: ManufacturingRepo = ManufacturingRepo::new(user.tenant_pool);
+    let service: ManufacturingService = ManufacturingService::new(repo);
+
+    match service.get_bom(uuid).await {
+        Ok(Some(result)) => Ok(ApiResponse::success(result, "BOM Created")),
+        Ok(None) => Err(AppError::NotFound("BOM not found".into())),
+        Err(e) => Err(AppError::Internal(e.to_string())),
+    }
+}
+
+async fn default_bom_route(
+    State(_state): State<Arc<AppState>>,
+    Extension(user): Extension<AuthenticatedTenant>,
+    Path(uuid): Path<Uuid>,
+) -> Result<Response, AppError> {
+    let repo: ManufacturingRepo = ManufacturingRepo::new(user.tenant_pool);
+    let service: ManufacturingService = ManufacturingService::new(repo);
+
+    match service.default_bom(uuid).await {
+        Ok(Some(result)) => Ok(ApiResponse::success(result, "BOM found")),
+        Ok(None) => Err(AppError::NotFound("No default OM found".into())),
         Err(e) => Err(AppError::Internal(e.to_string())),
     }
 }

@@ -238,6 +238,7 @@ impl ManufacturingRepo {
 
     pub async fn create_header(
         &self,
+        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
         dto: CreateBomHeaderDto,
         user_uuid: Uuid,
     ) -> Result<BomHeader, sqlx::Error> {
@@ -255,7 +256,7 @@ impl ManufacturingRepo {
         .bind(dto.revision.as_deref())
         .bind(dto.is_default.unwrap_or(false))
         .bind(user_uuid)
-        .fetch_one(&self.pool)
+        .fetch_one(&mut **tx)
         .await?;
 
         Ok(BomHeader {
@@ -275,8 +276,9 @@ impl ManufacturingRepo {
 
     pub async fn add_line(
         &self,
+        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
         header_uuid: Uuid,
-        dto: CreateBomLineDto,
+        dto: &CreateBomLineDto,
     ) -> Result<BomLine, sqlx::Error> {
         let row = sqlx::query(
             r#"
@@ -290,11 +292,11 @@ impl ManufacturingRepo {
         .bind(header_uuid)
         .bind(dto.line_number)
         .bind(dto.component_item_uuid)
-        .bind(dto.quantity_per)
+        .bind(dto.quantity_per.clone())
         .bind(dto.uom.as_deref())
-        .bind(dto.scrap_factor.unwrap_or(BigDecimal::one()))
+        .bind(dto.scrap_factor.clone().unwrap_or(BigDecimal::one()))
         .bind(dto.notes.as_deref())
-        .fetch_one(&self.pool)
+        .fetch_one(&mut **tx)
         .await?;
 
         Ok(BomLine {
