@@ -41,26 +41,46 @@ CREATE TABLE IF NOT EXISTS accounting.variance_proration_logs (
     created_at        timestamptz   DEFAULT now()
 );
 
+-- ============================================================================
+-- Bill of Materials (BOM) – Header & Lines
+-- ============================================================================
 CREATE TABLE IF NOT EXISTS manufacturing.bom_headers (
-    uuid            UUID PRIMARY KEY  DEFAULT uuidv7(),
-    product_item_uuid UUID NOT NULL REFERENCES inventory.items(uuid),
-    bom_code        text UNIQUE NOT NULL,
-    description     text,
-    revision        text DEFAULT 'A',
-    is_active       boolean DEFAULT true,
-    created_at      timestamptz DEFAULT now()
+    uuid                uuid          DEFAULT uuidv7() PRIMARY KEY,
+    serial_id           bigint        GENERATED ALWAYS AS IDENTITY UNIQUE,
+    bom_code            text          NOT NULL UNIQUE,          -- e.g. BOM-FG-001
+    product_item_uuid   uuid          NOT NULL
+        REFERENCES inventory.items(uuid) ON DELETE RESTRICT,
+    description         text,
+    revision            text          DEFAULT 'A' NOT NULL,
+    is_active           boolean       DEFAULT true,
+    is_default          boolean       DEFAULT false,            -- can have multiple BOMs per product
+    created_at          timestamptz   DEFAULT now(),
+    updated_at          timestamptz   DEFAULT now(),
+    created_by          uuid,
+    CONSTRAINT bom_product_unique_active
+        UNIQUE (product_item_uuid)
+        DEFERRABLE INITIALLY DEFERRED   -- only one active/default per product (optional constraint)
 );
 
 CREATE TABLE IF NOT EXISTS manufacturing.bom_lines (
-    uuid            UUID PRIMARY KEY DEFAULT uuidv7(),
-    bom_header_uuid UUID NOT NULL REFERENCES manufacturing.bom_headers(uuid) ON DELETE CASCADE,
-    component_item_uuid UUID NOT NULL REFERENCES inventory.items(uuid),
-    quantity_per    numeric(18, 6) NOT NULL CHECK (quantity_per > 0),
-    unit_of_measure TEXT DEFAULT 'pcs',
-    scrap_factor    numeric(5, 4) DEFAULT 1.0,  -- e.g. 1.05 = 5% scrap expected
-    line_number     smallint NOT NULL,
-    UNIQUE (bom_header_uuid, line_number)
+    uuid                uuid          DEFAULT uuidv7() PRIMARY KEY,
+    bom_header_uuid     uuid          NOT NULL
+        REFERENCES manufacturing.bom_headers(uuid) ON DELETE CASCADE,
+    line_number         smallint      NOT NULL,
+    component_item_uuid uuid          NOT NULL
+        REFERENCES inventory.items(uuid) ON DELETE RESTRICT,
+    quantity_per        numeric(18,6) NOT NULL CHECK (quantity_per > 0),
+    uom                 text          DEFAULT 'pcs',
+    scrap_factor        numeric(5,4)  DEFAULT 1.0000,           -- 1.05 = 5% expected scrap
+    notes               text,
+    created_at          timestamptz   DEFAULT now(),
+    UNIQUE (bom_header_uuid, line_number),
+    UNIQUE (bom_header_uuid, component_item_uuid)   -- no duplicate components
 );
+
+-- Optional: index for fast BOM explosion
+CREATE INDEX idx_bom_lines_header ON manufacturing.bom_lines(bom_header_uuid);
+CREATE INDEX idx_bom_lines_component ON manufacturing.bom_lines(component_item_uuid);
 
 -- Material Issues / Consumption (to WIP)
 CREATE table if not exists manufacturing.material_issues (

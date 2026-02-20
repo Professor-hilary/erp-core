@@ -1,11 +1,10 @@
 // src/features/accounts/repositories.rs
 use crate::models::manufacturing::*;
-use bigdecimal::BigDecimal;
+use bigdecimal::{BigDecimal, One};
 use sqlx::{PgPool, Row};
 use uuid::Uuid;
-
 pub struct ManufacturingRepo {
-    pool: PgPool,
+    pub(crate) pool: PgPool,
 }
 
 impl ManufacturingRepo {
@@ -235,5 +234,133 @@ impl ManufacturingRepo {
             cogs_alloc: log_row.get("cogs_alloc"),
             total_allocated: log_row.get("total_allocated"),
         })
+    }
+
+    pub async fn create_header(
+        &self,
+        dto: CreateBomHeaderDto,
+        user_uuid: Uuid,
+    ) -> Result<BomHeader, sqlx::Error> {
+        let row = sqlx::query(
+            r#"
+            INSERT INTO manufacturing.bom_headers (
+                bom_code, product_item_uuid, description, revision, is_default, created_by
+            ) VALUES ($1, $2, $3, COALESCE($4, 'A'), COALESCE($5, false), $6)
+            RETURNING *
+            "#,
+        )
+        .bind(&dto.bom_code)
+        .bind(dto.product_item_uuid)
+        .bind(&dto.description)
+        .bind(dto.revision.as_deref())
+        .bind(dto.is_default.unwrap_or(false))
+        .bind(user_uuid)
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok(BomHeader {
+            uuid: row.get("uuid"),
+            serial_id: row.get("serial_id"),
+            bom_code: row.get("bom_code"),
+            product_item_uuid: row.get("product_item_uuid"),
+            description: row.get("description"),
+            revision: row.get("revision"),
+            is_active: row.get("is_active"),
+            is_default: row.get("is_default"),
+            created_at: row.get("created_at"),
+            updated_at: row.get("updated_at"),
+            created_by: row.get("created_by"),
+        })
+    }
+
+    pub async fn add_line(
+        &self,
+        header_uuid: Uuid,
+        dto: CreateBomLineDto,
+    ) -> Result<BomLine, sqlx::Error> {
+        let row = sqlx::query(
+            r#"
+            INSERT INTO manufacturing.bom_lines (
+                bom_header_uuid, line_number, component_item_uuid,
+                quantity_per, uom, scrap_factor, notes
+            ) VALUES ($1, $2, $3, $4, COALESCE($5, 'pcs'), COALESCE($6, 1.0000), $7)
+            RETURNING *
+            "#,
+        )
+        .bind(header_uuid)
+        .bind(dto.line_number)
+        .bind(dto.component_item_uuid)
+        .bind(dto.quantity_per)
+        .bind(dto.uom.as_deref())
+        .bind(dto.scrap_factor.unwrap_or(BigDecimal::one()))
+        .bind(dto.notes.as_deref())
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok(BomLine {
+            uuid: row.get("uuid"),
+            bom_header_uuid: row.get("bom_header_uuid"),
+            line_number: row.get("line_number"),
+            component_item_uuid: row.get("component_item_uuid"),
+            quantity_per: row.get("quantity_per"),
+            uom: row.get("uom"),
+            scrap_factor: row.get("scrap_factor"),
+            notes: row.get("notes"),
+            created_at: row.get("created_at"),
+        })
+    }
+
+    pub async fn get_full_bom(&self, bom_uuid: Uuid) -> Result<Option<BomWithLines>, sqlx::Error> {
+        let header_opt = sqlx::query_as::<_, BomHeader>(
+            "SELECT * FROM manufacturing.bom_headers WHERE uuid = $1",
+        )
+        .bind(bom_uuid)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        let Some(header) = header_opt else {
+            return Ok(None);
+        };
+
+        let lines = sqlx::query_as::<_, BomLine>(
+            "SELECT * FROM manufacturing.bom_lines WHERE bom_header_uuid = $1 ORDER BY line_number",
+        )
+        .bind(bom_uuid)
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(Some(BomWithLines { header, lines }))
+    }
+
+    // Bonus: Get default/active BOM for a product
+    pub async fn get_default_bom_for_product(
+        &self,
+        product_uuid: Uuid,
+    ) -> Result<Option<BomWithLines>, sqlx::Error> {
+        let header_opt = sqlx::query_as::<_, BomHeader>(
+            r#"
+            SELECT * FROM manufacturing.bom_headers
+            WHERE product_item_uuid = $1
+              AND is_active
+            ORDER BY is_default DESC, created_at DESC
+            LIMIT 1
+            "#,
+        )
+        .bind(product_uuid)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        if let Some(header) = header_opt {
+            let lines = sqlx::query_as::<_, BomLine>(
+                "SELECT * FROM manufacturing.bom_lines WHERE bom_header_uuid = $1 ORDER BY line_number"
+            )
+            .bind(header.uuid)
+            .fetch_all(&self.pool)
+            .await?;
+
+            Ok(Some(BomWithLines { header, lines }))
+        } else {
+            Ok(None)
+        }
     }
 }

@@ -1,3 +1,5 @@
+// src/models/manufacturing.rs
+
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, Utc, NaiveDate};
 use serde::{Deserialize, Serialize};
@@ -86,4 +88,57 @@ pub struct ProrateVarianceDto {
     pub as_of_date: Option<NaiveDate>,
     pub memo: Option<String>,
     pub dry_run: Option<bool>,
+}
+
+#[derive(Debug, Clone, FromRow, Serialize)]
+pub struct BomHeader {
+    pub uuid: Uuid,
+    pub serial_id: i64,
+    pub bom_code: String,
+    pub product_item_uuid: Uuid,
+    pub description: Option<String>,
+    pub revision: String,
+    pub is_active: bool,
+    pub is_default: bool,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub created_by: Option<Uuid>,
+}
+
+#[derive(Debug, Clone, FromRow, Serialize)]
+pub struct BomLine {
+    pub uuid: Uuid,
+    pub bom_header_uuid: Uuid,
+    pub line_number: i16,
+    pub component_item_uuid: Uuid,
+    pub quantity_per: BigDecimal,
+    pub uom: String,
+    pub scrap_factor: BigDecimal,
+    pub notes: Option<String>,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CreateBomHeaderDto {
+    pub bom_code: String,
+    pub product_item_uuid: Uuid,
+    pub description: Option<String>,
+    pub revision: Option<String>,
+    pub is_default: Option<bool>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CreateBomLineDto {
+    pub line_number: i16,
+    pub component_item_uuid: Uuid,
+    pub quantity_per: BigDecimal,
+    pub uom: Option<String>,
+    pub scrap_factor: Option<BigDecimal>,
+    pub notes: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct BomWithLines {
+    pub header: BomHeader,
+    pub lines: Vec<BomLine>,
 }

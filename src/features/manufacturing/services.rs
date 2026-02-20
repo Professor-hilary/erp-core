@@ -49,4 +49,36 @@ impl ManufacturingService {
     ) -> Result<VarianceProrationResult, anyhow::Error> {
         Ok(self.repo.prorate_variance_v2(dto, user_uuid).await?)
     }
+    pub async fn create_bom(
+        &self,
+        header_dto: CreateBomHeaderDto,
+        lines: Vec<CreateBomLineDto>,
+        user_uuid: Uuid,
+    ) -> Result<BomWithLines, anyhow::Error> {
+        let mut tx = self.repo.pool.begin().await?;
+
+        let header = sqlx::query_as::<_, BomHeader>(r#""#)
+            .fetch_one(&mut *tx)
+            .await?;
+
+        let mut created_lines = vec![];
+
+        for (idx, line_dto) in lines.into_iter().enumerate() {
+            let line = sqlx::query_as::<_, BomLine>(r#""#)
+                .fetch_one(&mut *tx)
+                .await?;
+            created_lines.push(line);
+        }
+
+        tx.commit().await?;
+
+        Ok(BomWithLines {
+            header,
+            lines: created_lines,
+        })
+    }
+
+    pub async fn get_bom(&self, bom_uuid: Uuid) -> Result<Option<BomWithLines>, anyhow::Error> {
+        Ok(self.repo.get_full_bom(bom_uuid).await?)
+    }
 }
