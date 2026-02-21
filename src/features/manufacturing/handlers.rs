@@ -5,7 +5,7 @@ use crate::{
     middleware::auth::AuthenticatedTenant,
     models::manufacturing::{
         ApplyOverheadDto, CompleteProductionOrderDto, CreateBomHeaderDto, CreateBomLineDto,
-        CreateProductionOrderDto, IssueMaterialDto, ProrateVarianceDto,
+        CreateOverheadRateDto, CreateProductionOrderDto, IssueMaterialDto, ProrateVarianceDto,
     },
     state::AppState,
 };
@@ -26,7 +26,8 @@ pub struct CreateBomPayload {
 
 pub fn router() -> Router<Arc<AppState>> {
     Router::new()
-        .route("/production-order", post(new_order_route))
+        .route("/create/production-order", post(new_order_route))
+        .route("/create/overhead-rate", post(new_overhead_rate_route))
         .route("/variance-allocation", post(prorate_variance_route))
         .route("/materials-issuance", post(raw_material_issuance_route))
         .route("/overhead-application", post(apply_overhead_route))
@@ -36,7 +37,33 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/default-product/{uuid}", get(default_bom_route))
 }
 
-/// POST /manufacturing/production-order
+///# POST /manufacturing/create/bom
+/// 1st. STEP: This is the first step, create Bill Oof Materials for production  from Raw Materials available
+/// manufacturing.boms and manufacturing.bom_lines are updated. Example: `PRODUCT = CHAIR`
+/// > 1. Wood plank -> 5 units
+/// > 2. Nails -> 20 units
+/// > 3. Vanish -> 1 unit
+/// > 4. Cloth -> 1 unit
+async fn create_bom_route(
+    State(_state): State<Arc<AppState>>,
+    Extension(user): Extension<AuthenticatedTenant>,
+    AppJson(payload): AppJson<CreateBomPayload>,
+) -> Result<Response, AppError> {
+    let repo: ManufacturingRepo = ManufacturingRepo::new(user.tenant_pool);
+    let service: ManufacturingService = ManufacturingService::new(repo);
+
+    match service
+        .create_bom(payload.header, payload.lines, user.user_id)
+        .await
+    {
+        Ok(result) => Ok(ApiResponse::created(result, "BOM Created")),
+        Err(e) => Err(AppError::Internal(e.to_string())),
+    }
+}
+
+///# POST /manufacturing/create/production-order
+/// 2nd. STEP: Create a production order, define order no, product id, qty, start and expectdd end date
+/// status (Use [Plammed], Completed, in Process, Cancelled), general ledger account
 async fn new_order_route(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
@@ -46,6 +73,37 @@ async fn new_order_route(
     let service: ManufacturingService = ManufacturingService::new(repo);
 
     match service.create_order(payload).await {
+        Ok(result) => Ok(ApiResponse::created(result, "Production Order Created")),
+        Err(e) => Err(AppError::Internal(e.to_string())),
+    }
+}
+
+///# POST /manufacturing/materials-issuance
+/// 3rd Prepare Materials for production, Debit WIP Credit Raw Materials
+async fn raw_material_issuance_route(
+    State(_state): State<Arc<AppState>>,
+    Extension(user): Extension<AuthenticatedTenant>,
+    AppJson(payload): AppJson<IssueMaterialDto>,
+) -> Result<Response, AppError> {
+    let repo: ManufacturingRepo = ManufacturingRepo::new(user.tenant_pool);
+    let service: ManufacturingService = ManufacturingService::new(repo);
+
+    match service.issue_material(payload, user.user_id).await {
+        Ok(result) => Ok(ApiResponse::created(result, "Material Issuance Successful")),
+        Err(e) => Err(AppError::Internal(e.to_string())),
+    }
+}
+
+///# POST /manufacturing/create/overhead-rate
+async fn new_overhead_rate_route(
+    State(_state): State<Arc<AppState>>,
+    Extension(user): Extension<AuthenticatedTenant>,
+    AppJson(payload): AppJson<CreateOverheadRateDto>,
+) -> Result<Response, AppError> {
+    let repo: ManufacturingRepo = ManufacturingRepo::new(user.tenant_pool);
+    let service: ManufacturingService = ManufacturingService::new(repo);
+
+    match service.create_overhead_rate(payload).await {
         Ok(result) => Ok(ApiResponse::created(result, "Production Order Created")),
         Err(e) => Err(AppError::Internal(e.to_string())),
     }
@@ -62,21 +120,6 @@ async fn prorate_variance_route(
 
     match service.prorate_variance(payload, user.user_id).await {
         Ok(result) => Ok(ApiResponse::created(result, "Proration Successful")),
-        Err(e) => Err(AppError::Internal(e.to_string())),
-    }
-}
-
-/// POST /manufacturing/materials-issuance
-async fn raw_material_issuance_route(
-    State(_state): State<Arc<AppState>>,
-    Extension(user): Extension<AuthenticatedTenant>,
-    AppJson(payload): AppJson<IssueMaterialDto>,
-) -> Result<Response, AppError> {
-    let repo: ManufacturingRepo = ManufacturingRepo::new(user.tenant_pool);
-    let service: ManufacturingService = ManufacturingService::new(repo);
-
-    match service.issue_material(payload, user.user_id).await {
-        Ok(result) => Ok(ApiResponse::created(result, "Material Issuance Successful")),
         Err(e) => Err(AppError::Internal(e.to_string())),
     }
 }
@@ -111,24 +154,6 @@ async fn complete_order_route(
     }
 }
 
-/// POST /manufacturing/create/bom
-async fn create_bom_route(
-    State(_state): State<Arc<AppState>>,
-    Extension(user): Extension<AuthenticatedTenant>,
-    AppJson(payload): AppJson<CreateBomPayload>,
-) -> Result<Response, AppError> {
-    let repo: ManufacturingRepo = ManufacturingRepo::new(user.tenant_pool);
-    let service: ManufacturingService = ManufacturingService::new(repo);
-
-    match service
-        .create_bom(payload.header, payload.lines, user.user_id)
-        .await
-    {
-        Ok(result) => Ok(ApiResponse::created(result, "BOM Created")),
-        Err(e) => Err(AppError::Internal(e.to_string())),
-    }
-}
-
 /// GET /manufacturing/bom/:uuid
 async fn get_bom_route(
     State(_state): State<Arc<AppState>>,
@@ -145,7 +170,7 @@ async fn get_bom_route(
     }
 }
 
-/// GET /manufacturing/default-product/{uuid}
+///# GET /manufacturing/default-product/{uuid}
 async fn default_bom_route(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
@@ -160,3 +185,4 @@ async fn default_bom_route(
         Err(e) => Err(AppError::Internal(e.to_string())),
     }
 }
+

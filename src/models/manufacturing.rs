@@ -1,7 +1,7 @@
 // src/models/manufacturing.rs
 
 use bigdecimal::BigDecimal;
-use chrono::{DateTime, Utc, NaiveDate};
+use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
@@ -11,10 +11,10 @@ pub struct ProductionOrder {
     pub uuid: Uuid,
     pub serial_id: i64,
     pub order_number: String,
-    pub product_item_serial_id: i64,        // links to inventory.items.serial_id
+    pub product_item_serial_id: i64, // links to inventory.items.serial_id
     pub quantity_ordered: BigDecimal,
     pub quantity_completed: BigDecimal,
-    pub status: String,                     // "Planned" | "In Progress" | "Completed" | "Cancelled"
+    pub status: String, // "Planned" | "In Progress" | "Completed" | "Cancelled"
     pub start_date: Option<NaiveDate>,
     pub expected_completion_date: Option<NaiveDate>,
     pub actual_completion_date: Option<NaiveDate>,
@@ -37,7 +37,7 @@ pub struct MaterialIssue {
 pub struct CostApplication {
     pub uuid: Uuid,
     pub production_order_uuid: Uuid,
-    pub application_type: String,   // "DirectLabor" | "Overhead"
+    pub application_type: String, // "DirectLabor" | "Overhead"
     pub amount: BigDecimal,
     pub applied_at: DateTime<Utc>,
     pub reference: Option<String>,
@@ -73,7 +73,7 @@ pub struct IssueMaterialDto {
 #[derive(Debug, Deserialize)]
 pub struct ApplyOverheadDto {
     pub production_order_uuid: Uuid,
-    pub base_amount: BigDecimal,   // e.g. labor hours or labor cost
+    pub base_amount: BigDecimal, // e.g. labor hours or labor cost
 }
 
 #[derive(Debug, Deserialize)]
@@ -84,7 +84,7 @@ pub struct CompleteProductionOrderDto {
 
 #[derive(Debug, Deserialize)]
 pub struct ProrateVarianceDto {
-    pub variance_amount: BigDecimal,           // positive = under-applied
+    pub variance_amount: BigDecimal, // positive = under-applied
     pub as_of_date: Option<NaiveDate>,
     pub memo: Option<String>,
     pub dry_run: Option<bool>,
@@ -105,6 +105,34 @@ pub struct BomHeader {
     pub created_by: Option<Uuid>,
 }
 
+// Overhead Rates DTOs
+#[derive(Debug, Clone, FromRow, Serialize)]
+pub struct OverheadRates {
+    pub uuid: Uuid,
+    pub period_start: NaiveDate,
+    pub period_end: NaiveDate,
+    pub allocation_base: String,
+    pub estimated_overhead: BigDecimal,
+    pub estimated_base: BigDecimal,
+    pub rate: BigDecimal,
+    pub department_code: String,
+    pub is_active: bool,
+    pub updated_at: DateTime<Utc>,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CreateOverheadRateDto {
+    pub period_start: NaiveDate,
+    pub period_end: NaiveDate,
+    pub allocation_base: String,
+    pub estimated_overhead: BigDecimal,
+    pub estimated_base: BigDecimal,
+    pub department_code: Option<String>,
+    pub is_active: Option<bool>,
+}
+
+// Bill Of Material DTOs
 #[derive(Debug, Clone, FromRow, Serialize)]
 pub struct BomLine {
     pub uuid: Uuid,
@@ -125,6 +153,7 @@ pub struct CreateBomHeaderDto {
     pub description: Option<String>,
     pub revision: Option<String>,
     pub is_default: Option<bool>,
+    pub is_active: Option<bool>,
 }
 
 #[derive(Debug, Deserialize)]

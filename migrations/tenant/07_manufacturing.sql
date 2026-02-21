@@ -17,12 +17,27 @@ CREATE table if not exists manufacturing.production_orders (
     start_date date,
     expected_completion_date date,
     actual_completion_date date,
-    status text DEFAULT 'Planned'
-        CHECK (status IN ('Planned', 'In Progress', 'Completed', 'Cancelled')),
+    status text DEFAULT 'Planned' CHECK (status IN ('Planned', 'In Progress', 'Completed', 'Cancelled')),
     gl_transaction_uuid uuid,                 -- link to posted entries
     created_at timestamptz DEFAULT now(),
     updated_at timestamptz DEFAULT now()
 );
+
+CREATE TABLE IF NOT EXISTS manufacturing.cost_entries(
+    uuid            uuid DEFAULT uuidv7() PRIMARY KEY,
+    production_order_uuid   uuid NOT null references manufacturing.production_orders(uuid),
+    cost_type       text NOT null check(cost_type in ('MATERIAL', 'LABOR', 'OVERHEAD', 'ADJUSTMENT')),
+    component_item_uuid uuid NOT NULL REFERENCES inventory.items(uuid),
+    quantity        numeric(18,4),
+    unit_cost       numeric(18,4),
+    total_cost      numeric(18,4) NOT null generated always as (quantity * unit_cost) STORED,
+    created_at       timestamptz DEFAULT now(),
+    CONSTRAINT fk_cost_entries_order
+        FOREIGN KEY (production_order_uuid)
+        REFERENCES manufacturing.production_orders(uuid)
+);
+
+CREATE INDEX idx_cost_entries_order ON manufacturing.cost_entries(production_order_uuid);
 
 -- helper log table (recommended for audit trail)
 CREATE TABLE IF NOT EXISTS accounting.variance_proration_logs (
@@ -88,7 +103,8 @@ CREATE table if not exists manufacturing.material_issues (
     unit_cost numeric(18,4) NOT NULL,         -- from costing method
     total_cost numeric(18,2) GENERATED ALWAYS AS (quantity * unit_cost) STORED,
     issued_at timestamptz DEFAULT now(),
-    CONSTRAINT fk_material_issues_order FOREIGN KEY (production_order_uuid) REFERENCES manufacturing.production_orders(uuid)
+    CONSTRAINT fk_material_issues_order FOREIGN KEY (production_order_uuid)
+        REFERENCES manufacturing.production_orders(uuid)
 );
 
 -- Labor & Overhead Application (to WIP)
@@ -99,7 +115,8 @@ CREATE table if not exists manufacturing.cost_applications (
     amount numeric(18,2) NOT NULL,
     applied_at timestamptz DEFAULT now(),
     reference text,
-    CONSTRAINT fk_applications_order FOREIGN KEY (production_order_uuid) REFERENCES manufacturing.production_orders(uuid)
+    CONSTRAINT fk_applications_order FOREIGN KEY (production_order_uuid)
+        REFERENCES manufacturing.production_orders(uuid)
 );
 
 -- Completions (WIP → Finished Goods)
@@ -109,7 +126,8 @@ CREATE TABLE if not exists manufacturing.completions (
     quantity_completed numeric(12,4) NOT NULL,
     unit_cost numeric(18,4) NOT NULL,         -- calculated total cost / qty
     completed_at timestamptz DEFAULT now(),
-    CONSTRAINT fk_completions_order FOREIGN KEY (production_order_uuid) REFERENCES manufacturing.production_orders(uuid)
+    CONSTRAINT fk_completions_order FOREIGN KEY (production_order_uuid)
+        REFERENCES manufacturing.production_orders(uuid)
 );
 
 -- Predetermined Overhead Rate Table (new table)
@@ -129,9 +147,13 @@ CREATE TABLE IF NOT EXISTS manufacturing.overhead_rates (
     CONSTRAINT unique_period_base UNIQUE (period_start, allocation_base, department_code)
 );
 
--- Example insert (yearly rate)
--- INSERT INTO manufacturing.overhead_rates (period_start, period_end, allocation_base, estimated_overhead, estimated_base)
--- VALUES ('2026-01-01', '2026-12-31', 'DirectLaborHours', 1200000.00, 40000.00);  -- → rate = 30.00 per DLH
+CREATE TABLE IF NOT EXISTS manufacturing.overhead_actuals (
+    uuid            uuid    DEFAULT uuidv7() PRIMARY KEY,
+    account_uuid    uuid    NOT NULL,
+    amount          numeric(18,2) NOT NULL,
+    incurred_at     timestamptz DEFAULT now(),
+    reference       text
+);
 
 -- Helper Function: Apply Overhead to a Production Order
 CREATE OR REPLACE FUNCTION manufacturing.apply_overhead_to_order(
@@ -234,13 +256,12 @@ BEGIN
     FROM inventory.items WHERE uuid = v_order.product_item_id;
 
     -- Calculate total cost accumulated in WIP for this order
-    -- (in real system you would sum from material_issues + cost_applications)
-    -- Here we assume you have a helper or column — for demo we query GL
-    SELECT COALESCE(SUM(te.debit - te.credit), 0) INTO v_total_cost
-    FROM accounting.transaction_entries te
-    JOIN accounting.transactions tx ON tx.uuid = te.transaction_uuid
-    WHERE te.account_uuid = (SELECT uuid FROM accounting.accounts WHERE code = p_wip_account)
-      AND tx.memo LIKE '%' || v_order.order_number || '%';   -- rough filter - improve!
+    SELECT
+        COALESCE(SUM(mi.total_cost), 0) + COALESCE(SUM(ca.amount), 0)
+    INTO v_total_cost FROM manufacturing.production_orders po
+    LEFT JOIN manufacturing.material_issues mi ON mi.production_order_uuid = po.uuid
+    LEFT JOIN manufacturing.cost_applications ca ON ca.production_order_uuid = po.uuid
+    WHERE po.uuid = p_order_uuid;
 
     IF v_total_cost <= 0 THEN
         RAISE EXCEPTION 'No costs accumulated in WIP for this order';
@@ -322,6 +343,50 @@ BEGIN
     WHERE uuid = p_order_uuid;
 
     RETURN v_txn_uuid;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION manufacturing.intitlize_material_cost(
+    p_order_uuid uuid
+) RETURNS void
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_order manufacturing.production_orders%ROWTYPE:
+    v_bom_header uuid;
+    v_line RECORD;
+BEGIN
+    -- Fetch order
+    SELECT * FROM v_order FROM manufacturing.production_orders
+    WHERE uuid = p_order_uuid;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Production order not found: %', p_order_uuid;
+    END IF;
+
+    -- Get default BOM for product
+    SELECT uuid INTO v_bom_header FROM manufacturing.bom_headers
+    WHERE product_item_uuid = v_order.product_item_id AND is_active AND is_default LIMIT 1;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'No default BOM found for product %', v_order.product_item_id;
+    END IF;
+
+    -- Loop BOM lines
+    FOR v_line IN
+        SELECT bl.*, i.unit_cost AS current_unit_cost
+        FROM manufacturing.bom_lines bl
+        JOIN inventory.items i ON i.uuid = bl.component_item_uuid
+        WHERE bl.bom_header_uuid = v_bom_header
+    LOOP
+        INSERT INTO manufacturing.cost_entries (
+            production_order_uuid, component_item_uuid, quantity, unit_cost, cost_type
+        ) VALUES (
+            p_order_uuid, v_line.component_item_uuid,
+            v_line.quantity_per * v_order.quantity_ordered, -- multiply by order qty
+            v_line.current_unit_cost, 'MATERIAL'
+        );
+    END LOOP;
 END;
 $$;
 
@@ -575,6 +640,11 @@ $$;
 
     -- -- Optional: separate variance if you want more detail
     -- ('501020', 'Over/Under Applied Overhead Adj','Expense','500000','DR', false); -- usually temporary, cleared to COGS
+
+-- Example insert (yearly rate)
+-- INSERT INTO manufacturing.overhead_rates (period_start, period_end, allocation_base, estimated_overhead, estimated_base)
+-- VALUES ('2026-01-01', '2026-12-31', 'DirectLaborHours', 1200000.00, 40000.00);  -- → rate = 30.00 per DLH
+
 
 /*
     NOTES:

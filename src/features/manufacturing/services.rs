@@ -18,6 +18,13 @@ impl ManufacturingService {
         Ok(self.repo.create_production_order(dto).await?)
     }
 
+    pub async fn create_overhead_rate(
+        &self,
+        dto: CreateOverheadRateDto,
+    ) -> Result<OverheadRates, anyhow::Error> {
+        Ok(self.repo.create_overhead_rate(dto).await?)
+    }
+
     pub async fn issue_material(
         &self,
         dto: IssueMaterialDto,

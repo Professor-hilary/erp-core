@@ -786,7 +786,8 @@ $$ LANGUAGE sql STABLE;
 -- ===================================================
 CREATE OR REPLACE FUNCTION manufacturing.get_cost_of_goods_manufactured(
     p_start_date date,
-    p_end_date   date
+    p_end_date   date,
+    p_wip_account
 )
 RETURNS TABLE (
     description text,
@@ -802,7 +803,7 @@ AS $$
         FROM accounting.transaction_entries te
         JOIN accounting.transactions tx ON tx.uuid = te.transaction_uuid
         JOIN accounting.accounts a ON a.uuid = te.account_uuid
-        WHERE a.code = '1310'  -- WIP account code; adjust
+        WHERE a.code = p_wip_account  -- WIP account code; adjust
           AND tx.txn_date < p_start_date
     ),
 
@@ -848,7 +849,7 @@ AS $$
         FROM accounting.transaction_entries te
         JOIN accounting.transactions tx ON tx.uuid = te.transaction_uuid
         JOIN accounting.accounts a ON a.uuid = te.account_uuid
-        WHERE a.code = '1310'  -- WIP
+        WHERE a.code = p_wip_account  -- WIP
           AND tx.txn_date <= p_end_date
     ),
 
@@ -868,8 +869,6 @@ AS $$
     UNION ALL SELECT 'Less: Ending WIP Inventory', -ew.ending_wip FROM end_wip ew
     UNION ALL SELECT 'Cost of Goods Manufactured', cc.cogs_manufactured FROM cogm_calc cc;
 $$;
-
-
 
 -- Example of uses
 -- SELECT * FROM reporting.get_balance_sheet('2024-12-31');
