@@ -4,8 +4,9 @@ use crate::{
     interface::api::{errors::AppError, json_errors::AppJson, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,
     models::manufacturing::{
-        ApplyOverheadDto, CompleteProductionOrderDto, CreateBomHeaderDto, CreateBomLineDto,
-        CreateOverheadRateDto, CreateProductionOrderDto, IssueMaterialDto, ProrateVarianceDto,
+        ApplyLaborCostDto, ApplyOverheadDto, CompleteProductionOrderDto, CreateBomHeaderDto,
+        CreateBomLineDto, CreateOverheadRateDto, CreateProductionOrderDto, IssueMaterialDto,
+        ProrateVarianceDto,
     },
     state::AppState,
 };
@@ -30,7 +31,8 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/create/overhead-rate", post(new_overhead_rate_route))
         .route("/variance-allocation", post(prorate_variance_route))
         .route("/materials-issuance", post(raw_material_issuance_route))
-        .route("/overhead-application", post(apply_overhead_route))
+        .route("/apply/overhead-cost", post(apply_overhead_route))
+        .route("/apply/labor-cost", post(apply_labor_route))
         .route("/complete-production", post(complete_order_route))
         .route("/create/bom", post(create_bom_route))
         .route("/bom/{uuid}", get(get_bom_route))
@@ -139,6 +141,21 @@ async fn apply_overhead_route(
     }
 }
 
+/// POST /manufacturing/overhead-application
+async fn apply_labor_route(
+    State(_state): State<Arc<AppState>>,
+    Extension(user): Extension<AuthenticatedTenant>,
+    AppJson(payload): AppJson<ApplyLaborCostDto>,
+) -> Result<Response, AppError> {
+    let repo: ManufacturingRepo = ManufacturingRepo::new(user.tenant_pool);
+    let service: ManufacturingService = ManufacturingService::new(repo);
+
+    match service.apply_labor_costs(payload, user.user_id).await {
+        Ok(result) => Ok(ApiResponse::created(result, "Labor Costs Applied")),
+        Err(e) => Err(AppError::Internal(e.to_string())),
+    }
+}
+
 /// POST /manufacturing/complete-production
 async fn complete_order_route(
     State(_state): State<Arc<AppState>>,
@@ -185,4 +202,3 @@ async fn default_bom_route(
         Err(e) => Err(AppError::Internal(e.to_string())),
     }
 }
-

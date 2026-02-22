@@ -41,6 +41,14 @@ impl ManufacturingService {
         Ok(self.repo.apply_overhead(dto, user_uuid).await?)
     }
 
+    pub async fn apply_labor_costs(
+        &self,
+        dto: ApplyLaborCostDto,
+        user_uuid: Uuid,
+    ) -> Result<CostApplication, anyhow::Error> {
+        Ok(self.repo.apply_labor_costs(dto, user_uuid).await?)
+    }
+
     pub async fn complete_order(
         &self,
         dto: CompleteProductionOrderDto,
@@ -54,7 +62,7 @@ impl ManufacturingService {
         dto: ProrateVarianceDto,
         user_uuid: Uuid,
     ) -> Result<VarianceProrationResult, anyhow::Error> {
-        Ok(self.repo.prorate_variance_v2(dto, user_uuid).await?)
+        Ok(self.repo.prorate_variance(dto, user_uuid).await?)
     }
 
     pub async fn create_bom(
@@ -65,15 +73,15 @@ impl ManufacturingService {
     ) -> Result<BomWithLines, anyhow::Error> {
         let mut tx: sqlx::Transaction<'_, sqlx::Postgres> = self.repo.pool.begin().await?;
 
-        let header = self
+        let header: BomHeader = self
             .repo
             .create_header(&mut tx, header_dto, user_uuid)
             .await?;
 
-        let mut created_lines = Vec::with_capacity(lines.len());
+        let mut created_lines: Vec<BomLine> = Vec::with_capacity(lines.len());
 
         for line_dto in &lines {
-            let line = self.repo.add_line(&mut tx, header.uuid, line_dto).await?;
+            let line: BomLine = self.repo.add_line(&mut tx, header.uuid, line_dto).await?;
             created_lines.push(line);
         }
 

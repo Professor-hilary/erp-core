@@ -51,7 +51,7 @@ impl ManufacturingRepo {
         };
 
         // Update the cost overhead table for end of period overhead adjustment
-        sqlx::query("SELECT manufacturing.intitlize_material_cost($1)")
+        sqlx::query("SELECT manufacturing.initialize_material_cost($1)")
             .bind(order.uuid)
             .execute(&self.pool)
             .await?;
@@ -126,7 +126,7 @@ impl ManufacturingRepo {
         dto: IssueMaterialDto,
         user_uuid: Uuid,
     ) -> Result<MaterialIssue, sqlx::Error> {
-        let row = sqlx::query(
+        let row: PgRow = sqlx::query(
             r#"
             SELECT * FROM inventory.deplete_inventory(
                 $1, $2, $3, 'PRODUCTION',
@@ -170,6 +170,17 @@ impl ManufacturingRepo {
         .fetch_one(&self.pool)
         .await?;
 
+        // Set production status to in progress after successfull issue of materials
+        sqlx::query(
+            r#"
+                UPDATE manufacturing.production_orders SET status = 'In Progress' WHERE uuid = $1;
+            "#,
+        )
+        .bind(dto.production_order_uuid)
+        .execute(&self.pool)
+        .await?;
+
+        // Get the materials issued for post query review
         Ok(MaterialIssue {
             uuid: issue_row.get("uuid"),
             production_order_uuid: issue_row.get("production_order_uuid"),
@@ -187,35 +198,64 @@ impl ManufacturingRepo {
         dto: ApplyOverheadDto,
         user_uuid: Uuid,
     ) -> Result<CostApplication, sqlx::Error> {
-        let row = sqlx::query("SELECT manufacturing.apply_overhead($1, $2, $3) as applied_amount")
-            .bind(dto.production_order_uuid)
-            .bind(dto.base_amount)
-            .bind(user_uuid)
-            .fetch_one(&self.pool)
-            .await?;
-
-        let amount: BigDecimal = row.get("applied_amount");
-
-        let app_row = sqlx::query(
-            r#"
-            INSERT INTO manufacturing.cost_applications
-                (production_order_uuid, type, amount)
-            VALUES ($1, 'Overhead', $2)
-            RETURNING *
-            "#,
+        let row: PgRow = sqlx::query(
+            "
+            SELECT * FROM manufacturing.apply_overhead_to_order(
+                $1, $2, $3, $4, $5
+            )
+        ",
         )
         .bind(dto.production_order_uuid)
-        .bind(amount)
+        .bind(dto.base_amount)
+        .bind(dto.wip_account)
+        .bind(dto.overhead_control_account)
+        .bind(user_uuid)
         .fetch_one(&self.pool)
         .await?;
 
         Ok(CostApplication {
-            uuid: app_row.get("uuid"),
-            production_order_uuid: app_row.get("production_order_uuid"),
+            uuid: row.get("uuid"),
+            production_order_uuid: row.get("production_order_uuid"),
             application_type: "Overhead".to_string(),
-            amount: app_row.get("amount"),
-            applied_at: app_row.get("applied_at"),
-            reference: app_row.get("reference"),
+            amount: row.get("amount"),
+            applied_at: row.get("applied_at"),
+            reference: row.get("reference"),
+        })
+    }
+
+    // ============== Labor Application ==============
+    pub async fn apply_labor_costs(
+        &self,
+        dto: ApplyLaborCostDto,
+        user_uuid: Uuid,
+    ) -> Result<CostApplication, sqlx::Error> {
+        let row: PgRow = sqlx::query(
+            "
+            SELECT * FROM manufacturing.apply_overhead_to_order(
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
+            )
+        ",
+        )
+        .bind(dto.production_order_uuid)
+        .bind(dto.hours)
+        .bind(dto.rate_per_hour)
+        .bind(dto.is_direct)
+        .bind(user_uuid)
+        .bind(dto.wip_account_code)
+        .bind(dto.overhead_applied)
+        .bind(dto.overhead_control)
+        .bind(dto.department_code)
+        .bind(dto.reference)
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok(CostApplication {
+            uuid: row.get("uuid"),
+            production_order_uuid: row.get("production_order_uuid"),
+            application_type: "Overhead".to_string(),
+            amount: row.get("amount"),
+            applied_at: row.get("applied_at"),
+            reference: row.get("reference"),
         })
     }
 
@@ -226,11 +266,14 @@ impl ManufacturingRepo {
         user_uuid: Uuid,
     ) -> Result<ProductionOrder, sqlx::Error> {
         let _ = sqlx::query(
-            "SELECT * FROM manufacturing.complete_production_order($1, $2, CURRENT_DATE, $3) as gl_txn_uuid"
+            "SELECT * FROM manufacturing.complete_production_order(
+                $1, $2, $3, $4, CURRENT_DATE
+            ) as gl_txn_uuid",
         )
         .bind(dto.production_order_uuid)
         .bind(dto.completed_quantity)
         .bind(user_uuid)
+        .bind(dto.wip_account_code)
         .fetch_one(&self.pool)
         .await?;
 
@@ -239,7 +282,7 @@ impl ManufacturingRepo {
     }
 
     // ============== Manual Variance Proration v2.0 ==============
-    pub async fn prorate_variance_v2(
+    pub async fn prorate_variance(
         &self,
         dto: ProrateVarianceDto,
         user_uuid: Uuid,
@@ -250,18 +293,21 @@ impl ManufacturingRepo {
 
         let _ = sqlx::query(
             r#"
-            CALL manufacturing.prorate_variance_v2(
-                $1, $2, 5.00, 100.00, $3, $4, $5
+            CALL manufacturing.prorate_variance(
+                $1, $2, $3, $4, $5, $6, 5.00, 100.00, $7, $8
             )
             "#,
         )
         .bind(dto.variance_amount)
+        .bind(user_uuid)
+        .bind(dto.wip_account)
+        .bind(dto.fg_account)
+        .bind(dto.cogs_account)
         .bind(as_of)
         .bind(
             dto.memo
                 .unwrap_or_else(|| "Manual overhead variance proration".to_string()),
         )
-        .bind(user_uuid)
         .bind(dto.dry_run.unwrap_or(false))
         .execute(&self.pool)
         .await?;
@@ -301,7 +347,7 @@ impl ManufacturingRepo {
         let row = sqlx::query(
             r#"
             INSERT INTO manufacturing.bom_headers (
-                bom_code, product_item_uuid, description, revision, is_active,
+                bom_code, product_item_id, description, revision, is_active,
                 is_default, created_by
             ) VALUES (
                 $1, $2, $3, COALESCE($4, 'A'), COALESCE($5, true),
@@ -310,7 +356,7 @@ impl ManufacturingRepo {
             "#,
         )
         .bind(&dto.bom_code)
-        .bind(dto.product_item_uuid)
+        .bind(dto.product_item_id)
         .bind(&dto.description)
         .bind(dto.revision.as_deref())
         .bind(dto.is_active.unwrap_or(true))

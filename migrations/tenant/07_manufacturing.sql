@@ -60,8 +60,8 @@ CREATE TABLE IF NOT EXISTS manufacturing.bom_headers (
     uuid                uuid          DEFAULT uuidv7() PRIMARY KEY,
     serial_id           bigint        GENERATED ALWAYS AS IDENTITY UNIQUE,
     bom_code            text          NOT NULL UNIQUE,          -- e.g. BOM-FG-001
-    product_item_uuid   uuid          NOT NULL
-        REFERENCES inventory.items(uuid) ON DELETE RESTRICT,
+    product_item_id   bigint          NOT NULL
+        REFERENCES inventory.items(serial_id) ON DELETE RESTRICT,
     description         text,
     revision            text          DEFAULT 'A' NOT NULL,
     is_active           boolean       DEFAULT true,
@@ -70,7 +70,7 @@ CREATE TABLE IF NOT EXISTS manufacturing.bom_headers (
     updated_at          timestamptz   DEFAULT now(),
     created_by          uuid,
     CONSTRAINT bom_product_unique_active
-        UNIQUE (product_item_uuid)
+        UNIQUE (product_item_id)
         DEFERRABLE INITIALLY DEFERRED   -- only one active/default per product (optional constraint)
 );
 
@@ -162,7 +162,7 @@ CREATE OR REPLACE FUNCTION manufacturing.apply_overhead_to_order(
     p_wip_account           text,
     p_overhead_control_code text,
     p_user                  uuid
-) RETURNS numeric(18,2)     -- applied amount
+) RETURNS manufacturing.cost_applications -- return full row
 LANGUAGE plpgsql
 AS $$
 DECLARE
@@ -171,24 +171,28 @@ DECLARE
     v_wip_account_uuid  uuid;
     v_applied_account_uuid uuid;
     v_txn_uuid          uuid;
+    v_application       manufacturing.cost_applications%ROWTYPE;
 BEGIN
     -- Find current applicable rate (latest or matching period)
-    SELECT rate INTO v_rate
+    SELECT rate INTO STRICT v_rate
     FROM manufacturing.overhead_rates
     WHERE CURRENT_DATE BETWEEN period_start AND period_end
       AND is_active
-    ORDER BY period_start DESC
+    ORDER BY period_start DESC, created_at DESC
     LIMIT 1;
 
     IF v_rate IS NULL THEN
         RAISE EXCEPTION 'No active predetermined overhead rate found for current date';
     END IF;
 
-    v_applied_amount := p_activity_amount * v_rate;
+    v_applied_amount := ROUND(p_activity_amount * v_rate, 2);
 
     -- Get account UUIDs (adjust codes if needed)
-    SELECT uuid INTO v_wip_account_uuid     FROM accounting.accounts WHERE code = p_wip_account;
-    SELECT uuid INTO v_applied_account_uuid FROM accounting.accounts WHERE code = p_overhead_control_code;
+    SELECT uuid INTO STRICT v_wip_account_uuid
+        FROM accounting.accounts WHERE code = p_wip_account;
+
+    SELECT uuid INTO STRICT v_applied_account_uuid
+        FROM accounting.accounts WHERE code = p_overhead_control_code;
 
     -- Create GL transaction (applied overhead)
     -- accounting.post_transaction(...) → your existing function; adapt parameters
@@ -198,29 +202,145 @@ BEGIN
         p_user,
         'manufacturing',
         CURRENT_DATE,
-        '[]'::jsonb
+        -- '[]'::jsonb
+        jsonb_build_object(
+            'production_order_uuid', p_production_order_uuid,
+            'base_amount', p_activity_amount,
+            'rate', v_rate
+        )
     );
 
     -- Journal entry: Dr WIP, Cr Applied Overhead
     INSERT INTO accounting.transaction_entries (
         transaction_uuid, account_uuid, line_no, amount, debit, credit, memo
-    ) VALUES
-        (v_txn_uuid, v_wip_account_uuid,     1, v_applied_amount, v_applied_amount, 0, 'Applied overhead to production order'),
-        (v_txn_uuid, v_applied_account_uuid, 2, v_applied_amount, 0, v_applied_amount, 'Applied overhead to production order');
+    ) VALUES (
+        v_txn_uuid, v_wip_account_uuid,     1, v_applied_amount, v_applied_amount, 0,
+        format('Applied overhead to production order %s - base %s x rate %s',
+            p_production_order_uuid, p_activity_amount, v_rate)
+    ), (
+        v_txn_uuid, v_applied_account_uuid, 2, v_applied_amount, 0, v_applied_amount,
+        format('Applied overhead to production order %s - base %s x rate %s',
+            p_production_order_uuid, p_activity_amount, v_rate)
+    );
 
     -- Record the application (for later reporting)
     INSERT INTO manufacturing.cost_applications (
-        production_order_uuid, type, amount, reference
+        production_order_uuid, type, amount, reference, applied_at
     ) VALUES (
-        p_production_order_uuid, 'Overhead', v_applied_amount, 'Applied at rate ' || v_rate
-    );
+        p_production_order_uuid,
+        'Overhead',
+        v_applied_amount,
+        format(
+            'Applied at rate %s x base %s (txn %s)',
+            v_rate, p_activity_amount, v_txn_uuid
+        ),
+        now()
+    )
+    RETURNING * INTO v_application;
 
     -- Update order if needed (optional)
     UPDATE manufacturing.production_orders
     SET updated_at = now()
     WHERE uuid = p_production_order_uuid;
 
-    RETURN v_applied_amount;
+    RETURN v_application;
+END;
+$$;
+
+-- Single professional function for both direct & indirect labor
+CREATE OR REPLACE FUNCTION manufacturing.apply_labor_cost(
+    p_production_order_uuid uuid,
+    p_hours                 numeric(12,4), -- e.g. actual direct labor hours used on this order
+    p_rate_per_hour         numeric(18,2),
+    p_is_direct             boolean, -- true = direct (to WIP), false = indirect (to overhead/expense)
+    p_user                  uuid,
+    p_wip_account_code      text,
+    p_overhead_applied_code text,
+    p_control_account_code text,
+    p_departrment_code      text DEFAULT NULL, -- optional if department is tracked
+    p_rerefence             text DEFAULT NULL
+) RETURNS manufacturing.cost_applications -- return full row
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_amount                numeric(18,2);
+    v_wip_or_account_uuid   uuid;
+    v_labor_account_uuid    uuid;
+    v_txn_uuid              uuid;
+    v_application           manufacturing.cost_applications%ROWTYPE;
+    v_type_text             text;
+    v_memo_suffix           text;
+BEGIN
+    v_amount := ROUND(p_hours * p_rate_per_hour, 2);
+
+    v_type_text := CASE WHEN p_is_direct THEN 'DirectLabor' ELSE 'IndirectLabor' END;
+    v_memo_suffix := CASE WHEN p_is_direct THEN 'direct' ELSE 'indirect' END;
+
+    -- Determine target WIP vs expense account
+    IF p_is_direct THEN
+        SELECT uuid INTO STRICT v_wip_or_account_uuid
+        FROM accounting.accounts WHERE code = p_wip_account_code;
+    ELSE
+        SELECT uuid INTO STRICT v_wip_or_account_uuid
+        FROM accounting.accounts WHERE code = p_overhead_applied_code;
+    END IF;
+
+    -- Labor expense / control account (usually the same for both)
+    SELECT uuid INTO STRICT v_labor_account_uuid
+    FROM accounting.accounts WHERE code = p_controll_account_code;
+
+    -- Post GL transaction
+    v_txn_uuid := accounting.post_transaction(
+        format('%s-LABOR-%s', v_type_text, p_production_order_uuid::text),
+        format('%s Labor Applied', CASE WHEN p_is_direct THEN 'Direct' ELSE 'Indirect' END),
+        p_user,
+        'manufacturing',
+        CURRENT_DATE,
+        jsonb_build_object(
+            'production_order_uuid', p_production_order_uuid,
+            'hours', p_hours, 'rate', p_rate_per_hour,
+            'direct', p_is_direct
+        )
+    );
+
+    -- Journal: Dr WIP or Expense <- Cr Labor ctrl
+    INSERT INTO accounting.transaction_entries (
+        transaction_uuid, account_uuid, line_no, amount, debit, credit, memo
+    ) VALUES (
+        v_txn_uuid, v_wip_or_account_uuid, 1, v_amount, v_amount, 0,
+        format(
+            '%s labor on order %s: %.2f hrs x %s %s',  v_memo_suffix,
+            p_production_order_uuid, p_hours, p_rate_per_hour, COALESCE(' - ' || p_reference, '')
+        )
+    ),(
+        v_txn_uuid, v_labor_account_uuid, 2, v_amount, 0, v_amount,
+        format(
+            '%s labor on order %s: %.2f hrs x %s %s',  v_memo_suffix,
+            p_production_order_uuid, p_hours, p_rate_per_hour, COALESCE(' - ' || p_reference, '')
+        )
+    );
+
+    -- Record in cost_applications
+    INSERT INTO manufacturing.cost_applications (
+        production_order_uuid, type, amount, reference, applied_at
+    ) VALUES (
+        p_production_order_uuid, v_type_text, v_amount,
+        format(
+            '%s labor: %.2f hrs @ %s%s%s',
+            CASE WHEN p_is_direct THEN 'Direct' ELSE 'Indirect' END,
+            p_hours, p_rate_per_hour,
+            COALESCE('- ' || p_reference, ''),
+            CASE WHEN p_departrment_code IS NOT NULL THEN ' (' || p_departrment_code || ')' ELSE '' END
+        ),
+        now()
+    )
+    RETURNING * INTO v_application;
+
+    UPDATE manufacturing.production_orders
+    SET updated_at = now()
+    WHERE uuid = p_production_order_uuid;
+
+    RETURN v_application;
 END;
 $$;
 
@@ -240,7 +360,7 @@ DECLARE
     v_total_cost  numeric(18,2);
     v_unit_cost   numeric(18,4);
     v_fg_account  uuid;
-    v_werehouse_account  uuid;
+    v_warehouse_account  uuid;
     v_wip_account uuid;
     v_txn_uuid    uuid;
     v_movement_uuid uuid;
@@ -253,7 +373,7 @@ BEGIN
     END IF;
 
     SELECT * INTO v_product
-    FROM inventory.items WHERE uuid = v_order.product_item_id;
+    FROM inventory.items WHERE serial_id = v_order.product_item_id;
 
     -- Calculate total cost accumulated in WIP for this order
     SELECT
@@ -279,9 +399,13 @@ BEGIN
         '[]'::jsonb
     );
 
-    SELECT uuid INTO v_wip_account FROM accounting.accounts WHERE code = p_wip_account;
-    SELECT uuid INTO v_fg_account  FROM accounting.accounts WHERE code = v_product.asset_account;
-    SELECT uuid INTO v_werehouse_account FROM accounting.accounts WHERE serial_id = warehouse_serial;
+    -- Get uuid
+    SELECT uuid INTO v_wip_account FROM accounting.accounts
+        WHERE code = p_wip_account;
+    SELECT uuid INTO v_fg_account  FROM accounting.accounts
+        WHERE code = v_product.asset_account;
+    SELECT uuid INTO v_warehouse_account FROM inventory.warehouses
+        WHERE serial_id = v_product.warehouse_serial;
 
     -- Dr FG Inventory, Cr WIP
     INSERT INTO accounting.transaction_entries (
@@ -327,7 +451,7 @@ BEGIN
         );
     ELSIF v_product.valuation_method = 'WAVG' THEN
         INSERT INTO inventory.wavg_warehouse (item_uuid, warehouse_uuid, total_quantity, total_cost)
-        VALUES (v_product.uuid, v_werehouse_account, p_completed_quantity, v_total_cost)
+        VALUES (v_product.uuid, v_warehouse_account, p_completed_quantity, v_total_cost)
         ON CONFLICT (item_uuid, warehouse_uuid) DO UPDATE SET
             total_quantity = inventory.wavg_warehouse.total_quantity + p_completed_quantity,
             total_cost     = inventory.wavg_warehouse.total_cost     + (p_completed_quantity * v_unit_cost),
@@ -346,18 +470,19 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION manufacturing.intitlize_material_cost(
+-- Transfer raw materials to production process for new inventory
+CREATE OR REPLACE FUNCTION manufacturing.initialize_material_cost(
     p_order_uuid uuid
 ) RETURNS void
 LANGUAGE plpgsql
 AS $$
 DECLARE
-    v_order manufacturing.production_orders%ROWTYPE:
+    v_order manufacturing.production_orders%ROWTYPE;
     v_bom_header uuid;
     v_line RECORD;
 BEGIN
     -- Fetch order
-    SELECT * FROM v_order FROM manufacturing.production_orders
+    SELECT * INTO v_order FROM manufacturing.production_orders
     WHERE uuid = p_order_uuid;
 
     IF NOT FOUND THEN
@@ -366,7 +491,7 @@ BEGIN
 
     -- Get default BOM for product
     SELECT uuid INTO v_bom_header FROM manufacturing.bom_headers
-    WHERE product_item_uuid = v_order.product_item_id AND is_active AND is_default LIMIT 1;
+    WHERE product_item_id = v_order.product_item_id AND is_active AND is_default LIMIT 1;
 
     IF NOT FOUND THEN
         RAISE EXCEPTION 'No default BOM found for product %', v_order.product_item_id;

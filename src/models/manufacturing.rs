@@ -74,18 +74,37 @@ pub struct IssueMaterialDto {
 pub struct ApplyOverheadDto {
     pub production_order_uuid: Uuid,
     pub base_amount: BigDecimal, // e.g. labor hours or labor cost
+    pub wip_account: String,
+    pub overhead_control_account: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ApplyLaborCostDto {
+    pub production_order_uuid: Uuid, // Current inventory in production
+    pub hours: BigDecimal,           // e.g. labor hours or labor cost
+    pub rate_per_hour: BigDecimal,   // e.g. labor hours or labor cost
+    pub is_direct: bool,             // Direct or Indirect labor
+    pub wip_account_code: String,    // Work In Progress to accumulate costs
+    pub overhead_applied: String,    // Overhead account
+    pub overhead_control: String,    // Production Expenses tracker
+    pub reference: Option<String>,   // Message
+    pub department_code: Option<String>, // Optional department
 }
 
 #[derive(Debug, Deserialize)]
 pub struct CompleteProductionOrderDto {
     pub production_order_uuid: Uuid,
     pub completed_quantity: BigDecimal,
+    pub wip_account_code: String,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct ProrateVarianceDto {
     pub variance_amount: BigDecimal, // positive = under-applied
     pub as_of_date: Option<NaiveDate>,
+    pub wip_account: Option<String>,
+    pub fg_account: Option<String>,
+    pub cogs_account: Option<String>,
     pub memo: Option<String>,
     pub dry_run: Option<bool>,
 }
@@ -149,7 +168,7 @@ pub struct BomLine {
 #[derive(Debug, Deserialize)]
 pub struct CreateBomHeaderDto {
     pub bom_code: String,
-    pub product_item_uuid: Uuid,
+    pub product_item_id: i64,
     pub description: Option<String>,
     pub revision: Option<String>,
     pub is_default: Option<bool>,
