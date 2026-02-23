@@ -784,7 +784,7 @@ $$ LANGUAGE sql STABLE;
 -- ===================================================
 -- 6 Manufacturing Statement
 -- ===================================================
-CREATE OR REPLACE FUNCTION manufacturing.get_cost_of_goods_manufactured(
+CREATE OR REPLACE FUNCTION reporting.get_cost_of_goods_manufactured(
     p_start_date date,
     p_end_date   date,
     p_wip_account

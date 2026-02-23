@@ -51,6 +51,7 @@ CREATE TABLE IF NOT EXISTS inventory.items (
     unit              text        DEFAULT 'pcs',
     item_type text not null default 'Purchased' check (item_type in ('Purchased', 'Manufactured', 'Service', 'Non-inventory')),
     selling_price     numeric(18,2) DEFAULT 0,
+    standard_cost     numeric(18,4)
     track_quantity    boolean     DEFAULT true,
     reorder_level     numeric(18,4) DEFAULT 0,
     valuation_method  text        NOT NULL DEFAULT 'FIFO' CHECK (valuation_method IN ('FIFO', 'LIFO', 'WAVG')),
@@ -92,23 +93,6 @@ CREATE TABLE IF NOT EXISTS inventory.movements (
 			'PROD_RETURN'		-- return unused materials from prod to raw
 		))
 );
-
--- Single inventory stock adjustment not reliable - updates one inventory item per adjustment
---CREATE TABLE IF NOT EXISTS inventory.adjustments (
---    uuid                uuid        DEFAULT uuidv7() NOT NULL PRIMARY KEY,
---    serial_id           bigint      DEFAULT nextval('inventory.adjustments_serial_id_seq') NOT NULL UNIQUE,
---    adjustment_number   text        NOT NULL UNIQUE,
---    adjustment_date     date        NOT NULL,
---    warehouse_uuid      uuid        REFERENCES inventory.warehouses(uuid),
---    item_uuid           uuid        REFERENCES inventory.items(uuid),
---    old_quantity        numeric(18,4) DEFAULT 0,
---    new_quantity        numeric(18,4) NOT NULL,
---    difference          numeric(18,4) GENERATED ALWAYS AS (new_quantity - old_quantity) STORED,
---    reason              text,
---    posted              boolean     DEFAULT false,
---    gl_transaction_uuid uuid        REFERENCES accounting.transactions(uuid),
---    created_at          timestamptz DEFAULT now()
---);
 
 -- ============================================================================
 -- ADJUSTMENTS - UPGRADED TO HEADER + MULTI-ITEM LINES (full horsepower!)

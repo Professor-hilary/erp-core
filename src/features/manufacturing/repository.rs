@@ -20,7 +20,7 @@ impl ManufacturingRepo {
         let row = sqlx::query(
             r#"
             INSERT INTO manufacturing.production_orders(
-                order_number, product_item_id, quantity_ordered, start_date,
+                order_number, product_item_uuid, quantity_ordered, start_date,
                 expected_completion_date, status
             ) VALUES ($1, $2, $3, $4, $5, 'Planned')
             RETURNING *
@@ -39,7 +39,7 @@ impl ManufacturingRepo {
             uuid: row.get("uuid"),
             serial_id: row.get("serial_id"),
             order_number: row.get("order_number"),
-            product_item_serial_id: row.get("product_item_id"),
+            product_item_serial_id: row.get("product_item_uuid"),
             quantity_ordered: row.get("quantity_ordered"),
             quantity_completed: row.get("quantity_completed"),
             status: row.get("status"),
@@ -108,7 +108,7 @@ impl ManufacturingRepo {
             uuid: row.get("uuid"),
             serial_id: row.get("serial_id"),
             order_number: row.get("order_number"),
-            product_item_serial_id: row.get("product_item_id"),
+            product_item_serial_id: row.get("product_item_uuid"),
             quantity_ordered: row.get("quantity_ordered"),
             quantity_completed: row.get("quantity_completed"),
             status: row.get("status"),
@@ -231,7 +231,7 @@ impl ManufacturingRepo {
     ) -> Result<CostApplication, sqlx::Error> {
         let row: PgRow = sqlx::query(
             "
-            SELECT * FROM manufacturing.apply_overhead_to_order(
+            SELECT * FROM manufacturing.apply_labor_cost(
                 $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
             )
         ",
@@ -242,9 +242,9 @@ impl ManufacturingRepo {
         .bind(dto.is_direct)
         .bind(user_uuid)
         .bind(dto.wip_account_code)
-        .bind(dto.overhead_applied)
-        .bind(dto.overhead_control)
-        .bind(dto.department_code)
+        .bind(dto.overhead_applied_code)
+        .bind(dto.control_account_code)
+        .bind(dto.department_code.unwrap_or_default())
         .bind(dto.reference)
         .fetch_one(&self.pool)
         .await?;
@@ -257,6 +257,19 @@ impl ManufacturingRepo {
             applied_at: row.get("applied_at"),
             reference: row.get("reference"),
         })
+    }
+
+    pub async fn calculate_standard_cost_for_item(
+        &self,
+        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+        item_uuid: Uuid,
+    ) -> Result<BigDecimal, sqlx::Error> {
+        let row = sqlx::query("SELECT manufacturing.calculate_standard_cost($1)")
+            .bind(item_uuid)
+            .fetch_one(&mut **tx)
+            .await?;
+
+        Ok(row.get("v_std"))
     }
 
     // ============== Complete Production Order ==============
@@ -341,22 +354,22 @@ impl ManufacturingRepo {
     pub async fn create_header(
         &self,
         tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
-        dto: CreateBomHeaderDto,
+        dto: &CreateBomHeaderDto,
         user_uuid: Uuid,
     ) -> Result<BomHeader, sqlx::Error> {
         let row = sqlx::query(
             r#"
             INSERT INTO manufacturing.bom_headers (
-                bom_code, product_item_id, description, revision, is_active,
+                bom_code, product_item_uuid, description, revision, is_active,
                 is_default, created_by
             ) VALUES (
                 $1, $2, $3, COALESCE($4, 'A'), COALESCE($5, true),
-                COALESCE($5, false), $6
+                COALESCE($6, false), $7
             ) RETURNING *
             "#,
         )
         .bind(&dto.bom_code)
-        .bind(dto.product_item_id)
+        .bind(dto.product_item_uuid)
         .bind(&dto.description)
         .bind(dto.revision.as_deref())
         .bind(dto.is_active.unwrap_or(true))

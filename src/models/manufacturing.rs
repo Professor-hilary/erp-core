@@ -80,14 +80,14 @@ pub struct ApplyOverheadDto {
 
 #[derive(Debug, Deserialize)]
 pub struct ApplyLaborCostDto {
-    pub production_order_uuid: Uuid, // Current inventory in production
-    pub hours: BigDecimal,           // e.g. labor hours or labor cost
-    pub rate_per_hour: BigDecimal,   // e.g. labor hours or labor cost
-    pub is_direct: bool,             // Direct or Indirect labor
-    pub wip_account_code: String,    // Work In Progress to accumulate costs
-    pub overhead_applied: String,    // Overhead account
-    pub overhead_control: String,    // Production Expenses tracker
-    pub reference: Option<String>,   // Message
+    pub production_order_uuid: Uuid,   // Current inventory in production
+    pub hours: BigDecimal,             // e.g. labor hours or labor cost
+    pub rate_per_hour: BigDecimal,     // e.g. labor hours or labor cost
+    pub is_direct: bool,               // Direct or Indirect labor
+    pub wip_account_code: String,      // Work In Progress to accumulate costs
+    pub overhead_applied_code: String, // Overhead account
+    pub control_account_code: String,  // Production Expenses tracker
+    pub reference: Option<String>,     // Message
     pub department_code: Option<String>, // Optional department
 }
 
@@ -168,7 +168,7 @@ pub struct BomLine {
 #[derive(Debug, Deserialize)]
 pub struct CreateBomHeaderDto {
     pub bom_code: String,
-    pub product_item_id: i64,
+    pub product_item_uuid: Uuid,
     pub description: Option<String>,
     pub revision: Option<String>,
     pub is_default: Option<bool>,
