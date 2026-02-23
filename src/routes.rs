@@ -73,8 +73,6 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .nest("/api/vendors", vendor_routes)
         .nest("/api/workforce", employee_routes)
         .nest("/api/manufacturing", manufacturing_routes)
-        // Catch unprocessable error code 422
-        // .layer(middleware::from_fn(map_client_errors))
         // CORS & global state
         .layer(Extension(state.clone()))
         .layer(CorsLayer::permissive())

@@ -75,9 +75,9 @@ CREATE TABLE IF NOT EXISTS manufacturing.bom_headers (
     revision            text          DEFAULT 'A' NOT NULL,
     is_active           boolean       DEFAULT true,
     is_default          boolean       DEFAULT false,            -- can have multiple BOMs per product
+    created_by          uuid,
     created_at          timestamptz   DEFAULT now(),
     updated_at          timestamptz   DEFAULT now(),
-    created_by          uuid,
     CONSTRAINT bom_product_unique_active UNIQUE (product_item_uuid)
         DEFERRABLE INITIALLY DEFERRED   -- only one active/default per product (optional constraint)
 );

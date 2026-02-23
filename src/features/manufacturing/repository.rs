@@ -264,12 +264,14 @@ impl ManufacturingRepo {
         tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
         item_uuid: Uuid,
     ) -> Result<BigDecimal, sqlx::Error> {
-        let row = sqlx::query("SELECT manufacturing.calculate_standard_cost($1)")
+        let row = sqlx::query(
+                "SELECT manufacturing.calculate_standard_cost($1) AS standard_cost"
+            )
             .bind(item_uuid)
             .fetch_one(&mut **tx)
             .await?;
 
-        Ok(row.get("v_std"))
+        Ok(row.get("standard_cost"))
     }
 
     // ============== Complete Production Order ==============
