@@ -25,6 +25,12 @@ pub struct CreateBomPayload {
     pub lines: Vec<CreateBomLineDto>,
 }
 
+// Helper for displaying clean json error messages
+fn internal_error(e: impl std::fmt::Display) -> AppError {
+    tracing::error!("Internal error: {}", e);
+    AppError::Internal(e.to_string())
+}
+
 pub fn router() -> Router<Arc<AppState>> {
     Router::new()
         .route("/create/production-order", post(new_order_route))
@@ -59,7 +65,7 @@ async fn create_bom_route(
         .await
     {
         Ok(result) => Ok(ApiResponse::created(result, "BOM Created")),
-        Err(e) => Err(AppError::Internal(e.to_string())),
+        Err(e) => Err(internal_error(e)),
     }
 }
 
@@ -76,7 +82,7 @@ async fn new_order_route(
 
     match service.create_order(payload).await {
         Ok(result) => Ok(ApiResponse::created(result, "Production Order Created")),
-        Err(e) => Err(AppError::Internal(e.to_string())),
+        Err(e) => Err(internal_error(e)),
     }
 }
 
@@ -92,7 +98,7 @@ async fn raw_material_issuance_route(
 
     match service.issue_material(payload, user.user_id).await {
         Ok(result) => Ok(ApiResponse::created(result, "Material Issuance Successful")),
-        Err(e) => Err(AppError::Internal(e.to_string())),
+        Err(e) => Err(internal_error(e)),
     }
 }
 
@@ -107,7 +113,7 @@ async fn new_overhead_rate_route(
 
     match service.create_overhead_rate(payload).await {
         Ok(result) => Ok(ApiResponse::created(result, "Production Order Created")),
-        Err(e) => Err(AppError::Internal(e.to_string())),
+        Err(e) => Err(internal_error(e)),
     }
 }
 
@@ -122,7 +128,7 @@ async fn prorate_variance_route(
 
     match service.prorate_variance(payload, user.user_id).await {
         Ok(result) => Ok(ApiResponse::created(result, "Proration Successful")),
-        Err(e) => Err(AppError::Internal(e.to_string())),
+        Err(e) => Err(internal_error(e)),
     }
 }
 
@@ -137,7 +143,7 @@ async fn apply_overhead_route(
 
     match service.apply_overhead(payload, user.user_id).await {
         Ok(result) => Ok(ApiResponse::created(result, "Overhead Applied")),
-        Err(e) => Err(AppError::Internal(e.to_string())),
+        Err(e) => Err(internal_error(e)),
     }
 }
 
@@ -152,7 +158,7 @@ async fn apply_labor_route(
 
     match service.apply_labor_costs(payload, user.user_id).await {
         Ok(result) => Ok(ApiResponse::created(result, "Labor Costs Applied")),
-        Err(e) => Err(AppError::Internal(e.to_string())),
+        Err(e) => Err(internal_error(e)),
     }
 }
 
@@ -167,7 +173,7 @@ async fn complete_order_route(
 
     match service.complete_order(payload, user.user_id).await {
         Ok(result) => Ok(ApiResponse::created(result, "Production Completed")),
-        Err(e) => Err(AppError::Internal(e.to_string())),
+        Err(e) => Err(internal_error(e)),
     }
 }
 
@@ -183,7 +189,7 @@ async fn get_bom_route(
     match service.get_bom(uuid).await {
         Ok(Some(result)) => Ok(ApiResponse::success(result, "BOM Created")),
         Ok(None) => Err(AppError::NotFound("BOM not found".into())),
-        Err(e) => Err(AppError::Internal(e.to_string())),
+        Err(e) => Err(internal_error(e)),
     }
 }
 
@@ -199,6 +205,6 @@ async fn default_bom_route(
     match service.default_bom(uuid).await {
         Ok(Some(result)) => Ok(ApiResponse::success(result, "BOM found")),
         Ok(None) => Err(AppError::NotFound("No default OM found".into())),
-        Err(e) => Err(AppError::Internal(e.to_string())),
+        Err(e) => Err(internal_error(e)),
     }
 }

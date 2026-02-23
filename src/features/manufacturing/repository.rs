@@ -27,7 +27,7 @@ impl ManufacturingRepo {
             "#,
         )
         .bind(&dto.order_number)
-        .bind(dto.product_item_serial_id)
+        .bind(dto.product_item_uuid)
         .bind(dto.quantity_ordered)
         .bind(dto.start_date)
         .bind(dto.expected_completion_date)
@@ -39,7 +39,7 @@ impl ManufacturingRepo {
             uuid: row.get("uuid"),
             serial_id: row.get("serial_id"),
             order_number: row.get("order_number"),
-            product_item_serial_id: row.get("product_item_uuid"),
+            product_item_uuid: row.get("product_item_uuid"),
             quantity_ordered: row.get("quantity_ordered"),
             quantity_completed: row.get("quantity_completed"),
             status: row.get("status"),
@@ -51,10 +51,10 @@ impl ManufacturingRepo {
         };
 
         // Update the cost overhead table for end of period overhead adjustment
-        sqlx::query("SELECT manufacturing.initialize_material_cost($1)")
-            .bind(order.uuid)
-            .execute(&self.pool)
-            .await?;
+        // sqlx::query("SELECT manufacturing.initialize_material_cost($1)")
+        //     .bind(order.uuid)
+        //     .execute(&self.pool)
+        //     .await?;
 
         Ok(order)
     }
@@ -77,7 +77,7 @@ impl ManufacturingRepo {
         .bind(dto.allocation_base)
         .bind(dto.estimated_overhead)
         .bind(dto.estimated_base)
-        .bind(dto.department_code)
+        .bind(&dto.department_code)
         .bind(dto.is_active)
         .fetch_one(&self.pool)
         .await?;
@@ -108,7 +108,7 @@ impl ManufacturingRepo {
             uuid: row.get("uuid"),
             serial_id: row.get("serial_id"),
             order_number: row.get("order_number"),
-            product_item_serial_id: row.get("product_item_uuid"),
+            product_item_uuid: row.get("product_item_uuid"),
             quantity_ordered: row.get("quantity_ordered"),
             quantity_completed: row.get("quantity_completed"),
             status: row.get("status"),
@@ -131,11 +131,11 @@ impl ManufacturingRepo {
             SELECT * FROM inventory.deplete_inventory(
                 $1, $2, $3, 'PRODUCTION',
                 (SELECT serial_id FROM manufacturing.production_orders WHERE uuid = $4),
-                $5, NULL
+                $5, NULL, NULL
             ) as total_cost
             "#,
         )
-        .bind(dto.item_serial_id)
+        .bind(dto.stock_item_id)
         .bind(dto.warehouse_serial_id)
         .bind(&dto.quantity)
         .bind(dto.production_order_uuid)
@@ -157,13 +157,13 @@ impl ManufacturingRepo {
         let issue_row: PgRow = sqlx::query(
             r#"
             INSERT INTO manufacturing.material_issues(
-                production_order_uuid, item_serial_id, warehouse_serial_id, quantity,
+                production_order_uuid, stock_item_id, warehouse_serial_id, quantity,
                 unit_cost
             ) VALUES ($1, $2, $3, $4, $5) RETURNING *
             "#,
         )
         .bind(dto.production_order_uuid)
-        .bind(dto.item_serial_id)
+        .bind(dto.stock_item_id)
         .bind(dto.warehouse_serial_id)
         .bind(dto.quantity)
         .bind(unit_cost)
@@ -184,7 +184,7 @@ impl ManufacturingRepo {
         Ok(MaterialIssue {
             uuid: issue_row.get("uuid"),
             production_order_uuid: issue_row.get("production_order_uuid"),
-            item_serial_id: issue_row.get("item_serial_id"),
+            stock_item_id: issue_row.get("stock_item_id"),
             warehouse_serial_id: issue_row.get("warehouse_serial_id"),
             quantity: issue_row.get("quantity"),
             total_cost: issue_row.get("total_cost"),

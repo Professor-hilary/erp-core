@@ -208,7 +208,7 @@ BEGIN
         AND bh.is_active AND bh.is_default;
 
     -- You can later add routing labor cost here
-    RETURN v_std;
+    RETURN COALESCE(v_std, 0);
 END;
 $$;
 

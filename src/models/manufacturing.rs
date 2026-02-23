@@ -11,7 +11,7 @@ pub struct ProductionOrder {
     pub uuid: Uuid,
     pub serial_id: i64,
     pub order_number: String,
-    pub product_item_serial_id: i64, // links to inventory.items.serial_id
+    pub product_item_uuid: Uuid, // links to inventory.items.serial_id
     pub quantity_ordered: BigDecimal,
     pub quantity_completed: BigDecimal,
     pub status: String, // "Planned" | "In Progress" | "Completed" | "Cancelled"
@@ -26,7 +26,7 @@ pub struct ProductionOrder {
 pub struct MaterialIssue {
     pub uuid: Uuid,
     pub production_order_uuid: Uuid,
-    pub item_serial_id: i64,
+    pub stock_item_id: i64,
     pub warehouse_serial_id: i64,
     pub quantity: BigDecimal,
     pub total_cost: BigDecimal,
@@ -56,7 +56,7 @@ pub struct VarianceProrationResult {
 #[derive(Debug, Deserialize)]
 pub struct CreateProductionOrderDto {
     pub order_number: String,
-    pub product_item_serial_id: i64,
+    pub product_item_uuid: Uuid,
     pub quantity_ordered: BigDecimal,
     pub start_date: Option<NaiveDate>,
     pub expected_completion_date: Option<NaiveDate>,
@@ -65,7 +65,7 @@ pub struct CreateProductionOrderDto {
 #[derive(Debug, Deserialize)]
 pub struct IssueMaterialDto {
     pub production_order_uuid: Uuid,
-    pub item_serial_id: i64,
+    pub stock_item_id: i64,
     pub warehouse_serial_id: i64,
     pub quantity: BigDecimal,
 }
@@ -134,7 +134,7 @@ pub struct OverheadRates {
     pub estimated_overhead: BigDecimal,
     pub estimated_base: BigDecimal,
     pub rate: BigDecimal,
-    pub department_code: String,
+    pub department_code: Option<String>,
     pub is_active: bool,
     pub updated_at: DateTime<Utc>,
     pub created_at: DateTime<Utc>,

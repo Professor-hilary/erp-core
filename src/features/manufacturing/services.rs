@@ -95,7 +95,7 @@ impl ManufacturingService {
         sqlx::query("UPDATE inventory.items SET standard_cost = $1 WHERE uuid = $2")
             .bind(std_cost)
             .bind(header_dto.product_item_uuid)
-            .execute(&self.repo.pool)
+            .execute(&mut *tx)
             .await?;
 
         tx.commit().await?;
