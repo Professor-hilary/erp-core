@@ -307,6 +307,8 @@ $$;
 -- Single professional function for both direct & indirect labor
 CREATE OR REPLACE FUNCTION manufacturing.apply_labor_cost(
     p_production_order_uuid uuid,
+    p_hours              CREATE OR REPLACE FUNCTION manufacturing.apply_labor_cost(
+    p_production_order_uuid uuid,
     p_hours                 numeric(12,4), -- e.g. actual direct labor hours used on this order
     p_rate_per_hour         numeric(18,2),
     p_is_direct             boolean, -- true = direct (to WIP), false = indirect (to overhead/expense)
@@ -323,7 +325,7 @@ DECLARE
     v_amount                numeric(18,2) := ROUND(p_hours * p_rate_per_hour, 2);
     v_wip_or_moh_ctrl_uuid  uuid;
     v_labor_account_uuid    uuid;
-    v_txn_uuid              uuid;
+    v_txn_serial            bigint;
     v_application           manufacturing.cost_applications%ROWTYPE;
     v_type_text             text;
     v_memo_suffix           text;
@@ -362,7 +364,114 @@ BEGIN
     --          DR: WIP             CR: Salaries/Wages Payable
     --      indirect costs:
     --          DR: Overhead Ctrl   CR: Salaries/Wages Payable
-    v_txn_uuid := accounting.post_transaction(
+    v_txn_serial := accounting.post_transaction(
+        format('%s-LABOR-%s', v_type_text, p_production_order_uuid::text),
+        format('%s Labor Applied', CASE WHEN p_is_direct THEN 'Direct' ELSE 'Indirect' END),
+        p_user,
+        'manufacturing',
+        CURRENT_DATE,
+        jsonb_build_array(
+            jsonb_build_object(
+                'account_ref', v_wip_or_moh_ctrl_uuid, 'debit', v_amount, 'credit', 0,
+                'memo', format(
+                    '%s labor on order %s: %s hrs x %s %s',  v_memo_suffix,
+                    p_production_order_uuid,
+                    to_char(p_hours, 'FM999999990.00'),
+                    to_char(p_rate_per_hour, 'FM999999990.00'),
+                    COALESCE(' - ' || p_reference, '')
+                )
+            ),
+            jsonb_build_object(
+                'account_ref', v_labor_account_uuid, 'debit', 0, 'credit', v_amount,
+                'memo', format(
+                    '%s labor on order %s: %s hrs x %s %s',  v_memo_suffix,
+                    p_production_order_uuid,
+                    to_char(p_hours, 'FM999999990.00'),
+                    to_char(p_rate_per_hour, 'FM999999990.00'),
+                    COALESCE(' - ' || p_reference, '')
+                )
+            )
+        )
+    );
+
+    -- Record in cost_applications, TODO: Add GL uuid to entries for bigger relationships
+    INSERT INTO manufacturing.cost_applications (
+        production_order_uuid, type, amount, reference, applied_at
+    ) VALUES (
+        p_production_order_uuid, v_type_text, v_amount,
+        format(
+            '%s labor: %s hrs @ %s%s%s',
+            CASE WHEN p_is_direct THEN 'Direct' ELSE 'Indirect' END,
+            to_char(p_hours, 'FM999999990.00'), to_char(p_rate_per_hour, 'FM999999990.00'),
+            COALESCE('- ' || p_reference, ''),
+            CASE WHEN p_departrment_code IS NOT NULL THEN ' (' || p_departrment_code || ')' ELSE '' END
+        ),
+        now()
+    )
+    RETURNING * INTO v_application;
+
+    UPDATE manufacturing.production_orders
+    SET updated_at = now()
+    WHERE uuid = p_production_order_uuid;
+
+    RETURN v_application;
+END;
+$$;   numeric(12,4), -- e.g. actual direct labor hours used on this order
+    p_rate_per_hour         numeric(18,2),
+    p_is_direct             boolean, -- true = direct (to WIP), false = indirect (to overhead/expense)
+    p_user                  uuid,
+    p_labor_account_code    text,
+    p_control_account_code  text DEFAULT NULL,
+    p_wip_account_code      text DEFAULT NULL,
+    p_departrment_code      text DEFAULT NULL, -- optional if department is tracked
+    p_reference             text DEFAULT NULL
+) RETURNS manufacturing.cost_applications -- return full row
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_amount                numeric(18,2) := ROUND(p_hours * p_rate_per_hour, 2);
+    v_wip_or_moh_ctrl_uuid  uuid;
+    v_labor_account_uuid    uuid;
+    v_txn_serial            bigint;
+    v_application           manufacturing.cost_applications%ROWTYPE;
+    v_type_text             text;
+    v_memo_suffix           text;
+BEGIN
+    v_amount := ROUND(p_hours * p_rate_per_hour, 2);
+
+    v_type_text := CASE WHEN p_is_direct THEN 'DirectLabor' ELSE 'IndirectLabor' END;
+    v_memo_suffix := CASE WHEN p_is_direct THEN 'direct' ELSE 'indirect' END;
+
+    -- Is this direct or indirect labor, later goes to manufacturing overhead ctrl
+    IF p_is_direct THEN -- Debit directly into Work In Progress - its traceable
+        SELECT uuid INTO STRICT v_wip_or_moh_ctrl_uuid
+        FROM accounting.accounts WHERE code = p_wip_account_code;
+
+        -- Valid WIP account needed for direct labor costing
+        IF NOT FOUND OR p_wip_account_code IS NULL THEN
+            RAISE EXCEPTION 'Valid Work In Progress Account required for direct labor costing';
+        END IF;
+    ELSE -- Debit into overhead control account - its untraceable
+        SELECT uuid INTO STRICT v_wip_or_moh_ctrl_uuid
+        FROM accounting.accounts WHERE code = p_control_account_code;
+
+        -- Valid WOH account required for indirect labor costing
+        IF NOT FOUND OR p_control_account_code IS NULL THEN
+            RAISE EXCEPTION 'Valid Overhead Control Account required for indirect labor costing';
+        END IF;
+    END IF;
+
+    -- Labor account, if direct: credit wages payable, if indirect: credit salaries payable
+    -- Later at closing we'll generate a payroll to pay off the accrued salaries altogether
+    SELECT uuid INTO STRICT v_labor_account_uuid FROM accounting.accounts
+        WHERE code = p_labor_account_code;
+
+    -- Post GL transaction labor accrued:
+    --      direct costs:
+    --          DR: WIP             CR: Salaries/Wages Payable
+    --      indirect costs:
+    --          DR: Overhead Ctrl   CR: Salaries/Wages Payable
+    v_txn_serial := accounting.post_transaction(
         format('%s-LABOR-%s', v_type_text, p_production_order_uuid::text),
         format('%s Labor Applied', CASE WHEN p_is_direct THEN 'Direct' ELSE 'Indirect' END),
         p_user,
