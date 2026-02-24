@@ -363,14 +363,22 @@ BEGIN
     v_txn_serial_id := accounting.post_transaction(
         v_payment.payment_number, 'Payment Receipt', p_user, 'payment', v_payment.payment_date, v_lines
     );
+
+    -- Get gl uuid for posted transaction
     SELECT uuid INTO v_txn_uuid FROM accounting.transactions WHERE serial_id = v_txn_serial_id;
-    IF v_txn_uuid IS NULL THEN RAISE EXCEPTION 'Failed to retrieve GL transaction UUID'; END IF;
+
+    -- Panick if gl uuid does not exist
+    IF v_txn_uuid IS NULL THEN
+        RAISE EXCEPTION 'Failed to retrieve GL transaction UUID';
+    END IF;
+
     UPDATE sales.payments
-    SET gl_transaction_uuid = v_txn_uuid, updated_at = now()
-    WHERE serial_id = p_payment_serial_id;
+        SET gl_transaction_uuid = v_txn_uuid, updated_at = now()
+        WHERE serial_id = p_payment_serial_id;
+
     UPDATE sales.customers
-    SET current_balance = current_balance - v_payment.amount, updated_at = now()
-    WHERE uuid = v_payment.customer_uuid;
+        SET current_balance = current_balance - v_payment.amount, updated_at = now()
+        WHERE uuid = v_payment.customer_uuid;
 END;
 $$;
 

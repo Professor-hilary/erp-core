@@ -27,8 +27,9 @@ pub struct MaterialIssue {
     pub uuid: Uuid,
     pub production_order_uuid: Uuid,
     pub stock_item_id: i64,
-    pub warehouse_serial_id: i64,
+    pub warehouse_uuid: Uuid,
     pub quantity: BigDecimal,
+    pub unit_cost: BigDecimal,
     pub total_cost: BigDecimal,
     pub issued_at: DateTime<Utc>,
 }
@@ -64,10 +65,10 @@ pub struct CreateProductionOrderDto {
 
 #[derive(Debug, Deserialize)]
 pub struct IssueMaterialDto {
-    pub production_order_uuid: Uuid,
     pub stock_item_id: i64,
     pub warehouse_serial_id: i64,
     pub quantity: BigDecimal,
+    pub production_order_uuid: Uuid,
 }
 
 #[derive(Debug, Deserialize)]
@@ -80,14 +81,14 @@ pub struct ApplyOverheadDto {
 
 #[derive(Debug, Deserialize)]
 pub struct ApplyLaborCostDto {
-    pub production_order_uuid: Uuid,   // Current inventory in production
-    pub hours: BigDecimal,             // e.g. labor hours or labor cost
-    pub rate_per_hour: BigDecimal,     // e.g. labor hours or labor cost
-    pub is_direct: bool,               // Direct or Indirect labor
-    pub wip_account_code: String,      // Work In Progress to accumulate costs
-    pub overhead_applied_code: String, // Overhead account
-    pub control_account_code: String,  // Production Expenses tracker
-    pub reference: Option<String>,     // Message
+    pub production_order_uuid: Uuid,  // Current inventory in production
+    pub hours: BigDecimal,            // e.g. labor hours or labor cost
+    pub rate_per_hour: BigDecimal,    // e.g. labor hours or labor cost
+    pub is_direct: bool,              // Direct or Indirect labor
+    pub renumeration_code: String,    // Salaries or wages payable code
+    pub wip_account_code: Option<String>,     // Work In Progress to accumulate costs
+    pub control_account_code: Option<String>, // Production Expenses tracker - strictly overheads
+    pub reference: Option<String>,    // Message
     pub department_code: Option<String>, // Optional department
 }
 

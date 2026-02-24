@@ -311,17 +311,17 @@ CREATE OR REPLACE FUNCTION manufacturing.apply_labor_cost(
     p_rate_per_hour         numeric(18,2),
     p_is_direct             boolean, -- true = direct (to WIP), false = indirect (to overhead/expense)
     p_user                  uuid,
-    p_wip_account_code      text,
-    p_overhead_applied_code text,
-    p_control_account_code  text,
+    p_labor_account_code    text,
+    p_control_account_code  text DEFAULT NULL,
+    p_wip_account_code      text DEFAULT NULL,
     p_departrment_code      text DEFAULT NULL, -- optional if department is tracked
-    p_rerefence             text DEFAULT NULL
+    p_reference             text DEFAULT NULL
 ) RETURNS manufacturing.cost_applications -- return full row
 LANGUAGE plpgsql
 AS $$
 DECLARE
     v_amount                numeric(18,2) := ROUND(p_hours * p_rate_per_hour, 2);
-    v_wip_or_account_uuid   uuid;
+    v_wip_or_moh_ctrl_uuid  uuid;
     v_labor_account_uuid    uuid;
     v_txn_uuid              uuid;
     v_application           manufacturing.cost_applications%ROWTYPE;
@@ -333,51 +333,60 @@ BEGIN
     v_type_text := CASE WHEN p_is_direct THEN 'DirectLabor' ELSE 'IndirectLabor' END;
     v_memo_suffix := CASE WHEN p_is_direct THEN 'direct' ELSE 'indirect' END;
 
-    -- Determine target WIP vs expense account
-    IF p_is_direct THEN
-        SELECT uuid INTO STRICT v_wip_or_account_uuid
+    -- Is this direct or indirect labor, later goes to manufacturing overhead ctrl
+    IF p_is_direct THEN -- Debit directly into Work In Progress - its traceable
+        SELECT uuid INTO STRICT v_wip_or_moh_ctrl_uuid
         FROM accounting.accounts WHERE code = p_wip_account_code;
-    ELSE
-        SELECT uuid INTO STRICT v_wip_or_account_uuid
-        FROM accounting.accounts WHERE code = p_overhead_applied_code;
+
+        -- Valid WIP account needed for direct labor costing
+        IF NOT FOUND OR p_wip_account_code IS NULL THEN
+            RAISE EXCEPTION 'Valid Work In Progress Account required for direct labor costing';
+        END IF;
+    ELSE -- Debit into overhead control account - its untraceable
+        SELECT uuid INTO STRICT v_wip_or_moh_ctrl_uuid
+        FROM accounting.accounts WHERE code = p_control_account_code;
+
+        -- Valid WOH account required for indirect labor costing
+        IF NOT FOUND OR p_control_account_code IS NULL THEN
+            RAISE EXCEPTION 'Valid Overhead Control Account required for indirect labor costing';
+        END IF;
     END IF;
 
-    -- Labor expense / control account (usually the same for both)
-    SELECT uuid INTO STRICT v_labor_account_uuid
-    FROM accounting.accounts WHERE code = p_control_account_code;
+    -- Labor account, if direct: credit wages payable, if indirect: credit salaries payable
+    -- Later at closing we'll generate a payroll to pay off the accrued salaries altogether
+    SELECT uuid INTO STRICT v_labor_account_uuid FROM accounting.accounts
+        WHERE code = p_labor_account_code;
 
-    -- Post GL transaction
+    -- Post GL transaction labor accrued:
+    --      direct costs:
+    --          DR: WIP             CR: Salaries/Wages Payable
+    --      indirect costs:
+    --          DR: Overhead Ctrl   CR: Salaries/Wages Payable
     v_txn_uuid := accounting.post_transaction(
         format('%s-LABOR-%s', v_type_text, p_production_order_uuid::text),
         format('%s Labor Applied', CASE WHEN p_is_direct THEN 'Direct' ELSE 'Indirect' END),
         p_user,
         'manufacturing',
         CURRENT_DATE,
-        jsonb_build_object(
-            'production_order_uuid', p_production_order_uuid,
-            'hours', p_hours, 'rate', p_rate_per_hour,
-            'direct', p_is_direct
+        jsonb_build_array(
+            jsonb_build_object(
+                'account_ref', v_wip_or_moh_ctrl_uuid, 'debit', v_amount, 'credit', 0,
+                'memo', format(
+                    '%s labor on order %s: %.2f hrs x %s %s',  v_memo_suffix,
+                    p_production_order_uuid, p_hours, p_rate_per_hour, COALESCE(' - ' || p_reference, '')
+                )
+            ),
+            jsonb_build_object(
+                'account_ref', v_labor_account_uuid, 'debit', 0, 'credit', v_amount,
+                'memo', format(
+                    '%s labor on order %s: %.2f hrs x %s %s',  v_memo_suffix,
+                    p_production_order_uuid, p_hours, p_rate_per_hour, COALESCE(' - ' || p_reference, '')
+                )
+            )
         )
     );
 
-    -- Journal: Dr WIP or Expense <- Cr Labor ctrl
-    INSERT INTO accounting.transaction_entries (
-        transaction_uuid, account_uuid, line_no, amount, debit, credit, memo
-    ) VALUES (
-        v_txn_uuid, v_wip_or_account_uuid, 1, v_amount, v_amount, 0,
-        format(
-            '%s labor on order %s: %.2f hrs x %s %s',  v_memo_suffix,
-            p_production_order_uuid, p_hours, p_rate_per_hour, COALESCE(' - ' || p_reference, '')
-        )
-    ),(
-        v_txn_uuid, v_labor_account_uuid, 2, v_amount, 0, v_amount,
-        format(
-            '%s labor on order %s: %.2f hrs x %s %s',  v_memo_suffix,
-            p_production_order_uuid, p_hours, p_rate_per_hour, COALESCE(' - ' || p_reference, '')
-        )
-    );
-
-    -- Record in cost_applications
+    -- Record in cost_applications, TODO: Add GL uuid to entries for bigger relationships
     INSERT INTO manufacturing.cost_applications (
         production_order_uuid, type, amount, reference, applied_at
     ) VALUES (
@@ -541,6 +550,69 @@ BEGIN
     WHERE uuid = p_order_uuid;
 
     RETURN v_txn_uuid;
+END;
+$$;
+
+-- Prepare RM for production, deplete inventory, update materials issued table
+CREATE OR REPLACE FUNCTION manufacturing.issue_material_to_order(
+    p_item_serial_id    bigint, -- Serial of raw maaterial inventory item
+    p_warehouse_serial  bigint, -- Serial of warehouse for the raw material
+    p_quantity          numeric(18,4), -- Quantity to be issued for prod
+    p_production_order_uuid uuid,
+    p_user_uuid         uuid
+) RETURNS manufacturing.material_issues -- Return actual issued material
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_order         manufacturing.production_orders%ROWTYPE;
+    v_item          inventory.items%ROWTYPE;
+    v_warehouse     inventory.warehouses%ROWTYPE;
+    v_total_cost    numeric(18,4);
+    v_unit_cost     numeric(18,4);
+    v_issue_row     manufacturing.material_issues%ROWTYPE;
+    v_movement_uuid uuid;
+BEGIN
+    -- 1. Lock & validate production order
+    SELECT * INTO STRICT v_order
+    FROM manufacturing.production_orders
+    WHERE uuid = p_production_order_uuid
+    FOR UPDATE;
+
+    IF v_order.status NOT IN ('Planned', 'In Progress') THEN
+        RAISE EXCEPTION 'Production order must be Planned or In Progress to issue materials';
+    END IF;
+
+    -- 2. Validate item and warehouse
+    SELECT * INTO STRICT v_item
+    FROM inventory.items WHERE serial_id = p_item_serial_id;
+
+    SELECT * INTO STRICT v_warehouse
+    FROM inventory.warehouses WHERE serial_id = p_warehouse_serial;
+
+    -- 3. Deplete inventory (call your existing function)
+    -- deplete_inventory returns a total value of inventory
+    SELECT * INTO v_total_cost
+    FROM inventory.deplete_inventory(
+        p_item_serial_id, p_warehouse_serial, p_quantity, 'PRODUCTION', v_order.serial_id,
+        p_user_uuid, NULL, NULL
+    );
+
+    -- 4. Calculate unit cost safely
+    v_unit_cost := CASE WHEN p_quantity > 0 THEN v_total_cost / p_quantity ELSE 0 END;
+
+    -- 5. Insert into material_issues
+    INSERT INTO manufacturing.material_issues(
+        production_order_uuid, stock_item_id, warehouse_uuid, quantity, unit_cost, issued_at
+    ) VALUES (
+        p_production_order_uuid, v_item.serial_id, v_warehouse.uuid, p_quantity, v_unit_cost, now()
+    ) RETURNING * INTO v_issue_row;
+
+    -- 6. Update production order status
+    UPDATE manufacturing.production_orders
+    SET status = 'In Progress', updated_at = now()
+    WHERE uuid = p_production_order_uuid;
+
+    RETURN v_issue_row;
 END;
 $$;
 
