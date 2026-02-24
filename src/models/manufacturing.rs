@@ -81,14 +81,14 @@ pub struct ApplyOverheadDto {
 
 #[derive(Debug, Deserialize)]
 pub struct ApplyLaborCostDto {
-    pub production_order_uuid: Uuid,  // Current inventory in production
-    pub hours: BigDecimal,            // e.g. labor hours or labor cost
-    pub rate_per_hour: BigDecimal,    // e.g. labor hours or labor cost
-    pub is_direct: bool,              // Direct or Indirect labor
-    pub renumeration_code: String,    // Salaries or wages payable code
-    pub wip_account_code: Option<String>,     // Work In Progress to accumulate costs
+    pub production_order_uuid: Uuid, // Current inventory in production
+    pub hours: BigDecimal,           // e.g. labor hours or labor cost
+    pub rate_per_hour: BigDecimal,   // e.g. labor hours or labor cost
+    pub is_direct: bool,             // Direct or Indirect labor
+    pub renumeration_code: String,   // Salaries or wages payable code
+    pub wip_account_code: Option<String>, // Work In Progress to accumulate costs
     pub control_account_code: Option<String>, // Production Expenses tracker - strictly overheads
-    pub reference: Option<String>,    // Message
+    pub reference: Option<String>,   // Memo
     pub department_code: Option<String>, // Optional department
 }
 

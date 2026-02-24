@@ -561,3 +561,11 @@ curl -sX POST http://127.0.0.1:8080/api/vendors/create/bill \
   ]
 }' | jq
 ```
+
+┌──(zeus㉿skywalker)-[~/Documents/Projects/Rust/erp-core]
+└─$ curl -sX POST http://127.0.0.1:8080/api/manufacturing/apply/labor-cost -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" -d '{"production_order_uuid":"019c8bc8-24a2-7279-a867-e2e18def98c9", "wip_account_code":"122000", "rate_per_hour":"3000", "hours":"12", "is_direct":true, "control_account_code":"540000", "renumeration_code":"212000", "reference":"Assembly team test"}' | jq
+{
+  "error": "Internal Server Error",
+  "message": "Database error: error returned from database: invalid input syntax for type uuid: \"24\"",
+  "status": 500
+}

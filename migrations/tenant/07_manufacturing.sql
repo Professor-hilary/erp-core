@@ -372,15 +372,21 @@ BEGIN
             jsonb_build_object(
                 'account_ref', v_wip_or_moh_ctrl_uuid, 'debit', v_amount, 'credit', 0,
                 'memo', format(
-                    '%s labor on order %s: %.2f hrs x %s %s',  v_memo_suffix,
-                    p_production_order_uuid, p_hours, p_rate_per_hour, COALESCE(' - ' || p_reference, '')
+                    '%s labor on order %s: %s hrs x %s %s',  v_memo_suffix,
+                    p_production_order_uuid,
+                    to_char(p_hours, 'FM999999990.00'),
+                    to_char(p_rate_per_hour, 'FM999999990.00'),
+                    COALESCE(' - ' || p_reference, '')
                 )
             ),
             jsonb_build_object(
                 'account_ref', v_labor_account_uuid, 'debit', 0, 'credit', v_amount,
                 'memo', format(
-                    '%s labor on order %s: %.2f hrs x %s %s',  v_memo_suffix,
-                    p_production_order_uuid, p_hours, p_rate_per_hour, COALESCE(' - ' || p_reference, '')
+                    '%s labor on order %s: %s hrs x %s %s',  v_memo_suffix,
+                    p_production_order_uuid,
+                    to_char(p_hours, 'FM999999990.00'),
+                    to_char(p_rate_per_hour, 'FM999999990.00'),
+                    COALESCE(' - ' || p_reference, '')
                 )
             )
         )
@@ -392,9 +398,9 @@ BEGIN
     ) VALUES (
         p_production_order_uuid, v_type_text, v_amount,
         format(
-            '%s labor: %.2f hrs @ %s%s%s',
+            '%s labor: %s hrs @ %s%s%s',
             CASE WHEN p_is_direct THEN 'Direct' ELSE 'Indirect' END,
-            p_hours, p_rate_per_hour,
+            to_char(p_hours, 'FM999999990.00'), to_char(p_rate_per_hour, 'FM999999990.00'),
             COALESCE('- ' || p_reference, ''),
             CASE WHEN p_departrment_code IS NOT NULL THEN ' (' || p_departrment_code || ')' ELSE '' END
         ),
