@@ -573,7 +573,7 @@
         },
         {
             "code": "500000",
-            "name": "Cost of Goods Manufactured",
+            "name": "Cost of Goods Sold",
             "category": "expense",
             "parent_code": null,
             "normal_balance": "dr",
@@ -612,6 +612,14 @@
             "is_contra": false
         },
         {
+            "code": "510400",
+            "name": "Other Direct Materials",
+            "category": "expense",
+            "parent_code": "510000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
             "code": "520000",
             "name": "Direct Labor",
             "category": "expense",
@@ -638,6 +646,14 @@
         {
             "code": "520300",
             "name": "Payroll Taxes - Factory",
+            "category": "expense",
+            "parent_code": "520000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "520400",
+            "name": "Labor Benefits",
             "category": "expense",
             "parent_code": "520000",
             "normal_balance": "dr",
@@ -744,6 +760,46 @@
             "name": "Indirect Materials",
             "category": "expense",
             "parent_code": "540000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "541100",
+            "name": "Other Factory Overheads",
+            "category": "expense",
+            "parent_code": "540000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "550000",
+            "name": "Standard Cost Bariances",
+            "category": "expense",
+            "parent_code": "500000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "550100",
+            "name": "Material Usage Variance",
+            "category": "expense",
+            "parent_code": "550000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "550200",
+            "name": "Labor Efficiency Variance",
+            "category": "expense",
+            "parent_code": "550000",
+            "normal_balance": "dr",
+            "is_contra": false
+        },
+        {
+            "code": "550100",
+            "name": "Overhead Variance",
+            "category": "expense",
+            "parent_code": "550000",
             "normal_balance": "dr",
             "is_contra": false
         },

@@ -80,6 +80,15 @@ pub struct ApplyOverheadDto {
 }
 
 #[derive(Debug, Deserialize)]
+pub struct RecognizeOverhead {
+    pub production_order_uuid: Uuid,
+    pub base_amount: BigDecimal, // e.g. labor hours or labor cost
+    pub payable_or_cash: String,
+    pub overhead_control_account: String,
+    pub allocation_base: String,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct ApplyLaborCostDto {
     pub production_order_uuid: Uuid, // Current inventory in production
     pub hours: BigDecimal,           // e.g. labor hours or labor cost

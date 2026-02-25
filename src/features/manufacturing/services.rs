@@ -1,5 +1,8 @@
 // src/features/accounts/service.rs
-use crate::{features::manufacturing::repository::ManufacturingRepo, interface::api::errors::AppError, models::manufacturing::*};
+use crate::{
+    features::manufacturing::repository::ManufacturingRepo, interface::api::errors::AppError,
+    models::manufacturing::*,
+};
 use bigdecimal::BigDecimal;
 use uuid::Uuid;
 
@@ -39,7 +42,15 @@ impl ManufacturingService {
         dto: ApplyOverheadDto,
         user_uuid: Uuid,
     ) -> Result<CostApplication, AppError> {
-        Ok(self.repo.apply_overhead(dto, user_uuid).await?)
+        Ok(self.repo.apply_overhead_to_order(dto, user_uuid).await?)
+    }
+
+    pub async fn recognize_expenditures(
+        &self,
+        dto: RecognizeOverhead,
+        user_uuid: Uuid,
+    ) -> Result<CostApplication, AppError> {
+        Ok(self.repo.recognize_overhead(dto, user_uuid).await?)
     }
 
     pub async fn apply_labor_costs(

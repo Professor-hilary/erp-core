@@ -1,0 +1,27 @@
+{
+    "sqltools.connections": [
+        {
+            "ssh": "Disabled",
+            "previewLimit": 50,
+            "server": "localhost",
+            "port": 5432,
+            "askForPassword": true,
+            "driver": "PostgreSQL",
+            "name": "chiefalry",
+            "database": "tenant_carnegie_industrial_systems",
+            "username": "role_carnegie_industrial_systems"
+        },
+        {
+            "ssh": "Disabled",
+            "previewLimit": 50,
+            "server": "localhost",
+            "port": 5433,
+            "driver": "PostgreSQL",
+            "name": "chefalry v2",
+            "group": "rust project",
+            "password": "RvdOu7VrX8Jpi05HDZ3FVKVifhx7Q77g",
+            "username": "role_carnegie_industrial_systems",
+            "database": "tenant_carnegie_industrial_systems"
+        }
+    ]
+}

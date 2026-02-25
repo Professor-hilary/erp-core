@@ -3,44 +3,48 @@ CREATE SCHEMA IF NOT EXISTS accounting;
 -- UUID extension Enabled automatically (required for uuidv7())
 -- Sequences
 CREATE SEQUENCE accounting.accounts_serial_id_seq;
+
 CREATE SEQUENCE accounting.transactions_serial_id_seq;
+
 CREATE SEQUENCE accounting.transaction_entries_serial_id_seq;
 
 -----------------------------------------------------------------
 -- accounts: chart of accounts
 -----------------------------------------------------------------
 CREATE TABLE accounting.accounts (
-    uuid       UUID        DEFAULT uuidv7() PRIMARY KEY,
-    serial_id  BIGSERIAL   NOT NULL UNIQUE,               -- front-end id
+    uuid UUID DEFAULT uuidv7 () PRIMARY KEY,
+    serial_id BIGSERIAL NOT NULL UNIQUE, -- front-end id
     current_balance NUMERIC(18, 2) DEFAULT 0.00 NOT NULL,
-    code       TEXT        NOT NULL UNIQUE,               -- e.g. "110100"
-    name       TEXT        NOT NULL,
-    category   TEXT        NOT NULL,                     -- Asset, Liability, Equity, Revenue, Expense
-    parent_code TEXT        REFERENCES accounting.accounts(code)
-                           ON DELETE SET NULL,           -- FK uses UUID
-    normal_balance TEXT    NOT NULL,                     -- 'DR' or 'CR'
-    is_contra  BOOLEAN     DEFAULT FALSE,
-    is_active  BOOLEAN     DEFAULT TRUE,
+    code TEXT NOT NULL UNIQUE, -- e.g. "110100"
+    name TEXT NOT NULL,
+    category TEXT NOT NULL, -- Asset, Liability, Equity, Revenue, Expense
+    parent_code TEXT REFERENCES accounting.accounts (code) ON DELETE SET NULL, -- FK uses UUID
+    normal_balance TEXT NOT NULL, -- 'DR' or 'CR'
+    is_contra BOOLEAN DEFAULT FALSE,
+    is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 
 -- Indexes (keep the ones you need)
 CREATE INDEX ON accounting.accounts (category);
+
 CREATE INDEX ON accounting.accounts (code);
-CREATE INDEX ON accounting.accounts (serial_id);   -- handy for front-end look-ups
+
+CREATE INDEX ON accounting.accounts (serial_id);
+-- handy for front-end look-ups
 
 -----------------------------------------------------------------
 -- Finance cycle
 -----------------------------------------------------------------
-CREATE TABLE accounting.financial_periods(
-    uuid        UUID    DEFAULT uuidv7() PRIMARY KEY,
-    start_date  DATE    NOT NULL,
-    end_date    DATE    NOT NULL,
-    is_open     BOOLEAN DEFAULT true,
-    is_locked   BOOLEAN DEFAULT false,
-    created_at  timestamptz DEFAULT now(),
-    updated_at  timestamptz DEFAULT now(),
+CREATE TABLE accounting.financial_periods (
+    uuid UUID DEFAULT uuidv7 () PRIMARY KEY,
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    is_open BOOLEAN DEFAULT true,
+    is_locked BOOLEAN DEFAULT false,
+    created_at timestamptz DEFAULT now(),
+    updated_at timestamptz DEFAULT now(),
     name text,
     CONSTRAINT period_date_check CHECK (start_date < end_date),
     CONSTRAINT period_date_unique UNIQUE (start_date, end_date)
@@ -50,45 +54,45 @@ CREATE TABLE accounting.financial_periods(
 -- transactions: header/journal
 -----------------------------------------------------------------
 CREATE TABLE accounting.transactions (
-    uuid       UUID        DEFAULT uuidv7() PRIMARY KEY,
-    serial_id  BIGSERIAL   NOT NULL UNIQUE,               -- front-end friendly id
-
-    txn_date   DATE        NOT NULL,
-    reference  TEXT,
+    uuid UUID DEFAULT uuidv7 () PRIMARY KEY,
+    serial_id BIGSERIAL NOT NULL UNIQUE, -- front-end friendly id
+    txn_date DATE NOT NULL,
+    reference TEXT,
     description TEXT,
-    posted     BOOLEAN     DEFAULT TRUE,                -- drafts/approval
-    module     TEXT,                                    -- e.g., 'invoice', 'payment', 'journal'
-    created_by UUID,                                    -- fk to system.users
+    posted BOOLEAN DEFAULT TRUE, -- drafts/approval
+    module TEXT, -- e.g., 'invoice', 'payment', 'journal'
+    created_by UUID, -- fk to system.users
     created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 
 CREATE INDEX ON accounting.transactions (txn_date);
+
 CREATE INDEX ON accounting.transactions (module);
+
 CREATE INDEX ON accounting.transactions (serial_id);
 
 -----------------------------------------------------------------
 -- transaction entries (double-entry lines)
 -----------------------------------------------------------------
 CREATE TABLE accounting.transaction_entries (
-    uuid            UUID        DEFAULT uuidv7() PRIMARY KEY,
-    serial_id       BIGSERIAL   NOT NULL UNIQUE,           -- front-end id
-
-    transaction_uuid UUID       NOT NULL
-                        REFERENCES accounting.transactions(uuid)
-                        ON DELETE CASCADE,                 -- FK uses UUID
-    account_uuid    UUID        NOT NULL
-                        REFERENCES accounting.accounts(uuid), -- FK uses UUID
-    line_no         INT         NOT NULL,
-    amount          NUMERIC(18,2) NOT NULL,-- CHECK (amount >= 0),
-    debit           NUMERIC(18,2) NOT NULL DEFAULT 0 CHECK (debit >= 0),
-    credit          NUMERIC(18,2) NOT NULL DEFAULT 0 CHECK (credit >= 0),
-    memo            TEXT,
-    created_at      TIMESTAMP WITH TIME ZONE DEFAULT now()
+    uuid UUID DEFAULT uuidv7 () PRIMARY KEY,
+    serial_id BIGSERIAL NOT NULL UNIQUE, -- front-end id
+    transaction_uuid UUID NOT NULL REFERENCES accounting.transactions (uuid) ON DELETE CASCADE, -- FK uses UUID
+    account_uuid UUID NOT NULL REFERENCES accounting.accounts (uuid), -- FK uses UUID
+    line_no INT NOT NULL,
+    amount NUMERIC(18, 2) NOT NULL, -- CHECK (amount >= 0),
+    debit NUMERIC(18, 2) NOT NULL DEFAULT 0 CHECK (debit >= 0),
+    credit NUMERIC(18, 2) NOT NULL DEFAULT 0 CHECK (credit >= 0),
+    memo TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 
 CREATE INDEX ON accounting.transaction_entries (account_uuid);
+
 CREATE INDEX ON accounting.transaction_entries (transaction_uuid);
+
 CREATE INDEX ON accounting.transaction_entries (created_at);
+
 CREATE INDEX ON accounting.transaction_entries (serial_id);
 
 -- Fixed accounting.post_transaction function:

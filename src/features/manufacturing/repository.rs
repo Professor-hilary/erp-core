@@ -141,7 +141,7 @@ impl ManufacturingRepo {
     }
 
     // ============== Overhead Application ==============
-    pub async fn apply_overhead(
+    pub async fn apply_overhead_to_order(
         &self,
         dto: ApplyOverheadDto,
         user_uuid: Uuid,
@@ -157,6 +157,38 @@ impl ManufacturingRepo {
         .bind(dto.base_amount)
         .bind(dto.wip_account)
         .bind(dto.overhead_control_account)
+        .bind(user_uuid)
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok(CostApplication {
+            uuid: row.get("uuid"),
+            production_order_uuid: row.get("production_order_uuid"),
+            application_type: "Overhead".to_string(),
+            amount: row.get("amount"),
+            applied_at: row.get("applied_at"),
+            reference: row.get("reference"),
+        })
+    }
+
+    // ============== Recognize Overhead Expenditure ==============
+    pub async fn recognize_overhead(
+        &self,
+        dto: RecognizeOverhead,
+        user_uuid: Uuid,
+    ) -> Result<CostApplication, AppError> {
+        let row: PgRow = sqlx::query(
+            "
+            SELECT * FROM manufacturing.apply_overhead_to_control_account(
+                $1, $2, $3, $4, $5, $6
+            )
+        ",
+        )
+        .bind(dto.production_order_uuid)
+        .bind(dto.base_amount)
+        .bind(dto.payable_or_cash)
+        .bind(dto.overhead_control_account)
+        .bind(dto.allocation_base)
         .bind(user_uuid)
         .fetch_one(&self.pool)
         .await?;

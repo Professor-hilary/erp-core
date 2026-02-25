@@ -13,179 +13,213 @@ CREATE SCHEMA IF NOT EXISTS manufacturing;
 
 -- Production Orders / Jobs (header)
 CREATE table if not exists manufacturing.production_orders (
-    uuid                uuid DEFAULT uuidv7() PRIMARY KEY,
-    serial_id           bigint GENERATED ALWAYS AS IDENTITY UNIQUE,
-    order_number        text NOT NULL UNIQUE,
-    product_item_uuid   uuid NOT NULL,          -- references inventory.items
-    quantity_ordered    numeric(12,4) NOT NULL,
-    quantity_completed  numeric(12,4) DEFAULT 0,
-    start_date          date,
+    uuid uuid DEFAULT uuidv7 () PRIMARY KEY,
+    serial_id bigint GENERATED ALWAYS AS IDENTITY UNIQUE,
+    order_number text NOT NULL UNIQUE,
+    product_item_uuid uuid NOT NULL, -- references inventory.items
+    quantity_ordered numeric(12, 4) NOT NULL,
+    quantity_completed numeric(12, 4) DEFAULT 0,
+    start_date date,
     expected_completion_date date,
-    material_usage_variance numeric(18,2) DEFAULT 0,
-    labor_efficiency_variance numeric(18,2) DEFAULT 0,
-    total_variance      numeric(18,2) GENERATED ALWAYS AS
-        (material_usage_variance + labor_efficiency_variance) STORED,
+    material_usage_variance numeric(18, 2) DEFAULT 0,
+    labor_efficiency_variance numeric(18, 2) DEFAULT 0,
+    total_variance numeric(18, 2) GENERATED ALWAYS AS (
+        material_usage_variance + labor_efficiency_variance
+    ) STORED,
     actual_completion_date date,
-    status              text DEFAULT 'Planned' CHECK (status IN ('Planned', 'In Progress', 'Completed', 'Cancelled')),
-    gl_transaction_uuid uuid,                 -- link to posted entries
+    status text DEFAULT 'Planned' CHECK (
+        status IN (
+            'Planned',
+            'In Progress',
+            'Completed',
+            'Cancelled'
+        )
+    ),
+    gl_transaction_uuid uuid, -- link to posted entries
     created_at timestamptz DEFAULT now(),
     updated_at timestamptz DEFAULT now()
 );
 
-CREATE TABLE IF NOT EXISTS manufacturing.cost_entries(
-    uuid            uuid DEFAULT uuidv7() PRIMARY KEY,
-    production_order_uuid   uuid NOT null references manufacturing.production_orders(uuid),
-    cost_type       text NOT null check(cost_type in ('MATERIAL', 'LABOR', 'OVERHEAD', 'ADJUSTMENT')),
-    component_item_uuid uuid NOT NULL REFERENCES inventory.items(uuid),
-    quantity        numeric(18,4),
-    unit_cost       numeric(18,4),
-    total_cost      numeric(18,4) NOT null generated always as (quantity * unit_cost) STORED,
-    created_at       timestamptz DEFAULT now(),
-    CONSTRAINT fk_cost_entries_order
-        FOREIGN KEY (production_order_uuid)
-        REFERENCES manufacturing.production_orders(uuid)
+CREATE TABLE IF NOT EXISTS manufacturing.cost_entries (
+    uuid uuid DEFAULT uuidv7 () PRIMARY KEY,
+    production_order_uuid uuid NOT null references manufacturing.production_orders (uuid),
+    cost_type text NOT null check (
+        cost_type in (
+            'MATERIAL',
+            'LABOR',
+            'OVERHEAD',
+            'ADJUSTMENT'
+        )
+    ),
+    component_item_uuid uuid NOT NULL REFERENCES inventory.items (uuid),
+    quantity numeric(18, 4),
+    unit_cost numeric(18, 4),
+    total_cost numeric(18, 4) NOT null generated always as (quantity * unit_cost) STORED,
+    created_at timestamptz DEFAULT now(),
+    CONSTRAINT fk_cost_entries_order FOREIGN KEY (production_order_uuid) REFERENCES manufacturing.production_orders (uuid)
 );
 
-CREATE INDEX idx_cost_entries_order ON manufacturing.cost_entries(production_order_uuid);
+CREATE INDEX idx_cost_entries_order ON manufacturing.cost_entries (production_order_uuid);
 
 -- helper log table (recommended for audit trail)
 CREATE TABLE IF NOT EXISTS accounting.variance_proration_logs (
-    uuid              uuid          DEFAULT uuidv7() PRIMARY KEY,
-    proration_date    date          NOT NULL,
-    variance_amount   numeric(18,2) NOT NULL,
-    wip_alloc         numeric(18,2),
-    fg_alloc          numeric(18,2),
-    cogs_alloc        numeric(18,2),
-    gl_transaction_uuid uuid        REFERENCES accounting.transactions(uuid),
-    memo              text,
-    created_by        uuid,
-    created_at        timestamptz   DEFAULT now()
+    uuid uuid DEFAULT uuidv7 () PRIMARY KEY,
+    proration_date date NOT NULL,
+    variance_amount numeric(18, 2) NOT NULL,
+    wip_alloc numeric(18, 2),
+    fg_alloc numeric(18, 2),
+    cogs_alloc numeric(18, 2),
+    gl_transaction_uuid uuid REFERENCES accounting.transactions (uuid),
+    memo text,
+    created_by uuid,
+    created_at timestamptz DEFAULT now()
 );
 
 -- ============================================================================
 -- Bill of Materials (BOM) – Header & Lines
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS manufacturing.bom_headers (
-    uuid                uuid          DEFAULT uuidv7() PRIMARY KEY,
-    serial_id           bigint        GENERATED ALWAYS AS IDENTITY UNIQUE,
-    bom_code            text          NOT NULL UNIQUE,          -- e.g. BOM-FG-001
-    product_item_uuid   uuid          NOT NULL
-        REFERENCES inventory.items(uuid) ON DELETE RESTRICT,
-    description         text,
-    revision            text          DEFAULT 'A' NOT NULL,
-    is_active           boolean       DEFAULT true,
-    is_default          boolean       DEFAULT false,            -- can have multiple BOMs per product
-    created_by          uuid,
-    created_at          timestamptz   DEFAULT now(),
-    updated_at          timestamptz   DEFAULT now(),
-    CONSTRAINT bom_product_unique_active UNIQUE (product_item_uuid)
-        DEFERRABLE INITIALLY DEFERRED   -- only one active/default per product (optional constraint)
+    uuid uuid DEFAULT uuidv7 () PRIMARY KEY,
+    serial_id bigint GENERATED ALWAYS AS IDENTITY UNIQUE,
+    bom_code text NOT NULL UNIQUE, -- e.g. BOM-FG-001
+    product_item_uuid uuid NOT NULL REFERENCES inventory.items (uuid) ON DELETE RESTRICT,
+    description text,
+    revision text DEFAULT 'A' NOT NULL,
+    is_active boolean DEFAULT true,
+    is_default boolean DEFAULT false, -- can have multiple BOMs per product
+    created_by uuid,
+    created_at timestamptz DEFAULT now(),
+    updated_at timestamptz DEFAULT now(),
+    CONSTRAINT bom_product_unique_active UNIQUE (product_item_uuid) DEFERRABLE INITIALLY DEFERRED -- only one active/default per product (optional constraint)
 );
 
 CREATE TABLE IF NOT EXISTS manufacturing.bom_lines (
-    uuid                uuid          DEFAULT uuidv7() PRIMARY KEY,
-    bom_header_uuid     uuid          NOT NULL
-        REFERENCES manufacturing.bom_headers(uuid) ON DELETE CASCADE,
-    line_number         smallint      NOT NULL,
-    component_item_uuid uuid          NOT NULL
-        REFERENCES inventory.items(uuid) ON DELETE RESTRICT,
-    quantity_per        numeric(18,6) NOT NULL CHECK (quantity_per > 0),
-    uom                 text          DEFAULT 'pcs',
-    scrap_factor        numeric(5,4)  DEFAULT 1.0000,           -- 1.05 = 5% expected scrap
-    notes               text,
-    created_at          timestamptz   DEFAULT now(),
+    uuid uuid DEFAULT uuidv7 () PRIMARY KEY,
+    bom_header_uuid uuid NOT NULL REFERENCES manufacturing.bom_headers (uuid) ON DELETE CASCADE,
+    line_number smallint NOT NULL,
+    component_item_uuid uuid NOT NULL REFERENCES inventory.items (uuid) ON DELETE RESTRICT,
+    quantity_per numeric(18, 6) NOT NULL CHECK (quantity_per > 0),
+    uom text DEFAULT 'pcs',
+    scrap_factor numeric(5, 4) DEFAULT 1.0000, -- 1.05 = 5% expected scrap
+    notes text,
+    created_at timestamptz DEFAULT now(),
     UNIQUE (bom_header_uuid, line_number),
-    UNIQUE (bom_header_uuid, component_item_uuid)   -- no duplicate components
+    UNIQUE (
+        bom_header_uuid,
+        component_item_uuid
+    ) -- no duplicate components
 );
 
 -- Optional: index for fast BOM explosion
-CREATE INDEX idx_bom_lines_header ON manufacturing.bom_lines(bom_header_uuid);
-CREATE INDEX idx_bom_lines_component ON manufacturing.bom_lines(component_item_uuid);
+CREATE INDEX idx_bom_lines_header ON manufacturing.bom_lines (bom_header_uuid);
+
+CREATE INDEX idx_bom_lines_component ON manufacturing.bom_lines (component_item_uuid);
 
 -- Material Issues / Consumption (to WIP)
 CREATE table if not exists manufacturing.material_issues (
-    uuid                uuid DEFAULT uuidv7() PRIMARY KEY,
-    production_order_uuid   uuid NOT NULL,
-    stock_item_id       bigint NOT NULL,
-    quantity            numeric(12,4) NOT NULL,
-    unit_cost           numeric(18,4) NOT NULL,         -- from costing method
-    total_cost          numeric(18,2) GENERATED ALWAYS AS (quantity * unit_cost) STORED,
-    warehouse_uuid      uuid REFERENCES inventory.warehouses(uuid),
-    issued_at           timestamptz DEFAULT now(),
-    CONSTRAINT fk_material_issues_order FOREIGN KEY (production_order_uuid)
-        REFERENCES manufacturing.production_orders(uuid)
+    uuid uuid DEFAULT uuidv7 () PRIMARY KEY,
+    production_order_uuid uuid NOT NULL,
+    stock_item_id bigint NOT NULL,
+    quantity numeric(12, 4) NOT NULL,
+    unit_cost numeric(18, 4) NOT NULL, -- from costing method
+    total_cost numeric(18, 2) GENERATED ALWAYS AS (quantity * unit_cost) STORED,
+    warehouse_uuid uuid REFERENCES inventory.warehouses (uuid),
+    issued_at timestamptz DEFAULT now(),
+    CONSTRAINT fk_material_issues_order FOREIGN KEY (production_order_uuid) REFERENCES manufacturing.production_orders (uuid)
 );
 
 -- Labor & Overhead Application (to WIP)
 CREATE table if not exists manufacturing.cost_applications (
-    uuid uuid DEFAULT uuidv7() PRIMARY KEY,
+    uuid uuid DEFAULT uuidv7 () PRIMARY KEY,
     production_order_uuid uuid NOT NULL,
-    type text CHECK (type IN ('DirectLabor', 'Overhead')),
-    amount numeric(18,2) NOT NULL,
+    type text CHECK (
+        type IN (
+            'DirectLabor',
+            'Overhead',
+            'DirectMaterial'
+        )
+    ),
+    amount numeric(18, 2) NOT NULL,
     applied_at timestamptz DEFAULT now(),
     reference text,
-    CONSTRAINT fk_applications_order FOREIGN KEY (production_order_uuid)
-        REFERENCES manufacturing.production_orders(uuid)
+    CONSTRAINT fk_applications_order FOREIGN KEY (production_order_uuid) REFERENCES manufacturing.production_orders (uuid)
 );
 
 -- Completions (WIP → Finished Goods)
 CREATE TABLE if not exists manufacturing.completions (
-    uuid uuid DEFAULT uuidv7() PRIMARY KEY,
+    uuid uuid DEFAULT uuidv7 () PRIMARY KEY,
     production_order_uuid uuid NOT NULL,
-    quantity_completed numeric(12,4) NOT NULL,
-    unit_cost numeric(18,4) NOT NULL,         -- calculated total cost / qty
+    quantity_completed numeric(12, 4) NOT NULL,
+    unit_cost numeric(18, 4) NOT NULL, -- calculated total cost / qty
     completed_at timestamptz DEFAULT now(),
-    CONSTRAINT fk_completions_order FOREIGN KEY (production_order_uuid)
-        REFERENCES manufacturing.production_orders(uuid)
+    CONSTRAINT fk_completions_order FOREIGN KEY (production_order_uuid) REFERENCES manufacturing.production_orders (uuid)
 );
 
 -- Predetermined Overhead Rate Table (new table)
 -- Most manufacturing systems store the rate per period/division (e.g. per direct labor hour, machine hour, or direct labor cost).
 CREATE TABLE IF NOT EXISTS manufacturing.overhead_rates (
-    uuid              uuid DEFAULT uuidv7() PRIMARY KEY,
-    period_start      date NOT NULL,
-    period_end        date NOT NULL,
-    allocation_base   text NOT NULL CHECK (allocation_base IN ('DirectLaborHours', 'DirectLaborCost', 'MachineHours', 'MaterialCost')),
-    estimated_overhead numeric(18,2) NOT NULL,     -- budgeted total overhead for period
-    estimated_base    numeric(18,4) NOT NULL,      -- budgeted activity level (hours, cost, etc.)
-    rate              numeric(18,6) GENERATED ALWAYS AS (estimated_overhead / estimated_base) STORED,
-    department_code   text,                        -- optional: if multiple production departments
-    is_active         boolean DEFAULT true,
-    created_at        timestamptz DEFAULT now(),
-    updated_at        timestamptz DEFAULT now(),
-    CONSTRAINT unique_period_base UNIQUE (period_start, allocation_base, department_code)
+    uuid uuid DEFAULT uuidv7 () PRIMARY KEY,
+    period_start date NOT NULL,
+    period_end date NOT NULL,
+    allocation_base text NOT NULL CHECK (
+        allocation_base IN (
+            'DirectLaborHours',
+            'DirectLaborCost',
+            'MachineHours',
+            'MaterialCost'
+        )
+    ),
+    estimated_overhead numeric(18, 2) NOT NULL, -- budgeted total overhead for period
+    estimated_base numeric(18, 4) NOT NULL, -- budgeted activity level (hours, cost, etc.)
+    rate numeric(18, 6) GENERATED ALWAYS AS (
+        estimated_overhead / estimated_base
+    ) STORED,
+    department_code text, -- optional: if multiple production departments
+    is_active boolean DEFAULT true,
+    created_at timestamptz DEFAULT now(),
+    updated_at timestamptz DEFAULT now(),
+    CONSTRAINT unique_period_base UNIQUE (
+        period_start,
+        allocation_base,
+        department_code
+    )
 );
 
 CREATE TABLE IF NOT EXISTS manufacturing.overhead_actuals (
-    uuid            uuid    DEFAULT uuidv7() PRIMARY KEY,
-    account_uuid    uuid    NOT NULL,
-    amount          numeric(18,2) NOT NULL,
-    incurred_at     timestamptz DEFAULT now(),
-    reference       text
+    uuid uuid DEFAULT uuidv7 () PRIMARY KEY,
+    account_uuid uuid NOT NULL,
+    amount numeric(18, 2) NOT NULL,
+    incurred_at timestamptz DEFAULT now(),
+    reference text
 );
 
 -- Routings / Operations (for labor & machine standards)
 CREATE TABLE manufacturing.routings (
-    uuid            uuid DEFAULT uuidv7() PRIMARY KEY,
-    product_item_uuid uuid REFERENCES inventory.items(uuid),
-    routing_code    text UNIQUE,
-    description     text,
-    is_active       boolean DEFAULT true,
-    is_default      boolean DEFAULT false,
-    created_at      timestamptz DEFAULT now()
+    uuid uuid DEFAULT uuidv7 () PRIMARY KEY,
+    product_item_uuid uuid REFERENCES inventory.items (uuid),
+    routing_code text UNIQUE,
+    description text,
+    is_active boolean DEFAULT true,
+    is_default boolean DEFAULT false,
+    created_at timestamptz DEFAULT now()
 );
 
 CREATE TABLE manufacturing.routing_operations (
-    uuid            uuid DEFAULT uuidv7() PRIMARY KEY,
-    routing_uuid    uuid REFERENCES manufacturing.routings(uuid) ON DELETE CASCADE,
-    seq             smallint NOT NULL,
+    uuid uuid DEFAULT uuidv7 () PRIMARY KEY,
+    routing_uuid uuid REFERENCES manufacturing.routings (uuid) ON DELETE CASCADE,
+    seq smallint NOT NULL,
     work_center_code text NOT NULL,
-    description     text,
-    standard_hours  numeric(12,4) NOT NULL,
-    standard_rate   numeric(18,2) NOT NULL,
-    allocation_base text CHECK(allocation_base IN ('DirectLaborHours', 'MachineHours')),
+    description text,
+    standard_hours numeric(12, 4) NOT NULL,
+    standard_rate numeric(18, 2) NOT NULL,
+    allocation_base text CHECK (
+        allocation_base IN (
+            'DirectLaborHours',
+            'MachineHours'
+        )
+    ),
     department_code text,
-    UNIQUE(routing_uuid, seq)
+    UNIQUE (routing_uuid, seq)
 );
 
 -- ============================================================================
@@ -213,101 +247,99 @@ END;
 $$;
 
 -- Helper Function: Apply Overhead to a Production Order
-CREATE OR REPLACE FUNCTION manufacturing.apply_overhead_to_order(
-    p_production_order_uuid uuid,
-    p_activity_amount       numeric, -- e.g. actual direct labor hours used on this order
-    p_wip_account           text,
-    p_overhead_control_code text,
-    p_user                  uuid
-) RETURNS manufacturing.cost_applications -- return full row
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    v_rate              numeric(18,6);
-    v_applied_amount    numeric(18,2);
-    v_wip_account_uuid  uuid;
-    v_applied_account_uuid uuid;
-    v_txn_uuid          uuid;
-    v_application       manufacturing.cost_applications%ROWTYPE;
-BEGIN
-    -- Find current applicable rate (latest or matching period)
-    SELECT rate INTO STRICT v_rate
-    FROM manufacturing.overhead_rates
-    WHERE CURRENT_DATE BETWEEN period_start AND period_end
-      AND is_active
-    ORDER BY period_start DESC, created_at DESC
-    LIMIT 1;
+-- CREATE OR REPLACE FUNCTION manufacturing.apply_overhead_to_order(
+--     p_production_order_uuid uuid,
+--     p_activity_amount       numeric, -- e.g. actual direct labor hours used on this order
+--     p_wip_account           text,
+--     p_overhead_control_code text,
+--     p_user                  uuid
+-- ) RETURNS manufacturing.cost_applications -- return full row
+-- LANGUAGE plpgsql
+-- AS $$
+-- DECLARE
+--     v_rate              numeric(18,6);
+--     v_applied_amount    numeric(18,2);
+--     v_wip_account_uuid  uuid;
+--     v_applied_account_uuid uuid;
+--     v_txn_uuid          uuid;
+--     v_application       manufacturing.cost_applications%ROWTYPE;
+-- BEGIN
+--     -- Find current applicable rate (latest or matching period)
+--     SELECT rate INTO STRICT v_rate
+--     FROM manufacturing.overhead_rates
+--     WHERE CURRENT_DATE BETWEEN period_start AND period_end
+--       AND is_active
+--     ORDER BY period_start DESC, created_at DESC
+--     LIMIT 1;
 
-    IF v_rate IS NULL THEN
-        RAISE EXCEPTION 'No active predetermined overhead rate found for current date';
-    END IF;
+--     IF v_rate IS NULL THEN
+--         RAISE EXCEPTION 'No active predetermined overhead rate found for current date';
+--     END IF;
 
-    v_applied_amount := ROUND(p_activity_amount * v_rate, 2);
+--     v_applied_amount := ROUND(p_activity_amount * v_rate, 2);
 
-    -- Get account UUIDs (adjust codes if needed)
-    SELECT uuid INTO STRICT v_wip_account_uuid
-        FROM accounting.accounts WHERE code = p_wip_account;
+--     -- Get account UUIDs (adjust codes if needed)
+--     SELECT uuid INTO STRICT v_wip_account_uuid
+--         FROM accounting.accounts WHERE code = p_wip_account;
 
-    SELECT uuid INTO STRICT v_applied_account_uuid
-        FROM accounting.accounts WHERE code = p_overhead_control_code;
+--     SELECT uuid INTO STRICT v_applied_account_uuid
+--         FROM accounting.accounts WHERE code = p_overhead_control_code;
 
-    -- Create GL transaction (applied overhead)
-    -- accounting.post_transaction(...) → your existing function; adapt parameters
-    v_txn_uuid := accounting.post_transaction(
-        'OVERHEAD-APPLY-' || p_production_order_uuid::text,
-        'Applied Manufacturing Overhead',
-        p_user,
-        'manufacturing',
-        CURRENT_DATE,
-        -- '[]'::jsonb
-        jsonb_build_object(
-            'production_order_uuid', p_production_order_uuid,
-            'base_amount', p_activity_amount,
-            'rate', v_rate
-        )
-    );
+--     -- Create GL transaction (applied overhead)
+--     -- accounting.post_transaction(...) → your existing function; adapt parameters
+--     v_txn_uuid := accounting.post_transaction(
+--         'OVERHEAD-APPLY-' || p_production_order_uuid::text,
+--         'Applied Manufacturing Overhead',
+--         p_user,
+--         'manufacturing',
+--         CURRENT_DATE,
+--         -- '[]'::jsonb
+--         jsonb_build_object(
+--             'production_order_uuid', p_production_order_uuid,
+--             'base_amount', p_activity_amount,
+--             'rate', v_rate
+--         )
+--     );
 
-    -- Journal entry: Dr WIP, Cr Applied Overhead
-    INSERT INTO accounting.transaction_entries (
-        transaction_uuid, account_uuid, line_no, amount, debit, credit, memo
-    ) VALUES (
-        v_txn_uuid, v_wip_account_uuid,     1, v_applied_amount, v_applied_amount, 0,
-        format('Applied overhead to production order %s - base %s x rate %s',
-            p_production_order_uuid, p_activity_amount, v_rate)
-    ), (
-        v_txn_uuid, v_applied_account_uuid, 2, v_applied_amount, 0, v_applied_amount,
-        format('Applied overhead to production order %s - base %s x rate %s',
-            p_production_order_uuid, p_activity_amount, v_rate)
-    );
+--     -- Journal entry: Dr WIP, Cr Applied Overhead
+--     INSERT INTO accounting.transaction_entries (
+--         transaction_uuid, account_uuid, line_no, amount, debit, credit, memo
+--     ) VALUES (
+--         v_txn_uuid, v_wip_account_uuid,     1, v_applied_amount, v_applied_amount, 0,
+--         format('Applied overhead to production order %s - base %s x rate %s',
+--             p_production_order_uuid, p_activity_amount, v_rate)
+--     ), (
+--         v_txn_uuid, v_applied_account_uuid, 2, v_applied_amount, 0, v_applied_amount,
+--         format('Applied overhead to production order %s - base %s x rate %s',
+--             p_production_order_uuid, p_activity_amount, v_rate)
+--     );
 
-    -- Record the application (for later reporting)
-    INSERT INTO manufacturing.cost_applications (
-        production_order_uuid, type, amount, reference, applied_at
-    ) VALUES (
-        p_production_order_uuid,
-        'Overhead',
-        v_applied_amount,
-        format(
-            'Applied at rate %s x base %s (txn %s)',
-            v_rate, p_activity_amount, v_txn_uuid
-        ),
-        now()
-    )
-    RETURNING * INTO v_application;
+--     -- Record the application (for later reporting)
+--     INSERT INTO manufacturing.cost_applications (
+--         production_order_uuid, type, amount, reference, applied_at
+--     ) VALUES (
+--         p_production_order_uuid,
+--         'Overhead',
+--         v_applied_amount,
+--         format(
+--             'Applied at rate %s x base %s (txn %s)',
+--             v_rate, p_activity_amount, v_txn_uuid
+--         ),
+--         now()
+--     )
+--     RETURNING * INTO v_application;
 
-    -- Update order if needed (optional)
-    UPDATE manufacturing.production_orders
-    SET updated_at = now()
-    WHERE uuid = p_production_order_uuid;
+--     -- Update order if needed (optional)
+--     UPDATE manufacturing.production_orders
+--     SET updated_at = now()
+--     WHERE uuid = p_production_order_uuid;
 
-    RETURN v_application;
-END;
-$$;
+--     RETURN v_application;
+-- END;
+-- $$;
 
--- Single professional function for both direct & indirect labor
+-- Single function for both direct & indirect labor
 CREATE OR REPLACE FUNCTION manufacturing.apply_labor_cost(
-    p_production_order_uuid uuid,
-    p_hours              CREATE OR REPLACE FUNCTION manufacturing.apply_labor_cost(
     p_production_order_uuid uuid,
     p_hours                 numeric(12,4), -- e.g. actual direct labor hours used on this order
     p_rate_per_hour         numeric(18,2),
@@ -416,107 +448,92 @@ BEGIN
 
     RETURN v_application;
 END;
-$$;   numeric(12,4), -- e.g. actual direct labor hours used on this order
-    p_rate_per_hour         numeric(18,2),
-    p_is_direct             boolean, -- true = direct (to WIP), false = indirect (to overhead/expense)
-    p_user                  uuid,
-    p_labor_account_code    text,
-    p_control_account_code  text DEFAULT NULL,
-    p_wip_account_code      text DEFAULT NULL,
-    p_departrment_code      text DEFAULT NULL, -- optional if department is tracked
-    p_reference             text DEFAULT NULL
-) RETURNS manufacturing.cost_applications -- return full row
+$$;
+
+-- Accumulate overhead to manufacturing overhead control
+CREATE OR REPLACE FUNCTION manufacturing.apply_overhead_to_control_account(
+    p_production_order_uuid uuid,
+    p_activity_amount       numeric, -- e.g. actual direct labor hours used on this order
+    p_payable_or_cash_code  text,
+    p_overhead_control_code text,
+    p_overhead_type         text,
+    p_user                  uuid
+)  RETURNS manufacturing.cost_applications -- return full row
 LANGUAGE plpgsql
 AS $$
 DECLARE
-    v_amount                numeric(18,2) := ROUND(p_hours * p_rate_per_hour, 2);
-    v_wip_or_moh_ctrl_uuid  uuid;
-    v_labor_account_uuid    uuid;
+    v_rate                  numeric(18,6);
+    v_applied_amount        numeric(18,2);
+    v_payable_or_cash_uuid  uuid;
+    v_control_account_uuid  uuid;
+    v_txn_uuid              uuid;
     v_txn_serial            bigint;
     v_application           manufacturing.cost_applications%ROWTYPE;
-    v_type_text             text;
-    v_memo_suffix           text;
 BEGIN
-    v_amount := ROUND(p_hours * p_rate_per_hour, 2);
+    -- Find current applicable rate (latest or matching period)
+    SELECT rate INTO STRICT v_rate
+    FROM manufacturing.overhead_rates
+    WHERE CURRENT_DATE BETWEEN period_start AND period_end
+      AND is_active AND allocation_base = p_overhead_type
+    ORDER BY period_start DESC, created_at DESC
+    LIMIT 1;
 
-    v_type_text := CASE WHEN p_is_direct THEN 'DirectLabor' ELSE 'IndirectLabor' END;
-    v_memo_suffix := CASE WHEN p_is_direct THEN 'direct' ELSE 'indirect' END;
-
-    -- Is this direct or indirect labor, later goes to manufacturing overhead ctrl
-    IF p_is_direct THEN -- Debit directly into Work In Progress - its traceable
-        SELECT uuid INTO STRICT v_wip_or_moh_ctrl_uuid
-        FROM accounting.accounts WHERE code = p_wip_account_code;
-
-        -- Valid WIP account needed for direct labor costing
-        IF NOT FOUND OR p_wip_account_code IS NULL THEN
-            RAISE EXCEPTION 'Valid Work In Progress Account required for direct labor costing';
-        END IF;
-    ELSE -- Debit into overhead control account - its untraceable
-        SELECT uuid INTO STRICT v_wip_or_moh_ctrl_uuid
-        FROM accounting.accounts WHERE code = p_control_account_code;
-
-        -- Valid WOH account required for indirect labor costing
-        IF NOT FOUND OR p_control_account_code IS NULL THEN
-            RAISE EXCEPTION 'Valid Overhead Control Account required for indirect labor costing';
-        END IF;
+    IF v_rate IS NULL THEN
+        RAISE EXCEPTION 'No active predetermined overhead rate found for current date';
     END IF;
 
-    -- Labor account, if direct: credit wages payable, if indirect: credit salaries payable
-    -- Later at closing we'll generate a payroll to pay off the accrued salaries altogether
-    SELECT uuid INTO STRICT v_labor_account_uuid FROM accounting.accounts
-        WHERE code = p_labor_account_code;
+    v_applied_amount := ROUND(p_activity_amount * v_rate, 2);
 
-    -- Post GL transaction labor accrued:
-    --      direct costs:
-    --          DR: WIP             CR: Salaries/Wages Payable
-    --      indirect costs:
-    --          DR: Overhead Ctrl   CR: Salaries/Wages Payable
+    -- Get account UUIDs (adjust codes if needed)
+    SELECT uuid INTO STRICT v_payable_or_cash_uuid
+        FROM accounting.accounts WHERE code = p_payable_or_cash_code;
+
+    SELECT uuid INTO STRICT v_control_account_uuid
+        FROM accounting.accounts WHERE code = p_overhead_control_code;
+
+    -- Create GL transaction (applied overhead)
+    -- Post GL transaction cash or expense payable:
+    --      DR: Manufacturing Control Acc             CR: Cash/Payabls
     v_txn_serial := accounting.post_transaction(
-        format('%s-LABOR-%s', v_type_text, p_production_order_uuid::text),
-        format('%s Labor Applied', CASE WHEN p_is_direct THEN 'Direct' ELSE 'Indirect' END),
+        'OVERHEAD-APPLY-' || p_production_order_uuid::text,
+        'Applied Manufacturing Overhead',
         p_user,
         'manufacturing',
         CURRENT_DATE,
         jsonb_build_array(
             jsonb_build_object(
-                'account_ref', v_wip_or_moh_ctrl_uuid, 'debit', v_amount, 'credit', 0,
+                'account_ref', v_control_account_uuid, 'debit', v_applied_amount, 'credit', 0,
                 'memo', format(
-                    '%s labor on order %s: %s hrs x %s %s',  v_memo_suffix,
-                    p_production_order_uuid,
-                    to_char(p_hours, 'FM999999990.00'),
-                    to_char(p_rate_per_hour, 'FM999999990.00'),
-                    COALESCE(' - ' || p_reference, '')
+                    'Applied overhead to production order %s - base %s x rate %s',
+                    p_production_order_uuid, p_activity_amount, v_rate
                 )
             ),
             jsonb_build_object(
-                'account_ref', v_labor_account_uuid, 'debit', 0, 'credit', v_amount,
+                'account_ref', v_payable_or_cash_uuid, 'debit', 0, 'credit', v_applied_amount,
                 'memo', format(
-                    '%s labor on order %s: %s hrs x %s %s',  v_memo_suffix,
-                    p_production_order_uuid,
-                    to_char(p_hours, 'FM999999990.00'),
-                    to_char(p_rate_per_hour, 'FM999999990.00'),
-                    COALESCE(' - ' || p_reference, '')
+                    'Applied overhead to production order %s - base %s x rate %s',
+                    p_production_order_uuid, p_activity_amount, v_rate
                 )
             )
         )
     );
 
-    -- Record in cost_applications, TODO: Add GL uuid to entries for bigger relationships
+    -- Record the application (for later reporting)
     INSERT INTO manufacturing.cost_applications (
         production_order_uuid, type, amount, reference, applied_at
     ) VALUES (
-        p_production_order_uuid, v_type_text, v_amount,
+        p_production_order_uuid,
+        'Overhead',
+        v_applied_amount,
         format(
-            '%s labor: %s hrs @ %s%s%s',
-            CASE WHEN p_is_direct THEN 'Direct' ELSE 'Indirect' END,
-            to_char(p_hours, 'FM999999990.00'), to_char(p_rate_per_hour, 'FM999999990.00'),
-            COALESCE('- ' || p_reference, ''),
-            CASE WHEN p_departrment_code IS NOT NULL THEN ' (' || p_departrment_code || ')' ELSE '' END
+            'Applied at rate %s x base %s (txn %s)',
+            v_rate, p_activity_amount, v_txn_serial
         ),
         now()
     )
     RETURNING * INTO v_application;
 
+    -- Update order if needed (optional)
     UPDATE manufacturing.production_orders
     SET updated_at = now()
     WHERE uuid = p_production_order_uuid;
@@ -526,93 +543,235 @@ END;
 $$;
 
 -- Move accumulated cost from WIP to Finished Goods
+-- CREATE OR REPLACE FUNCTION manufacturing.complete_production_order(
+--     p_order_uuid          uuid,
+--     p_completed_quantity  numeric(18,4),
+--     p_user                uuid,
+--     p_wip_account         text,
+--     p_completion_date     date DEFAULT CURRENT_DATE
+-- ) RETURNS uuid   -- returns the GL transaction uuid
+-- LANGUAGE plpgsql
+-- AS $$
+-- DECLARE
+--     v_order             manufacturing.production_orders%ROWTYPE;
+--     v_product           inventory.items%ROWTYPE;
+--     -- v_total_cost        numeric(18,2);
+--     v_standard_total    numeric(18,2);
+--     v_unit_cost         numeric(18,4);
+--     v_fg_account        uuid;
+--     v_warehouse_account uuid;
+--     v_wip_account       uuid;
+--     v_txn_uuid          uuid;
+--     v_movement_uuid     uuid;
+-- BEGIN
+--     SELECT * INTO v_order FROM manufacturing.production_orders WHERE uuid = p_order_uuid;
+--     IF NOT FOUND THEN RAISE EXCEPTION 'Production order not found'; END IF;
+
+--     IF v_order.status != 'In Progress' THEN
+--         RAISE EXCEPTION 'Order must be In Progress to complete';
+--     END IF;
+
+--     SELECT * INTO v_product
+--     FROM inventory.items WHERE uuid = v_order.product_item_uuid;
+
+--     -- Calculate total cost accumulated in WIP for this order
+--     -- SELECT
+--     --     COALESCE(SUM(mi.total_cost), 0) + COALESCE(SUM(ca.amount), 0)
+--     -- INTO v_total_cost FROM manufacturing.material_issues mi
+--     -- LEFT JOIN manufacturing.cost_applications ca ON ca.production_order_uuid = mi.production_order_uuid
+--     -- WHERE mi.production_order_uuid = p_order_uuid;
+
+--     -- IF v_total_cost <= 0 THEN
+--     --     RAISE EXCEPTION 'No costs accumulated in WIP for this order';
+--     -- END IF;
+
+--     v_standard_total := p_completed_quantity * v_product.standard_cost;
+
+--     IF v_standard_total IS NULL OR v_standard_total = 0 THEN
+--         RAISE EXCEPTION 'Standard cost not set on product';
+--     END IF;
+
+--     -- Get unit cost
+--     v_unit_cost := v_standard_total / p_completed_quantity;
+
+--     -- Compute material usage variance
+--     -- SELECT
+--     --     COALESCE(SUM(mi.quantity), 0) AS actual_qty,
+--     --     (SELECT SUM(quantity_per * v_order.quantity_ordered * (1 + scrap_factor - 1))
+--     --     FROM manufacturing.bom_lines bl
+--     --     WHERE bl.bom_header_uuid = v_bom_header) AS std_qty
+--     -- INTO v_actual_mat_qty, v_std_mat_qty
+--     -- FROM manufacturing.material_issues mi
+--     -- WHERE mi.production_order_uuid = p_order_uuid;
+
+--     -- RECORD VARIANCES BEFORE MOVING TO FG
+--     PERFORM manufacturing.record_standard_vs_actual_variance(p_order_uuid, p_user, p_completion_date);
+
+--     -- Create GL transaction
+--     v_txn_uuid := accounting.post_transaction(
+--         v_order.order_number || '-COMPLETION',
+--         'Production Completion',
+--         p_user,
+--         'manufacturing_completion',
+--         p_completion_date,
+--         '[]'::jsonb
+--     );
+
+--     -- Get uuid for posting transaction_entries
+--     SELECT uuid INTO v_wip_account FROM accounting.accounts WHERE code = p_wip_account;
+--     SELECT uuid INTO v_fg_account  FROM accounting.accounts WHERE code = v_product.asset_account;
+--     SELECT uuid INTO v_warehouse_account FROM inventory.warehouses WHERE serial_id = v_product.warehouse_serial;
+
+--     -- Dr FG Inventory, Cr WIP
+--     INSERT INTO accounting.transaction_entries (
+--         transaction_uuid, account_uuid, line_no, amount, debit, credit, memo
+--     ) VALUES
+--         (v_txn_uuid, v_fg_account,  1, v_standard_total, v_standard_total, 0, 'FG at standard cost'),
+--         (v_txn_uuid, v_wip_account, 2, v_standard_total, 0, v_standard_total, 'WIP relieved at standard');
+
+--     -- Record inventory movement IN to FG
+--     INSERT INTO inventory.movements (
+--         item_uuid, warehouse_uuid, movement_type, reference_type, reference_id,
+--         quantity, unit_cost, direction, gl_transaction_uuid, movement_date
+--     ) VALUES (
+--         v_product.uuid,
+--         (SELECT uuid FROM inventory.warehouses WHERE serial_id = v_product.warehouse_serial),
+--         'PROD_COMPLETION',
+--         'production_order',
+--         v_order.serial_id,
+--         p_completed_quantity,
+--         v_unit_cost,
+--         'IN',
+--         v_txn_uuid,
+--         p_completion_date
+--     ) RETURNING uuid INTO v_movement_uuid;
+
+--     -- Record completion (WIP -> FG)
+--     INSERT INTO manufacturing.completions (
+--         production_order_uuid, quantity_completed, unit_cost, completed_at
+--     ) VALUES (
+--         p_order_uuid, p_completed_quantity, v_unit_cost, p_completion_date
+--     );
+
+--     -- If FIFO/LIFO → create new lot for FG
+--     IF v_product.valuation_method IN ('FIFO','LIFO') THEN
+--         INSERT INTO inventory.lots (
+--             item_uuid, warehouse_uuid, reference_type, reference_id,
+--             received_date, original_quantity, original_cost_per_unit, remaining_quantity
+--         ) VALUES (
+--             v_product.uuid,
+--             (SELECT uuid FROM inventory.warehouses WHERE serial_id = v_product.warehouse_serial),
+--             'PROD_COMPLETION', v_movement_uuid,
+--             p_completion_date, p_completed_quantity, v_unit_cost, p_completed_quantity
+--         );
+--     ELSIF v_product.valuation_method = 'WAVG' THEN
+--         INSERT INTO inventory.wavg_warehouse (item_uuid, warehouse_uuid, total_quantity, total_cost)
+--         VALUES (v_product.uuid, v_warehouse_account, p_completed_quantity, v_standard_total)
+--         ON CONFLICT (item_uuid, warehouse_uuid) DO UPDATE SET
+--             total_quantity = inventory.wavg_warehouse.total_quantity + p_completed_quantity,
+--             total_cost     = inventory.wavg_warehouse.total_cost     + (p_completed_quantity * v_unit_cost),
+--             last_updated_at = now();
+--     END IF;
+
+--     -- Update order
+--     UPDATE manufacturing.production_orders
+--     SET quantity_completed = quantity_completed + p_completed_quantity,
+--         actual_completion_date = p_completion_date,
+--         status = CASE WHEN quantity_completed + p_completed_quantity >= quantity_ordered THEN 'Completed' ELSE 'In Progress' END,
+--         updated_at = now()
+--     WHERE uuid = p_order_uuid;
+
+--     RETURN v_txn_uuid;
+-- END;
+-- $$;
+
+-- ====================================================================================
+-- Complete Production Order (Standard Costing)
+-- ====================================================================================
 CREATE OR REPLACE FUNCTION manufacturing.complete_production_order(
     p_order_uuid          uuid,
-    p_completed_quantity  numeric(18,4),
     p_user                uuid,
     p_wip_account         text,
+    p_fg_account          text,
+    p_mfg_mat_var_account text,
+    p_mfg_lab_var_account text,
+    p_mfg_ovh_var_account text,
+    p_completed_quantity  text DEFAULT NULL,
     p_completion_date     date DEFAULT CURRENT_DATE
-) RETURNS uuid   -- returns the GL transaction uuid
+) RETURNS uuid
 LANGUAGE plpgsql
 AS $$
 DECLARE
-    v_order             manufacturing.production_orders%ROWTYPE;
-    v_product           inventory.items%ROWTYPE;
-    -- v_total_cost        numeric(18,2);
-    v_standard_total    numeric(18,2);
-    v_unit_cost         numeric(18,4);
-    v_fg_account        uuid;
-    v_warehouse_account uuid;
-    v_wip_account       uuid;
-    v_txn_uuid          uuid;
-    v_movement_uuid     uuid;
+    v_order                 manufacturing.production_orders%ROWTYPE;
+    p_completed_quantity    numeric(18,4);
+    v_product               inventory.items%ROWTYPE;
+    v_unit_cost             numeric(18,4);
+    v_standard_total        numeric(18,2);
+    v_txn_serial_id         bigint;
+    v_wip_uuid              uuid;
+    v_fg_uuid               uuid;
+    v_movement_uuid         uuid;
 BEGIN
+    -- 1. Fetch order and product
     SELECT * INTO v_order FROM manufacturing.production_orders WHERE uuid = p_order_uuid;
     IF NOT FOUND THEN RAISE EXCEPTION 'Production order not found'; END IF;
+    IF v_order.status != 'In Progress' THEN RAISE EXCEPTION 'Order must be In Progress'; END IF;
 
-    IF v_order.status != 'In Progress' THEN
-        RAISE EXCEPTION 'Order must be In Progress to complete';
+    -- Check if order is incomplete, stop here if nothing more to produce
+    IF p_completed_quantity IS NULL THEN
+        p_completed_quantity := v_order.quantity_ordered - v_order.quantity_completed;
+        IF p_completed_quantity <= 0 THEN
+            RAISE EXCEPTION 'No left to complete for this order';
+        END IF;
     END IF;
 
-    SELECT * INTO v_product
-    FROM inventory.items WHERE uuid = v_order.product_item_uuid;
+    SELECT * INTO v_product FROM inventory.items WHERE uuid = v_order.product_item_uuid;
 
-    -- Calculate total cost accumulated in WIP for this order
-    -- SELECT
-    --     COALESCE(SUM(mi.total_cost), 0) + COALESCE(SUM(ca.amount), 0)
-    -- INTO v_total_cost FROM manufacturing.material_issues mi
-    -- LEFT JOIN manufacturing.cost_applications ca ON ca.production_order_uuid = mi.production_order_uuid
-    -- WHERE mi.production_order_uuid = p_order_uuid;
-
-    -- IF v_total_cost <= 0 THEN
-    --     RAISE EXCEPTION 'No costs accumulated in WIP for this order';
-    -- END IF;
-
+    -- 2. Compute standard total and unit cost for completed quantity
     v_standard_total := p_completed_quantity * v_product.standard_cost;
-
     IF v_standard_total IS NULL OR v_standard_total = 0 THEN
         RAISE EXCEPTION 'Standard cost not set on product';
     END IF;
+    v_unit_cost := v_product.standard_cost;
 
-    -- Get unit cost
-    v_unit_cost := v_standard_total / p_completed_quantity;
+    -- 3. Transfer applied overhead from MOH control to WIP
+    PERFORM manufacturing.transfer_applied_overhead_to_wip(
+        p_order_uuid, p_wip_account, p_user, p_completion_date
+    );
 
-    -- Compute material usage variance
-    -- SELECT
-    --     COALESCE(SUM(mi.quantity), 0) AS actual_qty,
-    --     (SELECT SUM(quantity_per * v_order.quantity_ordered * (1 + scrap_factor - 1))
-    --     FROM manufacturing.bom_lines bl
-    --     WHERE bl.bom_header_uuid = v_bom_header) AS std_qty
-    -- INTO v_actual_mat_qty, v_std_mat_qty
-    -- FROM manufacturing.material_issues mi
-    -- WHERE mi.production_order_uuid = p_order_uuid;
+    -- 4. Compute variances before moving WIP to FG
+    PERFORM manufacturing.record_standard_vs_actual_variance(
+        p_order_uuid,
+        p_user,
+        p_completion_date,
+        p_wip_account,
+        p_mfg_mat_var_account,
+        p_mfg_lab_var_account,
+        p_mfg_ovh_var_account
+    );
 
-    -- RECORD VARIANCES BEFORE MOVING TO FG
-    PERFORM manufacturing.record_standard_vs_actual_variance(p_order_uuid, p_user, p_completion_date);
+    -- 5. Fetch account UUIDs
+    SELECT uuid INTO v_wip_uuid FROM accounting.accounts WHERE code = p_wip_account;
+    SELECT uuid INTO v_fg_uuid  FROM accounting.accounts WHERE code = p_fg_account;
 
-    -- Create GL transaction
-    v_txn_uuid := accounting.post_transaction(
+    -- 6. Create GL transaction for completion and Post FG at standard cost
+    v_txn_serial_id := accounting.post_transaction(
         v_order.order_number || '-COMPLETION',
-        'Production Completion',
+        'Production Completion (Standard Cost)',
         p_user,
         'manufacturing_completion',
         p_completion_date,
-        '[]'::jsonb
+        jsonb_build_array(
+            jsonb_build_object(
+                'account_ref', v_fg_uuid, 'debit', v_standard_total, 'credit', 0, 'FG at standard cost'
+            ),
+            jsonb_build_object(
+                'account_ref', v_wip_uuid, 'debit', 0, 'credit', v_standard_total, 'Relieve WIP at standard'
+            )
+        )
     );
 
-    -- Get uuid for posting transaction_entries
-    SELECT uuid INTO v_wip_account FROM accounting.accounts WHERE code = p_wip_account;
-    SELECT uuid INTO v_fg_account  FROM accounting.accounts WHERE code = v_product.asset_account;
-    SELECT uuid INTO v_warehouse_account FROM inventory.warehouses WHERE serial_id = v_product.warehouse_serial;
-
-    -- Dr FG Inventory, Cr WIP
-    INSERT INTO accounting.transaction_entries (
-        transaction_uuid, account_uuid, line_no, amount, debit, credit, memo
-    ) VALUES
-        (v_txn_uuid, v_fg_account,  1, v_standard_total, v_standard_total, 0, 'FG at standard cost'),
-        (v_txn_uuid, v_wip_account, 2, v_standard_total, 0, v_standard_total, 'WIP relieved at standard');
-
-    -- Record inventory movement IN to FG
+    -- 7. Record inventory movement IN to FG, update product lots
     INSERT INTO inventory.movements (
         item_uuid, warehouse_uuid, movement_type, reference_type, reference_id,
         quantity, unit_cost, direction, gl_transaction_uuid, movement_date
@@ -625,7 +784,7 @@ BEGIN
         p_completed_quantity,
         v_unit_cost,
         'IN',
-        v_txn_uuid,
+        (SELECT uuid FROM accounting.transactions WHERE serial_id = v_txn_serial_id),
         p_completion_date
     ) RETURNING uuid INTO v_movement_uuid;
 
@@ -636,7 +795,7 @@ BEGIN
         p_order_uuid, p_completed_quantity, v_unit_cost, p_completion_date
     );
 
-    -- If FIFO/LIFO → create new lot for FG
+    -- If FIFO/LIFO -> create new lot for FG
     IF v_product.valuation_method IN ('FIFO','LIFO') THEN
         INSERT INTO inventory.lots (
             item_uuid, warehouse_uuid, reference_type, reference_id,
@@ -656,7 +815,7 @@ BEGIN
             last_updated_at = now();
     END IF;
 
-    -- Update order
+    -- 9. Update production order
     UPDATE manufacturing.production_orders
     SET quantity_completed = quantity_completed + p_completed_quantity,
         actual_completion_date = p_completion_date,
@@ -668,13 +827,180 @@ BEGIN
 END;
 $$;
 
+-- ====================================================================================
+-- Record Standard vs Actual Variance
+-- ====================================================================================
+CREATE OR REPLACE FUNCTION manufacturing.record_standard_vs_actual_variance(
+    p_order_uuid        uuid,
+    p_user              uuid,
+    p_date              date,
+    p_wip_account       text,
+    p_mfg_mat_usage_var text,
+    p_mfg_lab_eff_var   text,
+    p_mfg_ovh_var       text
+) RETURNS void
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_order         manufacturing.production_orders%ROWTYPE;
+    v_bom_uuid      uuid;
+    v_std_mat_cost  numeric(18,2);
+    v_act_mat_cost  numeric(18,2);
+    v_mat_var       numeric(18,2);
+    v_std_labor     numeric(18,2);
+    v_act_labor     numeric(18,2);
+    v_lab_var       numeric(18,2);
+    v_act_ovh       numeric(18,2);
+    v_applied_ovh   numeric(18,2);
+    v_ovh_var       numeric(18,2);
+    v_txn_serial    bigint;
+    v_wip_uuid      uuid;
+    v_mat_var_uuid  uuid;
+    v_lab_var_uuid  uuid;
+    v_ovh_var_uuid  uuid;
+BEGIN
+    -- Fetch order
+    SELECT * INTO v_order FROM manufacturing.production_orders WHERE uuid = p_order_uuid;
+
+    -- Material Usage Variance
+    SELECT uuid INTO v_bom_uuid
+    FROM manufacturing.bom_headers
+    WHERE product_item_uuid = v_order.product_item_uuid
+      AND is_active AND is_default
+    LIMIT 1;
+
+    IF v_bom_uuid IS NOT NULL THEN
+        SELECT COALESCE(SUM(bl.quantity_per * v_order.quantity_completed * i.standard_cost), 0)
+        INTO v_std_mat_cost
+        FROM manufacturing.bom_lines bl
+        JOIN inventory.items i ON i.uuid = bl.component_item_uuid
+        WHERE bl.bom_header_uuid = v_bom_uuid;
+
+        SELECT COALESCE(SUM(total_cost), 0) INTO v_act_mat_cost
+        FROM manufacturing.material_issues
+        WHERE production_order_uuid = p_order_uuid;
+
+        v_mat_var := v_act_mat_cost - v_std_mat_cost;
+    END IF;
+
+    -- Labor Efficiency Variance
+    SELECT COALESCE(SUM(ro.standard_hours * v_order.quantity_completed),0)
+        INTO v_std_labor FROM manufacturing.routings r
+        JOIN manufacturing.routing_operations ro ON ro.routing_uuid = r.uuid
+        WHERE r.product_item_uuid = v_order.product_item_uuid AND r.is_default AND r.is_active;
+
+    SELECT COALESCE(SUM(CASE WHEN type='DirectLabor' THEN amount ELSE 0 END),0)
+        INTO v_act_labor FROM manufacturing.cost_applications
+        WHERE production_order_uuid = p_order_uuid AND type='DirectLabor';
+
+    v_lab_var := v_act_labor - v_std_labor * (
+        SELECT COALESCE(AVG(rate_per_hour),0) FROM manufacturing.cost_applications
+            WHERE production_order_uuid=p_order_uuid AND type='DirectLabor'
+    );
+
+    -- Overhead Variance (actual vs applied)
+    SELECT COALESCE(SUM(amount),0) INTO v_act_ovh FROM manufacturing.cost_applications
+        WHERE production_order_uuid = p_order_uuid AND type='Overhead';
+
+    SELECT COALESCE(SUM(amount),0) INTO v_applied_ovh FROM manufacturing.applied_overhead
+        WHERE production_order_uuid = p_order_uuid;
+
+    v_ovh_var := v_act_ovh - v_applied_ovh;
+
+    -- Fetch account UUIDs
+    SELECT uuid INTO v_wip_uuid      FROM accounting.accounts WHERE code = p_wip_account;
+    SELECT uuid INTO v_mat_var_uuid  FROM accounting.accounts WHERE code = p_mfg_mat_usage_var;
+    SELECT uuid INTO v_lab_var_uuid  FROM accounting.accounts WHERE code = p_mfg_lab_eff_var;
+    SELECT uuid INTO v_ovh_var_uuid  FROM accounting.accounts WHERE code = p_mfg_ovh_var;
+
+    -- Material Variance JE
+    IF ABS(v_mat_var) > 0.01 THEN
+        v_txn_serial := accounting.post_transaction(
+            v_order.order_number || '-MAT-VAR',
+            'Material Usage Variance',
+            p_user,
+            'manufacturing',
+            p_date,
+            jsonb_build_array(
+                jsonb_build_object(
+                    'account_ref', v_mat_var_uuid,
+                    'debit', CASE WHEN v_mat_var>0 THEN ABS(v_mat_var) ELSE 0 END,
+                    'credit', CASE WHEN v_mat_var<0 THEN ABS(v_mat_var) ELSE 0 END,
+                    'memo', format('Material usage variance on order %s',v_order.order_number)
+                ),
+                jsonb_build_object(
+                    'account_ref', v_mat_var_uuid,
+                    'debit', CASE WHEN v_mat_var<0 THEN ABS(v_mat_var) ELSE 0 END,
+                    'credit', CASE WHEN v_mat_var>0 THEN ABS(v_mat_var) ELSE 0 END,
+                    'memo', format('Offset to WIP - order %s',v_order.order_number)
+                )
+            )
+        );
+    END IF;
+
+    -- Labor Variance JE
+    IF ABS(v_lab_var) > 0.01 THEN
+        v_txn_serial := accounting.post_transaction(
+            v_order.order_number || '-LAB-VAR',
+            'Labor Efficiency Variance',
+            p_user,
+            'manufacturing',
+            p_date,
+            -- jsonb_build_object('order_uuid', p_order_uuid, 'variance', v_lab_var)
+            jsonb_build_array(
+                jsonb_build_array(
+                    'account_ref', v_lab_var_uuid,
+                    'debit', CASE WHEN v_lab_var>0 THEN ABS(v_lab_var) ELSE 0 END,
+                    'credit', CASE WHEN v_lab_var<0 THEN ABS(v_lab_var) ELSE 0 END,
+                    'memo', format('Labor efficiency variance on order %s',v_order.order_number)
+                ),
+                jsonb_build_array(
+                    'account_ref', v_wip_uuid,
+                    'debit', CASE WHEN v_lab_var<0 THEN ABS(v_lab_var) ELSE 0 END,
+                    'credit', CASE WHEN v_lab_var>0 THEN ABS(v_lab_var) ELSE 0 END,
+                    'memo', format('Offset to WIP - order %s',v_order.order_number)
+                )
+            )
+        );
+    END IF;
+
+    -- Overhead Variance JE
+    IF ABS(v_ovh_var) > 0.01 THEN
+        v_txn_serial := accounting.post_transaction(
+            v_order.order_number || '-OVH-VAR',
+            'Overhead Variance',
+            p_user,
+            'manufacturing',
+            p_date,
+            -- jsonb_build_object('order_uuid', p_order_uuid, 'variance', v_ovh_var)
+            jsonb_build_array(
+                jsonb_build_object(
+                    'account_ref', v_ovh_var_uuid
+                    'debit', CASE WHEN v_ovh_var>0 THEN ABS(v_ovh_var) ELSE 0 END,
+                    'credit', CASE WHEN v_ovh_var<0 THEN ABS(v_ovh_var) ELSE 0 END,
+                    'memo', format('Overhead variance on order %s',v_order.order_number)
+                ),
+                jsonb_build_object(
+                    'account_ref', v_wip_uuid
+                    'debit', CASE WHEN v_ovh_var<0 THEN ABS(v_ovh_var) ELSE 0 END,
+                    'credit', CASE WHEN v_ovh_var>0 THEN ABS(v_ovh_var) ELSE 0 END,
+                    'memo', format('Offset to WIP - order %s',v_order.order_number)
+                )
+            )
+        );
+    END IF;
+END;
+$$;
+
 -- Prepare RM for production, deplete inventory, update materials issued table
 CREATE OR REPLACE FUNCTION manufacturing.issue_material_to_order(
-    p_item_serial_id    bigint, -- Serial of raw maaterial inventory item
-    p_warehouse_serial  bigint, -- Serial of warehouse for the raw material
-    p_quantity          numeric(18,4), -- Quantity to be issued for prod
+    p_item_serial_id        bigint, -- Serial of raw maaterial inventory item
+    p_warehouse_serial      bigint, -- Serial of warehouse for the raw material
+    p_quantity              numeric(18,4), -- Quantity to be issued for prod
     p_production_order_uuid uuid,
-    p_user_uuid         uuid
+    p_raw_materials_code    text,
+    p_work_in_progress_code text,
+    p_user_uuid             uuid
 ) RETURNS manufacturing.material_issues -- Return actual issued material
 LANGUAGE plpgsql
 AS $$
@@ -686,6 +1012,9 @@ DECLARE
     v_unit_cost     numeric(18,4);
     v_issue_row     manufacturing.material_issues%ROWTYPE;
     v_movement_uuid uuid;
+    v_wip_uuid      uuid;
+    v_raw_mat_uuid  uuid;
+    v_txn_serial    bigint;
 BEGIN
     -- 1. Lock & validate production order
     SELECT * INTO STRICT v_order
@@ -703,6 +1032,10 @@ BEGIN
 
     SELECT * INTO STRICT v_warehouse
     FROM inventory.warehouses WHERE serial_id = p_warehouse_serial;
+
+    -- Get uuids for WIP and RM
+    SELECT uuid INTO v_wip_uuid     FROM accounting.accounts WHERE code = p_work_in_progress_code;
+    SELECT uuid INTO v_raw_mat_uuid FROM accounting.accounts WHERE code = p_raw_materials_code;
 
     -- 3. Deplete inventory (call your existing function)
     -- deplete_inventory returns a total value of inventory
@@ -722,152 +1055,179 @@ BEGIN
         p_production_order_uuid, v_item.serial_id, v_warehouse.uuid, p_quantity, v_unit_cost, now()
     ) RETURNING * INTO v_issue_row;
 
+    -- Update cost application table with the value of the materials
+    INSERT INTO manufacturing.cost_applications(
+        production_order_uuid, type, amount, applied_at, reference
+    ) VALUES (
+        p_production_order_uuid, 'DirectMaterial', v_total_cost, now(),
+        format('Material issue: %s units of item %s', p_quantity, v_item.serial_id)
+    );
+
     -- 6. Update production order status
     UPDATE manufacturing.production_orders
     SET status = 'In Progress', updated_at = now()
     WHERE uuid = p_production_order_uuid;
+
+    -- 7. Create a journal for RM > WIP
+    v_txn_serial := accounting.post_transaction(
+        v_order.order_number || '-MAT-IN',
+        'Material To Work In Progress',
+        p_user,
+        'manufacturing',
+        p_date,
+        jsonb_build_array(
+            jsonb_build_object(
+                'account_ref', v_wip_uuid, 'debit', v_total_cost, 'credit', 0,
+                'memo', format('Material issue on order %s',v_order.order_number)
+            ),
+            jsonb_build_object(
+                'account_ref', v_raw_mat_uuid, 'debit', 0, 'credit', v_total_cost,
+                'memo', format('Offset to WIP - order %s',v_order.order_number)
+            )
+        )
+    );
 
     RETURN v_issue_row;
 END;
 $$;
 
 -- Core function for recording variances in the production
-CREATE OR REPLACE FUNCTION manufacturing.record_standard_vs_actual_variance(
-    p_order_uuid uuid,
-    p_user uuid,
-    p_manufacturing_variance text,
-    p_wip_account text,
-    p_mfg_mat_usage_var text,
-    p_mfg_lab_eff_var text,
-    p_date date DEFAULT CURRENT_DATE
-) RETURNS void
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    v_order             manufacturing.production_orders%ROWTYPE;
-    v_bom_uuid          uuid;
-    v_std_material_cost numeric(18,2) := 0;
-    v_act_material_cost numeric(18,2);
-    v_material_variance numeric(18,2);
-    v_std_labor_hours   numeric(18,2) := 0;
-    v_act_labor_hours   numeric(18,2);
-    v_labor_variance    numeric(18,2);
-    v_variance_account  uuid;
-    v_mat_var_uuid      uuid;
-    v_wip_uuid          uuid;
-    v_txn_uuid          uuid;
-    v_lab_var_uuid      uuid;
-BEGIN
-    SELECT * INTO v_order FROM manufacturing.production_orders WHERE uuid = p_order_uuid;
+-- CREATE OR REPLACE FUNCTION manufacturing.record_standard_vs_actual_variance(
+--     p_order_uuid uuid,
+--     p_user uuid,
+--     p_manufacturing_variance text,
+--     p_wip_account text,
+--     p_mfg_mat_usage_var text,
+--     p_mfg_lab_eff_var text,
+--     p_date date DEFAULT CURRENT_DATE
+-- ) RETURNS void
+-- LANGUAGE plpgsql
+-- AS $$
+-- DECLARE
+--     v_order             manufacturing.production_orders%ROWTYPE;
+--     v_bom_uuid          uuid;
+--     v_std_material_cost numeric(18,2) := 0;
+--     v_act_material_cost numeric(18,2);
+--     v_material_variance numeric(18,2);
+--     v_std_labor_hours   numeric(18,2) := 0;
+--     v_act_labor_hours   numeric(18,2);
+--     v_labor_variance    numeric(18,2);
+--     v_variance_account  uuid;
+--     v_mat_var_uuid      uuid;
+--     v_wip_uuid          uuid;
+--     v_txn_uuid          uuid;
+--     v_lab_var_uuid      uuid;
+-- BEGIN
+--     SELECT * INTO v_order FROM manufacturing.production_orders WHERE uuid = p_order_uuid;
 
-    -- 1. Material usage Variance (standard from current BOM)
-    SELECT uuid INTO v_bom_uuid
-    FROM manufacturing.bom_headers
-    WHERE product_item_uuid = v_order.product_item_uuid
-        AND is_active AND is_default
-    LIMIT 1;
+--     -- 1. Material usage Variance (standard from current BOM)
+--     SELECT uuid INTO v_bom_uuid
+--     FROM manufacturing.bom_headers
+--     WHERE product_item_uuid = v_order.product_item_uuid
+--         AND is_active AND is_default
+--     LIMIT 1;
 
-    IF v_bom_uuid IS NOT NULL THEN
-        SELECT COALESCE(SUM(bl.quantity_per * v_order.quantity_ordered* i.standard_cost), 0)
-        INTO v_std_material_cost
-        FROM manufacturing.bom_lines bl
-        JOIN inventory.items i ON i.uuid = bl.component_item_uuid
-        WHERE bl.bom_header_uuid = v_bom_uuid;
+--     IF v_bom_uuid IS NOT NULL THEN
+--         SELECT COALESCE(SUM(bl.quantity_per * v_order.quantity_ordered* i.standard_cost), 0)
+--         INTO v_std_material_cost
+--         FROM manufacturing.bom_lines bl
+--         JOIN inventory.items i ON i.uuid = bl.component_item_uuid
+--         WHERE bl.bom_header_uuid = v_bom_uuid;
 
-        SELECT COALESCE(SUM(total_cost), 0) INTO v_act_material_cost
-        FROM manufacturing.material_issues
-        WHERE production_order_uuid = p_order_uuid;
+--         SELECT COALESCE(SUM(total_cost), 0) INTO v_act_material_cost
+--         FROM manufacturing.material_issues
+--         WHERE production_order_uuid = p_order_uuid;
 
-        v_material_variance := v_act_material_cost - v_std_material_cost;
+--         v_material_variance := v_act_material_cost - v_std_material_cost;
 
-        -- UPDATE manufacturing.production_orders
-        -- SET material_usage_variance = v_material_variance
-        -- WHERE uuid = p_order_uuid;
-    END IF;
+--         -- UPDATE manufacturing.production_orders
+--         -- SET material_usage_variance = v_material_variance
+--         -- WHERE uuid = p_order_uuid;
+--     END IF;
 
-    -- 2. Labor Effeciency Variance (from routing, if innexistent, skip)
-    SELECT COALESCE(SUM(ro.standard_hours * v_order.quantity_ordered::numeric), 0)
-        INTO v_std_labor_hours
-    FROM manufacturing.routings r
-    JOIN manufacturing.routing_operations ro ON ro.routing_uuid = r.uuid
-    WHERE r.product_item_uuid = v_order.product_item_uuid
-        AND r.is_default AND r.is_active;
+--     -- 2. Labor Effeciency Variance (from routing, if innexistent, skip)
+--     SELECT COALESCE(SUM(ro.standard_hours * v_order.quantity_ordered::numeric), 0)
+--         INTO v_std_labor_hours
+--     FROM manufacturing.routings r
+--     JOIN manufacturing.routing_operations ro ON ro.routing_uuid = r.uuid
+--     WHERE r.product_item_uuid = v_order.product_item_uuid
+--         AND r.is_default AND r.is_active;
 
-    SELECT COALESCE(SUM(CASE WHEN type = 'DirectLabor' THEN amount / NULLIF(rate_per_hour,0) ELSE 0 END), 0)
-    -- Note: we can store rate in cost-applications; for now we approcimate with hours
-    INTO v_act_labor_hours
-    FROM manufacturing.cost_applications
-    WHERE production_order_uuid = p_order_uuid AND type = 'DirectLabor';
+--     SELECT COALESCE(SUM(CASE WHEN type = 'DirectLabor' THEN amount / NULLIF(rate_per_hour,0) ELSE 0 END), 0)
+--     -- Note: we can store rate in cost-applications; for now we approcimate with hours
+--     INTO v_act_labor_hours
+--     FROM manufacturing.cost_applications
+--     WHERE production_order_uuid = p_order_uuid AND type = 'DirectLabor';
 
-    v_labor_variance := (v_act_labor_hours - v_std_labor_hours) *
-                        (SELECT COALESCE(AVG(rate_per_hour), 0)
-                        FROM manufacturing.cost_applications
-                        WHERE production_order_uuid = p_order_uuid AND type = 'DirectLabor');
+--     v_labor_variance := (v_act_labor_hours - v_std_labor_hours) *
+--                         (SELECT COALESCE(AVG(rate_per_hour), 0)
+--                         FROM manufacturing.cost_applications
+--                         WHERE production_order_uuid = p_order_uuid AND type = 'DirectLabor');
 
-    -- Update order for reporting
-    UPDATE manufacturing.production_orders
-        SET material_usage_variance = v_material_variance,
-            labor_efficiency_variance = v_labor_variance
-    WHERE uuid = p_order_uuid;
+--     -- Update order for reporting
+--     UPDATE manufacturing.production_orders
+--         SET material_usage_variance = v_material_variance,
+--             labor_efficiency_variance = v_labor_variance
+--     WHERE uuid = p_order_uuid;
 
-    -- JOURNAL ENTRIES
-    SELECT uuid INTO v_wip_uuid     FROM accounting.accounts WHERE code = p_wip_account;
-    SELECT uuid INTO v_mat_var_uuid FROM accounting.accounts WHERE code = p_mfg_mat_usage_var;
-    SELECT uuid INTO v_lab_var_uuid FROM accounting.accounts WHERE code = p_mfg_lab_eff_var;
+--     -- JOURNAL ENTRIES
+--     SELECT uuid INTO v_wip_uuid     FROM accounting.accounts WHERE code = p_wip_account;
+--     SELECT uuid INTO v_mat_var_uuid FROM accounting.accounts WHERE code = p_mfg_mat_usage_var;
+--     SELECT uuid INTO v_lab_var_uuid FROM accounting.accounts WHERE code = p_mfg_lab_eff_var;
 
-    -- Material Variance Journal
-    IF ABS(v_material_variance) > 0.01 THEN
-        v_txn_uuid := accounting.post_transaction (
-            v_order.order_number || '-MAT-VAR',
-            'Material Usage Variance at Completion',
-            p_user, 'manufacturing', p_date,
-            jsonb_build_object('order_uuid', p_order_uuid, 'variance', v_material_variance)
-        );
+--     -- Material Variance Journal
+--     IF ABS(v_material_variance) > 0.01 THEN
+--         v_txn_uuid := accounting.post_transaction (
+--             v_order.order_number || '-MAT-VAR',
+--             'Material Usage Variance at Completion',
+--             p_user, 'manufacturing', p_date,
+--             jsonb_build_object('order_uuid', p_order_uuid, 'variance', v_material_variance)
+--         );
 
-        INSERT INTO accounting.transaction_entries (
-            transaction_uuid, account_uuid, line_no, amount, debit, credit, memo
-        ) VALUES
-            (
-                v_txn_uuid, v_mat_var_uuid, 1, ABS(v_material_variance),
-                CASE WHEN v_material_variance > 0 THEN ABS(v_material_variance) ELSE 0 END,
-                CASE WHEN v_material_variance < 0 THEN ABS(v_material_variance) ELSE 0 END,
-                format('Material usage variance on order %s', v_order.order_number)
-            ),
-            (
-                v_txn_uuid, v_wip_uuid,     2, ABS(v_material_variance),
-                CASE WHEN v_material_variance < 0 THEN ABS(v_material_variance) ELSE 0 END,
-                CASE WHEN v_material_variance > 0 THEN ABS(v_material_variance) ELSE 0 END,
-                format('Offset to WIP - order %s', v_order.order_number)
-            );
-	END IF;
+--         INSERT INTO accounting.transaction_entries (
+--             transaction_uuid, account_uuid, line_no, amount, debit, credit, memo
+--         ) VALUES
+--             (
+--                 v_txn_uuid, v_mat_var_uuid, 1, ABS(v_material_variance),
+--                 CASE WHEN v_material_variance > 0 THEN ABS(v_material_variance) ELSE 0 END,
+--                 CASE WHEN v_material_variance < 0 THEN ABS(v_material_variance) ELSE 0 END,
+--                 format('Material usage variance on order %s', v_order.order_number)
+--             ),
+--             (
+--                 v_txn_uuid, v_wip_uuid,     2, ABS(v_material_variance),
+--                 CASE WHEN v_material_variance < 0 THEN ABS(v_material_variance) ELSE 0 END,
+--                 CASE WHEN v_material_variance > 0 THEN ABS(v_material_variance) ELSE 0 END,
+--                 format('Offset to WIP - order %s', v_order.order_number)
+--             );
+-- 	END IF;
 
-     -- Labor Variance Journal
-    IF ABS(v_labor_variance) > 0.01 THEN
-        v_txn_uuid := accounting.post_transaction (
-            v_order.order_number || '-LAB-VAR',
-            'Labor Efficiency Variance at Completion',
-            p_user, 'manufacturing', p_date,
-            jsonb_build_object('order_uuid', p_order_uuid, 'variance', v_labor_variance)
-        );
+--      -- Labor Variance Journal
+--     IF ABS(v_labor_variance) > 0.01 THEN
+--         v_txn_uuid := accounting.post_transaction (
+--             v_order.order_number || '-LAB-VAR',
+--             'Labor Efficiency Variance at Completion',
+--             p_user, 'manufacturing', p_date,
+--             jsonb_build_object('order_uuid', p_order_uuid, 'variance', v_labor_variance)
+--         );
 
-        INSERT INTO accounting.transaction_entries (
-            transaction_uuid, account_uuid, line_no, amount, debit, credit, memo
-        ) VALUES
-            (
-                v_txn_uuid, v_lab_var_uuid, 1, ABS(v_labor_variance),
-                CASE WHEN v_labor_variance > 0 THEN ABS(v_labor_variance) ELSE 0 END,
-                CASE WHEN v_labor_variance < 0 THEN ABS(v_labor_variance) ELSE 0 END,
-                format('Labor efficiency variance on order %s', v_order.order_number)
-            ),
-            (
-                v_txn_uuid, v_wip_uuid,     2, ABS(v_labor_variance),
-                CASE WHEN v_labor_variance < 0 THEN ABS(v_labor_variance) ELSE 0 END,
-                CASE WHEN v_labor_variance > 0 THEN ABS(v_labor_variance) ELSE 0 END,
-                format('Offset to WIP - order %s', v_order.order_number)
-            );
-	END IF;
-END;
-$$;
+--         INSERT INTO accounting.transaction_entries (
+--             transaction_uuid, account_uuid, line_no, amount, debit, credit, memo
+--         ) VALUES
+--             (
+--                 v_txn_uuid, v_lab_var_uuid, 1, ABS(v_labor_variance),
+--                 CASE WHEN v_labor_variance > 0 THEN ABS(v_labor_variance) ELSE 0 END,
+--                 CASE WHEN v_labor_variance < 0 THEN ABS(v_labor_variance) ELSE 0 END,
+--                 format('Labor efficiency variance on order %s', v_order.order_number)
+--             ),
+--             (
+--                 v_txn_uuid, v_wip_uuid,     2, ABS(v_labor_variance),
+--                 CASE WHEN v_labor_variance < 0 THEN ABS(v_labor_variance) ELSE 0 END,
+--                 CASE WHEN v_labor_variance > 0 THEN ABS(v_labor_variance) ELSE 0 END,
+--                 format('Offset to WIP - order %s', v_order.order_number)
+--             );
+-- 	END IF;
+-- END;
+-- $$;
 
 -- Transfer raw materials to production process for new inventory
 CREATE OR REPLACE FUNCTION manufacturing.initialize_material_cost(
@@ -1085,21 +1445,42 @@ SELECT
     po.status,
     -- Actual costs
     COALESCE(SUM(mi.total_cost), 0) as actual_material,
-    COALESCE(SUM(CASE WHEN ca.type = 'DirectLabor' THEN ca.amount END), 0) as actual_labor,
-    COALESCE(SUM(CASE WHEN ca.type = 'Overhead' THEN ca.amount END), 0) as applied_overhead,
+    COALESCE(
+        SUM(
+            CASE
+                WHEN ca.type = 'DirectLabor' THEN ca.amount
+            END
+        ),
+        0
+    ) as actual_labor,
+    COALESCE(
+        SUM(
+            CASE
+                WHEN ca.type = 'Overhead' THEN ca.amount
+            END
+        ),
+        0
+    ) as applied_overhead,
     -- Variances
     po.material_usage_variance,
     po.labor_efficiency_variance,
-    (po.material_usage_variance + po.labor_efficiency_variance) as total_variance,
+    (
+        po.material_usage_variance + po.labor_efficiency_variance
+    ) as total_variance,
     -- Unit cost
-    (COALESCE(SUM(mi.total_cost),0) + COALESCE(SUM(ca.amount),0)) / NULLIF(po.quantity_completed,0)
-            as actual_unit_cost,
+    (
+        COALESCE(SUM(mi.total_cost), 0) + COALESCE(SUM(ca.amount), 0)
+    ) / NULLIF(po.quantity_completed, 0) as actual_unit_cost,
     i.standard_cost as standard_unit_cost
 FROM manufacturing.production_orders po
-JOIN inventory.items i ON i.uuid = po.product_item_uuid
-LEFT JOIN manufacturing.material_issues mi ON mi.production_order_uuid = po.uuid
-LEFT JOIN manufacturing.cost_applications ca ON ca.production_order_uuid = po.uuid
-GROUP BY po.uuid, i.uuid, po.material_usage_variance, po.labor_efficiency_variance;
+    JOIN inventory.items i ON i.uuid = po.product_item_uuid
+    LEFT JOIN manufacturing.material_issues mi ON mi.production_order_uuid = po.uuid
+    LEFT JOIN manufacturing.cost_applications ca ON ca.production_order_uuid = po.uuid
+GROUP BY
+    po.uuid,
+    i.uuid,
+    po.material_usage_variance,
+    po.labor_efficiency_variance;
 
 -- Period-End Overhead Adjustment Procedure (Over/Under Applied) - Not Accurate, Proration WINS
 -- CREATE OR REPLACE PROCEDURE manufacturing.adjust_over_under_applied_overhead(
@@ -1180,35 +1561,34 @@ GROUP BY po.uuid, i.uuid, po.material_usage_variance, po.labor_efficiency_varian
 
 -- INSERT INTO accounting.accounts (code, name, category, parent_code, normal_balance, is_contra)
 -- VALUES
-    -- Assets – Inventory sub-ledgers
-    -- ('1300', 'Raw Materials Inventory',     'Asset', '1200', 'DR', false),   -- parent = main Inventory or Current Assets
-    -- ('1310', 'Work in Process Inventory',   'Asset', '1200', 'DR', false),
-    -- ('1320', 'Finished Goods Inventory',    'Asset', '1200', 'DR', false),
+-- Assets – Inventory sub-ledgers
+-- ('1300', 'Raw Materials Inventory',     'Asset', '1200', 'DR', false),   -- parent = main Inventory or Current Assets
+-- ('1310', 'Work in Process Inventory',   'Asset', '1200', 'DR', false),
+-- ('1320', 'Finished Goods Inventory',    'Asset', '1200', 'DR', false),
 
-    -- -- Manufacturing Overhead – actual costs go here (debit)
-    -- ('501000', 'Manufacturing Overhead Control','Expense','500000','DR', false),  -- parent = Cost of Goods Sold / Manufacturing Expenses
+-- -- Manufacturing Overhead – actual costs go here (debit)
+-- ('501000', 'Manufacturing Overhead Control','Expense','500000','DR', false),  -- parent = Cost of Goods Sold / Manufacturing Expenses
 
-    -- -- Applied Overhead – credit when applied to WIP
-    -- ('501010', 'Manufacturing Overhead Applied','Expense','500000','CR', true),   -- contra-like, will net against control at period end
+-- -- Applied Overhead – credit when applied to WIP
+-- ('501010', 'Manufacturing Overhead Applied','Expense','500000','CR', true),   -- contra-like, will net against control at period end
 
-    -- -- Optional: separate variance if you want more detail
-    -- ('501020', 'Over/Under Applied Overhead Adj','Expense','500000','DR', false); -- usually temporary, cleared to COGS
+-- -- Optional: separate variance if you want more detail
+-- ('501020', 'Over/Under Applied Overhead Adj','Expense','500000','DR', false); -- usually temporary, cleared to COGS
 
 -- Example insert (yearly rate)
 -- INSERT INTO manufacturing.overhead_rates (period_start, period_end, allocation_base, estimated_overhead, estimated_base)
 -- VALUES ('2026-01-01', '2026-12-31', 'DirectLaborHours', 1200000.00, 40000.00);  -- → rate = 30.00 per DLH
 
-
 /*
-    NOTES:
-        Three standard methods of overhead adjustments at the end of a financial period:
-        1. Close Entire Variance to COGS
-            All over or under applied overhead goes to Cost of Goods Sold:
-            Fast, Simple, Common
-        2. Prorate Across WIP, FG, and COGS
-            Spread the variance accross WIP, FG and COGS Used When:
-            inventory is material, desire for reasonable accuracy
-        3. The Pure Method
-            Recomputation using actual overhead rate, involves bactracking to get
-            actual overhead and reapply corrected ones
+NOTES:
+Three standard methods of overhead adjustments at the end of a financial period:
+1. Close Entire Variance to COGS
+All over or under applied overhead goes to Cost of Goods Sold:
+Fast, Simple, Common
+2. Prorate Across WIP, FG, and COGS
+Spread the variance accross WIP, FG and COGS Used When:
+inventory is material, desire for reasonable accuracy
+3. The Pure Method
+Recomputation using actual overhead rate, involves bactracking to get
+actual overhead and reapply corrected ones
 */
