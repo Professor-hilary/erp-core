@@ -260,13 +260,17 @@ impl ManufacturingRepo {
     ) -> Result<ProductionOrder, AppError> {
         let _ = sqlx::query(
             "SELECT * FROM manufacturing.complete_production_order(
-                $1, $2, $3, $4, CURRENT_DATE
+                $1, $2, $3, $4, $5, $6, $7, $8, CURRENT_DATE
             ) as gl_txn_uuid",
         )
         .bind(dto.production_order_uuid)
-        .bind(dto.completed_quantity)
         .bind(user_uuid)
         .bind(dto.wip_account_code)
+        .bind(dto.fg_account_code)
+        .bind(dto.mfg_mat_var_code)
+        .bind(dto.mfg_lab_var_code)
+        .bind(dto.mfg_ovh_var_code)
+        .bind(dto.completed_quantity)
         .fetch_one(&self.pool)
         .await?;
 

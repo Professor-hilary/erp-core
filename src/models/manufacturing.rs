@@ -103,9 +103,13 @@ pub struct ApplyLaborCostDto {
 
 #[derive(Debug, Deserialize)]
 pub struct CompleteProductionOrderDto {
-    pub production_order_uuid: Uuid,
-    pub completed_quantity: BigDecimal,
-    pub wip_account_code: String,
+    pub production_order_uuid: Uuid, // Production order being completed
+    pub completed_quantity: Option<BigDecimal>, // Quantity completed
+    pub wip_account_code: String,    // Work In Progress account code
+    pub fg_account_code: String,     // Finished Goods account code
+    pub mfg_mat_var_code: String,    // Manufacturing material variable control account
+    pub mfg_lab_var_code: String,    // Manufacturing labor variable control account
+    pub mfg_ovh_var_code: String,    // Manufacturing overhead variable control account
 }
 
 #[derive(Debug, Deserialize)]

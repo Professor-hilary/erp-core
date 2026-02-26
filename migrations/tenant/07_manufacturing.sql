@@ -145,6 +145,31 @@ CREATE table if not exists manufacturing.cost_applications (
     CONSTRAINT fk_applications_order FOREIGN KEY (production_order_uuid) REFERENCES manufacturing.production_orders (uuid)
 );
 
+INSERT INTO manufacturing.cost_applications(production_order_uuid, type, amount, applied_at, reference)
+VALUES('019c8bc8-24a2-7279-a867-e2e18def98c9', 'DirectMaterial', '270000',now(), 'Material isue: 16 units of xxx');
+
+SELECT * FROM manufacturing.production_orders;
+
+select * from accounting.post_transaction(
+    'PO-TEST-001-MAT-IN',
+    'Material To Work In Progress',
+    '019c469f-bcd9-7e59-9d8d-0c3207bb50b3',
+    'manufacturing',
+    '2026-02-24',
+    jsonb_build_array(
+        jsonb_build_object(
+            'account_ref', '019c46a0-8664-77ef-afea-2a1c12c675c5',
+            'debit', '270000', 'credit', '0',
+            'memo', 'Material issue on order PO-TEST-001'
+        ),
+        jsonb_build_object(
+            'account_ref', '019c46a0-865a-7310-b525-64d3d4725cc0',
+            'debit', '0', 'credit', '270000',
+            'memo', 'Offset to WIP - order PO-TEST-001'
+        )
+    )
+);
+
 -- Completions (WIP → Finished Goods)
 CREATE TABLE if not exists manufacturing.completions (
     uuid uuid DEFAULT uuidv7 () PRIMARY KEY,

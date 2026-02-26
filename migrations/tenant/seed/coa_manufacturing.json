@@ -773,7 +773,7 @@
         },
         {
             "code": "550000",
-            "name": "Standard Cost Bariances",
+            "name": "Standard Cost Variances",
             "category": "expense",
             "parent_code": "500000",
             "normal_balance": "dr",

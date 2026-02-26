@@ -1,5 +1,9 @@
 -- Create schema
 CREATE SCHEMA IF NOT EXISTS accounting;
+
+--Create extension for ltree
+CREATE EXTENSION IF NOT EXISTS ltree;
+
 -- UUID extension Enabled automatically (required for uuidv7())
 -- Sequences
 CREATE SEQUENCE accounting.accounts_serial_id_seq;
@@ -17,9 +21,21 @@ CREATE TABLE accounting.accounts (
     current_balance NUMERIC(18, 2) DEFAULT 0.00 NOT NULL,
     code TEXT NOT NULL UNIQUE, -- e.g. "110100"
     name TEXT NOT NULL,
-    category TEXT NOT NULL, -- Asset, Liability, Equity, Revenue, Expense
+    category TEXT NOT NULL CHECK (
+        category IN (
+            "asset",
+            "liability",
+            "equity",
+            "expense",
+            "income"
+        )
+    ),
     parent_code TEXT REFERENCES accounting.accounts (code) ON DELETE SET NULL, -- FK uses UUID
-    normal_balance TEXT NOT NULL, -- 'DR' or 'CR'
+    normal_balance TEXT NOT NULL CHECK (
+        normal_balance IN ('cr', 'dr')
+    ), -- 'DR' or 'CR'
+    path public.ltree COMMENT 'Materialized hierarchical path using ltree (e.g. 1.100.1100 for asset -> current asset -> cash',
+    hierarchy_depth smallint GENERATED ALWAYS AS public.nlevel (path) STORED 'Is computed depth level (root = 1)',
     is_contra BOOLEAN DEFAULT FALSE,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
@@ -32,7 +48,22 @@ CREATE INDEX ON accounting.accounts (category);
 CREATE INDEX ON accounting.accounts (code);
 
 CREATE INDEX ON accounting.accounts (serial_id);
--- handy for front-end look-ups
+-- CREATE UNIQUE INDEX accounts_serial_id_key ON accounting.accounts USING btree (serial_id);
+-- CREATE UNIQUE INDEX accounts_code_key ON accounting.accounts USING btree (code);
+-- CREATE INDEX accounts_category_idx ON accounting.accounts USING btree (category);
+-- CREATE INDEX accounts_code_idx ON accounting.accounts USING btree (code);
+-- CREATE INDEX accounts_serial_id_idx ON accounting.accounts USING btree (serial_id);
+
+-- Gist index: Optimized for @> (is_ancestor), <@ (is_descendant), ~(pattern), subpath, etc
+CREATE INDEX idx_accounts_path_gist ON accounting.accounts USING gist (path);
+
+-- B-tree index; fast exact matches, ordering, and prefix sorts (ORDER BY path)
+CREATE INDEX idx_accounts_path_btree ON accounting.accounts USING btree (path);
+
+-- Componsite for common reports filters
+CREATE INDEX idx_accounts_category_path ON accounting.accounts USING btree (category, path)
+WHERE
+    is_active;
 
 -----------------------------------------------------------------
 -- Finance cycle
@@ -194,7 +225,116 @@ BEGIN
 END;
 $$;
 
+insert into
+    accounting.accounts (
+        name,
+        category,
+        code,
+        normal_balance,
+        parent_code,
+        is_contra
+    )
+VALUES (
+        'Standard Cost Variance',
+        'expemse',
+        '550000',
+        'dr',
+        '500000',
+        false
+    );
+
+
+-- Update account path on create new account entry
+CREATE OR REPLACE FUNCTION accounting.maintain_account_path()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $function$
+DECLARE
+	v_parent_path public.ltree;
+BEGIN
+    -- On insert or parent change
+	if TG_OP = 'INSERT'
+		or (TG_OP = 'UPDATE' and (
+			new.parent_code is distinct from old.parent_code or new.code is distinct from old.code
+		)) then
+
+		-- Root account (no parent)
+		if new.parent_code is null then
+			new.path := new.code::public.ltree;
+		else
+			-- Find parent's path
+			select path into strict v_parent_path
+			from accounting.accounts where code = new.parent_code and is_active;
+
+			-- Build new path: parent + this code
+			new.path := v_parent_path || new.code::ltree;
+		end if;
+
+		-- Basic cycle prevention (self-ancestor)
+		if new.path @> new.code::public.ltree then
+			raise exception 'Cycle detected: account % cannot be its own ancestor', new.code;
+		end if;
+
+		-- Enforce label rules (alpanumeric + underscore/hyphen, no dots)
+		if new.code ~ '[^0-9]' then
+			raise exception 'Invalid label in code code %: only 0-9 allowed', new.code;
+		end if;
+	end if;
+
+	RETURN new;
+END;
+$function$
+
+-- Move account to different parent procedure
+
+CREATE OR REPLACE PROCEDURE accounting.move_account_subtree(
+    IN p_account_code text, IN p_new_parent_code text
+) LANGUAGE plpgsql
+AS $procedure$
+DECLARE
+	v_old_path public.ltree;
+	v_new_parent_path public.ltree;
+BEGIN
+	-- Lock the subtree to prevent concurrent changes
+	perform * from accounting.accounts where path <@ (select path from accounting.accounts where code = p_account_code) for update;
+
+	-- Get current root path
+	select path into v_old_path from accounting.accounts where code = p_account_code;
+
+	if v_old_path is null then
+		raise exception 'Accounting % not found or no path', p_account_code;
+	end if;
+
+	-- Get new parent's path
+	if p_new_parent_code is null then
+		v_new_parent_path := p_account_code::lree;
+	else
+		select path into v_new_parent_path
+		from accounting.accounts
+		where code = p_new_parent_code;
+
+		if v_new_parent_path is null then
+			raise exception 'New parent % not found', p_new_parent_code;
+		end if;
+		v_new_parent_path := v_new_parent_path || p_account_code::ltree;
+	end if;
+
+	-- Cascade update all descendants (including self)
+	update accounting.accounts
+	set path = v_new_parent_path || subpath(path, nlevel(v_old_path) + 1)
+	where path <@ v_old_path;
+
+	-- The before trigger will handle the moved root's path correctly
+	update accounting.accounts
+	set parent_code = p_new_parent_code
+	where code = p_account_code;
+
+	commit;
+END;
+$procedure$
+
 -- Create trigger function
+
 CREATE OR REPLACE FUNCTION accounting.update_account_balance()
 RETURNS TRIGGER LANGUAGE plpgsql AS $$
 BEGIN
@@ -230,6 +370,7 @@ CREATE TRIGGER trig_revert_balance
 AFTER DELETE ON accounting.transaction_entries
 FOR EACH ROW EXECUTE FUNCTION accounting.revert_account_balance();
 
+CREATE OR REPLACE TRIGGER trg_account_path_maintain BEFORE INSERT OR UPDATE OF parent_code, code ON accounting.accounts FOR EACH ROW EXECUTE FUNCTION maintain_account_path();
 -- USE
 --SELECT accounting.post_transaction(
 --    'INV-001',
