@@ -23,11 +23,11 @@ CREATE TABLE accounting.accounts (
     name TEXT NOT NULL,
     category TEXT NOT NULL CHECK (
         category IN (
-            "asset",
-            "liability",
-            "equity",
-            "expense",
-            "income"
+            'asset',
+            'liability',
+            'equity',
+            'expense',
+            'income'
         )
     ),
     parent_code TEXT REFERENCES accounting.accounts (code) ON DELETE SET NULL, -- FK uses UUID
@@ -48,11 +48,6 @@ CREATE INDEX ON accounting.accounts (category);
 CREATE INDEX ON accounting.accounts (code);
 
 CREATE INDEX ON accounting.accounts (serial_id);
--- CREATE UNIQUE INDEX accounts_serial_id_key ON accounting.accounts USING btree (serial_id);
--- CREATE UNIQUE INDEX accounts_code_key ON accounting.accounts USING btree (code);
--- CREATE INDEX accounts_category_idx ON accounting.accounts USING btree (category);
--- CREATE INDEX accounts_code_idx ON accounting.accounts USING btree (code);
--- CREATE INDEX accounts_serial_id_idx ON accounting.accounts USING btree (serial_id);
 
 -- Gist index: Optimized for @> (is_ancestor), <@ (is_descendant), ~(pattern), subpath, etc
 CREATE INDEX idx_accounts_path_gist ON accounting.accounts USING gist (path);
@@ -225,24 +220,7 @@ BEGIN
 END;
 $$;
 
-insert into
-    accounting.accounts (
-        name,
-        category,
-        code,
-        normal_balance,
-        parent_code,
-        is_contra
-    )
-VALUES (
-        'Standard Cost Variance',
-        'expemse',
-        '550000',
-        'dr',
-        '500000',
-        false
-    );
-
+select * from accounting.accounts where path <@ '500000'::accounting.ltree;
 
 -- Update account path on create new account entry
 CREATE OR REPLACE FUNCTION accounting.maintain_account_path()
@@ -250,40 +228,55 @@ RETURNS trigger
 LANGUAGE plpgsql
 AS $function$
 DECLARE
-	v_parent_path public.ltree;
+    v_parent_path public.ltree;
+    v_dummy int;
 BEGIN
-    -- On insert or parent change
-	if TG_OP = 'INSERT'
-		or (TG_OP = 'UPDATE' and (
-			new.parent_code is distinct from old.parent_code or new.code is distinct from old.code
-		)) then
+    -- Only process on INSERT or when code/parent_code changes
+    IF TG_OP = 'INSERT'
+       OR (TG_OP = 'UPDATE' AND (
+            NEW.parent_code IS DISTINCT FROM OLD.parent_code
+            OR NEW.code IS DISTINCT FROM OLD.code
+        )) THEN
 
-		-- Root account (no parent)
-		if new.parent_code is null then
-			new.path := new.code::public.ltree;
-		else
-			-- Find parent's path
-			select path into strict v_parent_path
-			from accounting.accounts where code = new.parent_code and is_active;
+        -- Validate code format: only digits
+        IF NEW.code !~ '^[0-9]{6}$' THEN
+            RAISE EXCEPTION 'Invalid code %: must be exactly six digits', NEW.code;
+        END IF;
 
-			-- Build new path: parent + this code
-			new.path := v_parent_path || new.code::ltree;
-		end if;
+        -- Root account (no parent)
+        IF NEW.parent_code IS NULL THEN
+            NEW.path := NEW.code::public.ltree;
+        ELSE
+            -- Get parent's path
+            SELECT path INTO STRICT v_parent_path
+            FROM accounting.accounts
+            WHERE code = NEW.parent_code AND is_active;
 
-		-- Basic cycle prevention (self-ancestor)
-		if new.path @> new.code::public.ltree then
-			raise exception 'Cycle detected: account % cannot be its own ancestor', new.code;
-		end if;
+            IF v_parent_path IS NULL THEN
+                RAISE EXCEPTION 'Parent % not found or inactive', NEW.parent_code;
+            END IF;
 
-		-- Enforce label rules (alpanumeric + underscore/hyphen, no dots)
-		if new.code ~ '[^0-9]' then
-			raise exception 'Invalid label in code code %: only 0-9 allowed', new.code;
-		end if;
-	end if;
+            -- Build new path
+            NEW.path := (v_parent_path::text || '.' || NEW.code)::ltree;
 
-	RETURN new;
+            -- Check for cycles: parent cannot be a descendant of this account
+            IF TG_OP = 'UPDATE' THEN
+                PERFORM 1
+                FROM accounting.accounts
+                WHERE code = NEW.parent_code
+                    AND path <@ OLD.path;
+
+                -- RHS must be text for ltree operators
+                IF FOUND THEN
+                    RAISE EXCEPTION 'Cycle detected: cannot move % under its own subtree', NEW.code;
+                END IF;
+            END IF;
+        END IF;
+    END IF;
+
+    RETURN NEW;
 END;
-$function$
+$function$;
 
 -- Move account to different parent procedure
 
@@ -307,7 +300,7 @@ BEGIN
 
 	-- Get new parent's path
 	if p_new_parent_code is null then
-		v_new_parent_path := p_account_code::lree;
+		v_new_parent_path := p_account_code::ltree;
 	else
 		select path into v_new_parent_path
 		from accounting.accounts
@@ -370,7 +363,9 @@ CREATE TRIGGER trig_revert_balance
 AFTER DELETE ON accounting.transaction_entries
 FOR EACH ROW EXECUTE FUNCTION accounting.revert_account_balance();
 
-CREATE OR REPLACE TRIGGER trg_account_path_maintain BEFORE INSERT OR UPDATE OF parent_code, code ON accounting.accounts FOR EACH ROW EXECUTE FUNCTION maintain_account_path();
+CREATE OR REPLACE TRIGGER trg_account_path_maintain BEFORE INSERT OR UPDATE OF
+    parent_code, code ON accounting.accounts FOR EACH ROW
+    EXECUTE FUNCTION accounting.maintain_account_path();
 -- USE
 --SELECT accounting.post_transaction(
 --    'INV-001',

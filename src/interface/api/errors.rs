@@ -5,12 +5,13 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use serde_json::json;
-use thiserror::Error;
+use sqlx::Error;
+use thiserror::Error as ThisError;
 
-#[derive(Error, Debug)]
+#[derive(ThisError, Debug)]
 pub enum AppError {
     #[error("Database error: {0}")]
-    Database(#[from] sqlx::Error),
+    Database(#[from] Error),
     #[error("Auth error: {0}")]
     Unauthorized(String),
     #[error("Validation error: {0}")]
@@ -21,7 +22,6 @@ pub enum AppError {
     Internal(String),
     #[error("Not authorized: {0}")]
     Forbidden(String),
-    #[allow(dead_code)]
     #[error("Bad data: {0}")]
     Unprocessable(String),
 }
@@ -56,7 +56,14 @@ impl IntoResponse for AppError {
                 .into_response(),
             AppError::Database(error) => (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({"status":500, "error":"Database error","message":error.to_string(),})),
+                Json(json!({
+                    "status":500,
+                    "error":"Database error",
+                    "message":capitalize(match &error {
+                        sqlx::Error::Database(db_err) => db_err.message(),
+                        _ => "Unexpected database error",
+                    },
+                )})),
             )
                 .into_response(),
             AppError::Unprocessable(message) => (
@@ -65,5 +72,14 @@ impl IntoResponse for AppError {
             )
                 .into_response(),
         }
+    }
+}
+
+fn capitalize(s: &str) -> String {
+    let mut chars: std::str::Chars<'_> = s.chars();
+
+    match chars.next() {
+        None => String::new(),
+        Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
     }
 }

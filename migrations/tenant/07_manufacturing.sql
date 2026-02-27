@@ -272,96 +272,165 @@ END;
 $$;
 
 -- Helper Function: Apply Overhead to a Production Order
--- CREATE OR REPLACE FUNCTION manufacturing.apply_overhead_to_order(
---     p_production_order_uuid uuid,
---     p_activity_amount       numeric, -- e.g. actual direct labor hours used on this order
---     p_wip_account           text,
---     p_overhead_control_code text,
---     p_user                  uuid
--- ) RETURNS manufacturing.cost_applications -- return full row
--- LANGUAGE plpgsql
--- AS $$
--- DECLARE
---     v_rate              numeric(18,6);
---     v_applied_amount    numeric(18,2);
---     v_wip_account_uuid  uuid;
---     v_applied_account_uuid uuid;
---     v_txn_uuid          uuid;
---     v_application       manufacturing.cost_applications%ROWTYPE;
--- BEGIN
---     -- Find current applicable rate (latest or matching period)
---     SELECT rate INTO STRICT v_rate
---     FROM manufacturing.overhead_rates
---     WHERE CURRENT_DATE BETWEEN period_start AND period_end
---       AND is_active
---     ORDER BY period_start DESC, created_at DESC
---     LIMIT 1;
+CREATE OR REPLACE FUNCTION manufacturing.apply_overhead_to_order(
+    p_production_order_uuid uuid,
+    p_activity_amount       numeric, -- e.g. actual direct labor hours used on this order
+    p_wip_account           text,
+    p_overhead_control_code text,
+    p_user                  uuid
+) RETURNS manufacturing.cost_applications -- return full row
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_rate              numeric(18,6);
+    v_applied_amount    numeric(18,2);
+    v_wip_account_uuid  uuid;
+    v_applied_account_uuid uuid;
+    v_txn_serial_id      bigint;
+    v_application       manufacturing.cost_applications%ROWTYPE;
+BEGIN
+    -- Find current applicable rate (latest or matching period)
+    SELECT rate INTO STRICT v_rate
+    FROM manufacturing.overhead_rates
+    WHERE CURRENT_DATE BETWEEN period_start AND period_end
+      AND is_active
+    ORDER BY period_start DESC, created_at DESC
+    LIMIT 1;
 
---     IF v_rate IS NULL THEN
---         RAISE EXCEPTION 'No active predetermined overhead rate found for current date';
---     END IF;
+    IF v_rate IS NULL THEN
+        RAISE EXCEPTION 'No active predetermined overhead rate found for current date';
+    END IF;
 
---     v_applied_amount := ROUND(p_activity_amount * v_rate, 2);
+    v_applied_amount := ROUND(p_activity_amount * v_rate, 2);
 
---     -- Get account UUIDs (adjust codes if needed)
---     SELECT uuid INTO STRICT v_wip_account_uuid
---         FROM accounting.accounts WHERE code = p_wip_account;
+    -- Get account UUIDs (adjust codes if needed)
+    SELECT uuid INTO STRICT v_wip_account_uuid
+        FROM accounting.accounts WHERE code = p_wip_account;
 
---     SELECT uuid INTO STRICT v_applied_account_uuid
---         FROM accounting.accounts WHERE code = p_overhead_control_code;
+    SELECT uuid INTO STRICT v_applied_account_uuid
+        FROM accounting.accounts WHERE code = p_overhead_control_code;
 
---     -- Create GL transaction (applied overhead)
---     -- accounting.post_transaction(...) → your existing function; adapt parameters
---     v_txn_uuid := accounting.post_transaction(
---         'OVERHEAD-APPLY-' || p_production_order_uuid::text,
---         'Applied Manufacturing Overhead',
---         p_user,
---         'manufacturing',
---         CURRENT_DATE,
---         -- '[]'::jsonb
---         jsonb_build_object(
---             'production_order_uuid', p_production_order_uuid,
---             'base_amount', p_activity_amount,
---             'rate', v_rate
---         )
---     );
+    -- Journal entry: Dr WIP, Cr Applied Overhead
+    -- accounting.post_transaction(...) → your existing function; adapt parameters
+    v_txn_serial_id := accounting.post_transaction(
+        'OVERHEAD-APPLY-' || p_production_order_uuid::text,
+        'Applied Manufacturing Overhead',
+        p_user,
+        'manufacturing',
+        CURRENT_DATE,
+        jsonb_build_array(
+            jsonb_build_object(
+                'account_ref', v_wip_account_uuid, 'debit', v_applied_amount, 'credit', 0,
+                'memo', format(
+                    'Applied overhead to production order %s - base %s x rate %s',
+                    p_production_order_uuid, p_activity_amount, v_rate
+                )
+            ),
+            jsonb_build_object(
+                'account_ref', v_applied_account_uuid, 'debit', 0, 'credit', v_applied_amount,
+                'memo', format(
+                    'Applied overhead to production order %s - base %s x rate %s',
+                    p_production_order_uuid, p_activity_amount, v_rate
+                )
+            )
+        )
+    );
 
---     -- Journal entry: Dr WIP, Cr Applied Overhead
---     INSERT INTO accounting.transaction_entries (
---         transaction_uuid, account_uuid, line_no, amount, debit, credit, memo
---     ) VALUES (
---         v_txn_uuid, v_wip_account_uuid,     1, v_applied_amount, v_applied_amount, 0,
---         format('Applied overhead to production order %s - base %s x rate %s',
---             p_production_order_uuid, p_activity_amount, v_rate)
---     ), (
---         v_txn_uuid, v_applied_account_uuid, 2, v_applied_amount, 0, v_applied_amount,
---         format('Applied overhead to production order %s - base %s x rate %s',
---             p_production_order_uuid, p_activity_amount, v_rate)
---     );
+    -- Record the application (for later reporting)
+    INSERT INTO manufacturing.cost_applications (
+        production_order_uuid, type, amount, reference, applied_at
+    ) VALUES (
+        p_production_order_uuid,
+        'Overhead',
+        v_applied_amount,
+        format(
+            'Applied at rate %s x base %s (txn %s)',
+            v_rate, p_activity_amount,
+            (SELECT uuid FROM accounting.transactions WHERE serial_id = v_txn_serial_id)
+        ),
+        now()
+    )
+    RETURNING * INTO v_application;
 
---     -- Record the application (for later reporting)
---     INSERT INTO manufacturing.cost_applications (
---         production_order_uuid, type, amount, reference, applied_at
---     ) VALUES (
---         p_production_order_uuid,
---         'Overhead',
---         v_applied_amount,
---         format(
---             'Applied at rate %s x base %s (txn %s)',
---             v_rate, p_activity_amount, v_txn_uuid
---         ),
---         now()
---     )
---     RETURNING * INTO v_application;
+    -- Update order if needed (optional)
+    UPDATE manufacturing.production_orders
+    SET updated_at = now()
+    WHERE uuid = p_production_order_uuid;
 
---     -- Update order if needed (optional)
---     UPDATE manufacturing.production_orders
---     SET updated_at = now()
---     WHERE uuid = p_production_order_uuid;
+    RETURN v_application;
+END;
+$$;
 
---     RETURN v_application;
--- END;
--- $$;
+CREATE OR REPLACE FUNCTION manufacturing.record_actual_overhead(
+    p_production_order_uuid uuid,
+    p_amount                numeric, -- actual cost (invoice, cash, etc.)
+    p_credit_amount_code    text, -- payable or cash
+    p_overhead_control_code text,
+    p_overhead_type         text,
+    p_user                  uuid
+) RETURNS manufacturing.cost_applications
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_credit_account_uuid   uuid;
+    v_control_account_uuid  uuid;
+    v_txn_serial            bigint;
+    v_application           manufacturing.cost_applications%ROWTYPE;
+BEGIN
+    -- GET account UUIDs
+    SELECT uuid INTO STRICT v_credit_account_uuid
+    FROM accounting.accounts
+    WHERE code = p_credit_account_code;
+
+    SELECT uuid INTO STRICT v_control_account_uuid
+    FROM accounting.accounts
+    WHERE code = p_overhead_control_code;
+
+    -- Post ACTUAL Overhead
+    -- Dr MOH Control
+    -- Cr Cash / Payables
+    v_txn_serial := accounting.post_transaction(
+        'OVERHEAD-ACTUAL-' || p_production_order_uuid::text,
+        'Actual Manufacturing Overhead',
+        p_user,
+        'manufacturing',
+        CURRENT_DATE,
+        jsonb_build_array(
+            jsonb_build_object(
+                'account_ref', v_control_account_uuid,
+                'debit', p_amount,
+                'credit', 0,
+                'memo', format(
+                    'Actual overhead (%s) for order %s',
+                    p_overhead_type, p_production_order_uuid
+                )
+            ),
+            jsonb_build_object(
+                'account_ref', v_credit_amount_uuid,
+                'debit', 0,
+                'credit', p_amount,
+                'memo', format(
+                    'Actual overhead (%s) for order %s',
+                    p_overhead_type, p_production_order_uuid
+                )
+            )
+        )
+    );
+
+    -- Log
+    INSERT INTO manufacturing.cost_applicaations(
+        production_order_uuid, type, amount, reference, applied_at
+    ) VALUES (
+        p_production_order_uuid,
+        'ActualOverhead',
+        p_amount,
+        format('Actual overhead txn %s', v_txn_serial),
+        now()
+    ) RETURNING * INTO v_application;
+
+    RETURN v_application;
+END;
+$$;
 
 -- Single function for both direct & indirect labor
 CREATE OR REPLACE FUNCTION manufacturing.apply_labor_cost(
@@ -476,96 +545,96 @@ END;
 $$;
 
 -- Accumulate overhead to manufacturing overhead control
-CREATE OR REPLACE FUNCTION manufacturing.apply_overhead_to_control_account(
-    p_production_order_uuid uuid,
-    p_activity_amount       numeric, -- e.g. actual direct labor hours used on this order
-    p_payable_or_cash_code  text,
-    p_overhead_control_code text,
-    p_overhead_type         text,
-    p_user                  uuid
-)  RETURNS manufacturing.cost_applications -- return full row
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    v_rate                  numeric(18,6);
-    v_applied_amount        numeric(18,2);
-    v_payable_or_cash_uuid  uuid;
-    v_control_account_uuid  uuid;
-    v_txn_uuid              uuid;
-    v_txn_serial            bigint;
-    v_application           manufacturing.cost_applications%ROWTYPE;
-BEGIN
-    -- Find current applicable rate (latest or matching period)
-    SELECT rate INTO STRICT v_rate
-    FROM manufacturing.overhead_rates
-    WHERE CURRENT_DATE BETWEEN period_start AND period_end
-      AND is_active AND allocation_base = p_overhead_type
-    ORDER BY period_start DESC, created_at DESC
-    LIMIT 1;
+-- CREATE OR REPLACE FUNCTION manufacturing.apply_overhead_to_control_account(
+--     p_production_order_uuid uuid,
+--     p_activity_amount       numeric, -- e.g. actual direct labor hours used on this order
+--     p_payable_or_cash_code  text,
+--     p_overhead_control_code text,
+--     p_overhead_type         text,
+--     p_user                  uuid
+-- )  RETURNS manufacturing.cost_applications -- return full row
+-- LANGUAGE plpgsql
+-- AS $$
+-- DECLARE
+--     v_rate                  numeric(18,6);
+--     v_applied_amount        numeric(18,2);
+--     v_payable_or_cash_uuid  uuid;
+--     v_control_account_uuid  uuid;
+--     v_txn_uuid              uuid;
+--     v_txn_serial            bigint;
+--     v_application           manufacturing.cost_applications%ROWTYPE;
+-- BEGIN
+--     -- Find current applicable rate (latest or matching period)
+--     SELECT rate INTO STRICT v_rate
+--     FROM manufacturing.overhead_rates
+--     WHERE CURRENT_DATE BETWEEN period_start AND period_end
+--       AND is_active AND allocation_base = p_overhead_type
+--     ORDER BY period_start DESC, created_at DESC
+--     LIMIT 1;
 
-    IF v_rate IS NULL THEN
-        RAISE EXCEPTION 'No active predetermined overhead rate found for current date';
-    END IF;
+--     IF v_rate IS NULL THEN
+--         RAISE EXCEPTION 'No active predetermined overhead rate found for current date';
+--     END IF;
 
-    v_applied_amount := ROUND(p_activity_amount * v_rate, 2);
+--     v_applied_amount := ROUND(p_activity_amount * v_rate, 2);
 
-    -- Get account UUIDs (adjust codes if needed)
-    SELECT uuid INTO STRICT v_payable_or_cash_uuid
-        FROM accounting.accounts WHERE code = p_payable_or_cash_code;
+--     -- Get account UUIDs (adjust codes if needed)
+--     SELECT uuid INTO STRICT v_payable_or_cash_uuid
+--         FROM accounting.accounts WHERE code = p_payable_or_cash_code;
 
-    SELECT uuid INTO STRICT v_control_account_uuid
-        FROM accounting.accounts WHERE code = p_overhead_control_code;
+--     SELECT uuid INTO STRICT v_control_account_uuid
+--         FROM accounting.accounts WHERE code = p_overhead_control_code;
 
-    -- Create GL transaction (applied overhead)
-    -- Post GL transaction cash or expense payable:
-    --      DR: Manufacturing Control Acc             CR: Cash/Payabls
-    v_txn_serial := accounting.post_transaction(
-        'OVERHEAD-APPLY-' || p_production_order_uuid::text,
-        'Applied Manufacturing Overhead',
-        p_user,
-        'manufacturing',
-        CURRENT_DATE,
-        jsonb_build_array(
-            jsonb_build_object(
-                'account_ref', v_control_account_uuid, 'debit', v_applied_amount, 'credit', 0,
-                'memo', format(
-                    'Applied overhead to production order %s - base %s x rate %s',
-                    p_production_order_uuid, p_activity_amount, v_rate
-                )
-            ),
-            jsonb_build_object(
-                'account_ref', v_payable_or_cash_uuid, 'debit', 0, 'credit', v_applied_amount,
-                'memo', format(
-                    'Applied overhead to production order %s - base %s x rate %s',
-                    p_production_order_uuid, p_activity_amount, v_rate
-                )
-            )
-        )
-    );
+--     -- Create GL transaction (applied overhead)
+--     -- Post GL transaction cash or expense payable:
+--     --      DR: Manufacturing Control Acc             CR: Cash/Payabls
+--     v_txn_serial := accounting.post_transaction(
+--         'OVERHEAD-APPLY-' || p_production_order_uuid::text,
+--         'Applied Manufacturing Overhead',
+--         p_user,
+--         'manufacturing',
+--         CURRENT_DATE,
+--         jsonb_build_array(
+--             jsonb_build_object(
+--                 'account_ref', v_control_account_uuid, 'debit', v_applied_amount, 'credit', 0,
+--                 'memo', format(
+--                     'Applied overhead to production order %s - base %s x rate %s',
+--                     p_production_order_uuid, p_activity_amount, v_rate
+--                 )
+--             ),
+--             jsonb_build_object(
+--                 'account_ref', v_payable_or_cash_uuid, 'debit', 0, 'credit', v_applied_amount,
+--                 'memo', format(
+--                     'Applied overhead to production order %s - base %s x rate %s',
+--                     p_production_order_uuid, p_activity_amount, v_rate
+--                 )
+--             )
+--         )
+--     );
 
-    -- Record the application (for later reporting)
-    INSERT INTO manufacturing.cost_applications (
-        production_order_uuid, type, amount, reference, applied_at
-    ) VALUES (
-        p_production_order_uuid,
-        'Overhead',
-        v_applied_amount,
-        format(
-            'Applied at rate %s x base %s (txn %s)',
-            v_rate, p_activity_amount, v_txn_serial
-        ),
-        now()
-    )
-    RETURNING * INTO v_application;
+--     -- Record the application (for later reporting)
+--     INSERT INTO manufacturing.cost_applications (
+--         production_order_uuid, type, amount, reference, applied_at
+--     ) VALUES (
+--         p_production_order_uuid,
+--         'Overhead',
+--         v_applied_amount,
+--         format(
+--             'Applied at rate %s x base %s (txn %s)',
+--             v_rate, p_activity_amount, v_txn_serial
+--         ),
+--         now()
+--     )
+--     RETURNING * INTO v_application;
 
-    -- Update order if needed (optional)
-    UPDATE manufacturing.production_orders
-    SET updated_at = now()
-    WHERE uuid = p_production_order_uuid;
+--     -- Update order if needed (optional)
+--     UPDATE manufacturing.production_orders
+--     SET updated_at = now()
+--     WHERE uuid = p_production_order_uuid;
 
-    RETURN v_application;
-END;
-$$;
+--     RETURN v_application;
+-- END;
+-- $$;
 
 -- Move accumulated cost from WIP to Finished Goods
 -- CREATE OR REPLACE FUNCTION manufacturing.complete_production_order(
@@ -721,7 +790,7 @@ CREATE OR REPLACE FUNCTION manufacturing.complete_production_order(
     p_mfg_mat_var_account text,
     p_mfg_lab_var_account text,
     p_mfg_ovh_var_account text,
-    p_completed_quantity  text DEFAULT NULL,
+    p_completed_quantity  numeric(12, 4) DEFAULT NULL,
     p_completion_date     date DEFAULT CURRENT_DATE
 ) RETURNS uuid
 LANGUAGE plpgsql
@@ -760,9 +829,9 @@ BEGIN
     v_unit_cost := v_product.standard_cost;
 
     -- 3. Transfer applied overhead from MOH control to WIP
-    PERFORM manufacturing.transfer_applied_overhead_to_wip(
-        p_order_uuid, p_wip_account, p_user, p_completion_date
-    );
+    -- PERFORM manufacturing.transfer_applied_overhead_to_wip(
+    --     p_order_uuid, p_wip_account, p_user, p_completion_date
+    -- );
 
     -- 4. Compute variances before moving WIP to FG
     PERFORM manufacturing.record_standard_vs_actual_variance(
@@ -788,10 +857,10 @@ BEGIN
         p_completion_date,
         jsonb_build_array(
             jsonb_build_object(
-                'account_ref', v_fg_uuid, 'debit', v_standard_total, 'credit', 0, 'FG at standard cost'
+                'account_ref', v_fg_uuid, 'debit', v_standard_total, 'credit', 0, 'memo', 'FG at standard cost'
             ),
             jsonb_build_object(
-                'account_ref', v_wip_uuid, 'debit', 0, 'credit', v_standard_total, 'Relieve WIP at standard'
+                'account_ref', v_wip_uuid, 'debit', 0, 'credit', v_standard_total, 'memo', 'Relieve WIP at standard'
             )
         )
     );
