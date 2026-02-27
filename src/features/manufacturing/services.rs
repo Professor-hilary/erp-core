@@ -37,7 +37,7 @@ impl ManufacturingService {
         Ok(self.repo.issue_material(dto, user_uuid).await?)
     }
 
-    pub async fn apply_overhead(
+    pub async fn apply_rated_overhead(
         &self,
         dto: ApplyOverheadDto,
         user_uuid: Uuid,
@@ -45,7 +45,7 @@ impl ManufacturingService {
         Ok(self.repo.apply_overhead_to_order(dto, user_uuid).await?)
     }
 
-    pub async fn recognize_expenditures(
+    pub async fn recognize_overhead_paid(
         &self,
         dto: RecognizeOverhead,
         user_uuid: Uuid,

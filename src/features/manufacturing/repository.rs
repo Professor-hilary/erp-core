@@ -12,7 +12,7 @@ impl ManufacturingRepo {
         Self { pool }
     }
 
-    // ============== Production Order ==============
+    // ============================ Production Order ============================
     pub async fn create_production_order(
         &self,
         dto: CreateProductionOrderDto,
@@ -65,9 +65,10 @@ impl ManufacturingRepo {
     ) -> Result<OverheadRates, AppError> {
         let row = sqlx::query(
             r#"
-            INSERT INTO manufacturing.overhead_rates
-                (period_start, period_end, allocation_base, estimated_overhead,
-                estimated_base, department_code, is_active)
+            INSERT INTO manufacturing.overhead_rates(
+                period_start, period_end, allocation_base, estimated_overhead,
+                estimated_base, department_code, is_active
+            )
             VALUES ($1, $2, $3, $4, $5, $6, $7)
             RETURNING *
             "#,
@@ -120,13 +121,13 @@ impl ManufacturingRepo {
         })
     }
 
-    // ============== Material Issue ==============
+    // ============================ Material Issue ============================
     pub async fn issue_material(
         &self,
         dto: IssueMaterialDto,
         user_uuid: Uuid,
     ) -> Result<MaterialIssue, AppError> {
-        let row = sqlx::query_as::<_, MaterialIssue>(
+        let row: MaterialIssue = sqlx::query_as::<_, MaterialIssue>(
             r#"SELECT * FROM manufacturing.issue_material_to_order($1, $2, $3, $4, $5)"#,
         )
         .bind(dto.stock_item_id)
@@ -140,7 +141,7 @@ impl ManufacturingRepo {
         Ok(row)
     }
 
-    // ============== Overhead Application ==============
+    // ============================ Recognize Rated Overhead (Non-Actual) ============================
     pub async fn apply_overhead_to_order(
         &self,
         dto: ApplyOverheadDto,
@@ -172,7 +173,8 @@ impl ManufacturingRepo {
         })
     }
 
-    // ============== Recognize Overhead Expenditure ==============
+    /// Recognize Actual Overhead Expenditure
+    /// Use real amounts - not rates for indirect overheads
     pub async fn recognize_actual_overhead(
         &self,
         dto: RecognizeOverhead,
@@ -204,7 +206,7 @@ impl ManufacturingRepo {
         })
     }
 
-    // ============== Labor Application ==============
+    // ============================ Labor Application ============================
     pub async fn apply_labor_costs(
         &self,
         dto: ApplyLaborCostDto,
@@ -253,7 +255,7 @@ impl ManufacturingRepo {
         Ok(row.get("standard_cost"))
     }
 
-    // ============== Complete Production Order ==============
+    // ============================ Complete Production Order ============================
     pub async fn complete_production_order(
         &self,
         dto: CompleteProductionOrderDto,
@@ -279,7 +281,7 @@ impl ManufacturingRepo {
         self.get_production_order(dto.production_order_uuid).await
     }
 
-    // ============== Manual Variance Proration v2.0 ==============
+    // ============================ Manual Variance Proration v2.0 ============================
     pub async fn prorate_variance(
         &self,
         dto: ProrateVarianceDto,

@@ -140,34 +140,11 @@ CREATE table if not exists manufacturing.cost_applications (
         )
     ),
     amount numeric(18, 2) NOT NULL,
+    source_account uuid,
+    destination_account uuid,
     applied_at timestamptz DEFAULT now(),
     reference text,
     CONSTRAINT fk_applications_order FOREIGN KEY (production_order_uuid) REFERENCES manufacturing.production_orders (uuid)
-);
-
-INSERT INTO manufacturing.cost_applications(production_order_uuid, type, amount, applied_at, reference)
-VALUES('019c8bc8-24a2-7279-a867-e2e18def98c9', 'DirectMaterial', '270000',now(), 'Material isue: 16 units of xxx');
-
-SELECT * FROM manufacturing.production_orders;
-
-select * from accounting.post_transaction(
-    'PO-TEST-001-MAT-IN',
-    'Material To Work In Progress',
-    '019c469f-bcd9-7e59-9d8d-0c3207bb50b3',
-    'manufacturing',
-    '2026-02-24',
-    jsonb_build_array(
-        jsonb_build_object(
-            'account_ref', '019c46a0-8664-77ef-afea-2a1c12c675c5',
-            'debit', '270000', 'credit', '0',
-            'memo', 'Material issue on order PO-TEST-001'
-        ),
-        jsonb_build_object(
-            'account_ref', '019c46a0-865a-7310-b525-64d3d4725cc0',
-            'debit', '0', 'credit', '270000',
-            'memo', 'Offset to WIP - order PO-TEST-001'
-        )
-    )
 );
 
 -- Completions (WIP → Finished Goods)
@@ -274,7 +251,7 @@ $$;
 -- Helper Function: Apply Overhead to a Production Order
 CREATE OR REPLACE FUNCTION manufacturing.apply_overhead_to_order(
     p_production_order_uuid uuid,
-    p_activity_amount       numeric, -- e.g. actual direct labor hours used on this order
+    p_activity_amount       numeric, -- e.g. labor hours used on this order
     p_wip_account           text,
     p_overhead_control_code text,
     p_overhead_type         text,
@@ -339,7 +316,8 @@ BEGIN
 
     -- Record the application (for later reporting)
     INSERT INTO manufacturing.cost_applications (
-        production_order_uuid, type, amount, reference, applied_at
+        production_order_uuid, type, amount, reference, source_account,
+        destination_account, applied_at
     ) VALUES (
         p_production_order_uuid,
         'Overhead',
@@ -349,6 +327,8 @@ BEGIN
             v_rate, p_activity_amount,
             (SELECT uuid FROM accounting.transactions WHERE serial_id = v_txn_serial_id)
         ),
+        v_overhead_control_uuid,
+        v_wip_account_uuid,
         now()
     )
     RETURNING * INTO v_application;
@@ -365,13 +345,13 @@ $$;
 -- SELECT manufacturing.apply_overhead_to_order(
 --     order_uuid, 10 (labor hours), 'WIP CODE', 'MOH_CTRL', user_uuid
 -- );
--- DR MOH CONTROL      80
---     CR ACC PAYABLE      80
+-- DR Work In Progress  80
+--     CR Overhead Ctrl      80
 
 CREATE OR REPLACE FUNCTION manufacturing.record_actual_overhead(
     p_production_order_uuid uuid,
     p_amount                numeric, -- actual cost (invoice, cash, etc.)
-    p_credit_amount_code    text, -- payable or cash
+    p_credit_account_code   text, -- payable or cash
     p_overhead_control_code text,
     p_overhead_type         text,
     p_user                  uuid
@@ -413,7 +393,7 @@ BEGIN
                 )
             ),
             jsonb_build_object(
-                'account_ref', v_credit_amount_uuid,
+                'account_ref', v_credit_account_uuid,
                 'debit', 0,
                 'credit', p_amount,
                 'memo', format(
@@ -425,14 +405,17 @@ BEGIN
     );
 
     -- Log
-    INSERT INTO manufacturing.cost_applicaations(
-        production_order_uuid, type, amount, reference, applied_at
+    INSERT INTO manufacturing.cost_applications(
+        production_order_uuid, type, amount, reference, applied_at,
+        source_account, destination_account
     ) VALUES (
         p_production_order_uuid,
         'ActualOverhead',
         p_amount,
         format('Actual overhead txn %s', v_txn_serial),
-        now()
+        now(),
+        v_credit_account_uuid,
+        v_control_account_uuid
     ) RETURNING * INTO v_application;
 
     RETURN v_application;
@@ -535,7 +518,8 @@ BEGIN
 
     -- Record in cost_applications, TODO: Add GL uuid to entries for bigger relationships
     INSERT INTO manufacturing.cost_applications (
-        production_order_uuid, type, amount, reference, applied_at
+        production_order_uuid, type, amount, reference, applied_at,
+        source_account, destination_account
     ) VALUES (
         p_production_order_uuid, v_type_text, v_amount,
         format(
@@ -545,7 +529,9 @@ BEGIN
             COALESCE('- ' || p_reference, ''),
             CASE WHEN p_departrment_code IS NOT NULL THEN ' (' || p_departrment_code || ')' ELSE '' END
         ),
-        now()
+        now(),
+        v_labor_account_uuid,
+        v_wip_or_moh_ctrl_uuid
     )
     RETURNING * INTO v_application;
 
@@ -578,6 +564,9 @@ DECLARE
 
     v_standard_total    numeric(18,2);
     v_txn_uuid          uuid;
+    v_txn_serial_id     bigint;
+
+    v_movement_uuid     uuid;
 
     v_wip_uuid          uuid;
     v_fg_uuid           uuid;
@@ -637,50 +626,26 @@ BEGIN
     SELECT uuid INTO v_wip_uuid FROM accounting.accounts WHERE code = p_wip_account;
     SELECT uuid INTO v_fg_uuid  FROM accounting.accounts WHERE code = p_fg_account;
 
-    -- 7. Move WIP → FG (standard cost)
-    v_txn_uuid := accounting.post_transaction(
-        v_order.order_number || '-COMPLETE',
-        'Production Completion',
+    v_txn_serial_id := accounting.post_transaction(
+        v_order.order_number || '-COMPLETION',
+        'Production Completion (Standard Cost)',
         p_user,
-        'manufacturing',
+        'manufacturing_completion',
         p_completion_date,
-        '{}'::jsonb
+        jsonb_build_array(
+            jsonb_build_object(
+                'account_ref', v_fg_uuid, 'debit', v_standard_total, 'credit', 0, 'FG at standard cost'
+            ),
+            jsonb_build_object(
+                'account_ref', v_wip_uuid, 'debit', 0, 'credit', v_standard_total, 'Relieve WIP at standard'
+            )
+        )
     );
 
-    INSERT INTO accounting.transaction_entries
-    (transaction_uuid, account_uuid, line_no, amount, debit, credit, memo)
-    VALUES
-    (
-        v_txn_uuid,
-        v_fg_uuid,
-        1,
-        v_standard_total,
-        v_standard_total,
-        0,
-        'Finished goods at standard cost'
-    ),
-    (
-        v_txn_uuid,
-        v_wip_uuid,
-        2,
-        v_standard_total,
-        0,
-        v_standard_total,
-        'Relieve WIP'
-    );
-
-    -- 8. Inventory
+    -- 7. Record inventory movement IN to FG, update product lots
     INSERT INTO inventory.movements (
-        item_uuid,
-        warehouse_uuid,
-        movement_type,
-        reference_type,
-        reference_id,
-        quantity,
-        unit_cost,
-        direction,
-        gl_transaction_uuid,
-        movement_date
+        item_uuid, warehouse_uuid, movement_type, reference_type, reference_id,
+        quantity, unit_cost, direction, gl_transaction_uuid, movement_date
     ) VALUES (
         v_product.uuid,
         (SELECT uuid FROM inventory.warehouses WHERE serial_id = v_product.warehouse_serial),
@@ -688,11 +653,49 @@ BEGIN
         'production_order',
         v_order.serial_id,
         p_completed_quantity,
-        v_product.standard_cost,
+        v_unit_cost,
         'IN',
-        v_txn_uuid,
+        (SELECT uuid FROM accounting.transactions WHERE serial_id = v_txn_serial_id),
         p_completion_date
+    ) RETURNING uuid INTO v_movement_uuid;
+
+    -- Record completion (WIP -> FG)
+    INSERT INTO manufacturing.completions (
+        production_order_uuid, quantity_completed, unit_cost, completed_at
+    ) VALUES (
+        p_order_uuid, p_completed_quantity, v_unit_cost, p_completion_date
     );
+
+    -- If FIFO/LIFO -> create new lot for FG
+    IF v_product.valuation_method IN ('FIFO','LIFO') THEN
+        INSERT INTO inventory.lots (
+            item_uuid, warehouse_uuid, reference_type, reference_id,
+            received_date, original_quantity, original_cost_per_unit, remaining_quantity
+        ) VALUES (
+            v_product.uuid,
+            (SELECT uuid FROM inventory.warehouses WHERE serial_id = v_product.warehouse_serial),
+            'PROD_COMPLETION', v_movement_uuid,
+            p_completion_date, p_completed_quantity, v_unit_cost, p_completed_quantity
+        );
+    ELSIF v_product.valuation_method = 'WAVG' THEN
+        INSERT INTO inventory.wavg_warehouse (item_uuid, warehouse_uuid, total_quantity, total_cost)
+        VALUES (v_product.uuid, v_warehouse_account, p_completed_quantity, v_standard_total)
+        ON CONFLICT (item_uuid, warehouse_uuid) DO UPDATE SET
+            total_quantity = inventory.wavg_warehouse.total_quantity + p_completed_quantity,
+            total_cost     = inventory.wavg_warehouse.total_cost     + (p_completed_quantity * v_unit_cost),
+            last_updated_at = now();
+    END IF;
+
+    -- 9. Update production order
+    UPDATE manufacturing.production_orders
+    SET quantity_completed = quantity_completed + p_completed_quantity,
+        actual_completion_date = p_completion_date,
+        status = CASE WHEN quantity_completed + p_completed_quantity >= quantity_ordered THEN 'Completed' ELSE 'In Progress' END,
+        updated_at = now()
+    WHERE uuid = p_order_uuid;
+
+    -- Get uuid of transaction
+    SELECT uuid INTO v_txn_uuid FROM accounting.transactions WHERE serial_id = v_txn_serial_id;
 
     RETURN v_txn_uuid;
 END;
@@ -753,12 +756,8 @@ BEGIN
     v_std_total := v_product.standard_cost * v_order.quantity_completed;
 
     -- 4. Actual costs already sitting in WIP
-    SELECT COALESCE(SUM(debit - credit),0)
-    INTO v_act_total
-    FROM accounting.transaction_entries te
-    JOIN accounting.transactions t ON t.uuid = te.transaction_uuid
-    WHERE te.account_uuid = (SELECT uuid FROM accounting.accounts WHERE code = p_wip_account)
-      AND t.reference = v_order.order_number;
+    SELECT COALESCE(SUM(amount),0) INTO v_act_total FROM manufacturing.cost_applications
+        WHERE production_order_uuid = p_order_uuid;
 
     -- 5. Split actuals (from your cost tracking)
     SELECT COALESCE(SUM(total_cost),0)
@@ -925,10 +924,12 @@ BEGIN
 
     -- Update cost application table with the value of the materials
     INSERT INTO manufacturing.cost_applications(
-        production_order_uuid, type, amount, applied_at, reference
+        production_order_uuid, type, amount, applied_at, reference,
+        source_account, destination_account
     ) VALUES (
         p_production_order_uuid, 'DirectMaterial', v_total_cost, now(),
-        format('Material issue: %s units of item %s', p_quantity, v_item.serial_id)
+        format('Material issue: %s units of item %s', p_quantity, v_item.serial_id),
+        v_raw_mat_uuid, v_wip_uuid
     );
 
     -- 6. Update production order status
@@ -1211,7 +1212,6 @@ GROUP BY
     i.uuid,
     po.material_usage_variance,
     po.labor_efficiency_variance;
-
 
 -- NOTES:
 -----------------------------------------------------------------------------------------------

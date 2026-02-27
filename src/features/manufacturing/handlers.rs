@@ -37,8 +37,8 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/create/overhead-rate", post(new_overhead_rate_route))
         .route("/variance-allocation", post(prorate_variance_route))
         .route("/materials-issuance", post(raw_material_issuance_route))
-        .route("/apply/control-wip", post(apply_overhead_route))
-        .route("/apply/overhead-control", post(recognize_overhead_route))
+        .route("/apply/actual-overhead", post(actual_overhead_route))
+        .route("/apply/overhead-control", post(assumed_overhead_route))
         .route("/apply/labor-cost", post(apply_labor_route))
         .route("/complete-production", post(complete_order_route))
         .route("/create/bom", post(create_bom_route))
@@ -134,7 +134,7 @@ async fn prorate_variance_route(
 }
 
 /// POST /manufacturing/overhead-application
-async fn recognize_overhead_route(
+async fn actual_overhead_route(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     AppJson(payload): AppJson<RecognizeOverhead>,
@@ -142,17 +142,14 @@ async fn recognize_overhead_route(
     let repo: ManufacturingRepo = ManufacturingRepo::new(user.tenant_pool);
     let service: ManufacturingService = ManufacturingService::new(repo);
 
-    match service.recognize_expenditures(payload, user.user_id).await {
-        Ok(result) => Ok(ApiResponse::created(
-            result,
-            "Indirect Cost Applied to Control Account",
-        )),
+    match service.recognize_overhead_paid(payload, user.user_id).await {
+        Ok(result) => Ok(ApiResponse::created(result, "Rated Overhead Recognized")),
         Err(e) => Err(internal_error(e)),
     }
 }
 
 /// POST /manufacturing/overhead-application
-async fn apply_overhead_route(
+async fn assumed_overhead_route(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     AppJson(payload): AppJson<ApplyOverheadDto>,
@@ -160,8 +157,8 @@ async fn apply_overhead_route(
     let repo: ManufacturingRepo = ManufacturingRepo::new(user.tenant_pool);
     let service: ManufacturingService = ManufacturingService::new(repo);
 
-    match service.apply_overhead(payload, user.user_id).await {
-        Ok(result) => Ok(ApiResponse::created(result, "Overhead Applied")),
+    match service.apply_rated_overhead(payload, user.user_id).await {
+        Ok(result) => Ok(ApiResponse::created(result, "Actual Overhead Applied")),
         Err(e) => Err(internal_error(e)),
     }
 }
