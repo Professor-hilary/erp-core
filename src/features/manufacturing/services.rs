@@ -50,7 +50,7 @@ impl ManufacturingService {
         dto: RecognizeOverhead,
         user_uuid: Uuid,
     ) -> Result<CostApplication, AppError> {
-        Ok(self.repo.recognize_overhead(dto, user_uuid).await?)
+        Ok(self.repo.recognize_actual_overhead(dto, user_uuid).await?)
     }
 
     pub async fn apply_labor_costs(

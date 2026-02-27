@@ -149,7 +149,7 @@ impl ManufacturingRepo {
         let row: PgRow = sqlx::query(
             "
             SELECT * FROM manufacturing.apply_overhead_to_order(
-                $1, $2, $3, $4, $5
+                $1, $2, $3, $4, $5, $6
             )
         ",
         )
@@ -157,6 +157,7 @@ impl ManufacturingRepo {
         .bind(dto.base_amount)
         .bind(dto.wip_account)
         .bind(dto.overhead_control_account)
+        .bind(dto.allocation_base)
         .bind(user_uuid)
         .fetch_one(&self.pool)
         .await?;
@@ -172,14 +173,14 @@ impl ManufacturingRepo {
     }
 
     // ============== Recognize Overhead Expenditure ==============
-    pub async fn recognize_overhead(
+    pub async fn recognize_actual_overhead(
         &self,
         dto: RecognizeOverhead,
         user_uuid: Uuid,
     ) -> Result<CostApplication, AppError> {
         let row: PgRow = sqlx::query(
             "
-            SELECT * FROM manufacturing.apply_overhead_to_control_account(
+            SELECT * FROM manufacturing.record_actual_overhead(
                 $1, $2, $3, $4, $5, $6
             )
         ",
