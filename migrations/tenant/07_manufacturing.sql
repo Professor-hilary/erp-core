@@ -568,11 +568,12 @@ CREATE OR REPLACE FUNCTION manufacturing.complete_production_order(
     p_order_uuid            uuid,
     p_completed_quantity    numeric(18,4),
     p_user                  uuid,
+    p_control_account       text,
     p_wip_account           text,
     p_fg_account            text,
     p_mfg_mat_var_account   text,
     p_mfg_lab_var_account   text,
-    p_completion_date date  DEFAULT CURRENT_DATE
+    p_completion_date       date  DEFAULT CURRENT_DATE
 ) RETURNS uuid
 LANGUAGE plpgsql
 AS $$
@@ -601,10 +602,7 @@ BEGIN
 
     -- TODO: 3. Move overhead from control → WIP
     PERFORM manufacturing.transfer_applied_overhead_to_wip(
-        p_order_uuid,
-        p_wip_account,
-        p_user,
-        p_completion_date
+        p_order_uuid, v_wip_uuid, p_user, p_control_account, p_completion_date
     );
 
     -- 4. Update order first
@@ -691,6 +689,77 @@ BEGIN
     END IF;
 
     RETURN (SELECT uuid FROM accounting.transactions WHERE serial_id = v_txn_serial);
+END;
+$$;
+
+-- Move overhead to Work In Progress
+CREATE OR REPLACE FUNCTION manufacturing.transfer_applied_overhead_to_wip(
+    p_order_uuid        uuid,
+    p_wip_account_uuid  uuid,
+    p_overhead_control  uuid,
+    p_user              uuid,
+    p_completion_date   date
+)RETURNS void
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_applied_total numeric(18,2) := 0;
+    v_txn_serial    bigint;
+BEGIN
+    -- 1. Calculate total applied overhead for this order so far
+    SELECT COALESCE(SUM(amount), 0)
+    INTO v_applied_total
+    FROM manufacturing.cost_applications
+    WHERE production_order_uuid = p_order_uuid
+        AND type = 'OverheadApplied';
+
+    IF v_applied_total <= 0 THEN
+        RAISE NOTICE 'No applied overhead found for order %. Nothing to transfer.', p_order_uuid;
+        RETURN;
+    END IF;
+
+    -- Post the transfer journal entry
+    -- Dr WIP           (add applied OH to WIP)
+    -- Cr MOH Control   (remove the credit that was sitting there)
+
+    -- 2. Journal to transfer to wip value from control account for overheads
+    v_txn_serial_id := accounting.post_transaction(
+        'OH-TRF-' || p_order_uuid::text || '-' || to_char(p_completion_date, 'YYYYMMDD'),
+        'Posting Manufacturing Overhead to WIP',
+        p_user,
+        'manufacturing',
+        CURRENT_DATE,
+        jsonb_build_array(
+            jsonb_build_object(
+                'account_ref', p_wip_account_uuid, 'debit', v_applied_amount, 'credit', 0,
+                'memo', format('Applied overhead to production order')
+            ),
+            jsonb_build_object(
+                'account_ref', p_overhead_control, 'debit', 0, 'credit', v_applied_amount,
+                'memo', format('Applied overhead to production order')
+            )
+        )
+    );
+
+    -- Record the application (for later reporting)
+    INSERT INTO manufacturing.cost_applications (
+        production_order_uuid, type, amount, reference, source_account,
+        destination_account, applied_at
+    ) VALUES (
+        p_production_order_uuid,
+        'Overhead',
+        v_applied_amount,
+        format('Transferred applied OH to WIP at completion (txn serial %s)', v_txn_serial),
+        v_overhead_control_uuid,
+        v_wip_account_uuid,
+        now()
+    )
+    RETURNING * INTO v_application;
+
+    -- Update order if needed (optional)
+    UPDATE manufacturing.production_orders
+    SET updated_at = now()
+    WHERE uuid = p_production_order_uuid;
 END;
 $$;
 
