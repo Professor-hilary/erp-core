@@ -2,7 +2,7 @@
 CREATE SCHEMA IF NOT EXISTS accounting;
 
 --Create extension for ltree
-CREATE EXTENSION IF NOT EXISTS ltree;
+CREATE EXTENSION IF NOT EXISTS ltree schema public;
 
 -- UUID extension Enabled automatically (required for uuidv7())
 -- Sequences
@@ -34,13 +34,17 @@ CREATE TABLE accounting.accounts (
     normal_balance TEXT NOT NULL CHECK (
         normal_balance IN ('cr', 'dr')
     ), -- 'DR' or 'CR'
-    path public.ltree COMMENT 'Materialized hierarchical path using ltree (e.g. 1.100.1100 for asset -> current asset -> cash',
-    hierarchy_depth smallint GENERATED ALWAYS AS public.nlevel (path) STORED 'Is computed depth level (root = 1)',
+    path public.ltree,
+    hierarchy_depth smallint GENERATED ALWAYS AS (nlevel (path)) STORED,
     is_contra BOOLEAN DEFAULT FALSE,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
+
+COMMENT ON COLUMN accounting.accounts.path IS 'Materialized hierarchical path using ltree (e.g. 1.100.1100 for asset -> current asset -> cash';
+
+COMMENT ON COLUMN accounting.accounts.hierarchy_depth IS 'Is computed depth level (root = 1)';
 
 -- Indexes (keep the ones you need)
 CREATE INDEX ON accounting.accounts (category);
@@ -220,8 +224,6 @@ BEGIN
 END;
 $$;
 
-select * from accounting.accounts where path <@ '500000'::accounting.ltree;
-
 -- Update account path on create new account entry
 CREATE OR REPLACE FUNCTION accounting.maintain_account_path()
 RETURNS trigger
@@ -324,7 +326,7 @@ BEGIN
 
 	commit;
 END;
-$procedure$
+$procedure$;
 
 -- Create trigger function
 

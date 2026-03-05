@@ -787,7 +787,7 @@ $$ LANGUAGE sql STABLE;
 CREATE OR REPLACE FUNCTION reporting.get_cost_of_goods_manufactured(
     p_start_date date,
     p_end_date   date,
-    p_wip_account
+    p_wip_account text
 )
 RETURNS TABLE (
     description text,

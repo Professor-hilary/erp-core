@@ -16,6 +16,7 @@ pub struct Item {
     pub description: Option<String>,  // Relevant but not necessary
     pub unit: String,                 // UOM e.g. boxes, litres, pieces...
     pub selling_price: BigDecimal,    // Selling price, will soon remove this
+    pub standard_cost: Option<BigDecimal>,    // Production standard price
     pub track_quantity: bool,         // Relevant for the future
     pub reorder_level: BigDecimal,    // When to make new purchase order
     pub asset_account: String,        // Account for tracking asset
@@ -65,6 +66,7 @@ pub struct CreateItem {
     pub description: Option<String>,
     pub unit: Option<String>,
     pub selling_price: Option<BigDecimal>,
+    pub standard_cost: Option<BigDecimal>,
     pub track_quantity: Option<bool>,
     pub reorder_level: Option<BigDecimal>,
     pub asset_account: Option<String>,

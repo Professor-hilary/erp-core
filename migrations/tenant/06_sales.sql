@@ -4,7 +4,7 @@
 -- =======================================================================================
 
 -- Create schema
-CREATE SCHEMA IF NOT EXISTS receivables;
+CREATE SCHEMA IF NOT EXISTS sales;
 
 -- ================================================================================
 -- SEQUENCES
@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS sales.turnover (
     tax_amount numeric(18, 2) DEFAULT 0,
     balance_due numeric(18, 2) DEFAULT 0,
     settlement_type text DEFAULT 'credit' CHECK(settlement_type IN ('credit', 'cash')),
-    status text DEFAULT DEFAULT 'unpaid' CHECK(settlement_type IN ('unpaid', 'paid', 'partial', 'cancelled')),
+    status text DEFAULT 'unpaid' CHECK(status IN ('unpaid', 'paid', 'partial', 'cancelled')),
     posted boolean DEFAULT false,
     gl_transaction_uuid uuid,
     paid_at timestamptz,
@@ -160,21 +160,21 @@ CREATE TABLE IF NOT EXISTS sales.credit_notes (
 -- ================================================================================
 -- VIEWS
 -- ================================================================================
-CREATE OR REPLACE VIEW sales.customer_aging AS
-SELECT
-    c.serial_id AS customer_serial_id,
-    c.code AS customer_code,
-    c.name AS customer_name,
-    SUM(CASE WHEN i.due_date >= CURRENT_DATE THEN i.balance_due ELSE 0 END) AS current,
-    SUM(CASE WHEN i.due_date < CURRENT_DATE AND i.due_date >= CURRENT_DATE - INTERVAL '30 days' THEN i.balance_due ELSE 0 END) AS days_1_30,
-    SUM(CASE WHEN i.due_date >= CURRENT_DATE - INTERVAL '60 days' AND i.due_date < CURRENT_DATE - INTERVAL '30 days' THEN i.balance_due ELSE 0 END) AS days_31_60,
-    SUM(CASE WHEN i.due_date >= CURRENT_DATE - INTERVAL '90 days' AND i.due_date < CURRENT_DATE - INTERVAL '60 days' THEN i.balance_due ELSE 0 END) AS days_61_90,
-    SUM(CASE WHEN i.due_date < CURRENT_DATE - INTERVAL '90 days' THEN i.balance_due ELSE 0 END) AS days_over_90,
-    SUM(i.balance_due) AS total_outstanding
-FROM sales.customers c
-LEFT JOIN sales.turnover i ON i.customer_uuid = c.uuid AND i.status NOT IN ('Paid', 'Cancelled')
-GROUP BY c.serial_id, c.code, c.name
-ORDER BY total_outstanding DESC;
+-- CREATE OR REPLACE VIEW sales.customer_aging AS
+-- SELECT
+--    c.serial_id AS customer_serial_id,
+--    c.code AS customer_code,
+--    c.name AS customer_name,
+--    SUM(CASE WHEN i.due_date >= CURRENT_DATE THEN i.balance_due ELSE 0 END) AS current,
+--    SUM(CASE WHEN i.due_date < CURRENT_DATE AND i.due_date >= CURRENT_DATE - INTERVAL '30 days' THEN i.balance_due ELSE 0 END) AS days_1_30,
+--    SUM(CASE WHEN i.due_date >= CURRENT_DATE - INTERVAL '60 days' AND i.due_date < CURRENT_DATE - INTERVAL '30 days' THEN i.balance_due ELSE 0 END) AS days_31_60,
+--    SUM(CASE WHEN i.due_date >= CURRENT_DATE - INTERVAL '90 days' AND i.due_date < CURRENT_DATE - INTERVAL '60 days' THEN i.balance_due ELSE 0 END) AS days_61_90,
+--    SUM(CASE WHEN i.due_date < CURRENT_DATE - INTERVAL '90 days' THEN i.balance_due ELSE 0 END) AS days_over_90,
+--    SUM(i.balance_due) AS total_outstanding
+-- FROM sales.customers c
+-- LEFT JOIN sales.turnover i ON i.customer_uuid = c.uuid AND i.status NOT IN ('paid', 'cancelled')
+-- GROUP BY c.serial_id, c.code, c.name
+-- ORDER BY total_outstanding DESC;
 
 CREATE OR REPLACE VIEW sales.customer_statement AS
 SELECT DISTINCT ON (c.serial_id, COALESCE(i.serial_id, 0))
@@ -226,7 +226,7 @@ BEGIN
         RAISE EXCEPTION 'Turnover % not found', p_turnover_serial_id;
     END IF;
 
-    IF v_turnover.posted THEN RETURN
+    IF v_turnover.posted THEN
         RAISE EXCEPTION 'Turnover % already posted', p_turnover_serial_id;
     END IF;
 

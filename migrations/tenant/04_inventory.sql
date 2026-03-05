@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS inventory.items (
     unit              text        DEFAULT 'pcs',
     item_type text not null default 'Purchased' check (item_type in ('Purchased', 'Manufactured', 'Service', 'Non-inventory')),
     selling_price     numeric(18,2) DEFAULT 0,
-    standard_cost     numeric(18,4)
+    standard_cost     numeric(18,4),
     track_quantity    boolean     DEFAULT true,
     reorder_level     numeric(18,4) DEFAULT 0,
     valuation_method  text        NOT NULL DEFAULT 'FIFO' CHECK (valuation_method IN ('FIFO', 'LIFO', 'WAVG')),

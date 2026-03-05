@@ -723,7 +723,7 @@ BEGIN
     -- Cr MOH Control   (remove the credit that was sitting there)
 
     -- 2. Journal to transfer to wip value from control account for overheads
-    v_txn_serial_id := accounting.post_transaction(
+    v_txn_serial := accounting.post_transaction(
         'OH-TRF-' || p_order_uuid::text || '-' || to_char(p_completion_date, 'YYYYMMDD'),
         'Posting Manufacturing Overhead to WIP',
         p_user,
@@ -741,7 +741,7 @@ BEGIN
         )
     );
 
-    -- Record the application (for later reporting)
+    -- Record the application
     INSERT INTO manufacturing.cost_applications (
         production_order_uuid, type, amount, reference, source_account,
         destination_account, applied_at
@@ -753,13 +753,15 @@ BEGIN
         v_overhead_control_uuid,
         v_wip_account_uuid,
         now()
-    )
-    RETURNING * INTO v_application;
+    );
 
     -- Update order if needed (optional)
     UPDATE manufacturing.production_orders
     SET updated_at = now()
     WHERE uuid = p_production_order_uuid;
+
+	RAISE NOTICE 'Transferred % applied overhead to WIP for order % (txn serial %s)',
+		v_applied_total, p_order_uuid, v_txn_serial;
 END;
 $$;
 

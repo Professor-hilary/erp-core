@@ -171,6 +171,7 @@ impl InventoryRepository for PostgresInventoryRepo {
         .bind(payload.warehouse_serial)
         .bind(&payload.unit)
         .bind(payload.selling_price.as_ref())
+        .bind(payload.standard_cost.as_ref())
         .bind(payload.track_quantity)
         .bind(payload.reorder_level.as_ref())
         .bind(&payload.asset_account)
