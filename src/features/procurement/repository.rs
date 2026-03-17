@@ -42,6 +42,14 @@ pub trait VendorRepository: Send + Sync {
         payload: &PostPurchase,
     ) -> Result<i64, AppError>;
 
+    // Proceed to procure
+    async fn post_purchase(
+        &self,
+        pool: &PgPool,
+        user_id: Uuid,
+        payload: &PostPurchase,
+    ) -> Result<i64, AppError>;
+
     async fn list_vendor_bills(
         &self,
         pool: &PgPool,
@@ -159,9 +167,13 @@ impl VendorRepository for PostgresVendorRepo {
                 due_date,
                 reference,
                 total_amount,
-                tax_amount
+                tax_amount,
+                settlement_type,
+                paid_at,
+                payment_status
+            ) VALUES (
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
             )
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
             RETURNING *
             "#,
         )
@@ -172,6 +184,9 @@ impl VendorRepository for PostgresVendorRepo {
         .bind(&payload.reference)
         .bind(&payload.total_amount)
         .bind(&payload.tax_amount)
+        .bind(&payload.settlement_type)
+        .bind(payload.paid_at)
+        .bind(&payload.payment_status)
         .fetch_one(&mut *tx)
         .await?;
 
@@ -238,6 +253,27 @@ impl VendorRepository for PostgresVendorRepo {
             .bind(&payload.payables_account)
             .execute(pool)
             .await?;
+
+        Ok(payload.bill_serial_id)
+    }
+
+    async fn post_purchase(
+        &self,
+        pool: &PgPool,
+        user_id: Uuid,
+        payload: &PostPurchase,
+    ) -> Result<i64, AppError> {
+        sqlx::query(
+            r#"
+                SELECT procurement.procure_stock($1, $2, $3, null, $4)
+            "#,
+        )
+        .bind(payload.bill_serial_id)
+        .bind(user_id)
+        .bind(&payload.vat_tax_account)
+        .bind(&payload.cash_account)
+        .execute(pool)
+        .await?;
 
         Ok(payload.bill_serial_id)
     }

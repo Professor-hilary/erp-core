@@ -10,7 +10,7 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::{
-    features::vendors::{repository::PostgresVendorRepo, services::VendorService},
+    features::procurement::{repository::PostgresVendorRepo, services::VendorService},
     interface::api::{errors::AppError, json_errors::AppJson, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,
     models::vendor::{
@@ -24,6 +24,7 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/create/vendor", post(http_create_vendor))
         .route("/create/bill", post(http_create_bill))
         .route("/post-bill", post(http_post_bill))
+        .route("/post/cash-purchase", post(http_post_purchase))
         .route("/get/{uuid}", get(http_get_vendor))
         .route("/list/vendors", get(http_list_vendors))
         .route("/list/vendor-bills/{uuid}", get(http_list_vendor_bills))
@@ -119,6 +120,23 @@ async fn http_post_bill(
     Ok(ApiResponse::success(
         format!("Bill serial id: {bill_id}"),
         "Bill posted successfully",
+    ))
+}
+
+async fn http_post_purchase(
+    State(_state): State<Arc<AppState>>,
+    Extension(user): Extension<AuthenticatedTenant>,
+    AppJson(payload): AppJson<PostPurchase>,
+) -> Result<Response, AppError> {
+    let repo = PostgresVendorRepo::new();
+    let service = VendorService::new(repo);
+    let bill_id: i64 = service
+        .post_cash_purchase(&user.tenant_pool, user.user_id, &payload)
+        .await?;
+
+    Ok(ApiResponse::success(
+        format!("Purchase serial id: {bill_id}"),
+        "Purchase posted successfully",
     ))
 }
 

@@ -1,8 +1,12 @@
 // src/routes/vendors/service.rs
 use crate::{
-    features::vendors::repository::VendorRepository,
+    features::procurement::repository::VendorRepository,
     interface::api::errors::AppError,
-    models::vendor::{ApplyPayment, Purchase, CreatePurchase, CreateVendor, Payment, PostPurchase, Vendor},
+    models::{
+        vendor::{
+            ApplyPayment, CreatePurchase, CreateVendor, Payment, PostPurchase, Purchase, Vendor,
+        },
+    },
 };
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -72,6 +76,15 @@ impl<R: VendorRepository> VendorService<R> {
         payload: &PostPurchase,
     ) -> Result<i64, AppError> {
         self.repo.post_bill(pool, user_id, payload).await
+    }
+
+    pub async fn post_cash_purchase(
+        &self,
+        pool: &PgPool,
+        user_id: Uuid,
+        payload: &PostPurchase,
+    ) -> Result<i64, AppError> {
+        self.repo.post_purchase(pool, user_id, payload).await
     }
 
     pub async fn list_vendor_bills(
