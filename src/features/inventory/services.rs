@@ -3,12 +3,10 @@ use crate::{
     features::inventory::repository::InventoryRepository,
     interface::api::errors::AppError,
     models::{
-        customers::{CreateTurnover, PostTurnover, Turnover},
+
         inventory::{
-            CreateItem, CreateItemCategory, CreateWarehouse, Item, ItemCategory,
-            Warehouse,
+            CreateItem, CreateItemCategory, CreateWarehouse, Item, ItemCategory, Warehouse,
         },
-        vendor::{CreatePurchase, PostPurchase},
     },
 };
 use sqlx::PgPool;
@@ -172,38 +170,29 @@ impl<R: InventoryRepository> InventoryService<R> {
         self.repo.delete_warehouse(tenant_pool, uuid, user_id).await
     }
 
-    pub async fn purchase(
-        &self,
-        tenant_pool: &PgPool,
-        user_id: Uuid,
-        payload: &CreatePurchase,
-    ) -> Result<crate::models::vendor::Purchase, AppError> {
-        self.repo.cash_purchase(tenant_pool, user_id, payload).await
-    }
+    // pub async fn purchase(
+    //     &self,
+    //     tenant_pool: &PgPool,
+    //     user_id: Uuid,
+    //     payload: &CreatePurchase,
+    // ) -> Result<crate::models::vendor::Purchase, AppError> {
+    //     self.repo.cash_purchase(tenant_pool, user_id, payload).await
+    // }
 
-    pub async fn post_cash_purchase(
-        &self,
-        pool: &PgPool,
-        user_id: Uuid,
-        payload: &PostPurchase,
-    ) -> Result<i64, AppError> {
-        self.repo.post_purchase(pool, user_id, payload).await
-    }
+    // pub async fn create_sale(
+    //     &self,
+    //     tenant_pool: &PgPool,
+    //     payload: &CreateTurnover,
+    // ) -> Result<Turnover, AppError> {
+    //     self.repo.create_sale_order(tenant_pool, payload).await
+    // }
 
-    pub async fn create_sale(
-        &self,
-        tenant_pool: &PgPool,
-        payload: &CreateTurnover,
-    ) -> Result<Turnover, AppError> {
-        self.repo.create_sale_order(tenant_pool, payload).await
-    }
-
-    pub async fn post_sale(
-        &self,
-        tenant_pool: &PgPool,
-        user_id: Uuid,
-        payload: &PostTurnover,
-    ) -> Result<Turnover, AppError> {
-        self.repo.post_sale(tenant_pool, user_id, payload).await
-    }
+    // pub async fn post_sale(
+    //     &self,
+    //     tenant_pool: &PgPool,
+    //     user_id: Uuid,
+    //     payload: &PostTurnover,
+    // ) -> Result<Turnover, AppError> {
+    //     self.repo.post_sale(tenant_pool, user_id, payload).await
+    // }
 }

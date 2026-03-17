@@ -70,7 +70,7 @@ pub struct CreateTurnover {
     pub customer_uuid: Uuid,
     pub issue_date: NaiveDate,
     pub due_date: NaiveDate,
-    pub settlement_type: Option<String>,
+    pub settlement_type: String,
     pub tax_amount: Option<BigDecimal>,
     pub total_amount: Option<BigDecimal>,
     pub items: Vec<CreateTurnoverItem>,
