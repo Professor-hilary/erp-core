@@ -69,22 +69,22 @@ impl<R: VendorRepository> VendorService<R> {
         self.repo.create_bill(tenant_pool, payload).await
     }
 
-    pub async fn post_bill(
+    pub async fn credit_purchase(
         &self,
         pool: &PgPool,
         user_id: Uuid,
         payload: &PostPurchase,
     ) -> Result<i64, AppError> {
-        self.repo.post_bill(pool, user_id, payload).await
+        self.repo.post_credit_purchase(pool, user_id, payload).await
     }
 
-    pub async fn post_cash_purchase(
+    pub async fn cash_purchase(
         &self,
         pool: &PgPool,
         user_id: Uuid,
         payload: &PostPurchase,
     ) -> Result<i64, AppError> {
-        self.repo.post_purchase(pool, user_id, payload).await
+        self.repo.post_cash_purchase(pool, user_id, payload).await
     }
 
     pub async fn list_vendor_bills(

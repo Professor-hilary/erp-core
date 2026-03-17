@@ -62,14 +62,6 @@ impl<R: CustomerRepository> CustomerService<R> {
         self.repo.delete(tenant_pool, uuid, user_id).await
     }
 
-    // pub async fn create_sale(
-    //     &self,
-    //     tenant_pool: &PgPool,
-    //     payload: &CreateTurnover,
-    // ) -> Result<Turnover, AppError> {
-    //     self.repo.create_sale_order(tenant_pool, payload).await
-    // }
-
     pub async fn post_sale(
         &self,
         tenant_pool: &PgPool,

@@ -35,7 +35,7 @@ pub trait VendorRepository: Send + Sync {
         payload: &CreatePurchase,
     ) -> Result<Purchase, AppError>;
 
-    async fn post_bill(
+    async fn post_credit_purchase(
         &self,
         pool: &PgPool,
         user_id: Uuid,
@@ -43,7 +43,7 @@ pub trait VendorRepository: Send + Sync {
     ) -> Result<i64, AppError>;
 
     // Proceed to procure
-    async fn post_purchase(
+    async fn post_cash_purchase(
         &self,
         pool: &PgPool,
         user_id: Uuid,
@@ -240,7 +240,7 @@ impl VendorRepository for PostgresVendorRepo {
         Ok(bill)
     }
 
-    async fn post_bill(
+    async fn post_credit_purchase(
         &self,
         pool: &PgPool,
         user_id: Uuid,
@@ -257,7 +257,7 @@ impl VendorRepository for PostgresVendorRepo {
         Ok(payload.bill_serial_id)
     }
 
-    async fn post_purchase(
+    async fn post_cash_purchase(
         &self,
         pool: &PgPool,
         user_id: Uuid,

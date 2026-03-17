@@ -23,8 +23,8 @@ pub fn router() -> Router<Arc<AppState>> {
     Router::new()
         .route("/create/vendor", post(http_create_vendor))
         .route("/create/bill", post(http_create_bill))
-        .route("/post-bill", post(http_post_bill))
-        .route("/post/cash-purchase", post(http_post_purchase))
+        .route("/post-bill", post(http_credit_purchase))
+        .route("/post/cash-purchase", post(http_cash_purchase))
         .route("/get/{uuid}", get(http_get_vendor))
         .route("/list/vendors", get(http_list_vendors))
         .route("/list/vendor-bills/{uuid}", get(http_list_vendor_bills))
@@ -106,7 +106,7 @@ async fn http_create_bill(
     Ok(ApiResponse::created(bill, "Bill created successfully"))
 }
 
-async fn http_post_bill(
+async fn http_credit_purchase(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     AppJson(payload): AppJson<PostPurchase>,
@@ -114,7 +114,7 @@ async fn http_post_bill(
     let repo: PostgresVendorRepo = PostgresVendorRepo::new();
     let service: VendorService<PostgresVendorRepo> = VendorService::new(repo);
     let bill_id: i64 = service
-        .post_bill(&user.tenant_pool, user.user_id, &payload)
+        .credit_purchase(&user.tenant_pool, user.user_id, &payload)
         .await?;
 
     Ok(ApiResponse::success(
@@ -123,7 +123,7 @@ async fn http_post_bill(
     ))
 }
 
-async fn http_post_purchase(
+async fn http_cash_purchase(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     AppJson(payload): AppJson<PostPurchase>,
@@ -131,7 +131,7 @@ async fn http_post_purchase(
     let repo = PostgresVendorRepo::new();
     let service = VendorService::new(repo);
     let bill_id: i64 = service
-        .post_cash_purchase(&user.tenant_pool, user.user_id, &payload)
+        .cash_purchase(&user.tenant_pool, user.user_id, &payload)
         .await?;
 
     Ok(ApiResponse::success(

@@ -26,7 +26,6 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/create/item", post(http_create_item))
         .route("/create/category", post(http_create_item_category))
         .route("/create/warehouse", post(http_create_warehouse))
-        // .route("/create/cash-sale", post(http_cash_sale))
         .route("/list/inventory", get(http_list_items))
         .route("/list/categories", get(http_list_item_categories))
         .route("/list/warehouses", get(http_list_warehouses))

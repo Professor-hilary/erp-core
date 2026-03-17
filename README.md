@@ -399,6 +399,45 @@ curl -X POST http://localhost:3000/accounting/create -H "$AUTH" -H "Content-Type
 }' | jq
 ```
 
+# Cash purchase
+```python
+curl -sX POST http://127.0.0.1:8080/api/inventory/create/cash-purchase \
+-H "Authorization: Bearer $TOKEN" \
+-H "Content-Type: application/json" \
+-d '{
+  "bill_number": "CASH-PURCH-001",
+  "vendor_uuid": "019c46a7-471c-721a-8f80-dffeb368810d",
+  "bill_date": "2026-01-05",
+  "due_date": "2026-01-05",
+  "reference": "purchase",
+  "settlement_type":"cash",
+  "paid_at":"2026-01-05",
+  "items": [
+    {"stock_item_id": 4,"description":"Industrial Edge IoT Gateway","quantity":"7","tax_rate":"18","unit_price":"680000"},
+    {"stock_item_id": 5,"description":"Smart Energy Monitoring Unit","quantity":"7","tax_rate":"18","unit_price":"320000"}
+  ]
+}' | jq
+```
+
+# Credit purchase
+```python
+curl -sX POST http://127.0.0.1:8080/api/inventory/create/cash-purchase \
+-H "Authorization: Bearer $TOKEN" \
+-H "Content-Type: application/json" \
+-d '{
+  "bill_number": "CRDT-PURCH-001",
+  "vendor_uuid": "019c46a7-471c-721a-8f80-dffeb368810d",
+  "bill_date": "2026-01-05",
+  "due_date": "2026-01-15",
+  "reference": "purchase",
+  "settlement_type":"credit",
+  "items": [
+    {"stock_item_id": 4,"description":"Industrial Edge IoT Gateway","quantity":"7","tax_rate":"18","unit_price":"680000"},
+    {"stock_item_id": 5,"description":"Smart Energy Monitoring Unit","quantity":"7","tax_rate":"18","unit_price":"320000"}
+  ]
+}' | jq
+```
+
 # Post transactions - makes transactions immutable
 ```python
 curl -X PUT http://localhost:8080/api/transactions/post/THE_UUID \

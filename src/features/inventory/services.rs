@@ -169,30 +169,4 @@ impl<R: InventoryRepository> InventoryService<R> {
     ) -> Result<(), AppError> {
         self.repo.delete_warehouse(tenant_pool, uuid, user_id).await
     }
-
-    // pub async fn purchase(
-    //     &self,
-    //     tenant_pool: &PgPool,
-    //     user_id: Uuid,
-    //     payload: &CreatePurchase,
-    // ) -> Result<crate::models::vendor::Purchase, AppError> {
-    //     self.repo.cash_purchase(tenant_pool, user_id, payload).await
-    // }
-
-    // pub async fn create_sale(
-    //     &self,
-    //     tenant_pool: &PgPool,
-    //     payload: &CreateTurnover,
-    // ) -> Result<Turnover, AppError> {
-    //     self.repo.create_sale_order(tenant_pool, payload).await
-    // }
-
-    // pub async fn post_sale(
-    //     &self,
-    //     tenant_pool: &PgPool,
-    //     user_id: Uuid,
-    //     payload: &PostTurnover,
-    // ) -> Result<Turnover, AppError> {
-    //     self.repo.post_sale(tenant_pool, user_id, payload).await
-    // }
 }

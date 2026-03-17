@@ -20,9 +20,9 @@ use crate::{
 pub fn router() -> Router<Arc<AppState>> {
     Router::new()
         .route("/create/customer", post(http_create_customer))
-        .route("/create/invoice", post(http_create_invoice))
-        .route("/post/cash-sale", post(http_post_sale))
-        .route("/post-invoice", post(http_post_invoice))
+        .route("/create/sale", post(http_create_invoice))
+        .route("/post/sale/cash", post(http_post_sale))
+        .route("/post/sale/invoice", post(http_post_invoice))
         .route("/get/{uuid}", get(http_get_customer))
         .route("/list/customers", get(http_list_customers))
         .route("/list/invoices/{uuid}", get(http_list_invoices))
