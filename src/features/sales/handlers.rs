@@ -8,8 +8,8 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::{
-    features::customers::{repository::PostgresCustomerRepo, services::CustomerService},
-    interface::api::{errors::AppError, responses::ApiResponse},
+    features::sales::{repository::PostgresCustomerRepo, services::CustomerService},
+    interface::api::{errors::AppError, json_errors::AppJson, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,
     models::customers::{
         ApplyPayment, CreateCustomer, CreateTurnover, Customer, Payment, PostTurnover, Turnover,
@@ -21,6 +21,7 @@ pub fn router() -> Router<Arc<AppState>> {
     Router::new()
         .route("/create/customer", post(http_create_customer))
         .route("/create/invoice", post(http_create_invoice))
+        .route("/post/cash-sale", post(http_post_sale))
         .route("/post-invoice", post(http_post_invoice))
         .route("/get/{uuid}", get(http_get_customer))
         .route("/list/customers", get(http_list_customers))
@@ -41,6 +42,19 @@ async fn http_create_customer(
         .create(&user.tenant_pool, user.user_id, &payload)
         .await?;
     Ok(ApiResponse::created(customer, "Customer created"))
+}
+
+async fn http_post_sale(
+    State(_state): State<Arc<AppState>>,
+    Extension(user): Extension<AuthenticatedTenant>,
+    AppJson(payload): AppJson<PostTurnover>,
+) -> Result<Response, AppError> {
+    let repo = PostgresCustomerRepo::new();
+    let service = CustomerService::new(repo);
+    service
+        .post_sale(&user.tenant_pool, user.user_id, &payload)
+        .await?;
+    Ok(ApiResponse::success((), "Sale posted to inventory and GL"))
 }
 
 async fn http_list_customers(

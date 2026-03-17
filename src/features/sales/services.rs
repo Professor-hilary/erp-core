@@ -1,5 +1,5 @@
 use crate::{
-    features::customers::repository::CustomerRepository,
+    features::sales::repository::CustomerRepository,
     interface::api::errors::AppError,
     models::customers::{
         ApplyPayment, CreateCustomer, CreateTurnover, Customer, Payment, PostTurnover, Turnover,
@@ -60,6 +60,23 @@ impl<R: CustomerRepository> CustomerService<R> {
         user_id: Uuid,
     ) -> Result<u64, AppError> {
         self.repo.delete(tenant_pool, uuid, user_id).await
+    }
+
+    // pub async fn create_sale(
+    //     &self,
+    //     tenant_pool: &PgPool,
+    //     payload: &CreateTurnover,
+    // ) -> Result<Turnover, AppError> {
+    //     self.repo.create_sale_order(tenant_pool, payload).await
+    // }
+
+    pub async fn post_sale(
+        &self,
+        tenant_pool: &PgPool,
+        user_id: Uuid,
+        payload: &PostTurnover,
+    ) -> Result<Turnover, AppError> {
+        self.repo.post_sale(tenant_pool, user_id, payload).await
     }
 
     pub async fn create_invoice(
