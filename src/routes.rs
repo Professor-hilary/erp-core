@@ -66,11 +66,11 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .nest("/api/companies", company_routes)
         .nest("/api/transactions", transaction_routes)
         .nest("/api/accounts", account_routes)
-        .nest("/api/customers", customer_routes)
+        .nest("/api/sales", customer_routes)
         .nest("/api/inventory", inventory_routes)
         .nest("/api/payroll", payroll_routes)
         .nest("/api/reports", report_routes)
-        .nest("/api/vendors", vendor_routes)
+        .nest("/api/procurement", vendor_routes)
         .nest("/api/workforce", employee_routes)
         .nest("/api/manufacturing", manufacturing_routes)
         // CORS & global state
