@@ -55,7 +55,7 @@ CREATE TABLE IF NOT EXISTS procurement.purchases (
     tax_amount numeric(18, 2) DEFAULT 0,
     balance_due numeric(18, 2) DEFAULT 0,
     settlement_type text DEFAULT 'credit' CHECK(settlement_type IN ('credit', 'cash')),
-    payment_status text DEFAULT 'unpaid' CHECK(settlement_type IN ('unpaid', 'paid', 'partial', 'cancelled')),
+    payment_status text DEFAULT 'unpaid' CHECK(payment_status IN ('unpaid', 'paid', 'partial', 'cancelled')),
     posted boolean DEFAULT false,
     gl_transaction_uuid uuid,
     paid_at timestamptz,

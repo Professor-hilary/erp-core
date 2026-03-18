@@ -102,10 +102,10 @@ pub struct CreatePurchaseItem {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PostPurchase {
-    pub bill_serial_id: i64,
-    pub vat_tax_account: String,
-    pub payables_account: Option<String>,
-    pub cash_account: Option<String>,
+    pub bill_serial_id: i64,              // Bill id serial
+    pub vat_tax_account: String,          // Input VAT for purchases
+    pub payables_account: Option<String>, // For credit purchase
+    pub cash_account: Option<String>,     // For cash purchase
 }
 
 #[derive(Debug, Serialize, Deserialize)]

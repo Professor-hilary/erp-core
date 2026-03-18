@@ -22,9 +22,9 @@ use crate::{
 pub fn router() -> Router<Arc<AppState>> {
     Router::new()
         .route("/create/vendor", post(http_create_vendor))
-        .route("/create/bill", post(http_create_bill))
-        .route("/post-bill", post(http_credit_purchase))
-        .route("/post/cash-purchase", post(http_cash_purchase))
+        .route("/create/purchase", post(http_create_bill))
+        .route("/post/credit/purchase", post(http_credit_purchase))
+        .route("/post/cash/purchase", post(http_cash_purchase))
         .route("/get/{uuid}", get(http_get_vendor))
         .route("/list/vendors", get(http_list_vendors))
         .route("/list/vendor-bills/{uuid}", get(http_list_vendor_bills))

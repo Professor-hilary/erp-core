@@ -401,7 +401,7 @@ curl -X POST http://localhost:3000/accounting/create -H "$AUTH" -H "Content-Type
 
 # Cash purchase
 ```python
-curl -sX POST http://127.0.0.1:8080/api/inventory/create/cash-purchase \
+curl -sX POST http://127.0.0.1:8080/api/procurement/create/cash-purchase \
 -H "Authorization: Bearer $TOKEN" \
 -H "Content-Type: application/json" \
 -d '{
@@ -421,7 +421,7 @@ curl -sX POST http://127.0.0.1:8080/api/inventory/create/cash-purchase \
 
 # Credit purchase
 ```python
-curl -sX POST http://127.0.0.1:8080/api/inventory/create/cash-purchase \
+curl -sX POST http://127.0.0.1:8080/api/procurement/create/credit-purchase \
 -H "Authorization: Bearer $TOKEN" \
 -H "Content-Type: application/json" \
 -d '{

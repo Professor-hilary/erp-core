@@ -13,7 +13,6 @@ use crate::{
     interface::api::{errors::AppError, json_errors::AppJson, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,
     models::{
-        // customers::{CreateTurnover, PostTurnover, Turnover},
         inventory::{
             CreateItem, CreateItemCategory, CreateWarehouse, Item, ItemCategory, Warehouse,
         },
