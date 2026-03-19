@@ -419,6 +419,11 @@ curl -sX POST http://127.0.0.1:8080/api/procurement/create/cash-purchase \
 }' | jq
 ```
 
+# Post purchase - Cash
+```python
+curl -sX POST http://127.0.0.1:8080/api/procurement/post/credit/purchase -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{  "bill_serial_id": 3,  "vat_tax_account": "110805",  "cash_account": "110100", "revenue_code":"400000"}' | jq
+```
+
 # Credit purchase
 ```python
 curl -sX POST http://127.0.0.1:8080/api/procurement/create/credit-purchase \
@@ -436,6 +441,11 @@ curl -sX POST http://127.0.0.1:8080/api/procurement/create/credit-purchase \
     {"stock_item_id": 5,"description":"Smart Energy Monitoring Unit","quantity":"7","tax_rate":"18","unit_price":"320000"}
   ]
 }' | jq
+```
+
+# Post purchase - Credit
+```python
+curl -sX POST http://127.0.0.1:8080/api/procurement/post/credit/purchase -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d '{  "bill_serial_id": 3,  "vat_tax_account": "110805",  "payables_account": "110300", "revenue_code":"400000"}' | jq
 ```
 
 # Post transactions - makes transactions immutable
