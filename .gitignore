@@ -1,5 +1,4 @@
 /target
-/docs
 /Cargo.lock
 /decision-engine/vcpkg_installed
 /decision-engine/vcpkg
