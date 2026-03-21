@@ -69,6 +69,8 @@ pub struct IssueMaterialDto {
     pub warehouse_serial_id: i64,
     pub quantity: BigDecimal,
     pub production_order_uuid: Uuid,
+    pub wip_account_code: String,
+    pub raw_mat_account_code: String,
 }
 
 #[derive(Debug, Deserialize)]

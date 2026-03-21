@@ -128,12 +128,14 @@ impl ManufacturingRepo {
         user_uuid: Uuid,
     ) -> Result<MaterialIssue, AppError> {
         let row: MaterialIssue = sqlx::query_as::<_, MaterialIssue>(
-            r#"SELECT * FROM manufacturing.issue_material_to_order($1, $2, $3, $4, $5)"#,
+            r#"SELECT * FROM manufacturing.issue_material_to_order($1, $2, $3, $4, $5, $6, $7)"#,
         )
         .bind(dto.stock_item_id)
         .bind(dto.warehouse_serial_id)
         .bind(&dto.quantity)
-        .bind(dto.production_order_uuid)
+        .bind(&dto.production_order_uuid)
+        .bind(&dto.raw_mat_account_code)
+        .bind(dto.wip_account_code)
         .bind(user_uuid)
         .fetch_one(&self.pool)
         .await?;

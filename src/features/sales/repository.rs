@@ -28,20 +28,20 @@ pub trait CustomerRepository: Send + Sync {
     ) -> Result<Customer, AppError>;
     async fn delete(&self, pool: &PgPool, uuid: Uuid, user_id: Uuid) -> Result<u64, AppError>;
 
-    async fn create_invoice(
+    async fn create_sale_invoice(
         &self,
         pool: &PgPool,
         payload: &CreateTurnover,
     ) -> Result<Turnover, AppError>;
 
-    async fn post_invoice(
+    async fn post_credit_sale(
         &self,
         pool: &PgPool,
         user_id: Uuid,
         payload: &PostTurnover,
     ) -> Result<Turnover, AppError>;
 
-    async fn post_sale(
+    async fn post_cash_sale(
         &self,
         pool: &PgPool,
         user_id: Uuid,
@@ -148,7 +148,7 @@ impl CustomerRepository for PostgresCustomerRepo {
     }
 
     /// Handles both cash and credit sales
-    async fn create_invoice(
+    async fn create_sale_invoice(
         &self,
         pool: &PgPool,
         payload: &CreateTurnover,
@@ -306,7 +306,7 @@ impl CustomerRepository for PostgresCustomerRepo {
         Ok(updated)
     }
 
-    async fn post_invoice(
+    async fn post_credit_sale(
         &self,
         pool: &PgPool,
         user_id: Uuid,
@@ -326,7 +326,7 @@ impl CustomerRepository for PostgresCustomerRepo {
         Ok(invoice)
     }
 
-    async fn post_sale(
+    async fn post_cash_sale(
         &self,
         pool: &PgPool,
         user_id: Uuid,

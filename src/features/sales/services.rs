@@ -68,7 +68,7 @@ impl<R: CustomerRepository> CustomerService<R> {
         user_id: Uuid,
         payload: &PostTurnover,
     ) -> Result<Turnover, AppError> {
-        self.repo.post_sale(tenant_pool, user_id, payload).await
+        self.repo.post_cash_sale(tenant_pool, user_id, payload).await
     }
 
     pub async fn create_invoice(
@@ -76,7 +76,7 @@ impl<R: CustomerRepository> CustomerService<R> {
         tenant_pool: &PgPool,
         payload: &CreateTurnover,
     ) -> Result<Turnover, AppError> {
-        self.repo.create_invoice(tenant_pool, payload).await
+        self.repo.create_sale_invoice(tenant_pool, payload).await
     }
 
     pub async fn post_invoice(
@@ -85,7 +85,7 @@ impl<R: CustomerRepository> CustomerService<R> {
         user_id: Uuid,
         payload: &PostTurnover,
     ) -> Result<Turnover, AppError> {
-        self.repo.post_invoice(pool, user_id, payload).await
+        self.repo.post_credit_sale(pool, user_id, payload).await
     }
 
     pub async fn list_customer_invoice(

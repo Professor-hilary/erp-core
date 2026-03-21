@@ -66,7 +66,7 @@ impl<R: VendorRepository> VendorService<R> {
         tenant_pool: &PgPool,
         payload: &CreatePurchase,
     ) -> Result<Purchase, AppError> {
-        self.repo.create_bill(tenant_pool, payload).await
+        self.repo.create_purchase_bill(tenant_pool, payload).await
     }
 
     pub async fn credit_purchase(

@@ -973,9 +973,9 @@ BEGIN
     v_txn_serial := accounting.post_transaction(
         v_order.order_number || '-MAT-IN',
         'Material To Work In Progress',
-        p_user,
+        p_user_uuid,
         'manufacturing',
-        p_date,
+        CURRENT_DATE,
         jsonb_build_array(
             jsonb_build_object(
                 'account_ref', v_wip_uuid, 'debit', v_total_cost, 'credit', 0,

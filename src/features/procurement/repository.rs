@@ -29,7 +29,7 @@ pub trait VendorRepository: Send + Sync {
     ) -> Result<Vendor, AppError>;
     async fn delete(&self, pool: &PgPool, uuid: Uuid, user_id: Uuid) -> Result<(), AppError>;
 
-    async fn create_bill(
+    async fn create_purchase_bill(
         &self,
         pool: &PgPool,
         payload: &CreatePurchase,
@@ -149,7 +149,7 @@ impl VendorRepository for PostgresVendorRepo {
         }
     }
 
-    async fn create_bill(
+    async fn create_purchase_bill(
         &self,
         pool: &PgPool,
         payload: &CreatePurchase,
