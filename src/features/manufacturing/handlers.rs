@@ -36,10 +36,10 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/create/production-order", post(new_order_route))
         .route("/create/overhead-rate", post(new_overhead_rate_route))
         .route("/variance-allocation", post(prorate_variance_route))
-        .route("/materials-issuance", post(raw_material_issuance_route))
-        .route("/apply/actual-overhead", post(actual_overhead_route))
-        .route("/apply/overhead-control", post(assumed_overhead_route))
-        .route("/apply/labor-cost", post(apply_labor_route))
+        .route("/apply/direct/material", post(raw_material_issuance_route))
+        .route("/apply/direct/labor", post(apply_labor_route))
+        .route("/apply/overhead/actual", post(actual_overhead_route))
+        .route("/apply/overhead/applied", post(applied_overhead_route))
         .route("/complete-production", post(complete_order_route))
         .route("/create/bom", post(create_bom_route))
         .route("/bom/{uuid}", get(get_bom_route))
@@ -134,6 +134,8 @@ async fn prorate_variance_route(
 }
 
 /// POST /manufacturing/overhead-application
+/// This is invoiced and paid overhead by the accountant or resource disbursement
+/// which may differ from rated overhead, typically ran when money is available
 async fn actual_overhead_route(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
@@ -149,7 +151,9 @@ async fn actual_overhead_route(
 }
 
 /// POST /manufacturing/overhead-application
-async fn assumed_overhead_route(
+/// Used with overhead rates to cost production, such as, based on machine hour,
+/// labor, material cost, etc. Assumed Overhead is approximated rather than actual.
+async fn applied_overhead_route(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     AppJson(payload): AppJson<ApplyOverheadDto>,
