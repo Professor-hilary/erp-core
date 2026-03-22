@@ -135,9 +135,9 @@ CREATE table if not exists manufacturing.cost_applications (
     type text CHECK (
         type IN (
             'DirectLabor',
-            'OverheadApplied',
-            'OverheadActual',
             'DirectMaterial'
+            'AppliedOverhead',
+            'ActualOverhead',
         )
     ),
     amount numeric(18, 2) NOT NULL,
@@ -273,7 +273,7 @@ CREATE OR REPLACE FUNCTION manufacturing.apply_overhead_to_order(
     p_activity_amount       numeric, -- e.g. labor hours used on this order
     p_wip_account           text,
     p_overhead_control_code text,
-    p_overhead_type         text,
+    p_allocation_rate       text,
     p_user                  uuid
 ) RETURNS manufacturing.cost_applications -- return full row
 LANGUAGE plpgsql
@@ -289,10 +289,15 @@ BEGIN
     -- Find current applicable rate (latest or matching period)
     SELECT rate INTO STRICT v_rate
     FROM manufacturing.overhead_rates
-    WHERE CURRENT_DATE BETWEEN period_start AND period_end
-      AND is_active AND allocation_base = p_overhead_type
+    WHERE is_active AND allocation_base = p_allocation_rate
     ORDER BY period_start DESC, created_at DESC
     LIMIT 1;
+    -- SELECT rate INTO STRICT v_rate
+    -- FROM manufacturing.overhead_rates
+    -- WHERE CURRENT_DATE BETWEEN period_start AND period_end
+    --   AND is_active AND allocation_base = p_allocation_rate
+    -- ORDER BY period_start DESC, created_at DESC
+    -- LIMIT 1;
 
     IF v_rate IS NULL THEN
         RAISE EXCEPTION 'No active predetermined overhead rate found for current date';
@@ -339,7 +344,7 @@ BEGIN
         destination_account, applied_at
     ) VALUES (
         p_production_order_uuid,
-        'Overhead',
+        'AppliedOverhead',
         v_applied_amount,
         format(
             'Applied at rate %s x base %s (txn %s)',

@@ -145,7 +145,7 @@ async fn actual_overhead_route(
     let service: ManufacturingService = ManufacturingService::new(repo);
 
     match service.recognize_overhead_paid(payload, user.user_id).await {
-        Ok(result) => Ok(ApiResponse::created(result, "Rated Overhead Recognized")),
+        Ok(result) => Ok(ApiResponse::created(result, "Actual Overhead Recognized")),
         Err(e) => Err(internal_error(e)),
     }
 }
@@ -162,7 +162,7 @@ async fn applied_overhead_route(
     let service: ManufacturingService = ManufacturingService::new(repo);
 
     match service.apply_rated_overhead(payload, user.user_id).await {
-        Ok(result) => Ok(ApiResponse::created(result, "Actual Overhead Applied")),
+        Ok(result) => Ok(ApiResponse::created(result, "Applied Overhead Applied")),
         Err(e) => Err(internal_error(e)),
     }
 }

@@ -85,7 +85,8 @@ pub struct ApplyOverheadDto {
 #[derive(Debug, Deserialize)]
 pub struct RecognizeOverhead {
     pub production_order_uuid: Uuid,
-    pub base_amount: BigDecimal, // Actual amount in cash or accrual
+    /// Actual amount in cash or accrual
+    pub base_amount: BigDecimal,
     pub payable_or_cash: String,
     pub overhead_control_account: String,
     pub allocation_base: String,
