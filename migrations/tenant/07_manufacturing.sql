@@ -40,26 +40,26 @@ CREATE table if not exists manufacturing.production_orders (
     updated_at timestamptz DEFAULT now()
 );
 
-CREATE TABLE IF NOT EXISTS manufacturing.cost_entries (
-    uuid uuid DEFAULT uuidv7 () PRIMARY KEY,
-    production_order_uuid uuid NOT null references manufacturing.production_orders (uuid),
-    cost_type text NOT null check (
-        cost_type in (
-            'MATERIAL',
-            'LABOR',
-            'OVERHEAD',
-            'ADJUSTMENT'
-        )
-    ),
-    component_item_uuid uuid NOT NULL REFERENCES inventory.items (uuid),
-    quantity numeric(18, 4),
-    unit_cost numeric(18, 4),
-    total_cost numeric(18, 4) NOT null generated always as (quantity * unit_cost) STORED,
-    created_at timestamptz DEFAULT now(),
-    CONSTRAINT fk_cost_entries_order FOREIGN KEY (production_order_uuid) REFERENCES manufacturing.production_orders (uuid)
-);
+-- CREATE TABLE IF NOT EXISTS manufacturing.cost_entries (
+--     uuid uuid DEFAULT uuidv7 () PRIMARY KEY,
+--     production_order_uuid uuid NOT null references manufacturing.production_orders (uuid),
+--     cost_type text NOT null check (
+--         cost_type in (
+--             'MATERIAL',
+--             'LABOR',
+--             'OVERHEAD',
+--             'ADJUSTMENT'
+--         )
+--     ),
+--     component_item_uuid uuid NOT NULL REFERENCES inventory.items (uuid),
+--     quantity numeric(18, 4),
+--     unit_cost numeric(18, 4),
+--     total_cost numeric(18, 4) NOT null generated always as (quantity * unit_cost) STORED,
+--     created_at timestamptz DEFAULT now(),
+--     CONSTRAINT fk_cost_entries_order FOREIGN KEY (production_order_uuid) REFERENCES manufacturing.production_orders (uuid)
+-- );
 
-CREATE INDEX idx_cost_entries_order ON manufacturing.cost_entries (production_order_uuid);
+-- CREATE INDEX idx_cost_entries_order ON manufacturing.cost_entries (production_order_uuid);
 
 -- helper log table (recommended for audit trail)
 CREATE TABLE IF NOT EXISTS accounting.variance_proration_logs (
@@ -135,7 +135,8 @@ CREATE table if not exists manufacturing.cost_applications (
     type text CHECK (
         type IN (
             'DirectLabor',
-            'Overhead',
+            'OverheadApplied',
+            'OverheadActual',
             'DirectMaterial'
         )
     ),
@@ -993,49 +994,49 @@ END;
 $$;
 
 -- Transfer raw materials to production process for new inventory
-CREATE OR REPLACE FUNCTION manufacturing.initialize_material_cost(
-    p_order_uuid uuid
-) RETURNS void
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    v_order manufacturing.production_orders%ROWTYPE;
-    v_bom_header uuid;
-    v_line RECORD;
-BEGIN
-    -- Fetch order
-    SELECT * INTO v_order FROM manufacturing.production_orders
-    WHERE uuid = p_order_uuid;
+-- CREATE OR REPLACE FUNCTION manufacturing.initialize_material_cost(
+--     p_order_uuid uuid
+-- ) RETURNS void
+-- LANGUAGE plpgsql
+-- AS $$
+-- DECLARE
+--     v_order manufacturing.production_orders%ROWTYPE;
+--     v_bom_header uuid;
+--     v_line RECORD;
+-- BEGIN
+--     -- Fetch order
+--     SELECT * INTO v_order FROM manufacturing.production_orders
+--     WHERE uuid = p_order_uuid;
 
-    IF NOT FOUND THEN
-        RAISE EXCEPTION 'Production order not found: %', p_order_uuid;
-    END IF;
+--     IF NOT FOUND THEN
+--         RAISE EXCEPTION 'Production order not found: %', p_order_uuid;
+--     END IF;
 
-    -- Get default BOM for product
-    SELECT uuid INTO v_bom_header FROM manufacturing.bom_headers
-    WHERE product_item_uuid = v_order.product_item_uuid AND is_active AND is_default LIMIT 1;
+--     -- Get default BOM for product
+--     SELECT uuid INTO v_bom_header FROM manufacturing.bom_headers
+--     WHERE product_item_uuid = v_order.product_item_uuid AND is_active AND is_default LIMIT 1;
 
-    IF NOT FOUND THEN
-        RAISE EXCEPTION 'No default BOM found for product %', v_order.product_item_uuid;
-    END IF;
+--     IF NOT FOUND THEN
+--         RAISE EXCEPTION 'No default BOM found for product %', v_order.product_item_uuid;
+--     END IF;
 
-    -- Loop BOM lines
-    FOR v_line IN
-        SELECT bl.*, i.unit_cost AS current_unit_cost
-        FROM manufacturing.bom_lines bl
-        JOIN inventory.items i ON i.uuid = bl.component_item_uuid
-        WHERE bl.bom_header_uuid = v_bom_header
-    LOOP
-        INSERT INTO manufacturing.cost_entries (
-            production_order_uuid, component_item_uuid, quantity, unit_cost, cost_type
-        ) VALUES (
-            p_order_uuid, v_line.component_item_uuid,
-            v_line.quantity_per * v_order.quantity_ordered, -- multiply by order qty
-            v_line.current_unit_cost, 'MATERIAL'
-        );
-    END LOOP;
-END;
-$$;
+--     -- Loop BOM lines
+--     FOR v_line IN
+--         SELECT bl.*, i.unit_cost AS current_unit_cost
+--         FROM manufacturing.bom_lines bl
+--         JOIN inventory.items i ON i.uuid = bl.component_item_uuid
+--         WHERE bl.bom_header_uuid = v_bom_header
+--     LOOP
+--         INSERT INTO manufacturing.cost_entries (
+--             production_order_uuid, component_item_uuid, quantity, unit_cost, cost_type
+--         ) VALUES (
+--             p_order_uuid, v_line.component_item_uuid,
+--             v_line.quantity_per * v_order.quantity_ordered, -- multiply by order qty
+--             v_line.current_unit_cost, 'MATERIAL'
+--         );
+--     END LOOP;
+-- END;
+-- $$;
 
 -- CREATE OR REPLACE PROCEDURE manufacturing.close_period_overhead(
 --     p_period_start      date,
