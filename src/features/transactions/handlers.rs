@@ -2,7 +2,7 @@
 
 use axum::{
     Extension, Router,
-    extract::{Json, Path, Query, State},
+    extract::{Path, Query, State},
     response::IntoResponse,
     routing::{delete, get, post, put},
 };
@@ -12,7 +12,7 @@ use uuid::Uuid;
 
 use crate::{
     features::transactions::{repository::PostgresTransactionRepo, services::TransactionService},
-    interface::api::{errors::AppError, responses::ApiResponse},
+    interface::api::{errors::AppError, json_errors::AppJson, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,
     models::transaction::{
         CreateJournalEntry, JournalEntry, JournalEntryWithLines, LedgerFilter, UpdateJournalEntry,
@@ -43,7 +43,7 @@ pub fn router() -> Router<Arc<AppState>> {
 async fn create_entry(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    Json(payload): Json<CreateJournalEntry>,
+    AppJson(payload): AppJson<CreateJournalEntry>,
 ) -> Result<impl IntoResponse, AppError> {
     tracing::debug!("Post trax api");
     let service: TransactionService<PostgresTransactionRepo> =
@@ -109,7 +109,7 @@ async fn update_unposted_entry(
     State(_state): State<Arc<AppState>>,
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
-    Json(payload): Json<UpdateJournalEntry>,
+    AppJson(payload): AppJson<UpdateJournalEntry>,
 ) -> Result<impl IntoResponse, AppError> {
     let service: TransactionService<PostgresTransactionRepo> =
         TransactionService::new(PostgresTransactionRepo::new());
@@ -158,7 +158,7 @@ async fn void_entry(
     State(_state): State<Arc<AppState>>,
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
-    Json(body): Json<serde_json::Value>,
+    AppJson(body): AppJson<serde_json::Value>,
 ) -> Result<impl IntoResponse, AppError> {
     let reason: String = body["reason"].as_str().unwrap_or("Voided").to_string();
     let service: TransactionService<PostgresTransactionRepo> =

@@ -1,7 +1,7 @@
 // src/features/accounts/handlers.rs
 use crate::{
     features::accounts::{repository::PostgresAccountRepo, services::AccountingService},
-    interface::api::{errors::AppError, responses::ApiResponse},
+    interface::api::{errors::AppError, json_errors::AppJson, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,
     models::{
         account::{Account, CreateAccount},
@@ -11,7 +11,7 @@ use crate::{
 };
 use axum::{
     Extension, Router,
-    extract::{Json, Path, State},
+    extract::{Path, State},
     response::Response,
     routing::{delete, get, patch, post},
 };
@@ -33,7 +33,7 @@ pub fn router() -> Router<Arc<AppState>> {
 async fn create_account(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    Json(payload): Json<CreateAccount>,
+    AppJson(payload): AppJson<CreateAccount>,
 ) -> Result<Response, AppError> {
     let repo: PostgresAccountRepo = PostgresAccountRepo::new();
     let service: AccountingService<PostgresAccountRepo> = AccountingService::new(repo);
@@ -95,7 +95,7 @@ async fn update_account(
     State(_state): State<Arc<AppState>>,
     Path(id): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
-    Json(payload): Json<CreateAccount>,
+    AppJson(payload): AppJson<CreateAccount>,
 ) -> Result<Response, AppError> {
     let repo: PostgresAccountRepo = PostgresAccountRepo::new();
     let service: AccountingService<PostgresAccountRepo> = AccountingService::new(repo);
