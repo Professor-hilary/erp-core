@@ -203,11 +203,10 @@ impl AccountRepository for PostgresAccountRepo {
         &self,
         pool: &PgPool,
         uuid: Uuid,
-        user_id: Uuid,
+        _user_id: Uuid,
     ) -> Result<(), AppError> {
-        sqlx::query("DELETE FROM accounting.accounts WHERE id = $1 AND user_id = $2")
+        sqlx::query("DELETE FROM accounting.accounts WHERE uuid = $1")
             .bind(uuid)
-            .bind(user_id)
             .execute(pool)
             .await?;
         Ok(())
