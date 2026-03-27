@@ -604,7 +604,7 @@ BEGIN
 
     -- 2. Standard unit cost → must come from your calculate_standard_cost or enhanced version
     v_std_unit_cost := manufacturing.calculate_standard_cost(v_product.uuid);  -- fix this function!
-    v_std_total := ROUND(p_completed_qty * v_std_unit, 2);
+    v_std_total := ROUND(p_completed_quantity * v_std_unit_cost, 2);
 
     -- TODO: 3. Move overhead from control → WIP
     PERFORM manufacturing.transfer_applied_overhead_to_wip(

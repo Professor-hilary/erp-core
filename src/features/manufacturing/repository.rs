@@ -269,13 +269,14 @@ impl ManufacturingRepo {
             ) as gl_txn_uuid",
         )
         .bind(dto.production_order_uuid)
+        .bind(dto.completed_quantity)
         .bind(user_uuid)
+        .bind(dto.control_code)
         .bind(dto.wip_account_code)
         .bind(dto.fg_account_code)
         .bind(dto.mfg_mat_var_code)
         .bind(dto.mfg_lab_var_code)
-        .bind(dto.mfg_ovh_var_code)
-        .bind(dto.completed_quantity)
+        // .bind(dto.mfg_ovh_var_code)
         .fetch_one(&self.pool)
         .await?;
 
