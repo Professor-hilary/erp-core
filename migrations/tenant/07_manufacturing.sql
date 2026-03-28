@@ -614,9 +614,9 @@ BEGIN
     SELECT uuid INTO STRICT v_woh_uuid  FROM accounting.accounts WHERE code = p_control_account;
 
     -- 4. Move overhead from control → WIP
-    -- PERFORM manufacturing.transfer_applied_overhead_to_wip(
-    --     p_order_uuid, v_wip_uuid, v_woh_uuid, p_user, p_completion_date
-    -- );
+    PERFORM manufacturing.transfer_applied_overhead_to_wip(
+        p_order_uuid, v_wip_uuid, v_woh_uuid, p_user, p_completion_date
+    );
 
     -- 5. Update order first
     v_new_completed := v_order.quantity_completed + p_completed_quantity;
