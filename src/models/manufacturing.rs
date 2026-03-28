@@ -113,6 +113,7 @@ pub struct CompleteProductionOrderDto {
     pub fg_account_code: String,     // Finished Goods account code
     pub mfg_mat_var_code: String,    // Manufacturing material variable control account
     pub mfg_lab_var_code: String,    // Manufacturing labor variable control account
+    pub mfg_moh_var_code: String,    // Manufacturing overhead variable control account
     pub control_code: String,    // Manufacturing overhead variable control account
 }
 
