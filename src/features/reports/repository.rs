@@ -165,7 +165,7 @@ impl ReportRepository for PostgresReportRepo {
         as_of_1: NaiveDate,
         as_of_2: NaiveDate,
     ) -> Result<Vec<BalanceSheetCompareRow>, AppError> {
-        let rows = sqlx::query_as::<_, BalanceSheetCompareRow>(
+        let rows: Vec<BalanceSheetCompareRow> = sqlx::query_as::<_, BalanceSheetCompareRow>(
             r#"
         SELECT
             code,

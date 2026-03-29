@@ -67,12 +67,12 @@ async fn http_balancesheet(
     let repo: PostgresReportRepo = PostgresReportRepo::new();
     let service: ReportService<PostgresReportRepo> = ReportService::new(repo);
 
-    let as_of = q
+    let as_of: String = q
         .as_of
         .unwrap_or_else(|| chrono::Local::now().naive_local().to_string());
 
-    let as_of = NaiveDate::parse_from_str(&as_of, "%Y-%m-%d")
-        .map_err(|e| AppError::BadRequest(format!("invalid date: {}", e)))?;
+    let as_of: NaiveDate = NaiveDate::parse_from_str(&as_of, "%Y-%m-%d")
+        .map_err(|e: chrono::ParseError| AppError::BadRequest(format!("invalid date: {}", e)))?;
 
     let report: Vec<BalanceSheetRow> = service
         .balancesheet(&user.tenant_pool, as_of)

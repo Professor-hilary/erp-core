@@ -279,13 +279,17 @@ CREATE OR REPLACE FUNCTION manufacturing.apply_overhead_to_order(
 LANGUAGE plpgsql
 AS $$
 DECLARE
-    v_rate              numeric(18,6);
-    v_applied_amount    numeric(18,2);
-    v_wip_account_uuid  uuid;
+    v_rate                  numeric(18,6);
+    v_applied_amount        numeric(18,2);
+    v_wip_account_uuid      uuid;
     v_overhead_control_uuid uuid;
-    v_txn_serial_id      bigint;
-    v_application       manufacturing.cost_applications%ROWTYPE;
+    v_txn_serial_id         bigint;
+    v_order                 manufacturing.production_orders%ROWTYPE;
+    v_application           manufacturing.cost_applications%ROWTYPE;
 BEGIN
+    -- Get current production order
+    SELECT * INTO STRICT v_order FROM manufacturing.production_orders WHERE uuid = p_order_uuid;
+
     -- Find current applicable rate (latest or matching period)
     SELECT rate INTO STRICT v_rate
     FROM manufacturing.overhead_rates
@@ -315,7 +319,7 @@ BEGIN
     -- Journal entry: Dr WIP, Cr Applied Overhead
     -- accounting.post_transaction(...) → your existing function; adapt parameters
     v_txn_serial_id := accounting.post_transaction(
-        'OVERHEAD-APPLY-' || p_production_order_uuid::text,
+        'OVERHEAD-APPLY-' || v_order.order_number,
         'Applied Manufacturing Overhead',
         p_user,
         'manufacturing',
@@ -387,6 +391,7 @@ DECLARE
     v_control_account_uuid  uuid;
     v_txn_serial            bigint;
     v_application           manufacturing.cost_applications%ROWTYPE;
+    v_order                 manufacturing.production_orders%ROWTYPE;
 BEGIN
     -- GET account UUIDs
     SELECT uuid INTO STRICT v_credit_account_uuid
@@ -397,11 +402,14 @@ BEGIN
     FROM accounting.accounts
     WHERE code = p_overhead_control_code;
 
+    -- Get current production order
+    SELECT * INTO STRICT v_order FROM manufacturing.production_orders WHERE uuid = p_order_uuid;
+
     -- Post ACTUAL Overhead
     -- Dr MOH Control
     -- Cr Cash / Payables
     v_txn_serial := accounting.post_transaction(
-        'OVERHEAD-ACTUAL-' || p_production_order_uuid::text,
+        'OVERHEAD-ACTUAL-' || v_order.order_number,
         'Actual Manufacturing Overhead',
         p_user,
         'manufacturing',
@@ -413,7 +421,7 @@ BEGIN
                 'credit', 0,
                 'memo', format(
                     'Actual overhead (%s) for order %s',
-                    p_overhead_type, p_production_order_uuid
+                    p_overhead_type, v_order.order_number
                 )
             ),
             jsonb_build_object(
@@ -422,7 +430,7 @@ BEGIN
                 'credit', p_amount,
                 'memo', format(
                     'Actual overhead (%s) for order %s',
-                    p_overhead_type, p_production_order_uuid
+                    p_overhead_type, v_order.order_number
                 )
             )
         )
@@ -473,6 +481,7 @@ DECLARE
     v_labor_account_uuid    uuid;
     v_txn_serial            bigint;
     v_application           manufacturing.cost_applications%ROWTYPE;
+    v_order                 manufacturing.production_orders%ROWTYPE;
     v_type_text             text;
     v_memo_suffix           text;
 BEGIN
@@ -480,6 +489,9 @@ BEGIN
 
     v_type_text := CASE WHEN p_is_direct THEN 'DirectLabor' ELSE 'IndirectLabor' END;
     v_memo_suffix := CASE WHEN p_is_direct THEN 'direct' ELSE 'indirect' END;
+
+    -- Get current production order
+    SELECT * INTO STRICT v_order FROM manufacturing.production_orders WHERE uuid = p_order_uuid;
 
     -- Is this direct or indirect labor, later goes to manufacturing overhead ctrl
     IF p_is_direct THEN -- Debit directly into Work In Progress - its traceable
@@ -511,7 +523,7 @@ BEGIN
     --      indirect costs:
     --          DR: Overhead Ctrl   CR: Salaries/Wages Payable
     v_txn_serial := accounting.post_transaction(
-        format('%s-LABOR-%s', v_type_text, p_production_order_uuid::text),
+        format('%s-LABOR-%s', v_type_text, v_order.order_number),
         format('%s Labor Applied', CASE WHEN p_is_direct THEN 'Direct' ELSE 'Indirect' END),
         p_user,
         'manufacturing',
@@ -521,7 +533,7 @@ BEGIN
                 'account_ref', v_wip_or_moh_ctrl_uuid, 'debit', v_amount, 'credit', 0,
                 'memo', format(
                     '%s labor on order %s: %s hrs x %s %s',  v_memo_suffix,
-                    p_production_order_uuid,
+                    v_order.order_number,
                     to_char(p_hours, 'FM999999990.00'),
                     to_char(p_rate_per_hour, 'FM999999990.00'),
                     COALESCE(' - ' || p_reference, '')
@@ -531,7 +543,7 @@ BEGIN
                 'account_ref', v_labor_account_uuid, 'debit', 0, 'credit', v_amount,
                 'memo', format(
                     '%s labor on order %s: %s hrs x %s %s',  v_memo_suffix,
-                    p_production_order_uuid,
+                    v_order.order_number,
                     to_char(p_hours, 'FM999999990.00'),
                     to_char(p_rate_per_hour, 'FM999999990.00'),
                     COALESCE(' - ' || p_reference, '')
@@ -604,7 +616,7 @@ BEGIN
 
     SELECT * INTO v_product FROM inventory.items WHERE uuid = v_order.product_item_uuid;
 
-    -- 2. Standard unit cost → must come from your calculate_standard_cost or enhanced version
+    -- 2. Standard unit cost => must come from your calculate_standard_cost or enhanced version
     v_std_unit_cost := manufacturing.calculate_standard_cost(v_product.uuid);  -- fix this function!
     v_std_total := ROUND(p_completed_quantity * v_std_unit_cost, 2);
 
@@ -656,7 +668,7 @@ BEGIN
         v_product.uuid,
         (SELECT uuid FROM inventory.warehouses WHERE serial_id = v_product.warehouse_serial),
         'PROD_COMPLETION',
-        'production_order',
+        'production',
         v_order.serial_id,
         p_completed_quantity,
         v_std_unit_cost,
@@ -981,7 +993,7 @@ BEGIN
     -- deplete_inventory returns a total value of inventory
     SELECT * INTO v_total_cost
     FROM inventory.deplete_inventory(
-        p_item_serial_id, p_warehouse_serial, p_quantity, 'PRODUCTION', v_order.serial_id,
+        p_item_serial_id, p_warehouse_serial, p_quantity, 'production', v_order.serial_id,
         p_user_uuid, NULL, NULL
     );
 
