@@ -259,7 +259,12 @@ BEGIN
 
     -- Create empty GL transaction shell
     v_txn_serial_id := accounting.post_transaction(
-        v_bill.bill_number, 'Vendor Bill', p_user, 'bill', v_bill.bill_date, '[]'::jsonb
+        v_bill.bill_number,
+        CASE
+            WHEN p_payable_code IS NULL THEN 'Vendor Cash Purchase'
+            ELSE 'Vendor Credit Purchase'
+        END,
+        p_user, 'bill', v_bill.bill_date, '[]'::jsonb
     );
 
     SELECT uuid INTO v_txn_uuid FROM accounting.transactions

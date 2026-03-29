@@ -23,8 +23,9 @@ CREATE table if not exists manufacturing.production_orders (
     expected_completion_date date,
     material_usage_variance numeric(18, 2) DEFAULT 0,
     labor_efficiency_variance numeric(18, 2) DEFAULT 0,
+    overhead_variance numeric(18, 2) DEFAULT 0,
     total_variance numeric(18, 2) GENERATED ALWAYS AS (
-        material_usage_variance + labor_efficiency_variance
+        material_usage_variance + labor_efficiency_variance + overhead_variance
     ) STORED,
     actual_completion_date date,
     status text DEFAULT 'Planned' CHECK (
@@ -296,12 +297,6 @@ BEGIN
     WHERE is_active AND allocation_base = p_allocation_rate
     ORDER BY period_start DESC, created_at DESC
     LIMIT 1;
-    -- SELECT rate INTO STRICT v_rate
-    -- FROM manufacturing.overhead_rates
-    -- WHERE CURRENT_DATE BETWEEN period_start AND period_end
-    --   AND is_active AND allocation_base = p_allocation_rate
-    -- ORDER BY period_start DESC, created_at DESC
-    -- LIMIT 1;
 
     IF v_rate IS NULL THEN
         RAISE EXCEPTION 'No active predetermined overhead rate found for current date';
@@ -317,7 +312,6 @@ BEGIN
         FROM accounting.accounts WHERE code = p_overhead_control_code;
 
     -- Journal entry: Dr WIP, Cr Applied Overhead
-    -- accounting.post_transaction(...) → your existing function; adapt parameters
     v_txn_serial_id := accounting.post_transaction(
         'OVERHEAD-APPLY-' || v_order.order_number,
         'Applied Manufacturing Overhead',
@@ -643,8 +637,6 @@ BEGIN
         updated_at = now()
     WHERE uuid = p_order_uuid;
 
-    RAISE NOTICE 'Total %', v_std_total;
-
     -- 6. Journal: Dr FG @ standard, Cr WIP @ standard
     v_txn_serial := accounting.post_transaction(
         v_order.order_number || '-COMPLETION',
@@ -675,16 +667,16 @@ BEGIN
         'IN',
         (SELECT uuid FROM accounting.transactions WHERE serial_id = v_txn_serial),
         p_completion_date
-    );-- RETURNING uuid INTO v_movement_uuid;
+    );
 
-    -- Record completion row – unit_cost MUST be standard
+    -- 8. Record completion row – unit_cost MUST be standard
     INSERT INTO manufacturing.completions (
         production_order_uuid, quantity_completed, unit_cost, completed_at
     ) VALUES (
         p_order_uuid, p_completed_quantity, v_std_unit_cost, p_completion_date
     );
 
-    -- If FIFO/LIFO -> create new lot for FG
+    -- 9. If FIFO/LIFO -> create new lot for FG
     IF v_product.valuation_method IN ('FIFO','LIFO') THEN
         INSERT INTO inventory.lots (
             item_uuid, warehouse_uuid, reference_type, reference_id,
@@ -706,7 +698,7 @@ BEGIN
 
     RAISE NOTICE 'IF message';
 
-    -- 5. Run variances ONLY when fully complete
+    -- 10. Run variances ONLY when fully complete
     IF v_new_completed >= v_order.quantity_ordered THEN
         PERFORM manufacturing.calculate_and_post_variances(
             p_order_uuid, p_user, v_wip_uuid, p_mfg_mat_var_account,
@@ -840,7 +832,7 @@ BEGIN
 
     RAISE NOTICE 'Adding material costs';
 
-    -- Actuals from source tables only (never from WIP GL balance)
+    -- Actuals from materials issue table for selected production order
     SELECT COALESCE(SUM(total_cost), 0) INTO v_act_mat
     FROM manufacturing.material_issues
     WHERE production_order_uuid = p_order_uuid;
@@ -1044,109 +1036,6 @@ BEGIN
     RETURN v_issue_row;
 END;
 $$;
-
--- Transfer raw materials to production process for new inventory
--- CREATE OR REPLACE FUNCTION manufacturing.initialize_material_cost(
---     p_order_uuid uuid
--- ) RETURNS void
--- LANGUAGE plpgsql
--- AS $$
--- DECLARE
---     v_order manufacturing.production_orders%ROWTYPE;
---     v_bom_header uuid;
---     v_line RECORD;
--- BEGIN
---     -- Fetch order
---     SELECT * INTO v_order FROM manufacturing.production_orders
---     WHERE uuid = p_order_uuid;
-
---     IF NOT FOUND THEN
---         RAISE EXCEPTION 'Production order not found: %', p_order_uuid;
---     END IF;
-
---     -- Get default BOM for product
---     SELECT uuid INTO v_bom_header FROM manufacturing.bom_headers
---     WHERE product_item_uuid = v_order.product_item_uuid AND is_active AND is_default LIMIT 1;
-
---     IF NOT FOUND THEN
---         RAISE EXCEPTION 'No default BOM found for product %', v_order.product_item_uuid;
---     END IF;
-
---     -- Loop BOM lines
---     FOR v_line IN
---         SELECT bl.*, i.unit_cost AS current_unit_cost
---         FROM manufacturing.bom_lines bl
---         JOIN inventory.items i ON i.uuid = bl.component_item_uuid
---         WHERE bl.bom_header_uuid = v_bom_header
---     LOOP
---         INSERT INTO manufacturing.cost_entries (
---             production_order_uuid, component_item_uuid, quantity, unit_cost, cost_type
---         ) VALUES (
---             p_order_uuid, v_line.component_item_uuid,
---             v_line.quantity_per * v_order.quantity_ordered, -- multiply by order qty
---             v_line.current_unit_cost, 'MATERIAL'
---         );
---     END LOOP;
--- END;
--- $$;
-
--- CREATE OR REPLACE PROCEDURE manufacturing.close_period_overhead(
---     p_period_start      date,
---     p_period_end        date,
---     p_user              uuid,
---     p_oh_control_code   text DEFAULT '2100-MOH-CONTROL',
---     p_oh_variance_code  text DEFAULT '5120-OH-VAR',
---     p_cutoff_date       date DEFAULT CURRENT_DATE
--- )
--- LANGUAGE plpgsql
--- AS $$
--- DECLARE
---     v_actual    numeric(18,2) := 0;
---     v_applied   numeric(18,2) := 0;
---     v_balance   numeric(18,2);
---     v_moh_uuid  uuid;
---     v_var_uuid  uuid;
---     v_txn_serial bigint;
--- BEGIN
---     SELECT uuid INTO STRICT v_moh_uuid FROM accounting.accounts WHERE code = p_oh_control_code;
---     SELECT uuid INTO STRICT v_var_uuid FROM accounting.accounts WHERE code = p_oh_variance_code;
-
---     -- Sum actual overhead incurred in period
---     SELECT COALESCE(SUM(amount), 0) INTO v_actual
---     FROM manufacturing.cost_applications
---     WHERE type = 'OverheadActual'
---       AND applied_at::date BETWEEN p_period_start AND p_period_end;
-
---     -- Sum applied overhead in period
---     SELECT COALESCE(SUM(amount), 0) INTO v_applied
---     FROM manufacturing.cost_applications
---     WHERE type = 'Overhead'
---       AND applied_at::date BETWEEN p_period_start AND p_period_end;
-
---     v_balance := v_actual - v_applied;
-
---     IF ABS(v_balance) < 1.00 THEN
---         RAISE NOTICE 'Overhead balance negligible (%), skipping closure', v_balance;
---         RETURN;
---     END IF;
-
---     -- Post: if under-applied (positive balance) → debit variance, credit MOH control
---     -- if over-applied → credit variance, debit MOH control
---     v_txn_serial := accounting.post_transaction(
---         'MOH-CLS-' || to_char(p_cutoff_date, 'YYYYMM'),
---         'Period-end Overhead Variance Closure',
---         p_user,
---         'manufacturing',
---         p_cutoff_date,
---         jsonb_build_array(
---             jsonb_build_object('account_ref', v_var_uuid,  'debit',  GREATEST(v_balance,0), 'credit', GREATEST(-v_balance,0)),
---             jsonb_build_object('account_ref', v_moh_uuid, 'debit',  GREATEST(-v_balance,0), 'credit', GREATEST(v_balance,0))
---         )
---     );
-
---     RAISE NOTICE 'Closed MOH balance % with transaction serial %', v_balance, v_txn_serial;
--- END;
--- $$;
 
 CREATE OR REPLACE PROCEDURE manufacturing.close_period_overhead(
     p_period_start          date,
