@@ -832,8 +832,8 @@ BEGIN
 
     RAISE NOTICE 'Adding material costs';
 
-    -- Actuals from materials issue table for selected production order
-    SELECT COALESCE(SUM(total_cost), 0) INTO v_act_mat
+    -- Actuals from materials issue table for requested production qty
+    SELECT COALESCE(SUM(total_cost * v_completed_qty), 0) INTO v_act_mat
     FROM manufacturing.material_issues
     WHERE production_order_uuid = p_order_uuid;
 
@@ -849,14 +849,14 @@ BEGIN
     SELECT COALESCE(SUM(amount), 0) INTO v_act_oh
     FROM manufacturing.cost_applications
     WHERE production_order_uuid = p_order_uuid
-      AND type = 'OverheadActual';   -- adjust if you use overhead_actuals table instead
+      AND type = 'ActualOverhead';
 
     RAISE NOTICE 'Adding overhead applied';
 
     SELECT COALESCE(SUM(amount), 0) INTO v_app_oh
     FROM manufacturing.cost_applications
     WHERE production_order_uuid = p_order_uuid
-      AND type = 'Overhead';
+      AND type = 'AppliedOverhead';
 
     RAISE NOTICE 'Standard material';
 
@@ -1064,7 +1064,7 @@ BEGIN
     -- 1. Compute net balance for the period
     SELECT COALESCE(SUM(amount), 0) INTO v_actual
     FROM manufacturing.cost_applications
-    WHERE type = 'OverheadActual'
+    WHERE type = 'ActualOverhead'
       AND applied_at::date BETWEEN p_period_start AND p_period_end;
 
     SELECT COALESCE(SUM(amount), 0) INTO v_applied
