@@ -6,6 +6,7 @@ use crate::{
 };
 use async_trait::async_trait;
 use bigdecimal::{BigDecimal, Zero};
+use chrono::{DateTime, Utc};
 use sqlx::{PgPool, Row, postgres::PgQueryResult};
 use uuid::Uuid;
 
@@ -160,9 +161,9 @@ impl CustomerRepository for PostgresCustomerRepo {
         // ---------------------------------------------------------------------------
         let is_cash: bool = payload.settlement_type == "cash";
 
-        let status: Option<&str> = if is_cash { Some("paid") } else { None };
-        let paid_at: Option<&str> = if is_cash { Some("now()") } else { None };
-        let balance_due = if is_cash {
+        let status: &str = if is_cash { "paid" } else { "unpaid" };
+        let paid_at: Option<DateTime<Utc>> = if is_cash { Some(Utc::now()) } else { None };
+        let balance_due: BigDecimal = if is_cash {
             BigDecimal::zero()
         } else {
             payload.total_amount.clone().unwrap_or_default()
@@ -196,13 +197,14 @@ impl CustomerRepository for PostgresCustomerRepo {
         .bind(status)
         .bind(paid_at)
         .fetch_one(&mut *tx)
-        .await?;
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
 
         // ---------------------------------------------------------------------------
         // 2. Line items - identical for both types
         // ---------------------------------------------------------------------------
-        let mut subtotal = BigDecimal::zero();
-        let mut total_tax = BigDecimal::zero();
+        let mut subtotal: BigDecimal = BigDecimal::zero();
+        let mut total_tax: BigDecimal = BigDecimal::zero();
 
         for item in &payload.items {
             let unit_price: BigDecimal = if item.unit_price > BigDecimal::zero() {
@@ -264,7 +266,8 @@ impl CustomerRepository for PostgresCustomerRepo {
             .bind(&item.tax_rate)
             .bind(&total_after_tax)
             .execute(&mut *tx)
-            .await?;
+            .await
+            .map_err(|e| AppError::Internal(e.to_string()))?;
 
             subtotal += &amount_ex_tax;
             total_tax += &tax_amount;
@@ -273,14 +276,14 @@ impl CustomerRepository for PostgresCustomerRepo {
         // ---------------------------------------------------------------------------
         // 3. Finalize header with computed values
         // ---------------------------------------------------------------------------
-        let final_balance_due = if is_cash {
+        let final_balance_due: BigDecimal = if is_cash {
             BigDecimal::zero()
         } else {
             &subtotal + &total_tax
         };
 
         // Update invoice with total and tax computed from items' meta
-        let updated = sqlx::query_as::<_, Turnover>(
+        let updated: Turnover = sqlx::query_as::<_, Turnover>(
             r#"
             UPDATE sales.turnover
             SET
@@ -300,7 +303,8 @@ impl CustomerRepository for PostgresCustomerRepo {
         .bind(paid_at)
         .bind(invoice.uuid)
         .fetch_one(&mut *tx)
-        .await?;
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
 
         tx.commit().await?;
         Ok(updated)
