@@ -98,7 +98,7 @@ pub struct CreateTurnoverItem {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PostTurnover {
-    pub invoice_serial_id: i64,
+    pub invoice_number: String,
     pub receivable_code: Option<String>,
     pub revenue_code: String,
     pub cash_account_code: Option<String>,

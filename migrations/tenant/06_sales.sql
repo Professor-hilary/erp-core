@@ -201,7 +201,7 @@ ORDER BY c.serial_id, COALESCE(i.serial_id, 0), p.payment_date DESC NULLS LAST;
 -- ================================================================================
 -- Customer post sale function (credit or cash)
 CREATE OR REPLACE FUNCTION sales.post_turnover(
-    p_turnover_serial_id   bigint,
+    p_invoice_number       text,
     p_user                 uuid,
     p_output_vat_code      text,
     p_receivables_code     text DEFAULT NULL,
@@ -219,15 +219,15 @@ DECLARE
 BEGIN
     SELECT * INTO v_turnover
     FROM sales.turnover
-    WHERE serial_id = p_turnover_serial_id
+    WHERE invoice_number = p_invoice_number
     FOR UPDATE;
 
     IF NOT FOUND THEN
-        RAISE EXCEPTION 'Turnover % not found', p_turnover_serial_id;
+        RAISE EXCEPTION 'Sales invoice % not found', p_invoice_number;
     END IF;
 
     IF v_turnover.posted THEN
-        RAISE EXCEPTION 'Turnover % already posted', p_turnover_serial_id;
+        RAISE EXCEPTION 'Sales invoice % already posted', p_invoice_number;
     END IF;
 
     -- Resolve main account
@@ -311,7 +311,7 @@ BEGIN
         i.warehouse_serial,
         ti.quantity,
         'turnover',
-        p_turnover_serial_id,
+        v_turnover.serial_id,
         p_user,
         v_txn_uuid
     )

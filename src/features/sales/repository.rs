@@ -318,14 +318,14 @@ impl CustomerRepository for PostgresCustomerRepo {
     ) -> Result<Turnover, AppError> {
         let invoice =
             sqlx::query_as::<_, Turnover>(r#"SELECT sales.post_turnover($1, $2, $3, $4)"#)
-                .bind(payload.invoice_serial_id)
+                .bind(&payload.invoice_number)
                 .bind(user_id)
                 .bind(&payload.output_vat_code)
                 .bind(&payload.receivable_code)
                 .bind(&payload.revenue_code)
-                .fetch_optional(pool)
-                .await?
-                .ok_or(AppError::NotFound("Invoice posting failed".into()))?;
+                .fetch_one(pool)
+                .await
+                .map_err(|e| AppError::Internal(e.to_string()))?;
 
         Ok(invoice)
     }
@@ -339,14 +339,14 @@ impl CustomerRepository for PostgresCustomerRepo {
         let sale: Turnover = sqlx::query_as::<_, Turnover>(
             r#"SELECT sales.post_turnover($1, $2, $3, null, $4, $5)"#,
         )
-        .bind(payload.invoice_serial_id)
+        .bind(&payload.invoice_number)
         .bind(user_id)
         .bind(&payload.output_vat_code)
         .bind(&payload.revenue_code)
         .bind(&payload.cash_account_code)
-        .fetch_optional(pool)
-        .await?
-        .ok_or(AppError::NotFound("Cash sale posting failed".into()))?;
+        .fetch_one(pool)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
 
         Ok(sale)
     }
