@@ -448,7 +448,7 @@ impl ManufacturingRepo {
         &self,
         product_uuid: Uuid,
     ) -> Result<Option<BomWithLines>, AppError> {
-        let header_opt = sqlx::query_as::<_, BomHeader>(
+        let header_opt: Option<BomHeader> = sqlx::query_as::<_, BomHeader>(
             r#"
             SELECT * FROM manufacturing.bom_headers
             WHERE product_item_uuid = $1

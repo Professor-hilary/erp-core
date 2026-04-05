@@ -121,6 +121,7 @@ CREATE table if not exists manufacturing.material_issues (
     uuid uuid DEFAULT uuidv7 () PRIMARY KEY,
     production_order_uuid uuid NOT NULL,
     stock_item_id bigint NOT NULL,
+    stock_item_name text NOT NULL,
     quantity numeric(12, 4) NOT NULL,
     unit_cost numeric(18, 4) NOT NULL, -- from costing method
     total_cost numeric(18, 2) GENERATED ALWAYS AS (quantity * unit_cost) STORED,
@@ -624,7 +625,7 @@ BEGIN
         p_order_uuid, v_wip_uuid, v_woh_uuid, p_user, p_completion_date
     );
 
-    -- 5. Update order first
+    -- 5. Update order status to completed
     v_new_completed := v_order.quantity_completed + p_completed_quantity;
 
     UPDATE manufacturing.production_orders
@@ -994,9 +995,9 @@ BEGIN
 
     -- 5. Insert into material_issues
     INSERT INTO manufacturing.material_issues(
-        production_order_uuid, stock_item_id, warehouse_uuid, quantity, unit_cost, issued_at
+        production_order_uuid, stock_item_id, stock_item_name, warehouse_uuid, quantity, unit_cost, issued_at
     ) VALUES (
-        p_production_order_uuid, v_item.serial_id, v_warehouse.uuid, p_quantity, v_unit_cost, now()
+        p_production_order_uuid, v_item.serial_id, v_item.name, v_warehouse.uuid, p_quantity, v_unit_cost, now()
     ) RETURNING * INTO v_issue_row;
 
     -- Update cost application table with the value of the materials
@@ -1005,7 +1006,7 @@ BEGIN
         source_account, destination_account
     ) VALUES (
         p_production_order_uuid, 'DirectMaterial', v_total_cost, now(),
-        format('Material issue: %s units of item %s', p_quantity, v_item.serial_id),
+        format('Material issue: %s units of item %s', p_quantity, v_item.name),
         v_raw_mat_uuid, v_wip_uuid
     );
 
