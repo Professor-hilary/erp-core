@@ -834,7 +834,7 @@ BEGIN
     RAISE NOTICE 'Adding material costs';
 
     -- Actuals from materials issue table for requested production qty
-    SELECT COALESCE(SUM(total_cost * v_completed_qty), 0) INTO v_act_mat
+    SELECT COALESCE(SUM(total_cost), 0) INTO v_act_mat
     FROM manufacturing.material_issues
     WHERE production_order_uuid = p_order_uuid;
 
