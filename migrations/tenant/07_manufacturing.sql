@@ -137,9 +137,9 @@ CREATE table if not exists manufacturing.cost_applications (
     type text CHECK (
         type IN (
             'DirectLabor',
-            'DirectMaterial'
+            'DirectMaterial',
             'AppliedOverhead',
-            'ActualOverhead',
+            'ActualOverhead'
         )
     ),
     amount numeric(18, 2) NOT NULL,
@@ -177,10 +177,14 @@ CREATE TABLE IF NOT EXISTS manufacturing.overhead_rates (
     estimated_overhead numeric(18, 2) NOT NULL, -- budgeted total overhead for period
     estimated_base numeric(18, 4) NOT NULL, -- budgeted activity level (hours, cost, etc.)
     rate numeric(18, 6) GENERATED ALWAYS AS (
-        estimated_overhead / estimated_base
+        CASE
+            WHEN estimated_base = 0 THEN 0
+            ELSE estimated_overhead / estimated_base
+        END
     ) STORED,
     department_code text, -- optional: if multiple production departments
     is_active boolean DEFAULT true,
+    status text CHECK(status IN('Draft', 'Active', 'Archived')) DEFAULT 'Active'
     created_at timestamptz DEFAULT now(),
     updated_at timestamptz DEFAULT now(),
     CONSTRAINT unique_period_base UNIQUE (
@@ -204,7 +208,10 @@ CREATE TABLE manufacturing.routings (
     product_item_uuid uuid REFERENCES inventory.items (uuid),
     routing_code text UNIQUE,
     description text,
-    is_active boolean DEFAULT true,
+    version TEXT NOT NULL,
+    base_quantity NUMERIC NOT NULL DEFAULT 1,
+    effective_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    status text DEFAULT 'active',
     is_default boolean DEFAULT false,
     created_at timestamptz DEFAULT now()
 );
@@ -212,19 +219,24 @@ CREATE TABLE manufacturing.routings (
 CREATE TABLE manufacturing.routing_operations (
     uuid uuid DEFAULT uuidv7 () PRIMARY KEY,
     routing_uuid uuid REFERENCES manufacturing.routings (uuid) ON DELETE CASCADE,
-    seq smallint NOT NULL,
-    work_center_code text NOT NULL,
+    sequence smallint NOT NULL,
+    operation_name TEXT NOT NULL,
+    work_center_code UUID REFERENCES work_centers(uuid),
     description text,
-    standard_hours numeric(12, 4) NOT NULL,
-    standard_rate numeric(18, 2) NOT NULL,
-    allocation_base text CHECK (
-        allocation_base IN (
-            'DirectLaborHours',
-            'MachineHours'
-        )
+    setup_time_minutes numeric(12, 4) NOT NULL,
+    run_time_minutes numeric(18, 2) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE work_centers(
+    uuid UUID PRIMARY KEY DEFAULT uuidv7 (),
+    name TEXT NOT NULL,
+    labor_rate NUMERIC NOT NULL, --UGX per hour
+    allocation_base TEXT NOT NULL CHECK(
+        allocation_base IN ('DirectLaborHours', 'MachineHours')
     ),
-    department_code text,
-    UNIQUE (routing_uuid, seq)
+    department_code TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- ============================================================================
@@ -1037,6 +1049,42 @@ BEGIN
     RETURN v_issue_row;
 END;
 $$;
+
+CREATE OR REPLACE manufacturing.create_routing(
+    p_production_uuid   UUID,
+    p_version           text,
+    p_base_quantity     numeric,
+    p_operations        jsonb
+)
+RETURNS uuid AS $$
+DECLARE
+    v_routing_uuid uuid;
+    op routing;
+BEGIN
+    INSERT INTO manufacturing.routings(
+        product_uuid, version, base_quantity
+    ) VALUES (
+        p_product_uuid, p_version, p_base_quantity
+    )
+    RETURNING uuid INTO v_routing_uuid;
+
+    FOR op IN SELECT * FROM jsonb_array_elements(p_operations)
+    LOOP
+        INSERT INTO manufacturing.routing_operations(
+            routing_uuid, sequence, operation_name,
+            work_center_uuid, setup_time_minnutes, run_time_minutes
+        )
+        VALUES(
+            v_routing_uuid, (op->>'sequence')::int,
+            op->>'operation_name', (op->>'work_center_uuid')::uuid,
+            COALESCE((op->>'setup_time_minutes')::numeric, 0),
+            (op->>'run_time_minutes')::numeric
+        )
+    END LOOP;
+
+    RETURN v_routing_uuid;
+END;
+$$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE PROCEDURE manufacturing.close_period_overhead(
     p_period_start          date,
