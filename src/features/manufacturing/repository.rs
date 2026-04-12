@@ -63,11 +63,12 @@ impl ManufacturingRepo {
         let row = sqlx::query(
             r#"
             INSERT INTO manufacturing.work_centers(
-                name, labor_rate, overhead_rate, allocation_base, department_code
+                code, name, labor_rate, overhead_rate, allocation_base, department_code
             ) VALUES ($1, $2, $3, $4, $5)
             RETURNING *
             "#,
         )
+        .bind(&dto.code)
         .bind(&dto.name)
         .bind(dto.labor_rate)
         .bind(dto.overhead_rate)
@@ -79,6 +80,7 @@ impl ManufacturingRepo {
         // Update cost tracker to record material cost
         let work_center: WorkCenter = WorkCenter {
             uuid: row.get("uuid"),
+            code: row.get("code"),
             name: row.get("name"),
             labor_rate: row.get("labor_rate"),
             overhead_rate: row.get("overhead_rate"),
@@ -135,7 +137,7 @@ impl ManufacturingRepo {
         let row = sqlx::query(
             r#"
             INSERT INTO manufacturing.routing_operations(
-                routing_uuid, sequence, operation_name, work_center_code,
+                routing_uuid, sequence, operation_name, work_center,
                 description, setup_time_minutes, run_time_minutes
             ) VALUES ($1, $2, $3, $4)
             RETURNING *

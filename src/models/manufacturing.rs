@@ -26,6 +26,7 @@ pub struct ProductionOrder {
 pub struct WorkCenter {
     pub uuid: Uuid,
     pub name: String,
+    pub code: String,
     pub labor_rate: BigDecimal,
     pub allocation_base: String,
     pub department_code: String,
@@ -35,6 +36,7 @@ pub struct WorkCenter {
 
 #[derive(Debug, Deserialize)]
 pub struct WorkCenterDto {
+    pub code: String,
     pub name: String,
     pub labor_rate: BigDecimal,
     pub overhead_rate: BigDecimal,

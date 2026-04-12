@@ -184,7 +184,7 @@ CREATE TABLE IF NOT EXISTS manufacturing.overhead_rates (
     ) STORED,
     department_code text, -- optional: if multiple production departments
     is_active boolean DEFAULT true,
-    status text CHECK(status IN('Draft', 'Active', 'Archived')) DEFAULT 'Active'
+    status text CHECK(status IN('Draft', 'Active', 'Archived')) DEFAULT 'Active',
     created_at timestamptz DEFAULT now(),
     updated_at timestamptz DEFAULT now(),
     CONSTRAINT unique_period_base UNIQUE (
@@ -202,8 +202,20 @@ CREATE TABLE IF NOT EXISTS manufacturing.overhead_actuals (
     reference text
 );
 
+CREATE TABLE IF NOT EXISTS manufacturing.work_centers(
+    uuid UUID PRIMARY KEY DEFAULT uuidv7 (),
+    code TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    labor_rate NUMERIC NOT NULL,
+    allocation_base TEXT NOT NULL CHECK(
+        allocation_base IN ('DirectLaborHours', 'MachineHours')
+    ),
+    department_code TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Routings / Operations (for labor & machine standards)
-CREATE TABLE manufacturing.routings (
+CREATE TABLE IF NOT EXISTS manufacturing.routings (
     uuid uuid DEFAULT uuidv7 () PRIMARY KEY,
     product_item_uuid uuid REFERENCES inventory.items (uuid),
     routing_code text UNIQUE,
@@ -216,27 +228,15 @@ CREATE TABLE manufacturing.routings (
     created_at timestamptz DEFAULT now()
 );
 
-CREATE TABLE manufacturing.routing_operations (
+CREATE TABLE IF NOT EXISTS manufacturing.routing_operations (
     uuid uuid DEFAULT uuidv7 () PRIMARY KEY,
     routing_uuid uuid REFERENCES manufacturing.routings (uuid) ON DELETE CASCADE,
     sequence smallint NOT NULL UNIQUE,
     operation_name TEXT NOT NULL,
-    work_center uuid REFERENCES work_centers(uuid),
+    work_center text REFERENCES work_centers(code),
     description text,
     setup_time_minutes numeric(12, 4) NOT NULL,
     run_time_minutes numeric(18, 2) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE work_centers(
-    uuid UUID PRIMARY KEY DEFAULT uuidv7 (),
-    name TEXT NOT NULL,
-    labor_rate NUMERIC NOT NULL, --UGX per hour
-    overhead_rate NUMERIC NOT NULL, --UGX per hour
-    allocation_base TEXT NOT NULL CHECK(
-        allocation_base IN ('DirectLaborHours', 'MachineHours')
-    ),
-    department_code TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -244,7 +244,9 @@ CREATE TABLE work_centers(
 -- FUNCTIONS
 -- ============================================================================
 
-CREATE OR REPLACE FUNCTION manufacturing.calculate_standard_cost(p_item_uuid uuid)
+CREATE OR REPLACE FUNCTION manufacturing.calculate_standard_cost(
+    p_item_uuid uuid
+)
 RETURNS numeric(18,4)
 LANGUAGE plpgsql
 AS $$
@@ -271,7 +273,7 @@ BEGIN
     INTO v_labor_cost
     FROM manufacturing.routings r
     JOIN manufacturing.routing_operations ro ON ro.routing_uuid = r.uuid
-    JOIN manufacturing.work_centers wc ON ro.work_center = wc.uuid
+    JOIN manufacturing.work_centers wc ON ro.work_center = wc.code
     WHERE r.product_item_uuid = p_item_uuid
       AND r.is_active AND r.is_default = true;
 
@@ -284,7 +286,7 @@ BEGIN
     JOIN manufacturing.routing_operations ro
         ON ro.routing_uuid = r.uuid
     JOIN manufacturing.work_centers wc
-        ON wc.uuid = ro.work_center
+        ON wc.code = ro.work_center
     JOIN manufacturing.overhead_rates ohr
         ON ohr.department_code = wc.department_code
     WHERE r.product_item_uuid = p_item_uuid
@@ -1060,43 +1062,6 @@ BEGIN
     );
 
     RETURN v_issue_row;
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION manufacturing.create_routing(
-    p_product_uuid  uuid,
-    p_version       text,
-    p_base_quantity numeric,
-    p_operations    jsonb
-) RETURNS uuid
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    v_routing_uuid uuid;
-    op jsonb;
-BEGIN
-    INSERT INTO manufacturing.routings(
-        product_item_uuid, version, base_quantity
-    ) VALUES (
-        p_product_uuid, p_version, p_base_quantity
-    )
-    RETURNING uuid INTO v_routing_uuid;
-
-    FOR op IN SELECT * FROM jsonb_array_elements(p_operations)
-    LOOP
-        INSERT INTO manufacturing.routing_operations(
-            routing_uuid, sequence, operation_name,
-            work_center_uuid, setup_time_minnutes, run_time_minutes
-        )
-        VALUES(
-            v_routing_uuid, (op->>'sequence')::int,
-            op->>'operation_name', (op->>'work_center_uuid')::uuid,
-            COALESCE((op->>'setup_time_minutes')::numeric, 0),
-            (op->>'run_time_minutes')::numeric
-        )
-    END LOOP;
-
-    RETURN v_routing_uuid;
 END;
 $$;
 
