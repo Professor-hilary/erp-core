@@ -23,10 +23,10 @@ Designed to power a **Flutter-based desktop application**, this backend delivers
 | ------------------------------ | ----------- | ----------------------------------------------- |
 | User Auth (Sign up / Login)    | Done        | JWT-based secure authentication                 |
 | Chart of Accounts (CRUD)       | Done        | Asset, Liability, Equity, Revenue, Expense      |
-| Transactions (Journal Entries) | In Progress | Double-entry with debit/credit validation       |
-| Company Management             | Planned     | Multi-company support                           |
-| Customers & Vendors            | Planned     | Contacts, invoices, payments                    |
-| Financial Reports              | Planned     | Balance Sheet, P&L, Trial Balance               |
+| Transactions (Journal Entries) | Done        | Double-entry with debit/credit validation       |
+| Company Management             | Done        | Multi-company support                           |
+| Customers & Vendors            | Done        | Contacts, invoices, payments                    |
+| Financial Reports              | In Progress | Balance Sheet, P&L, Trial Balance               |
 | AI-Powered Insights            | Future      | Forecasting, anomaly detection, recommendations |
 
 ---
