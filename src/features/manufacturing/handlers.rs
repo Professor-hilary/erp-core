@@ -6,7 +6,7 @@ use crate::{
     models::manufacturing::{
         ApplyLaborCostDto, ApplyOverheadDto, CompleteProductionOrderDto, CreateBomHeaderDto,
         CreateBomLineDto, CreateOverheadRateDto, CreateProductionOrderDto, IssueMaterialDto,
-        ProrateVarianceDto, RecognizeOverhead,
+        ProrateVarianceDto, RecognizeOverhead, RoutingOperationsDto, RoutingsDto, WorkCenterDto,
     },
     state::AppState,
 };
@@ -34,6 +34,9 @@ fn internal_error(e: impl std::fmt::Display) -> AppError {
 pub fn router() -> Router<Arc<AppState>> {
     Router::new()
         .route("/create/production-order", post(new_order_route))
+        .route("/create/workcenter", post(new_work_center))
+        .route("/create/routing/header", post(new_routing))
+        .route("/create/routing/operation", post(new_routing_operation))
         .route("/create/overhead-rate", post(new_overhead_rate_route))
         .route("/variance-allocation", post(prorate_variance_route))
         .route("/apply/direct/material", post(raw_material_issuance_route))
@@ -42,7 +45,7 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/apply/overhead/applied", post(applied_overhead_route))
         .route("/complete-production", post(complete_order_route))
         .route("/create/bom", post(create_bom_route))
-        .route("/bom/{uuid}", get(get_bom_route))
+        .route("/get/bom/{uuid}", get(get_bom_route))
         .route("/default-product/{uuid}", get(default_bom_route))
 }
 
@@ -83,6 +86,48 @@ async fn new_order_route(
 
     match service.create_order(payload).await {
         Ok(result) => Ok(ApiResponse::created(result, "Production Order Created")),
+        Err(e) => Err(internal_error(e)),
+    }
+}
+
+async fn new_work_center(
+    State(_state): State<Arc<AppState>>,
+    Extension(user): Extension<AuthenticatedTenant>,
+    AppJson(payload): AppJson<WorkCenterDto>,
+) -> Result<Response, AppError> {
+    let repo: ManufacturingRepo = ManufacturingRepo::new(user.tenant_pool);
+    let service: ManufacturingService = ManufacturingService::new(repo);
+
+    match service.new_work_center(payload).await {
+        Ok(result) => Ok(ApiResponse::created(result, "Work Center Created")),
+        Err(e) => Err(internal_error(e)),
+    }
+}
+
+async fn new_routing(
+    State(_state): State<Arc<AppState>>,
+    Extension(user): Extension<AuthenticatedTenant>,
+    AppJson(payload): AppJson<RoutingsDto>,
+) -> Result<Response, AppError> {
+    let repo: ManufacturingRepo = ManufacturingRepo::new(user.tenant_pool);
+    let service: ManufacturingService = ManufacturingService::new(repo);
+
+    match service.new_routing(payload).await {
+        Ok(result) => Ok(ApiResponse::created(result, "Routing Header Created")),
+        Err(e) => Err(internal_error(e)),
+    }
+}
+
+async fn new_routing_operation(
+    State(_state): State<Arc<AppState>>,
+    Extension(user): Extension<AuthenticatedTenant>,
+    AppJson(payload): AppJson<RoutingOperationsDto>,
+) -> Result<Response, AppError> {
+    let repo: ManufacturingRepo = ManufacturingRepo::new(user.tenant_pool);
+    let service: ManufacturingService = ManufacturingService::new(repo);
+
+    match service.new_routing_operation(payload).await {
+        Ok(result) => Ok(ApiResponse::created(result, "Routing Operation Created")),
         Err(e) => Err(internal_error(e)),
     }
 }

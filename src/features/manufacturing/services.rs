@@ -22,6 +22,27 @@ impl ManufacturingService {
         Ok(self.repo.create_production_order(dto).await?)
     }
 
+    pub async fn new_work_center(
+        &self,
+        dto: WorkCenterDto,
+    ) -> Result<WorkCenter, AppError> {
+        Ok(self.repo.create_work_center(dto).await?)
+    }
+
+    pub async fn new_routing(
+        &self,
+        dto: RoutingsDto,
+    ) -> Result<Routings, AppError> {
+        Ok(self.repo.create_routings(dto).await?)
+    }
+
+    pub async fn new_routing_operation(
+        &self,
+        dto: RoutingOperationsDto,
+    ) -> Result<RoutingOperations, AppError> {
+        Ok(self.repo.create_routing_operation(dto).await?)
+    }
+
     pub async fn create_overhead_rate(
         &self,
         dto: CreateOverheadRateDto,

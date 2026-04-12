@@ -23,6 +23,74 @@ pub struct ProductionOrder {
 }
 
 #[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+pub struct WorkCenter {
+    pub uuid: Uuid,
+    pub name: String,
+    pub labor_rate: BigDecimal,
+    pub allocation_base: String,
+    pub department_code: String,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct WorkCenterDto {
+    pub name: i16,
+    pub labor_rate: Uuid,
+    pub allocation_base: BigDecimal,
+    pub department_code: Option<String>,
+}
+
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+pub struct Routings {
+    pub uuid: Uuid,
+    pub product_item_uuid: String,
+    pub routing_code: String,
+    pub description: String,
+    pub version: String,
+    pub base_quantity: i64,
+    pub effective_date: NaiveDate,
+    pub status: String,
+    pub is_default: bool,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct RoutingsDto {
+    pub product_item_uuid: String,
+    pub routing_code: String,
+    pub description: Option<String>,
+    pub version: String,
+    pub base_quantity: i64,
+    pub effective_date: NaiveDate,
+    pub status: String,
+    pub is_default: bool,
+}
+
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+pub struct RoutingOperations {
+    pub uuid: Uuid,
+    pub routing_uuid: String,
+    pub sequence: i64,
+    pub operation_name: String,
+    pub work_center_code: String,
+    pub description: String,
+    pub setup_time_minutes: String,
+    pub run_time_minutes: String,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct RoutingOperationsDto {
+    pub routing_uuid: String,
+    pub sequence: i64,
+    pub operation_name: String,
+    pub work_center_code: String,
+    pub description: Option<String>,
+    pub setup_time_minutes: String,
+    pub run_time_minutes: String,
+}
+
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
 pub struct MaterialIssue {
     pub uuid: Uuid,
     pub production_order_uuid: Uuid,
@@ -114,7 +182,7 @@ pub struct CompleteProductionOrderDto {
     pub mfg_mat_var_code: String,    // Manufacturing material variable control account
     pub mfg_lab_var_code: String,    // Manufacturing labor variable control account
     pub mfg_moh_var_code: String,    // Manufacturing overhead variable control account
-    pub control_code: String,    // Manufacturing overhead variable control account
+    pub control_code: String,        // Manufacturing overhead variable control account
 }
 
 #[derive(Debug, Deserialize)]

@@ -88,6 +88,83 @@ impl ManufacturingRepo {
         Ok(order)
     }
 
+    pub async fn create_routings(&self, dto: RoutingsDto) -> Result<Routings, AppError> {
+        let row = sqlx::query(
+            r#"
+            INSERT INTO manufacturing.routings(
+                product_item_uuid, routing_code, description, version,
+                base_quantity, effective_date, status, is_default
+            ) VALUES ($1, $2, $3, $4)
+            RETURNING *
+            "#,
+        )
+        .bind(&dto.product_item_uuid)
+        .bind(dto.routing_code)
+        .bind(dto.description)
+        .bind(dto.version)
+        .bind(dto.base_quantity)
+        .bind(dto.effective_date)
+        .bind(dto.status)
+        .bind(dto.is_default)
+        .fetch_one(&self.pool)
+        .await?;
+
+        // Update cost tracker to record material cost
+        let routing: Routings = Routings {
+            uuid: row.get("uuid"),
+            product_item_uuid: row.get("product_item_uuid"),
+            routing_code: row.get("routing_code"),
+            description: row.get("description"),
+            version: row.get("version"),
+            base_quantity: row.get("base_quantity"),
+            effective_date: row.get("effective_date"),
+            status: row.get("status"),
+            is_default: row.get("is_default"),
+            created_at: row.get("created_at"),
+        };
+
+        Ok(routing)
+    }
+
+    pub async fn create_routing_operation(
+        &self,
+        dto: RoutingOperationsDto,
+    ) -> Result<RoutingOperations, AppError> {
+        let row = sqlx::query(
+            r#"
+            INSERT INTO manufacturing.routing_operations(
+                routing_uuid, sequence, operation_name, work_center_code,
+                description, setup_time_minutes, run_time_minutes
+            ) VALUES ($1, $2, $3, $4)
+            RETURNING *
+            "#,
+        )
+        .bind(&dto.routing_uuid)
+        .bind(dto.sequence)
+        .bind(dto.operation_name)
+        .bind(dto.work_center_code)
+        .bind(dto.description)
+        .bind(dto.setup_time_minutes)
+        .bind(dto.run_time_minutes)
+        .fetch_one(&self.pool)
+        .await?;
+
+        // Update cost tracker to record material cost
+        let routing: RoutingOperations = RoutingOperations {
+            uuid: row.get("uuid"),
+            routing_uuid: row.get("routing_uuid"),
+            sequence: row.get("sequence"),
+            description: row.get("description"),
+            operation_name: row.get("operation_code"),
+            work_center_code: row.get("work_center_code"),
+            setup_time_minutes: row.get("setup_time_minutes"),
+            run_time_minutes: row.get("run_time_minutes"),
+            created_at: row.get("created_at"),
+        };
+
+        Ok(routing)
+    }
+
     pub async fn create_overhead_rate(
         &self,
         dto: CreateOverheadRateDto,

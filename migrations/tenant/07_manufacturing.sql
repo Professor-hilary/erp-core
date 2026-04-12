@@ -1050,19 +1050,20 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE manufacturing.create_routing(
-    p_production_uuid   UUID,
-    p_version           text,
-    p_base_quantity     numeric,
-    p_operations        jsonb
-)
-RETURNS uuid AS $$
+CREATE OR REPLACE FUNCTION manufacturing.create_routing(
+    p_product_uuid  uuid,
+    p_version       text,
+    p_base_quantity numeric,
+    p_operations    jsonb
+) RETURNS uuid
+LANGUAGE plpgsql
+AS $$
 DECLARE
     v_routing_uuid uuid;
-    op routing;
+    op jsonb;
 BEGIN
     INSERT INTO manufacturing.routings(
-        product_uuid, version, base_quantity
+        product_item_uuid, version, base_quantity
     ) VALUES (
         p_product_uuid, p_version, p_base_quantity
     )
@@ -1084,7 +1085,7 @@ BEGIN
 
     RETURN v_routing_uuid;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 CREATE OR REPLACE PROCEDURE manufacturing.close_period_overhead(
     p_period_start          date,
