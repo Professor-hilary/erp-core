@@ -34,7 +34,7 @@ fn internal_error(e: impl std::fmt::Display) -> AppError {
 pub fn router() -> Router<Arc<AppState>> {
     Router::new()
         .route("/create/production-order", post(new_order_route))
-        .route("/create/workcenter", post(new_work_center))
+        .route("/create/routing/workcenter", post(new_work_center))
         .route("/create/routing/header", post(new_routing))
         .route("/create/routing/operation", post(new_routing_operation))
         .route("/create/overhead-rate", post(new_overhead_rate_route))
@@ -90,6 +90,7 @@ async fn new_order_route(
     }
 }
 
+///# POST /manufacturing/create/routing/workcenter
 async fn new_work_center(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
@@ -104,6 +105,7 @@ async fn new_work_center(
     }
 }
 
+///# POST /manufacturing/create/routing/header
 async fn new_routing(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
@@ -118,6 +120,7 @@ async fn new_routing(
     }
 }
 
+///# POST /manufacturing/create/routing/operation
 async fn new_routing_operation(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,

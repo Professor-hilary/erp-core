@@ -207,7 +207,7 @@ CREATE TABLE manufacturing.routings (
     uuid uuid DEFAULT uuidv7 () PRIMARY KEY,
     product_item_uuid uuid REFERENCES inventory.items (uuid),
     routing_code text UNIQUE,
-    description text,
+    notes text,
     version TEXT NOT NULL,
     base_quantity NUMERIC NOT NULL DEFAULT 1,
     effective_date DATE NOT NULL DEFAULT CURRENT_DATE,
@@ -219,9 +219,9 @@ CREATE TABLE manufacturing.routings (
 CREATE TABLE manufacturing.routing_operations (
     uuid uuid DEFAULT uuidv7 () PRIMARY KEY,
     routing_uuid uuid REFERENCES manufacturing.routings (uuid) ON DELETE CASCADE,
-    sequence smallint NOT NULL,
+    sequence smallint NOT NULL UNIQUE,
     operation_name TEXT NOT NULL,
-    work_center_code UUID REFERENCES work_centers(uuid),
+    work_center uuid REFERENCES work_centers(uuid),
     description text,
     setup_time_minutes numeric(12, 4) NOT NULL,
     run_time_minutes numeric(18, 2) NOT NULL,
@@ -232,6 +232,7 @@ CREATE TABLE work_centers(
     uuid UUID PRIMARY KEY DEFAULT uuidv7 (),
     name TEXT NOT NULL,
     labor_rate NUMERIC NOT NULL, --UGX per hour
+    overhead_rate NUMERIC NOT NULL, --UGX per hour
     allocation_base TEXT NOT NULL CHECK(
         allocation_base IN ('DirectLaborHours', 'MachineHours')
     ),
@@ -248,36 +249,48 @@ RETURNS numeric(18,4)
 LANGUAGE plpgsql
 AS $$
 DECLARE
-    v_material_std numeric(18,4) := 0;
-    v_labor_std    numeric(18,4) := 0;
-    v_overhead_std numeric(18,4) := 0;
-    v_total        numeric(18,4);
+    v_material_cost numeric := 0;
+    v_labor_cost    numeric := 0;
+    v_overhead_cost numeric := 0;
 BEGIN
-    -- Material standard (sum BOM qty × component standard cost)
+    --=================== Material standard ========================
     SELECT COALESCE(SUM(bl.quantity_per * i.standard_cost), 0)
-    INTO v_material_std
+    INTO v_material_cost
     FROM manufacturing.bom_headers bh
     JOIN manufacturing.bom_lines bl ON bl.bom_header_uuid = bh.uuid
     JOIN inventory.items i ON i.uuid = bl.component_item_uuid
     WHERE bh.product_item_uuid = p_item_uuid
-      AND bh.is_active AND bh.is_default;
+      AND bh.is_active
+    ORDER BY bh.is_default DESC
+    LIMIT 1;
 
-    -- Labor standard (sum routing std hours × std rate)
-    -- Assumes you link routing to product (add if missing)
-    SELECT COALESCE(SUM(ro.standard_hours * ro.standard_rate), 0)
-    INTO v_labor_std
+    --====================== Labor(routing) =======================
+    SELECT COALESCE(SUM(
+        (ro.setup_time_minutes + ro.run_time_minutes)* wc.labor_rate / 60
+    ), 0)
+    INTO v_labor_cost
     FROM manufacturing.routings r
     JOIN manufacturing.routing_operations ro ON ro.routing_uuid = r.uuid
+    JOIN manufacturing.work_centers wc ON ro.work_center = wc.uuid
     WHERE r.product_item_uuid = p_item_uuid
-      AND r.is_active AND r.is_default;
+      AND r.is_active AND r.is_default = true;
 
-    -- Overhead standard: often = applied rate × expected base (e.g. labor hours)
-    -- For simplicity here we can use total applied later or assume it's part of routing base
-    -- Many systems compute it dynamically during application → here we approximate
+    --========================= OVERHEAD ==========================
+    SELECT COALESCE(SUM(
+        (ro.run_time_minutes / 60) * ohr.rate
+    ), 0)
+    INTO v_overhead_cost
+    FROM manufacturing.routings r
+    JOIN manufacturing.routing_operations ro
+        ON ro.routing_uuid = r.uuid
+    JOIN manufacturing.work_centers wc
+        ON wc.uuid = ro.work_center
+    JOIN manufacturing.overhead_rates ohr
+        ON ohr.department_code = wc.department_code
+    WHERE r.product_item_uuid = p_item_uuid
+    AND ohr.is_active = true;
 
-    v_total := v_material_std + v_labor_std + v_overhead_std;
-
-    RETURN ROUND(v_total, 4);
+    RETURN v_material_cost + v_labor_cost + v_overhead_cost;
 END;
 $$;
 

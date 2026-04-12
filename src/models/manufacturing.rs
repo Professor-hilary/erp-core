@@ -29,13 +29,15 @@ pub struct WorkCenter {
     pub labor_rate: BigDecimal,
     pub allocation_base: String,
     pub department_code: String,
+    pub overhead_rate: BigDecimal,
     pub created_at: DateTime<Utc>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct WorkCenterDto {
-    pub name: i16,
-    pub labor_rate: Uuid,
+    pub name: String,
+    pub labor_rate: BigDecimal,
+    pub overhead_rate: BigDecimal,
     pub allocation_base: BigDecimal,
     pub department_code: Option<String>,
 }
@@ -45,7 +47,7 @@ pub struct Routings {
     pub uuid: Uuid,
     pub product_item_uuid: String,
     pub routing_code: String,
-    pub description: String,
+    pub notes: String,
     pub version: String,
     pub base_quantity: i64,
     pub effective_date: NaiveDate,
@@ -58,7 +60,7 @@ pub struct Routings {
 pub struct RoutingsDto {
     pub product_item_uuid: String,
     pub routing_code: String,
-    pub description: Option<String>,
+    pub notes: Option<String>,
     pub version: String,
     pub base_quantity: i64,
     pub effective_date: NaiveDate,
@@ -192,6 +194,8 @@ pub struct ProrateVarianceDto {
     pub wip_account: Option<String>,
     pub fg_account: Option<String>,
     pub cogs_account: Option<String>,
+    pub min_allocation_threshold: Option<BigDecimal>,
+    pub materiality_threshold: Option<BigDecimal>,
     pub memo: Option<String>,
     pub dry_run: Option<bool>,
 }

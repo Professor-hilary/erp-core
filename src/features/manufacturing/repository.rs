@@ -63,36 +63,38 @@ impl ManufacturingRepo {
         let row = sqlx::query(
             r#"
             INSERT INTO manufacturing.work_centers(
-                name, labor_rate, allocation_base, department_code
-            ) VALUES ($1, $2, $3, $4)
+                name, labor_rate, overhead_rate, allocation_base, department_code
+            ) VALUES ($1, $2, $3, $4, $5)
             RETURNING *
             "#,
         )
         .bind(&dto.name)
         .bind(dto.labor_rate)
+        .bind(dto.overhead_rate)
         .bind(dto.allocation_base)
         .bind(dto.department_code)
         .fetch_one(&self.pool)
         .await?;
 
         // Update cost tracker to record material cost
-        let order: WorkCenter = WorkCenter {
+        let work_center: WorkCenter = WorkCenter {
             uuid: row.get("uuid"),
             name: row.get("name"),
             labor_rate: row.get("labor_rate"),
+            overhead_rate: row.get("overhead_rate"),
             allocation_base: row.get("allocation_base"),
             department_code: row.get("department_code"),
             created_at: row.get("created_at"),
         };
 
-        Ok(order)
+        Ok(work_center)
     }
 
     pub async fn create_routings(&self, dto: RoutingsDto) -> Result<Routings, AppError> {
         let row = sqlx::query(
             r#"
             INSERT INTO manufacturing.routings(
-                product_item_uuid, routing_code, description, version,
+                product_item_uuid, routing_code, notes, version,
                 base_quantity, effective_date, status, is_default
             ) VALUES ($1, $2, $3, $4)
             RETURNING *
@@ -100,7 +102,7 @@ impl ManufacturingRepo {
         )
         .bind(&dto.product_item_uuid)
         .bind(dto.routing_code)
-        .bind(dto.description)
+        .bind(dto.notes)
         .bind(dto.version)
         .bind(dto.base_quantity)
         .bind(dto.effective_date)
@@ -114,7 +116,7 @@ impl ManufacturingRepo {
             uuid: row.get("uuid"),
             product_item_uuid: row.get("product_item_uuid"),
             routing_code: row.get("routing_code"),
-            description: row.get("description"),
+            notes: row.get("notes"),
             version: row.get("version"),
             base_quantity: row.get("base_quantity"),
             effective_date: row.get("effective_date"),
@@ -155,7 +157,7 @@ impl ManufacturingRepo {
             routing_uuid: row.get("routing_uuid"),
             sequence: row.get("sequence"),
             description: row.get("description"),
-            operation_name: row.get("operation_code"),
+            operation_name: row.get("operation_name"),
             work_center_code: row.get("work_center_code"),
             setup_time_minutes: row.get("setup_time_minutes"),
             run_time_minutes: row.get("run_time_minutes"),
@@ -343,7 +345,7 @@ impl ManufacturingRepo {
         Ok(CostApplication {
             uuid: row.get("uuid"),
             production_order_uuid: row.get("production_order_uuid"),
-            application_type: "Overhead".to_string(),
+            application_type: "Labor".to_string(),
             amount: row.get("amount"),
             applied_at: row.get("applied_at"),
             reference: row.get("reference"),
@@ -403,7 +405,7 @@ impl ManufacturingRepo {
         let _ = sqlx::query(
             r#"
             CALL manufacturing.prorate_variance(
-                $1, $2, $3, $4, $5, $6, 5.00, 100.00, $7, $8
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
             )
             "#,
         )
@@ -413,6 +415,8 @@ impl ManufacturingRepo {
         .bind(dto.fg_account)
         .bind(dto.cogs_account)
         .bind(as_of)
+        .bind(dto.min_allocation_threshold.unwrap_or(BigDecimal::from(5)))
+        .bind(dto.materiality_threshold.unwrap_or(BigDecimal::from(100)))
         .bind(
             dto.memo
                 .unwrap_or_else(|| "Manual overhead variance proration".to_string()),
