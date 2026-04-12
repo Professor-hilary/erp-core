@@ -59,6 +59,35 @@ impl ManufacturingRepo {
         Ok(order)
     }
 
+    pub async fn create_work_center(&self, dto: WorkCenterDto) -> Result<WorkCenter, AppError> {
+        let row = sqlx::query(
+            r#"
+            INSERT INTO manufacturing.work_centers(
+                name, labor_rate, allocation_base, department_code
+            ) VALUES ($1, $2, $3, $4)
+            RETURNING *
+            "#,
+        )
+        .bind(&dto.name)
+        .bind(dto.labor_rate)
+        .bind(dto.allocation_base)
+        .bind(dto.department_code)
+        .fetch_one(&self.pool)
+        .await?;
+
+        // Update cost tracker to record material cost
+        let order: WorkCenter = WorkCenter {
+            uuid: row.get("uuid"),
+            name: row.get("name"),
+            labor_rate: row.get("labor_rate"),
+            allocation_base: row.get("allocation_base"),
+            department_code: row.get("department_code"),
+            created_at: row.get("created_at"),
+        };
+
+        Ok(order)
+    }
+
     pub async fn create_overhead_rate(
         &self,
         dto: CreateOverheadRateDto,
