@@ -233,7 +233,7 @@ CREATE TABLE IF NOT EXISTS manufacturing.routing_operations (
     routing_uuid uuid REFERENCES manufacturing.routings (uuid) ON DELETE CASCADE,
     sequence smallint NOT NULL UNIQUE,
     operation_name TEXT NOT NULL,
-    work_center text REFERENCES work_centers(code),
+    work_center text REFERENCES manufacturing.work_centers(code),
     description text,
     setup_time_minutes numeric(12, 4) NOT NULL,
     run_time_minutes numeric(18, 2) NOT NULL,
