@@ -254,43 +254,67 @@ DECLARE
     v_material_cost numeric := 0;
     v_labor_cost    numeric := 0;
     v_overhead_cost numeric := 0;
+
+    v_bom_uuid uuid;
+    v_routing_uuid uuid;
 BEGIN
-    --=================== Material standard ========================
-    SELECT COALESCE(SUM(bl.quantity_per * i.standard_cost), 0)
-    INTO v_material_cost
+    --======================= PICK BOM ============================
+    SELECT bh.uuid
+    INTO v_bom_uuid
     FROM manufacturing.bom_headers bh
-    JOIN manufacturing.bom_lines bl ON bl.bom_header_uuid = bh.uuid
-    JOIN inventory.items i ON i.uuid = bl.component_item_uuid
     WHERE bh.product_item_uuid = p_item_uuid
       AND bh.is_active
-    ORDER BY bh.is_default DESC
+    ORDER BY bh.is_default DESC, bh.created_at DESC
     LIMIT 1;
 
-    --====================== Labor(routing) =======================
-    SELECT COALESCE(SUM(
-        (ro.setup_time_minutes + ro.run_time_minutes)* wc.labor_rate / 60
-    ), 0)
-    INTO v_labor_cost
+    --==================== MATERIAL COST =========================
+    IF v_bom_uuid IS NOT NULL THEN
+        SELECT COALESCE(SUM(bl.quantity_per * i.standard_cost), 0)
+        INTO v_material_cost
+        FROM manufacturing.bom_lines bl
+        JOIN inventory.items i ON i.uuid = bl.component_item_uuid
+        WHERE bl.bom_header_uuid = v_bom_uuid;
+    END IF;
+
+    --===================== PICK ROUTING ==========================
+    SELECT r.uuid
+    INTO v_routing_uuid
     FROM manufacturing.routings r
-    JOIN manufacturing.routing_operations ro ON ro.routing_uuid = r.uuid
-    JOIN manufacturing.work_centers wc ON ro.work_center = wc.code
     WHERE r.product_item_uuid = p_item_uuid
-      AND r.is_active AND r.is_default = true;
+      AND r.is_active
+    ORDER BY r.is_default DESC, r.created_at DESC
+    LIMIT 1;
+
+    --========================== LABOR ===========================
+    IF v_routing_uuid IS NOT NULL THEN
+        SELECT COALESCE(SUM(
+            ((ro.setup_time_minutes + ro.run_time_minutes) / 60.0)
+            * wc.labor_rate
+        ), 0)
+        INTO v_labor_cost
+        FROM manufacturing.routing_operations ro
+        JOIN manufacturing.work_centers wc
+            ON wc.uuid = ro.work_center_uuid
+        WHERE ro.routing_uuid = v_routing_uuid;
+    END IF;
 
     --========================= OVERHEAD ==========================
-    SELECT COALESCE(SUM(
-        (ro.run_time_minutes / 60) * ohr.rate
-    ), 0)
-    INTO v_overhead_cost
-    FROM manufacturing.routings r
-    JOIN manufacturing.routing_operations ro
-        ON ro.routing_uuid = r.uuid
-    JOIN manufacturing.work_centers wc
-        ON wc.code = ro.work_center
-    JOIN manufacturing.overhead_rates ohr
-        ON ohr.department_code = wc.department_code
-    WHERE r.product_item_uuid = p_item_uuid
-    AND ohr.is_active = true;
+    IF v_routing_uuid IS NOT NULL THEN
+        SELECT COALESCE(SUM(
+            ((ro.setup_time_minutes + ro.run_time_minutes) / 60.0)
+            * ohr.rate
+        ), 0)
+        INTO v_overhead_cost
+        FROM manufacturing.routing_operations ro
+        JOIN manufacturing.work_centers wc
+            ON wc.uuid = ro.work_center_uuid
+        JOIN manufacturing.overhead_rates ohr
+            ON ohr.allocation_base = wc.allocation_base
+           AND (ohr.department_code IS NULL OR ohr.department_code = wc.department_code)
+           AND ohr.is_active = true
+           AND CURRENT_DATE BETWEEN ohr.period_start AND ohr.period_end
+        WHERE ro.routing_uuid = v_routing_uuid;
+    END IF;
 
     RETURN v_material_cost + v_labor_cost + v_overhead_cost;
 END;
