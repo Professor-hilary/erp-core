@@ -63,7 +63,7 @@ impl ManufacturingRepo {
         let row = sqlx::query(
             r#"
             INSERT INTO manufacturing.work_centers(
-                code, name, labor_rate, overhead_rate, allocation_base, department_code
+                code, name, labor_rate, allocation_base, department_code
             ) VALUES ($1, $2, $3, $4, $5)
             RETURNING *
             "#,
@@ -71,7 +71,6 @@ impl ManufacturingRepo {
         .bind(&dto.code)
         .bind(&dto.name)
         .bind(dto.labor_rate)
-        .bind(dto.overhead_rate)
         .bind(dto.allocation_base)
         .bind(dto.department_code)
         .fetch_one(&self.pool)
@@ -83,7 +82,6 @@ impl ManufacturingRepo {
             code: row.get("code"),
             name: row.get("name"),
             labor_rate: row.get("labor_rate"),
-            overhead_rate: row.get("overhead_rate"),
             allocation_base: row.get("allocation_base"),
             department_code: row.get("department_code"),
             created_at: row.get("created_at"),
