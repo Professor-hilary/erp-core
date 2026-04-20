@@ -45,7 +45,7 @@ pub struct WorkCenterDto {
 #[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
 pub struct Routings {
     pub uuid: Uuid,
-    pub product_item_uuid: String,
+    pub product_item_uuid: Uuid,
     pub routing_code: String,
     pub notes: String,
     pub version: String,
@@ -58,7 +58,7 @@ pub struct Routings {
 
 #[derive(Debug, Deserialize)]
 pub struct RoutingsDto {
-    pub product_item_uuid: String,
+    pub product_item_uuid: Uuid,
     pub routing_code: String,
     pub notes: Option<String>,
     pub version: String,
@@ -71,25 +71,25 @@ pub struct RoutingsDto {
 #[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
 pub struct RoutingOperations {
     pub uuid: Uuid,
-    pub routing_uuid: String,
+    pub routing_uuid: Uuid,
     pub sequence: i64,
     pub operation_name: String,
     pub work_center_code: String,
     pub description: String,
-    pub setup_time_minutes: String,
-    pub run_time_minutes: String,
+    pub setup_time_minutes: BigDecimal,
+    pub run_time_minutes: BigDecimal,
     pub created_at: DateTime<Utc>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct RoutingOperationsDto {
-    pub routing_uuid: String,
+    pub routing_uuid: Uuid,
     pub sequence: i64,
     pub operation_name: String,
     pub work_center_code: String,
     pub description: Option<String>,
-    pub setup_time_minutes: String,
-    pub run_time_minutes: String,
+    pub setup_time_minutes: BigDecimal,
+    pub run_time_minutes: BigDecimal,
 }
 
 #[derive(Debug, Clone, FromRow, Serialize, Deserialize)]

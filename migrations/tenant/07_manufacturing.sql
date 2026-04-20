@@ -237,7 +237,7 @@ CREATE TABLE IF NOT EXISTS manufacturing.routing_operations (
     description text,
     setup_time_minutes numeric(12, 4) NOT NULL,
     run_time_minutes numeric(18, 2) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at timestamptz DEFAULT now()
 );
 
 -- ============================================================================

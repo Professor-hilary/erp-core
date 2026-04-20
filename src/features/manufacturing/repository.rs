@@ -96,7 +96,7 @@ impl ManufacturingRepo {
             INSERT INTO manufacturing.routings(
                 product_item_uuid, routing_code, notes, version,
                 base_quantity, effective_date, status, is_default
-            ) VALUES ($1, $2, $3, $4)
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
             RETURNING *
             "#,
         )
@@ -137,7 +137,7 @@ impl ManufacturingRepo {
             INSERT INTO manufacturing.routing_operations(
                 routing_uuid, sequence, operation_name, work_center,
                 description, setup_time_minutes, run_time_minutes
-            ) VALUES ($1, $2, $3, $4)
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7)
             RETURNING *
             "#,
         )
