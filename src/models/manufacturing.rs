@@ -30,7 +30,6 @@ pub struct WorkCenter {
     pub labor_rate: BigDecimal,
     pub allocation_base: String,
     pub department_code: String,
-    pub overhead_rate: BigDecimal,
     pub created_at: DateTime<Utc>,
 }
 
@@ -39,8 +38,7 @@ pub struct WorkCenterDto {
     pub code: String,
     pub name: String,
     pub labor_rate: BigDecimal,
-    pub overhead_rate: BigDecimal,
-    pub allocation_base: BigDecimal,
+    pub allocation_base: String,
     pub department_code: Option<String>,
 }
 
