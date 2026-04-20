@@ -211,7 +211,7 @@ CREATE TABLE IF NOT EXISTS manufacturing.work_centers(
         allocation_base IN ('DirectLaborHours', 'MachineHours')
     ),
     department_code TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at timestamptz DEFAULT now()
 );
 
 -- Routings / Operations (for labor & machine standards)
@@ -281,7 +281,7 @@ BEGIN
     INTO v_routing_uuid
     FROM manufacturing.routings r
     WHERE r.product_item_uuid = p_item_uuid
-      AND r.is_active
+      AND r.status = 'active'
     ORDER BY r.is_default DESC, r.created_at DESC
     LIMIT 1;
 
