@@ -158,7 +158,7 @@ impl ManufacturingRepo {
             sequence: row.get("sequence"),
             description: row.get("description"),
             operation_name: row.get("operation_name"),
-            work_center_code: row.get("work_center_code"),
+            work_center_code: row.get("work_center"),
             setup_time_minutes: row.get("setup_time_minutes"),
             run_time_minutes: row.get("run_time_minutes"),
             created_at: row.get("created_at"),

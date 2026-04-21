@@ -72,7 +72,7 @@ pub struct RoutingsDto {
 pub struct RoutingOperations {
     pub uuid: Uuid,
     pub routing_uuid: Uuid,
-    pub sequence: i64,
+    pub sequence: i16,
     pub operation_name: String,
     pub work_center_code: String,
     pub description: String,
@@ -84,7 +84,7 @@ pub struct RoutingOperations {
 #[derive(Debug, Deserialize)]
 pub struct RoutingOperationsDto {
     pub routing_uuid: Uuid,
-    pub sequence: i64,
+    pub sequence: i16,
     pub operation_name: String,
     pub work_center_code: String,
     pub description: Option<String>,
