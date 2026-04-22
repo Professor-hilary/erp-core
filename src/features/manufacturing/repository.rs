@@ -317,26 +317,53 @@ impl ManufacturingRepo {
     }
 
     // ============================ Labor Application ============================
-    pub async fn apply_labor_costs(
+    pub async fn apply_direct_labor(
         &self,
-        dto: ApplyLaborCostDto,
+        dto: ApplyDirectLaborDto,
         user_uuid: Uuid,
     ) -> Result<CostApplication, AppError> {
         let row: PgRow = sqlx::query(
             "
-            SELECT * FROM manufacturing.apply_labor_cost(
-                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
+            SELECT * FROM manufacturing.apply_direct_labor_from_routing(
+                $1, $2, $3, $4, $5
             )
         ",
         )
         .bind(dto.production_order_uuid)
+        .bind(user_uuid)
+        .bind(dto.wip_account_code)
+        .bind(dto.labor_account_code)
+        .bind(dto.reference)
+        .fetch_one(&self.pool)
+        .await?;
+
+        Ok(CostApplication {
+            uuid: row.get("uuid"),
+            production_order_uuid: row.get("production_order_uuid"),
+            application_type: "DirectLabor".to_string(),
+            amount: row.get("amount"),
+            applied_at: row.get("applied_at"),
+            reference: row.get("reference"),
+        })
+    }
+
+     pub async fn apply_indirect_labor(
+        &self,
+        dto: ApplyInDirectLaborDto,
+        user_uuid: Uuid,
+    ) -> Result<CostApplication, AppError> {
+        let row: PgRow = sqlx::query(
+            "
+            SELECT * FROM manufacturing.record_indirect_labor(
+                $1, $2, $3, $4, $5, $6, $7
+            )
+        ",
+        )
         .bind(dto.hours)
         .bind(dto.rate_per_hour)
-        .bind(dto.is_direct)
         .bind(user_uuid)
-        .bind(dto.renumeration_code)
+        .bind(dto.labor_account_code)
         .bind(dto.control_account_code)
-        .bind(dto.wip_account_code)
         .bind(dto.department_code.unwrap_or_default())
         .bind(dto.reference)
         .fetch_one(&self.pool)
@@ -345,7 +372,7 @@ impl ManufacturingRepo {
         Ok(CostApplication {
             uuid: row.get("uuid"),
             production_order_uuid: row.get("production_order_uuid"),
-            application_type: "Labor".to_string(),
+            application_type: "IndirectLabor".to_string(),
             amount: row.get("amount"),
             applied_at: row.get("applied_at"),
             reference: row.get("reference"),
