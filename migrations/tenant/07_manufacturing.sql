@@ -36,31 +36,29 @@ CREATE table if not exists manufacturing.production_orders (
             'Cancelled'
         )
     ),
+    materials_status text DEFAULT 'Pending' CHECK (
+        materials_status IN ('Pending', 'Partial', 'Complete')
+    ),
     gl_transaction_uuid uuid, -- link to posted entries
     created_at timestamptz DEFAULT now(),
     updated_at timestamptz DEFAULT now()
 );
 
--- CREATE TABLE IF NOT EXISTS manufacturing.cost_entries (
---     uuid uuid DEFAULT uuidv7 () PRIMARY KEY,
---     production_order_uuid uuid NOT null references manufacturing.production_orders (uuid),
---     cost_type text NOT null check (
---         cost_type in (
---             'MATERIAL',
---             'LABOR',
---             'OVERHEAD',
---             'ADJUSTMENT'
---         )
---     ),
---     component_item_uuid uuid NOT NULL REFERENCES inventory.items (uuid),
---     quantity numeric(18, 4),
---     unit_cost numeric(18, 4),
---     total_cost numeric(18, 4) NOT null generated always as (quantity * unit_cost) STORED,
---     created_at timestamptz DEFAULT now(),
---     CONSTRAINT fk_cost_entries_order FOREIGN KEY (production_order_uuid) REFERENCES manufacturing.production_orders (uuid)
--- );
-
--- CREATE INDEX idx_cost_entries_order ON manufacturing.cost_entries (production_order_uuid);
+-- For tracking material availability for production
+CREATE TABLE manufacturing.production_order_materials (
+    uuid uuid DEFAULT uuidv7 () PRIMARY KEY,
+    production_order_uuid  uuid NOT NULL REFERENCES manufacturing.production_orders(uuid)
+        ON DELETE CASCADE,
+    bom_line_uuid uuid NOT NULL REFERENCES manufacturing.bom_lines(uuid),
+    component_item_uuid uuid NOT NULL REFERENCES inventory.items(uuid),
+    required_qty numeric(18,6) NOT NULL,
+    issued_qty numeric(18,6) DEFAULT 0,
+    status text DEFAULT 'Pending' CHECK (
+        status IN ('Pending', 'PartiallyIssued', 'FullyIssued')
+    ),
+    created_at timestamptz DEFAULT now(),
+    UNIQUE(production_order_uuid, bom_line_uuid)
+);
 
 -- helper log table (recommended for audit trail)
 CREATE TABLE IF NOT EXISTS accounting.variance_proration_logs (
@@ -1186,6 +1184,82 @@ BEGIN
         -- add overhead_variance = v_oh_var if you add the column
         updated_at = now()
     WHERE uuid = p_order_uuid;
+END;
+$$;
+
+-- Build materials issue, BOM must exist
+CREATE OR REPLACE FUNCTION manufacturing.issue_material_from_bom(
+    p_production_order_uuid uuid,
+    p_warehouse_serial      bigint,
+    p_raw_materials_code    text,
+    p_work_in_progress_code text,
+    p_user_uuid             uuid
+)
+RETURNS void
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    rec             RECORD;
+    v_remaining_qty numeric(18, 6);
+BEGIN
+    FOR rec IN
+        SELECT pom.*, i.serial_id
+        FROM manufacturing.production_order_materials pom
+        JOIN inventory.items i
+            ON i.uuid = pom.component_item_uuid
+        WHERE pom.production_order_uuid = p_production_order_uuid
+    LOOP
+        v_remaining_qty := rec.required_qty - rec.issued_qty;
+
+        -- Skip if already fully issued
+        IF v_remaining_qty <= 0 THEN
+            CONTINUE;
+        END IF;
+
+        BEGIN
+            PERFORM manufacturing.issue_material_to_order(
+                rec.serial_id,
+                p_warehouse_serial,
+                v_remaining_qty,
+                p_production_order_uuid,
+                p_raw_materials_code,
+                p_work_in_progress_code,
+                p_user_uuid
+            );
+
+            -- Update issued qty
+            UPDATE manufacturing.production_order_materials
+            SET issued_qty = issued_qty + v_remaining_qty,
+                status = 'FullyIssued'
+            WHERE uuid = rec.uuid;
+
+        EXCEPTION
+            WHEN OTHERS THEN
+                -- Partial or failed issue - skip, continue loop
+                UPDATE manufacturing.production_order_materials
+                SET status = 'PartiallyIssued'
+                WHERE uuid = rec.uuid;
+
+                CONTINUE;
+        END;
+    END LOOP;
+
+    -- Update overall order material status
+    UPDATE manufacturing.production_orders
+    SET updated_at = now()
+    WHERE uuid = p_production_order_uuid;
+
+    UPDATE manufacturing.production_orders po
+    SET materials_status = CASE
+        WHEN NOT EXISTS (
+            SELECT 1 FROM manufacturing.production_order_materials
+            WHERE production_order_uuid = po.uuid
+                AND status != 'FullyIssued'
+        ) THEN 'Complete'
+        ELSE 'Partial'
+    END
+    WHERE uuid = p_production_order_uuid;
+
 END;
 $$;
 

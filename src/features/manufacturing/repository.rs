@@ -50,11 +50,25 @@ impl ManufacturingRepo {
             updated_at: row.get("updated_at"),
         };
 
-        // Update the cost overhead table for end of period overhead adjustment
-        // sqlx::query("SELECT manufacturing.initialize_material_cost($1)")
-        //     .bind(order.uuid)
-        //     .execute(&self.pool)
-        //     .await?;
+        // Update production order materials table using BOM
+        sqlx::query(
+            r#"
+            INSERT INTO manufacturing.production_order_materials(
+                production_order_uuid, bom_line_uuid, component_item_uuid, required_qty
+            )
+            SELECT
+                p.uuid, bl.uuid, bl.component_item_uuid, bl.quantity_per * p.quantity_ordered
+            FROM manufacturing.production_orders p
+            JOIN manufacturing.bom_headers bh
+              ON bh.product_item_uuid = p.product_item_uuid
+             AND bh.is_default = true
+            JOIN manufacturing.bom_lines bl
+              ON bl.bom_header_uuid = bh.uuid
+            WHERE p.uuid = $1
+            "#,
+        ).bind(order.uuid)
+        .execute(&self.pool)
+        .await?;
 
         Ok(order)
     }

@@ -3,11 +3,7 @@ use crate::{
     features::manufacturing::{repository::ManufacturingRepo, services::ManufacturingService},
     interface::api::{errors::AppError, json_errors::AppJson, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,
-    models::manufacturing::{
-        ApplyLaborCostDto, ApplyOverheadDto, CompleteProductionOrderDto, CreateBomHeaderDto,
-        CreateBomLineDto, CreateOverheadRateDto, CreateProductionOrderDto, IssueMaterialDto,
-        ProrateVarianceDto, RecognizeOverhead, RoutingOperationsDto, RoutingsDto, WorkCenterDto,
-    },
+    models::manufacturing::*,
     state::AppState,
 };
 use axum::{
@@ -40,7 +36,8 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/create/overhead-rate", post(new_overhead_rate_route))
         .route("/variance-allocation", post(prorate_variance_route))
         .route("/apply/direct/material", post(raw_material_issuance_route))
-        .route("/apply/direct/labor", post(apply_labor_route))
+        .route("/apply/direct/labor", post(http_direct_labor_route))
+        .route("/apply/indirect/labor", post(http_indirect_labor_route))
         .route("/apply/overhead/actual", post(actual_overhead_route))
         .route("/apply/overhead/applied", post(applied_overhead_route))
         .route("/complete-production", post(complete_order_route))
@@ -215,17 +212,32 @@ async fn applied_overhead_route(
     }
 }
 
-/// POST /manufacturing/overhead-application
-async fn apply_labor_route(
+/// POST /manufacturing/apply/direct/labor
+async fn http_direct_labor_route(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    AppJson(payload): AppJson<ApplyLaborCostDto>,
+    AppJson(payload): AppJson<ApplyDirectLaborDto>,
 ) -> Result<Response, AppError> {
     let repo: ManufacturingRepo = ManufacturingRepo::new(user.tenant_pool);
     let service: ManufacturingService = ManufacturingService::new(repo);
 
-    match service.apply_labor_costs(payload, user.user_id).await {
-        Ok(result) => Ok(ApiResponse::created(result, "Labor Costs Applied")),
+    match service.apply_direct_labor_costs(payload, user.user_id).await {
+        Ok(result) => Ok(ApiResponse::created(result, "Direct Labor Costs Applied")),
+        Err(e) => Err(internal_error(e)),
+    }
+}
+
+/// POST /manufacturing/apply/indirect/labor
+async fn http_indirect_labor_route(
+    State(_state): State<Arc<AppState>>,
+    Extension(user): Extension<AuthenticatedTenant>,
+    AppJson(payload): AppJson<ApplyInDirectLaborDto>,
+) -> Result<Response, AppError> {
+    let repo: ManufacturingRepo = ManufacturingRepo::new(user.tenant_pool);
+    let service: ManufacturingService = ManufacturingService::new(repo);
+
+    match service.apply_indirect_labor_costs(payload, user.user_id).await {
+        Ok(result) => Ok(ApiResponse::created(result, "Inirect Labor Costs Applied")),
         Err(e) => Err(internal_error(e)),
     }
 }

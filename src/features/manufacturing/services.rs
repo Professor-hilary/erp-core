@@ -76,12 +76,20 @@ impl ManufacturingService {
         Ok(self.repo.recognize_actual_overhead(dto, user_uuid).await?)
     }
 
-    pub async fn apply_labor_costs(
+    pub async fn apply_indirect_labor_costs(
         &self,
-        dto: ApplyLaborCostDto,
+        dto: ApplyInDirectLaborDto,
         user_uuid: Uuid,
     ) -> Result<CostApplication, AppError> {
-        Ok(self.repo.apply_labor_costs(dto, user_uuid).await?)
+        Ok(self.repo.apply_indirect_labor(dto, user_uuid).await?)
+    }
+
+     pub async fn apply_direct_labor_costs(
+        &self,
+        dto: ApplyDirectLaborDto,
+        user_uuid: Uuid,
+    ) -> Result<CostApplication, AppError> {
+        Ok(self.repo.apply_direct_labor(dto, user_uuid).await?)
     }
 
     pub async fn complete_order(
