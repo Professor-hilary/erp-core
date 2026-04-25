@@ -4,6 +4,7 @@ use bigdecimal::BigDecimal;
 use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
+// use strum::{Display, EnumString};
 use uuid::Uuid;
 
 #[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
@@ -92,16 +93,21 @@ pub struct RoutingOperationsDto {
     pub run_time_minutes: BigDecimal,
 }
 
+// #[derive(Debug, Clone, Serialize, Deserialize, EnumString, Display)]
+// #[strum(serialize_all = "lowercase")]
+// pub enum MaterialStatus {
+//     Pending,
+//     PartiallyIssued,
+//     FullyIssued,
+// }
+
 #[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
 pub struct MaterialIssue {
-    pub uuid: Uuid,
-    pub production_order_uuid: Uuid,
-    pub stock_item_id: i64,
-    pub warehouse_uuid: Uuid,
-    pub quantity: BigDecimal,
-    pub unit_cost: BigDecimal,
-    pub total_cost: BigDecimal,
-    pub issued_at: DateTime<Utc>,
+    pub component_item_uuid: Uuid,
+    pub required_qty: BigDecimal,
+    pub issued_qty: BigDecimal,
+    pub remaining_qty: BigDecimal,
+    pub status: String, // MaterialStatus,
 }
 
 #[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
@@ -135,9 +141,7 @@ pub struct CreateProductionOrderDto {
 
 #[derive(Debug, Deserialize)]
 pub struct IssueMaterialDto {
-    pub stock_item_id: i64,
     pub warehouse_serial_id: i64,
-    pub quantity: BigDecimal,
     pub production_order_uuid: Uuid,
     pub wip_account_code: String,
     pub raw_mat_account_code: String,
@@ -168,22 +172,22 @@ pub struct ApplyDirectLaborDto {
     // pub hours: BigDecimal,           // e.g. labor hours or labor cost
     // pub rate_per_hour: BigDecimal,   // e.g. labor hours or labor cost
     // pub is_direct: bool,             // Direct or Indirect labor
-    pub labor_account_code: String,   // Salaries or wages payable code
+    pub labor_account_code: String, // Salaries or wages payable code
     pub wip_account_code: Option<String>, // Work In Progress to accumulate costs
     // pub control_account_code: Option<String>, // Production Expenses tracker - strictly overheads
-    pub reference: Option<String>,   // Memo
-    // pub department_code: Option<String>, // Optional department
+    pub reference: Option<String>, // Memo
+                                   // pub department_code: Option<String>, // Optional department
 }
 
 #[derive(Debug, Deserialize)]
 pub struct ApplyInDirectLaborDto {
-    pub hours: BigDecimal,           // e.g. labor hours or labor cost
-    pub rate_per_hour: BigDecimal,   // e.g. labor hours or labor cost
-    pub labor_account_code: String,   // Salaries or wages payable code
+    pub hours: BigDecimal,          // e.g. labor hours or labor cost
+    pub rate_per_hour: BigDecimal,  // e.g. labor hours or labor cost
+    pub labor_account_code: String, // Salaries or wages payable code
     // pub wip_account_code: Option<String>, // Work In Progress to accumulate costs
     pub control_account_code: Option<String>, // Production Expenses tracker - strictly overheads
-    pub reference: Option<String>,   // Memo
-    pub department_code: Option<String>, // Optional department
+    pub reference: Option<String>,            // Memo
+    pub department_code: Option<String>,      // Optional department
 }
 
 #[derive(Debug, Deserialize)]

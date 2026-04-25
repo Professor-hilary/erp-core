@@ -66,7 +66,8 @@ impl ManufacturingRepo {
               ON bl.bom_header_uuid = bh.uuid
             WHERE p.uuid = $1
             "#,
-        ).bind(order.uuid)
+        )
+        .bind(order.uuid)
         .execute(&self.pool)
         .await?;
 
@@ -250,12 +251,10 @@ impl ManufacturingRepo {
         user_uuid: Uuid,
     ) -> Result<MaterialIssue, AppError> {
         let row: MaterialIssue = sqlx::query_as::<_, MaterialIssue>(
-            r#"SELECT * FROM manufacturing.issue_material_to_order($1, $2, $3, $4, $5, $6, $7)"#,
+            r#"SELECT * FROM manufacturing.issue_material_from_bom($1, $2, $3, $4, $5)"#,
         )
-        .bind(dto.stock_item_id)
-        .bind(dto.warehouse_serial_id)
-        .bind(&dto.quantity)
         .bind(&dto.production_order_uuid)
+        .bind(dto.warehouse_serial_id)
         .bind(&dto.raw_mat_account_code)
         .bind(dto.wip_account_code)
         .bind(user_uuid)
@@ -361,7 +360,7 @@ impl ManufacturingRepo {
         })
     }
 
-     pub async fn apply_indirect_labor(
+    pub async fn apply_indirect_labor(
         &self,
         dto: ApplyInDirectLaborDto,
         user_uuid: Uuid,

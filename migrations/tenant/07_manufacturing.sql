@@ -1195,7 +1195,13 @@ CREATE OR REPLACE FUNCTION manufacturing.issue_material_from_bom(
     p_work_in_progress_code text,
     p_user_uuid             uuid
 )
-RETURNS void
+RETURNS TABLE (
+    component_item_uuid uuid,
+    required_qty        numeric,
+    issued_qty          numeric,
+    remaining_qty       numeric,
+    status              text
+)
 LANGUAGE plpgsql
 AS $$
 DECLARE
@@ -1242,6 +1248,18 @@ BEGIN
 
                 CONTINUE;
         END;
+
+        RETURN QUERY
+        SELECT
+            rec.component_item_uuid,
+            rec.required_qty,
+            rec.issued_qty,
+            v_remaining_qty,
+            CASE
+                WHEN rec.issued_qty >= rec.required_qty THEN 'FullyIssued'
+                WHEN rec.issued_qty > 0 THEN 'PartiallyIssued'
+                ELSE 'Pending'
+            END;
     END LOOP;
 
     -- Update overall order material status
@@ -1312,7 +1330,7 @@ BEGIN
     -- deplete_inventory returns a total value of inventory
     SELECT * INTO v_total_cost
     FROM inventory.deplete_inventory(
-        p_item_serial_id, p_warehouse_serial, p_quantity, 'production', v_order.serial_id,
+        p_item_serial_id, p_warehouse_serial, p_quantity, 'PRODUCTION', v_order.serial_id,
         p_user_uuid, NULL, NULL
     );
 

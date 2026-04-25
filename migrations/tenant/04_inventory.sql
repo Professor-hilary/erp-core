@@ -330,12 +330,12 @@ BEGIN
         quantity, unit_cost, direction, gl_transaction_uuid
     ) VALUES (
         v_item.uuid, v_warehouse_uuid, p_reference_type, p_reference_serial_id,
-        CASE WHEN p_reference_type = 'PRODUCTION' THEN 'ISSUE_TO_PROD' ELSE 'SALE' END,
+        CASE WHEN UPPER(p_reference_type) = 'PRODUCTION' THEN 'ISSUE_TO_PROD' ELSE 'SALE' END,
         p_quantity_needed, v_cogs / NULLIF(p_quantity_needed, 0), 'OUT', p_gl_transaction_uuid
     );
 
     -- For production Issue -> post to WIP (if GL provided)
-    IF p_gl_transaction_uuid IS NOT NULL AND p_reference_type = 'PRODUCTION' THEN
+    IF p_gl_transaction_uuid IS NOT NULL AND UPPER(p_reference_type) = 'PRODUCTION' THEN
         SELECT uuid INTO v_wip_account FROM accounting.accounts WHERE code = p_wip_code;
 
         INSERT INTO accounting.transaction_entries (
