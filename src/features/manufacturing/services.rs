@@ -54,7 +54,7 @@ impl ManufacturingService {
         &self,
         dto: IssueMaterialDto,
         user_uuid: Uuid,
-    ) -> Result<MaterialIssue, AppError> {
+    ) -> Result<Vec<MaterialIssue>, AppError> {
         Ok(self.repo.issue_material(dto, user_uuid).await?)
     }
 

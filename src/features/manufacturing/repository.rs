@@ -249,8 +249,8 @@ impl ManufacturingRepo {
         &self,
         dto: IssueMaterialDto,
         user_uuid: Uuid,
-    ) -> Result<MaterialIssue, AppError> {
-        let row: MaterialIssue = sqlx::query_as::<_, MaterialIssue>(
+    ) -> Result<Vec<MaterialIssue>, AppError> {
+        let materials = sqlx::query_as::<_, MaterialIssue>(
             r#"SELECT * FROM manufacturing.issue_material_from_bom($1, $2, $3, $4, $5)"#,
         )
         .bind(&dto.production_order_uuid)
@@ -258,10 +258,10 @@ impl ManufacturingRepo {
         .bind(&dto.raw_mat_account_code)
         .bind(dto.wip_account_code)
         .bind(user_uuid)
-        .fetch_one(&self.pool)
+        .fetch_all(&self.pool)
         .await?;
 
-        Ok(row)
+        Ok(materials)
     }
 
     // ============================ Recognize Rated Overhead (Non-Actual) ============================
