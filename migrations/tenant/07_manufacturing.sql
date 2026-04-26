@@ -1200,14 +1200,16 @@ RETURNS TABLE (
     required_qty        numeric,
     issued_qty          numeric,
     remaining_qty       numeric,
-    status              text
+    material_status     text
 )
 LANGUAGE plpgsql
 AS $$
 DECLARE
     rec             RECORD;
     v_remaining_qty numeric(18, 6);
+    -- v_new_issued    numeric(18, 6);
 BEGIN
+    -- 1. Execute issuing logic
     FOR rec IN
         SELECT pom.*, i.serial_id
         FROM manufacturing.production_order_materials pom
@@ -1222,6 +1224,8 @@ BEGIN
             CONTINUE;
         END IF;
 
+        -- Try issuing if needed
+        -- IF v_remaining_qty > 0 THEN
         BEGIN
             PERFORM manufacturing.issue_material_to_order(
                 rec.serial_id,
@@ -1233,51 +1237,56 @@ BEGIN
                 p_user_uuid
             );
 
+            -- v_new_issued := rec.required_qty;
+
             -- Update issued qty
             UPDATE manufacturing.production_order_materials
-            SET issued_qty = issued_qty + v_remaining_qty,
-                status = 'FullyIssued'
+            SET issued_qty = required_qty, status = 'FullyIssued'
             WHERE uuid = rec.uuid;
 
         EXCEPTION
             WHEN OTHERS THEN
+                -- v_new_issued := rec.issued_qty;
+
                 -- Partial or failed issue - skip, continue loop
                 UPDATE manufacturing.production_order_materials
-                SET status = 'PartiallyIssued'
+                SET status = CASE
+                    WHEN issued_qty > 0 THEN 'PartiallyIssued'
+                    ELSE 'Pending'
+                END
                 WHERE uuid = rec.uuid;
 
-                CONTINUE;
-        END;
-
-        RETURN QUERY
-        SELECT
-            rec.component_item_uuid,
-            rec.required_qty,
-            rec.issued_qty,
-            v_remaining_qty,
-            CASE
-                WHEN rec.issued_qty >= rec.required_qty THEN 'FullyIssued'
-                WHEN rec.issued_qty > 0 THEN 'PartiallyIssued'
-                ELSE 'Pending'
+                -- CONTINUE;
             END;
-    END LOOP;
+        END LOOP;
+        -- ELSE
+        --     v_new_issued := rec.issued_qty;
+        -- END IF;
 
-    -- Update overall order material status
-    UPDATE manufacturing.production_orders
-    SET updated_at = now()
-    WHERE uuid = p_production_order_uuid;
-
+    -- 2. Update overall order material status
     UPDATE manufacturing.production_orders po
     SET materials_status = CASE
         WHEN NOT EXISTS (
-            SELECT 1 FROM manufacturing.production_order_materials
-            WHERE production_order_uuid = po.uuid
-                AND status != 'FullyIssued'
+            SELECT 1
+            FROM manufacturing.production_order_materials pom
+            WHERE pom.production_order_uuid = po.uuid
+                AND pom.status != 'FullyIssued'
         ) THEN 'Complete'
         ELSE 'Partial'
-    END
-    WHERE uuid = p_production_order_uuid;
+    END,
+    updated_at = now()
+    WHERE po.uuid = p_production_order_uuid;
 
+    -- 3. Return full snapshot of production order materials
+    RETURN QUERY
+    SELECT
+        pom.component_item_uuid,
+        pom.required_qty,
+        pom.issued_qty,
+        (pom.required_qty - pom.issued_qty) AS remaining_qty,
+        pom.status as material_status
+    FROM manufacturing.production_order_materials pom
+    WHERE pom.production_order_uuid = p_production_order_uuid;
 END;
 $$;
 

@@ -107,7 +107,7 @@ pub struct MaterialIssue {
     pub required_qty: BigDecimal,
     pub issued_qty: BigDecimal,
     pub remaining_qty: BigDecimal,
-    pub status: String, // MaterialStatus,
+    pub material_status: String, // MaterialStatus,
 }
 
 #[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
