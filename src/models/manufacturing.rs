@@ -150,7 +150,7 @@ pub struct IssueMaterialDto {
 #[derive(Debug, Deserialize)]
 pub struct ApplyOverheadDto {
     pub production_order_uuid: Uuid,
-    pub base_amount: BigDecimal, // e.g. labor hours or labor cost
+    pub base_hours: BigDecimal, // e.g. labor or machine hours
     pub wip_account: String,
     pub overhead_control_account: String,
     pub allocation_base: String,

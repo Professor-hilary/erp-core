@@ -320,7 +320,7 @@ $$;
 
 -- Helper Function: Apply Overhead to a Production Order
 CREATE OR REPLACE FUNCTION manufacturing.apply_overhead_to_order(
-    p_production_order_uuid uuid,
+    p_production_order      text,
     p_activity_amount       numeric, -- e.g. labor hours used on this order
     p_wip_account           text,
     p_overhead_control_code text,
@@ -339,7 +339,7 @@ DECLARE
     v_application           manufacturing.cost_applications%ROWTYPE;
 BEGIN
     -- Get current production order
-    SELECT * INTO STRICT v_order FROM manufacturing.production_orders WHERE uuid = p_order_uuid;
+    SELECT * INTO STRICT v_order FROM manufacturing.production_orders WHERE order_number = p_production_order;
 
     -- Find current applicable rate (latest or matching period)
     SELECT rate INTO STRICT v_rate
@@ -373,14 +373,14 @@ BEGIN
                 'account_ref', v_wip_account_uuid, 'debit', v_applied_amount, 'credit', 0,
                 'memo', format(
                     'Applied overhead to production order %s - base %s x rate %s',
-                    p_production_order_uuid, p_activity_amount, v_rate
+                    p_production_order, p_activity_amount, v_rate
                 )
             ),
             jsonb_build_object(
                 'account_ref', v_overhead_control_uuid, 'debit', 0, 'credit', v_applied_amount,
                 'memo', format(
                     'Applied overhead to production order %s - base %s x rate %s',
-                    p_production_order_uuid, p_activity_amount, v_rate
+                    p_production_order, p_activity_amount, v_rate
                 )
             )
         )
@@ -391,7 +391,7 @@ BEGIN
         production_order_uuid, type, amount, reference, source_account,
         destination_account, applied_at
     ) VALUES (
-        p_production_order_uuid,
+        v_order.uuid,
         'AppliedOverhead',
         v_applied_amount,
         format(
@@ -408,7 +408,7 @@ BEGIN
     -- Update order if needed (optional)
     UPDATE manufacturing.production_orders
     SET updated_at = now()
-    WHERE uuid = p_production_order_uuid;
+    WHERE uuid = p_production_order;
 
     RETURN v_application;
 END;

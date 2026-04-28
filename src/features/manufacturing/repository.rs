@@ -278,7 +278,7 @@ impl ManufacturingRepo {
         ",
         )
         .bind(dto.production_order_uuid)
-        .bind(dto.base_amount)
+        .bind(dto.base_hours)
         .bind(dto.wip_account)
         .bind(dto.overhead_control_account)
         .bind(dto.allocation_base)
