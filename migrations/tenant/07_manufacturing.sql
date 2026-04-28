@@ -415,7 +415,7 @@ END;
 $$;
 -- EXAMPLE
 -- SELECT manufacturing.apply_overhead_to_order(
---     order_uuid, 10 (labor hours), 'WIP CODE', 'MOH_CTRL', user_uuid
+--     order_number, 10 (labor hours), 'WIP CODE', 'MOH_CTRL', user_uuid
 -- );
 -- DR Work In Progress  80
 --     CR Overhead Ctrl      80

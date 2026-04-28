@@ -149,7 +149,7 @@ pub struct IssueMaterialDto {
 
 #[derive(Debug, Deserialize)]
 pub struct ApplyOverheadDto {
-    pub production_order_uuid: Uuid,
+    pub production_order: String,
     pub base_hours: BigDecimal, // e.g. labor or machine hours
     pub wip_account: String,
     pub overhead_control_account: String,
@@ -169,14 +169,9 @@ pub struct RecognizeOverhead {
 #[derive(Debug, Deserialize)]
 pub struct ApplyDirectLaborDto {
     pub production_order_uuid: Uuid, // Current inventory in production
-    // pub hours: BigDecimal,           // e.g. labor hours or labor cost
-    // pub rate_per_hour: BigDecimal,   // e.g. labor hours or labor cost
-    // pub is_direct: bool,             // Direct or Indirect labor
-    pub labor_account_code: String, // Salaries or wages payable code
+    pub labor_account_code: String,  // Salaries or wages payable code
     pub wip_account_code: Option<String>, // Work In Progress to accumulate costs
-    // pub control_account_code: Option<String>, // Production Expenses tracker - strictly overheads
-    pub reference: Option<String>, // Memo
-                                   // pub department_code: Option<String>, // Optional department
+    pub reference: Option<String>,   // Memo
 }
 
 #[derive(Debug, Deserialize)]
