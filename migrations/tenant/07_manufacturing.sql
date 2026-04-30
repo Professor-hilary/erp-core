@@ -426,6 +426,7 @@ CREATE OR REPLACE FUNCTION manufacturing.record_actual_overhead(
     p_credit_account_code   text, -- payable or cash
     p_overhead_control_code text,
     p_overhead_type         text,
+    p_reference             text,
     p_user                  uuid
 ) RETURNS manufacturing.cost_applications
 LANGUAGE plpgsql
@@ -447,7 +448,7 @@ BEGIN
     WHERE code = p_overhead_control_code;
 
     -- Get current production order
-    SELECT * INTO STRICT v_order FROM manufacturing.production_orders WHERE uuid = p_order_uuid;
+    SELECT * INTO STRICT v_order FROM manufacturing.production_orders WHERE uuid = p_production_order_uuid;
 
     -- Post ACTUAL Overhead
     -- Dr MOH Control
@@ -464,8 +465,8 @@ BEGIN
                 'debit', p_amount,
                 'credit', 0,
                 'memo', format(
-                    'Actual overhead (%s) for order %s',
-                    p_overhead_type, v_order.order_number
+                    'Actual overhead (%s) for order %s: %s',
+                    p_overhead_type, v_order.order_number, p_reference
                 )
             ),
             jsonb_build_object(
@@ -473,8 +474,8 @@ BEGIN
                 'debit', 0,
                 'credit', p_amount,
                 'memo', format(
-                    'Actual overhead (%s) for order %s',
-                    p_overhead_type, v_order.order_number
+                    'Off-setting account for order %s: %s',
+                    v_order.order_number, p_reference
                 )
             )
         )
@@ -488,7 +489,7 @@ BEGIN
         p_production_order_uuid,
         'ActualOverhead',
         p_amount,
-        format('Actual overhead txn %s', v_txn_serial),
+        format('Actual overhead: %s', p_reference),
         now(),
         v_credit_account_uuid,
         v_control_account_uuid

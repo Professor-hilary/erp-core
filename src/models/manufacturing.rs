@@ -164,6 +164,7 @@ pub struct RecognizeOverhead {
     pub payable_or_cash: String,
     pub overhead_control_account: String,
     pub allocation_base: String,
+    pub reference: String,
 }
 
 #[derive(Debug, Deserialize)]

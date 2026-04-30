@@ -306,7 +306,7 @@ impl ManufacturingRepo {
         let row: PgRow = sqlx::query(
             "
             SELECT * FROM manufacturing.record_actual_overhead(
-                $1, $2, $3, $4, $5, $6
+                $1, $2, $3, $4, $5, $6, $7
             )
         ",
         )
@@ -315,6 +315,7 @@ impl ManufacturingRepo {
         .bind(dto.payable_or_cash)
         .bind(dto.overhead_control_account)
         .bind(dto.allocation_base)
+        .bind(dto.reference)
         .bind(user_uuid)
         .fetch_one(&self.pool)
         .await?;
