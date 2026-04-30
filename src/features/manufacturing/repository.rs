@@ -245,7 +245,7 @@ impl ManufacturingRepo {
     }
 
     // ============================ Material Issue ============================
-    pub async fn issue_material(
+    pub async fn issue_material_from_bom(
         &self,
         dto: IssueMaterialDto,
         user_uuid: Uuid,
@@ -257,6 +257,27 @@ impl ManufacturingRepo {
         .bind(dto.warehouse_serial_id)
         .bind(&dto.raw_mat_account_code)
         .bind(dto.wip_account_code)
+        .bind(user_uuid)
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(materials)
+    }
+
+    pub async fn issue_material_to_prod(
+        &self,
+        dto: SingleMaterialIssueDto,
+        user_uuid: Uuid,
+    ) -> Result<Vec<MaterialIssue>, AppError> {
+        let materials = sqlx::query_as::<_, MaterialIssue>(
+            r#"SELECT * FROM manufacturing.issue_material_to_order($1, $2, $3, $4, $5, $6, $7)"#,
+        )
+        .bind(dto.item_serial_id)
+        .bind(dto.warehouse_serial)
+        .bind(dto.quantity)
+        .bind(&dto.production_order_uuid)
+        .bind(&dto.raw_materials_code)
+        .bind(dto.work_in_progress_code)
         .bind(user_uuid)
         .fetch_all(&self.pool)
         .await?;
@@ -361,37 +382,37 @@ impl ManufacturingRepo {
         })
     }
 
-    pub async fn apply_indirect_labor(
-        &self,
-        dto: ApplyInDirectLaborDto,
-        user_uuid: Uuid,
-    ) -> Result<CostApplication, AppError> {
-        let row: PgRow = sqlx::query(
-            "
-            SELECT * FROM manufacturing.record_indirect_labor(
-                $1, $2, $3, $4, $5, $6, $7
-            )
-        ",
-        )
-        .bind(dto.hours)
-        .bind(dto.rate_per_hour)
-        .bind(user_uuid)
-        .bind(dto.labor_account_code)
-        .bind(dto.control_account_code)
-        .bind(dto.department_code.unwrap_or_default())
-        .bind(dto.reference)
-        .fetch_one(&self.pool)
-        .await?;
+    // pub async fn apply_indirect_labor(
+    //     &self,
+    //     dto: ApplyInDirectLaborDto,
+    //     user_uuid: Uuid,
+    // ) -> Result<CostApplication, AppError> {
+    //     let row: PgRow = sqlx::query(
+    //         "
+    //         SELECT * FROM manufacturing.record_indirect_labor(
+    //             $1, $2, $3, $4, $5, $6, $7
+    //         )
+    //     ",
+    //     )
+    //     .bind(dto.hours)
+    //     .bind(dto.rate_per_hour)
+    //     .bind(user_uuid)
+    //     .bind(dto.labor_account_code)
+    //     .bind(dto.control_account_code)
+    //     .bind(dto.department_code.unwrap_or_default())
+    //     .bind(dto.reference)
+    //     .fetch_one(&self.pool)
+    //     .await?;
 
-        Ok(CostApplication {
-            uuid: row.get("uuid"),
-            production_order_uuid: row.get("production_order_uuid"),
-            application_type: "IndirectLabor".to_string(),
-            amount: row.get("amount"),
-            applied_at: row.get("applied_at"),
-            reference: row.get("reference"),
-        })
-    }
+    //     Ok(CostApplication {
+    //         uuid: row.get("uuid"),
+    //         production_order_uuid: row.get("production_order_uuid"),
+    //         application_type: "IndirectLabor".to_string(),
+    //         amount: row.get("amount"),
+    //         applied_at: row.get("applied_at"),
+    //         reference: row.get("reference"),
+    //     })
+    // }
 
     pub async fn calculate_standard_cost_for_item(
         &self,

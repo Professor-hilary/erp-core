@@ -35,9 +35,16 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/create/routing/operation", post(new_routing_operation))
         .route("/create/overhead-rate", post(new_overhead_rate_route))
         .route("/variance-allocation", post(prorate_variance_route))
-        .route("/apply/direct/material", post(raw_material_issuance_route))
+        .route(
+            "/apply/direct/material",
+            post(bulk_raw_material_issuance_route),
+        )
+        .route(
+            "/apply/direct/material/single",
+            post(raw_material_issuance_route),
+        )
         .route("/apply/direct/labor", post(http_direct_labor_route))
-        .route("/apply/indirect/labor", post(http_indirect_labor_route))
+        // .route("/apply/indirect/labor", post(http_indirect_labor_route))
         .route("/apply/overhead/actual", post(actual_overhead_route))
         .route("/apply/overhead/applied", post(applied_overhead_route))
         .route("/complete-production", post(complete_order_route))
@@ -134,10 +141,26 @@ async fn new_routing_operation(
 
 ///# POST /manufacturing/materials-issuance
 /// 3rd Prepare Materials for production, Debit WIP Credit Raw Materials
-async fn raw_material_issuance_route(
+async fn bulk_raw_material_issuance_route(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     AppJson(payload): AppJson<IssueMaterialDto>,
+) -> Result<Response, AppError> {
+    let repo: ManufacturingRepo = ManufacturingRepo::new(user.tenant_pool);
+    let service: ManufacturingService = ManufacturingService::new(repo);
+
+    match service.bulk_issue_material(payload, user.user_id).await {
+        Ok(result) => Ok(ApiResponse::created(result, "Material Issuance Successful")),
+        Err(e) => Err(internal_error(e)),
+    }
+}
+
+///# POST /manufacturing/materials-issuance
+/// 3rd Prepare Materials for production, Debit WIP Credit Raw Materials
+async fn raw_material_issuance_route(
+    State(_state): State<Arc<AppState>>,
+    Extension(user): Extension<AuthenticatedTenant>,
+    AppJson(payload): AppJson<SingleMaterialIssueDto>,
 ) -> Result<Response, AppError> {
     let repo: ManufacturingRepo = ManufacturingRepo::new(user.tenant_pool);
     let service: ManufacturingService = ManufacturingService::new(repo);
@@ -221,26 +244,29 @@ async fn http_direct_labor_route(
     let repo: ManufacturingRepo = ManufacturingRepo::new(user.tenant_pool);
     let service: ManufacturingService = ManufacturingService::new(repo);
 
-    match service.apply_direct_labor_costs(payload, user.user_id).await {
+    match service
+        .apply_direct_labor_costs(payload, user.user_id)
+        .await
+    {
         Ok(result) => Ok(ApiResponse::created(result, "Direct Labor Costs Applied")),
         Err(e) => Err(internal_error(e)),
     }
 }
 
 /// POST /manufacturing/apply/indirect/labor
-async fn http_indirect_labor_route(
-    State(_state): State<Arc<AppState>>,
-    Extension(user): Extension<AuthenticatedTenant>,
-    AppJson(payload): AppJson<ApplyInDirectLaborDto>,
-) -> Result<Response, AppError> {
-    let repo: ManufacturingRepo = ManufacturingRepo::new(user.tenant_pool);
-    let service: ManufacturingService = ManufacturingService::new(repo);
+// async fn http_indirect_labor_route(
+//     State(_state): State<Arc<AppState>>,
+//     Extension(user): Extension<AuthenticatedTenant>,
+//     AppJson(payload): AppJson<ApplyInDirectLaborDto>,
+// ) -> Result<Response, AppError> {
+//     let repo: ManufacturingRepo = ManufacturingRepo::new(user.tenant_pool);
+//     let service: ManufacturingService = ManufacturingService::new(repo);
 
-    match service.apply_indirect_labor_costs(payload, user.user_id).await {
-        Ok(result) => Ok(ApiResponse::created(result, "Inirect Labor Costs Applied")),
-        Err(e) => Err(internal_error(e)),
-    }
-}
+//     match service.apply_indirect_labor_costs(payload, user.user_id).await {
+//         Ok(result) => Ok(ApiResponse::created(result, "Inirect Labor Costs Applied")),
+//         Err(e) => Err(internal_error(e)),
+//     }
+// }
 
 /// POST /manufacturing/complete-production
 async fn complete_order_route(

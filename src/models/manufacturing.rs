@@ -110,6 +110,16 @@ pub struct MaterialIssue {
     pub material_status: String, // MaterialStatus,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct SingleMaterialIssueDto {
+    pub item_serial_id: i64,
+    pub warehouse_serial: i64,
+    pub quantity: BigDecimal,
+    pub production_order_uuid: Uuid,
+    pub raw_materials_code: String,
+    pub work_in_progress_code: String,
+}
+
 #[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
 pub struct CostApplication {
     pub uuid: Uuid,
@@ -175,16 +185,16 @@ pub struct ApplyDirectLaborDto {
     pub reference: Option<String>,   // Memo
 }
 
-#[derive(Debug, Deserialize)]
-pub struct ApplyInDirectLaborDto {
-    pub hours: BigDecimal,          // e.g. labor hours or labor cost
-    pub rate_per_hour: BigDecimal,  // e.g. labor hours or labor cost
-    pub labor_account_code: String, // Salaries or wages payable code
-    // pub wip_account_code: Option<String>, // Work In Progress to accumulate costs
-    pub control_account_code: Option<String>, // Production Expenses tracker - strictly overheads
-    pub reference: Option<String>,            // Memo
-    pub department_code: Option<String>,      // Optional department
-}
+// #[derive(Debug, Deserialize)]
+// pub struct ApplyInDirectLaborDto {
+//     pub hours: BigDecimal,          // e.g. labor hours or labor cost
+//     pub rate_per_hour: BigDecimal,  // e.g. labor hours or labor cost
+//     pub labor_account_code: String, // Salaries or wages payable code
+//     // pub wip_account_code: Option<String>, // Work In Progress to accumulate costs
+//     pub control_account_code: Option<String>, // Production Expenses tracker - strictly overheads
+//     pub reference: Option<String>,            // Memo
+//     pub department_code: Option<String>,      // Optional department
+// }
 
 #[derive(Debug, Deserialize)]
 pub struct CompleteProductionOrderDto {

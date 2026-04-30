@@ -642,69 +642,69 @@ END;
 $$;
 
 -- Indirect labor costing (no direct production applied to)
-CREATE OR REPLACE FUNCTION manufacturing.record_indirect_labor(
-    p_hours                 numeric(12,4),
-    p_rate_per_hour         numeric(18,2),
-    p_user                  uuid,
-    p_labor_account_code    text,
-    p_overhead_account_code text,
-    p_department_code       text DEFAULT NULL,
-    p_reference             text DEFAULT NULL
-)
-RETURNS bigint
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    v_amount                numeric(18,2);
-    v_overhead_account_uuid uuid;
-    v_labor_account_uuid    uuid;
-    v_txn_serial            bigint;
-    v_memo                  text;
-BEGIN
-    v_amount := ROUND(p_hours * p_rate_per_hour, 2);
+-- CREATE OR REPLACE FUNCTION manufacturing.record_indirect_labor(
+--     p_hours                 numeric(12,4),
+--     p_rate_per_hour         numeric(18,2),
+--     p_user                  uuid,
+--     p_labor_account_code    text,
+--     p_overhead_account_code text,
+--     p_department_code       text DEFAULT NULL,
+--     p_reference             text DEFAULT NULL
+-- )
+-- RETURNS bigint
+-- LANGUAGE plpgsql
+-- AS $$
+-- DECLARE
+--     v_amount                numeric(18,2);
+--     v_overhead_account_uuid uuid;
+--     v_labor_account_uuid    uuid;
+--     v_txn_serial            bigint;
+--     v_memo                  text;
+-- BEGIN
+--     v_amount := ROUND(p_hours * p_rate_per_hour, 2);
 
-    -- Accounts
-    SELECT uuid INTO STRICT v_overhead_account_uuid
-    FROM accounting.accounts
-    WHERE code = p_overhead_account_code;
+--     -- Accounts
+--     SELECT uuid INTO STRICT v_overhead_account_uuid
+--     FROM accounting.accounts
+--     WHERE code = p_overhead_account_code;
 
-    SELECT uuid INTO STRICT v_labor_account_uuid
-    FROM accounting.accounts
-    WHERE code = p_labor_account_code;
+--     SELECT uuid INTO STRICT v_labor_account_uuid
+--     FROM accounting.accounts
+--     WHERE code = p_labor_account_code;
 
-    -- Memo
-    v_memo := format(
-        'Indirect labor: %s hrs × %s%s%s',
-        to_char(p_hours, 'FM999999990.00'),
-        to_char(p_rate_per_hour, 'FM999999990.00'),
-        CASE WHEN p_department_code IS NOT NULL THEN ' [' || p_department_code || ']' ELSE '' END,
-        COALESCE(' - ' || p_reference, '')
-    );
+--     -- Memo
+--     v_memo := format(
+--         'Indirect labor: %s hrs × %s%s%s',
+--         to_char(p_hours, 'FM999999990.00'),
+--         to_char(p_rate_per_hour, 'FM999999990.00'),
+--         CASE WHEN p_department_code IS NOT NULL THEN ' [' || p_department_code || ']' ELSE '' END,
+--         COALESCE(' - ' || p_reference, '')
+--     );
 
-    -- GL Posting
-    v_txn_serial := accounting.post_transaction(
-        'INDIRECT-LABOR',
-        v_memo,
-        p_user,
-        'manufacturing',
-        CURRENT_DATE,
-        jsonb_build_array(
-            jsonb_build_object(
-                'account_ref', v_overhead_account_uuid,
-                'debit', v_amount,
-                'credit', 0
-            ),
-            jsonb_build_object(
-                'account_ref', v_labor_account_uuid,
-                'debit', 0,
-                'credit', v_amount
-            )
-        )
-    );
+--     -- GL Posting
+--     v_txn_serial := accounting.post_transaction(
+--         'INDIRECT-LABOR',
+--         v_memo,
+--         p_user,
+--         'manufacturing',
+--         CURRENT_DATE,
+--         jsonb_build_array(
+--             jsonb_build_object(
+--                 'account_ref', v_overhead_account_uuid,
+--                 'debit', v_amount,
+--                 'credit', 0
+--             ),
+--             jsonb_build_object(
+--                 'account_ref', v_labor_account_uuid,
+--                 'debit', 0,
+--                 'credit', v_amount
+--             )
+--         )
+--     );
 
-    RETURN v_txn_serial;
-END;
-$$;
+--     RETURN v_txn_serial;
+-- END;
+-- $$;
 
 -- Single function for indirect labor
 -- CREATE OR REPLACE FUNCTION manufacturing.apply_labor_cost(
@@ -1242,7 +1242,7 @@ BEGIN
 
             -- Update issued qty
             UPDATE manufacturing.production_order_materials
-            SET issued_qty = required_qty, status = 'FullyIssued'
+            SET issued_qty = issued_qty + v_remaining_qty, status = 'FullyIssued'
             WHERE uuid = rec.uuid;
 
         EXCEPTION

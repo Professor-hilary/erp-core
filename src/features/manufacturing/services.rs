@@ -22,17 +22,11 @@ impl ManufacturingService {
         Ok(self.repo.create_production_order(dto).await?)
     }
 
-    pub async fn new_work_center(
-        &self,
-        dto: WorkCenterDto,
-    ) -> Result<WorkCenter, AppError> {
+    pub async fn new_work_center(&self, dto: WorkCenterDto) -> Result<WorkCenter, AppError> {
         Ok(self.repo.create_work_center(dto).await?)
     }
 
-    pub async fn new_routing(
-        &self,
-        dto: RoutingsDto,
-    ) -> Result<Routings, AppError> {
+    pub async fn new_routing(&self, dto: RoutingsDto) -> Result<Routings, AppError> {
         Ok(self.repo.create_routings(dto).await?)
     }
 
@@ -50,12 +44,20 @@ impl ManufacturingService {
         Ok(self.repo.create_overhead_rate(dto).await?)
     }
 
-    pub async fn issue_material(
+    pub async fn bulk_issue_material(
         &self,
         dto: IssueMaterialDto,
         user_uuid: Uuid,
     ) -> Result<Vec<MaterialIssue>, AppError> {
-        Ok(self.repo.issue_material(dto, user_uuid).await?)
+        Ok(self.repo.issue_material_from_bom(dto, user_uuid).await?)
+    }
+
+    pub async fn issue_material(
+        &self,
+        dto: SingleMaterialIssueDto,
+        user_uuid: Uuid,
+    ) -> Result<Vec<MaterialIssue>, AppError> {
+        Ok(self.repo.issue_material_to_prod(dto, user_uuid).await?)
     }
 
     /// Overhead applied with overhead rate
@@ -76,15 +78,15 @@ impl ManufacturingService {
         Ok(self.repo.recognize_actual_overhead(dto, user_uuid).await?)
     }
 
-    pub async fn apply_indirect_labor_costs(
-        &self,
-        dto: ApplyInDirectLaborDto,
-        user_uuid: Uuid,
-    ) -> Result<CostApplication, AppError> {
-        Ok(self.repo.apply_indirect_labor(dto, user_uuid).await?)
-    }
+    // pub async fn apply_indirect_labor_costs(
+    //     &self,
+    //     dto: ApplyInDirectLaborDto,
+    //     user_uuid: Uuid,
+    // ) -> Result<CostApplication, AppError> {
+    //     Ok(self.repo.apply_indirect_labor(dto, user_uuid).await?)
+    // }
 
-     pub async fn apply_direct_labor_costs(
+    pub async fn apply_direct_labor_costs(
         &self,
         dto: ApplyDirectLaborDto,
         user_uuid: Uuid,
