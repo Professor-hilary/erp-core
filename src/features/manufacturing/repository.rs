@@ -249,8 +249,8 @@ impl ManufacturingRepo {
         &self,
         dto: IssueMaterialDto,
         user_uuid: Uuid,
-    ) -> Result<Vec<MaterialIssue>, AppError> {
-        let materials = sqlx::query_as::<_, MaterialIssue>(
+    ) -> Result<Vec<BomMaterialIssue>, AppError> {
+        let materials = sqlx::query_as::<_, BomMaterialIssue>(
             r#"SELECT * FROM manufacturing.issue_material_from_bom($1, $2, $3, $4, $5)"#,
         )
         .bind(&dto.production_order_uuid)
@@ -268,8 +268,8 @@ impl ManufacturingRepo {
         &self,
         dto: SingleMaterialIssueDto,
         user_uuid: Uuid,
-    ) -> Result<Vec<MaterialIssue>, AppError> {
-        let materials = sqlx::query_as::<_, MaterialIssue>(
+    ) -> Result<Vec<FullMaterialIssue>, AppError> {
+        let materials = sqlx::query_as::<_, FullMaterialIssue>(
             r#"SELECT * FROM manufacturing.issue_material_to_order($1, $2, $3, $4, $5, $6, $7)"#,
         )
         .bind(dto.item_serial_id)

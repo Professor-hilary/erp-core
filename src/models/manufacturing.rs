@@ -102,12 +102,25 @@ pub struct RoutingOperationsDto {
 // }
 
 #[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
-pub struct MaterialIssue {
+pub struct BomMaterialIssue {
     pub component_item_uuid: Uuid,
     pub required_qty: BigDecimal,
     pub issued_qty: BigDecimal,
     pub remaining_qty: BigDecimal,
     pub material_status: String, // MaterialStatus,
+}
+
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+pub struct FullMaterialIssue {
+    pub uuid: Uuid,
+    pub production_order_uuid: Uuid,
+    pub stock_item_id: i64,
+    pub stock_item_name: String,
+    pub quantity: BigDecimal,
+    pub unit_cost: BigDecimal,
+    pub total_cost: BigDecimal,
+    pub warehouse_uuid: Uuid,
+    pub issued_at: DateTime<Utc>, // MaterialStatus,
 }
 
 #[derive(Debug, Deserialize)]
