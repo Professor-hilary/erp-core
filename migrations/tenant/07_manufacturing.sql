@@ -292,7 +292,7 @@ BEGIN
         INTO v_labor_cost
         FROM manufacturing.routing_operations ro
         JOIN manufacturing.work_centers wc
-            ON wc.uuid = ro.work_center_uuid
+            ON wc.code = ro.work_center
         WHERE ro.routing_uuid = v_routing_uuid;
     END IF;
 
@@ -305,7 +305,7 @@ BEGIN
         INTO v_overhead_cost
         FROM manufacturing.routing_operations ro
         JOIN manufacturing.work_centers wc
-            ON wc.uuid = ro.work_center_uuid
+            ON wc.code = ro.work_center
         JOIN manufacturing.overhead_rates ohr
             ON ohr.allocation_base = wc.allocation_base
            AND (ohr.department_code IS NULL OR ohr.department_code = wc.department_code)
@@ -554,7 +554,7 @@ BEGIN
         SELECT ro.*, wc.labor_rate
         FROM manufacturing.routing_operations ro
         JOIN manufacturing.work_centers wc
-          ON wc.uuid = ro.work_center_uuid
+          ON wc.code = ro.work_center
         WHERE ro.routing_uuid = v_routing_uuid
         ORDER BY ro.sequence
     LOOP
@@ -1073,8 +1073,6 @@ DECLARE
 BEGIN
     SELECT * INTO STRICT v_order FROM manufacturing.production_orders WHERE uuid = p_order_uuid;
 
-    RAISE NOTICE 'Checking completion';
-
     IF v_order.status <> 'Completed' THEN
         RAISE NOTICE 'Order not completed → skipping variance posting';
         RETURN;
@@ -1082,35 +1080,25 @@ BEGIN
 
     v_completed_qty := v_order.quantity_completed;
 
-    RAISE NOTICE 'Adding material costs';
-
     -- Actuals from materials issue table for requested production qty
     SELECT COALESCE(SUM(total_cost), 0) INTO v_act_mat
     FROM manufacturing.material_issues
     WHERE production_order_uuid = p_order_uuid;
 
-    RAISE NOTICE 'Adding direct labor';
-
+    -- Direct labor from cost applications table
     SELECT COALESCE(SUM(amount), 0) INTO v_act_lab
     FROM manufacturing.cost_applications
-    WHERE production_order_uuid = p_order_uuid
-      AND type = 'DirectLabor';
+    WHERE production_order_uuid = p_order_uuid AND type = 'DirectLabor';
 
-    RAISE NOTICE 'Adding overhead actuals';
-
+    -- Overhead costs expensed e.g. bills and renumerations from cost applications
     SELECT COALESCE(SUM(amount), 0) INTO v_act_oh
     FROM manufacturing.cost_applications
-    WHERE production_order_uuid = p_order_uuid
-      AND type = 'ActualOverhead';
+    WHERE production_order_uuid = p_order_uuid AND type = 'ActualOverhead';
 
-    RAISE NOTICE 'Adding overhead applied';
-
+    -- Overhead standards derived using labor, material or machine rates
     SELECT COALESCE(SUM(amount), 0) INTO v_app_oh
     FROM manufacturing.cost_applications
-    WHERE production_order_uuid = p_order_uuid
-      AND type = 'AppliedOverhead';
-
-    RAISE NOTICE 'Standard material';
+    WHERE production_order_uuid = p_order_uuid AND type = 'AppliedOverhead';
 
     -- Standards for completed quantity
     SELECT COALESCE(SUM(bl.quantity_per * comp.standard_cost * v_completed_qty), 0)
@@ -1121,16 +1109,17 @@ BEGIN
     WHERE bh.product_item_uuid = v_order.product_item_uuid
       AND bh.is_active AND bh.is_default;
 
-    RAISE NOTICE 'Standard labor';
-
-    SELECT COALESCE(SUM(ro.standard_hours * ro.standard_rate * v_completed_qty), 0)
+    -- Direct Labor costs from production routing operations table based on work center rates
+    SELECT COALESCE(SUM(
+        (((ro.setup_time_minutes + ro.run_time_minutes) / 60) * v_completed_qty) * wc.labor_rate), 0
+    )
     INTO v_std_lab
     FROM manufacturing.routings r
     JOIN manufacturing.routing_operations ro ON ro.routing_uuid = r.uuid
+    JOIN manufacturing.work_centers wc ON wc.code = ro.work_center
     WHERE r.product_item_uuid = v_order.product_item_uuid
-      AND r.is_active AND r.is_default;
-
-    RAISE NOTICE 'All three variances';
+      AND r.status = 'active'
+      AND r.is_default;
 
     -- Variances
     v_mat_var := v_act_mat - v_std_mat;
@@ -1138,12 +1127,10 @@ BEGIN
     v_oh_var  := v_act_oh  - v_app_oh;
 
     -- Get variance accounts (add these codes to your chart of accounts)
-    -- SELECT uuid INTO STRICT v_wip_uuid     FROM accounting.accounts WHERE code = v_wip_code;           -- adjust code
+    -- SELECT uuid INTO STRICT v_wip_uuid     FROM accounting.accounts WHERE code = v_wip_code;
     SELECT uuid INTO STRICT v_mat_var_uuid FROM accounting.accounts WHERE code = v_mat_var_code;
     SELECT uuid INTO STRICT v_lab_var_uuid FROM accounting.accounts WHERE code = v_lab_var_code;
     SELECT uuid INTO STRICT v_oh_var_uuid  FROM accounting.accounts WHERE code = v_moh_var_code;
-
-    RAISE NOTICE 'GL posting material';
 
     -- Post material variance (unfavorable → debit variance, credit WIP)
     IF ABS(v_mat_var) > 0.01 THEN
@@ -1157,8 +1144,6 @@ BEGIN
             )
         );
     END IF;
-
-    RAISE NOTICE 'GL posting labor';
 
     -- Labor variance
     IF ABS(v_lab_var) > 0.01 THEN
@@ -1176,13 +1161,11 @@ BEGIN
     -- Overhead variance → usually closes MOH control (we defer to period-end)
     -- Here we can just record to variance if small order; otherwise period close handles it
 
-    RAISE NOTICE 'Updating prod order';
-
     -- Optional: store on order for reporting
     UPDATE manufacturing.production_orders
     SET material_usage_variance   = v_mat_var,
         labor_efficiency_variance = v_lab_var,
-        -- add overhead_variance = v_oh_var if you add the column
+        overhead_variance = v_oh_var
         updated_at = now()
     WHERE uuid = p_order_uuid;
 END;
