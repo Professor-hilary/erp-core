@@ -1,17 +1,12 @@
+use std::collections::HashMap;
+
 // src/features/reports/repository.rs
-use crate::{
-    interface::api::errors::AppError,
-    models::reports::{
-        ApAgingDto, ArAgingDto, BalanceSheetCompareRow, BalanceSheetRow, CashFlowRow,
-        CashbookRowDto, CashflowGroup, CashflowItem, CustomerStatementDto, EquityChangeRow,
-        IncomeStatementRow, InventoryValuationDto, PayrollSummaryDto, TrialBalanceRow,
-    },
-};
+use crate::{interface::api::errors::AppError, models::reports::*};
 
 use async_trait::async_trait;
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
-use sqlx::{PgPool, Row};
+use sqlx::PgPool;
 use uuid::Uuid;
 
 #[derive(Serialize, Debug, Clone, Deserialize)]
@@ -40,6 +35,13 @@ pub trait ReportRepository: Send + Sync {
         start: NaiveDate,
         end: NaiveDate,
     ) -> Result<Vec<IncomeStatementRow>, AppError>;
+
+    async fn income_statement(
+        &self,
+        pool: &PgPool,
+        period_start: NaiveDate,
+        period_end: NaiveDate,
+    ) -> Result<Vec<Node>, AppError>;
 
     async fn get_cf_direct(
         &self,
@@ -195,30 +197,143 @@ impl ReportRepository for PostgresReportRepo {
         end: NaiveDate,
     ) -> Result<Vec<IncomeStatementRow>, AppError> {
         let rows = sqlx::query_as::<_, IncomeStatementRow>(
-            r#"SELECT
-                code,
-                name,
-                category,
-                depth,
-                path,
-                balance
-            FROM reporting.get_income_statement($1, $2) ORDER BY path"#,
+            r#"SELECT code, name, category, depth, path, balance
+            FROM reporting.get_income_statement($1, $2)
+            ORDER BY path"#,
         )
         .bind(start)
         .bind(end)
         .fetch_all(pool)
         .await?;
 
+        println!("\n=== INCOME STATEMENT DEBUG ===\n");
+
         for row in &rows {
+            let indent = "    ".repeat(row.depth as usize);
+
             println!(
-                "{}{}: {}",
-                " ".repeat(row.depth as usize),
+                "{}{} [{}] {} → {}",
+                indent,
+                if row.depth == 0 { "►" } else { "↳" },
+                row.code,
                 row.name,
                 row.balance
-            )
+            );
         }
 
+        println!("\n=== END DEBUG ===\n");
+
         Ok(rows)
+    }
+
+    async fn income_statement(
+        &self,
+        pool: &PgPool,
+        period_start: NaiveDate,
+        period_end: NaiveDate,
+    ) -> Result<Vec<Node>, AppError> {
+        // 1) Pull flat balances from accounts table
+        let rows: Vec<FlatAccount> = sqlx::query_as::<_, FlatAccount>(
+            r#"SELECT
+                acc.code,
+                acc.name,
+                acc.parent_code,
+                acc.category,
+                acc.normal_balance,
+                acc.is_contra,
+                COALESCE(
+                    SUM(te.debit) FILTER (WHERE te.created_at BETWEEN $1 AND $2), 0
+                )
+                - COALESCE(
+                    SUM(te.credit) FILTER (WHERE te.created_at BETWEEN $1 AND $2), 0
+                ) AS balance
+                FROM accounting.accounts acc
+                LEFT JOIN accounting.transaction_entries te
+                    ON te.account_uuid = acc.uuid
+                WHERE acc.category IN ('income', 'expense')
+                GROUP BY acc.code, acc.name, acc.parent_code,
+                    acc.category, acc.normal_balance, acc.is_contra
+            "#,
+        )
+        .bind(period_start)
+        .bind(period_end)
+        .fetch_all(pool)
+        .await?;
+
+        // 2) Normalize sign si:
+        //  income  => positive when credit >  debit
+        //  expense => positive when debit  > credit
+        let mut nodes: HashMap<String, Node> = HashMap::new();
+        let mut children_map: HashMap<String, Vec<String>> = HashMap::new();
+
+        for row in &rows {
+            let mut signed = row.balance;
+
+            // credit normal accounts (income) should be positive when credits exceed debits
+            if row.normal_balance == "cr" {
+                signed = -signed;
+            }
+            if row.is_contra {
+                signed = -signed;
+            }
+
+            nodes.insert(
+                row.code.clone(),
+                Node {
+                    code: row.code.clone(),
+                    name: row.name.clone(),
+                    category: row.category.clone(),
+                    total: signed,
+                    children: vec![],
+                },
+            );
+
+            if let Some(p) = &row.parent_code {
+                children_map.entry(p.to_string()).or_default().push(row.code);
+            }
+        }
+
+        // 3) Build + aggregate in one recursive closure
+        fn build(
+            code: &str,
+            nodes: &mut HashMap<String, Node>,
+            children_map: &HashMap<String, Vec<String>>,
+        ) -> Option<Node> {
+            let mut node = nodes.remove(code)?;
+
+            if let Some(children) = children_map.get(code) {
+                for c in children {
+                    if let Some(child) = build(c, nodes, children_map) {
+                        node.total += child.total;
+                        node.children.push(child);
+                    }
+                }
+            }
+
+            // 4) Prune zero branches
+            if node.total.abs() < 0.01 && node.children.is_empty() {
+                None
+            } else {
+                Some(node)
+            }
+        }
+
+        // 5) Roots = accounts without parent
+        let root_codes:Vec<String> = nodes
+            .keys()
+            .filter(|code| !children_map.values().any(|v| v.contains(code)))
+            .cloned()
+            .collect();
+
+        // 6) Build final forest
+        let mut result = Vec::new();
+        for code in root_codes {
+            if let Some(tree) = build(&code, &mut nodes, &children_map) {
+                result.push(tree);
+            }
+        }
+
+        Ok(result)
     }
 
     async fn get_aging_ar(
@@ -261,7 +376,7 @@ impl ReportRepository for PostgresReportRepo {
         start: NaiveDate,
         end: NaiveDate,
     ) -> Result<Vec<CashflowGroup>, AppError> {
-        let rows = sqlx::query(
+        let _rows: Vec<sqlx::postgres::PgRow> = sqlx::query(
             r#"
                 SELECT activity_group, code, name, SUM(debit) AS inflow, SUM(credit) AS outflow
                 FROM reporting.get_cashflow_direct_full($1, $2)
@@ -276,25 +391,25 @@ impl ReportRepository for PostgresReportRepo {
 
         use std::collections::HashMap;
 
-        let mut groups_map: HashMap<String, Vec<CashflowItem>> = HashMap::new();
+        let /*mut*/ groups_map: HashMap<String, Vec<CashflowItem>> = HashMap::new();
 
-        for row in rows {
-            let group: String = row.get("activity_group");
-            let item = CashflowItem {
-                code: row.get("code"),
-                name: row.get("name"),
-                inflow: row.get::<f64, _>("inflow"),
-                outflow: row.get::<f64, _>("outflow"),
-                net_cash: row.get::<f64, _>("inflow") - row.get::<f64, _>("outflow"),
-            };
-            groups_map.entry(group).or_default().push(item);
-        }
+        // for row in rows {
+        //     let group: String = row.get("activity_group");
+        //     let item: CashflowItem = CashflowItem {
+        //         code: row.get("code"),
+        //         name: row.get("name"),
+        //         inflow: row.get::<f64, _>("inflow"),
+        //         outflow: row.get::<f64, _>("outflow"),
+        //         net_cash: row.get::<f64, _>("inflow") - row.get::<f64, _>("outflow"),
+        //     };
+        //     groups_map.entry(group).or_default().push(item);
+        // }
 
         let mut result = Vec::new();
         for (group_name, accounts) in groups_map {
-            let total_inflow = accounts.iter().map(|a| a.inflow).sum();
-            let total_outflow = accounts.iter().map(|a| a.outflow).sum();
-            let total_net_cash = accounts.iter().map(|a| a.net_cash).sum();
+            let total_inflow: f64 = accounts.iter().map(|a| a.inflow).sum();
+            let total_outflow: f64 = accounts.iter().map(|a| a.outflow).sum();
+            let total_net_cash: f64 = accounts.iter().map(|a| a.net_cash).sum();
 
             result.push(CashflowGroup {
                 group_name,

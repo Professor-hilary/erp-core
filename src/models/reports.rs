@@ -176,7 +176,7 @@ pub struct SimpleReportRow {
     pub code: String,
     pub name: String,
     pub category: String,
-    pub balance: f64,
+    pub balance: BigDecimal,
 }
 
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
@@ -184,7 +184,27 @@ pub struct IncomeStatementRow {
     pub code: String,
     pub name: String,
     pub category: String,
-    pub depth: i64,
+    pub depth: i32,
     pub path: Vec<String>,
+    pub balance: BigDecimal,
+}
+
+#[derive(Debug, sqlx::FromRow)]
+pub struct FlatAccount{
+    pub code: String,
+    pub name: String,
+    pub parent_code: Option<String>,
+    pub category: String,
+    pub normal_balance: String,
+    pub is_contra: bool,
     pub balance: f64,
+}
+
+#[derive(Debug, sqlx::FromRow)]
+pub struct Node{
+    pub code: String,
+    pub name: String,
+    pub category: String,
+    pub total: f64,
+    pub children: Vec<Node>,
 }

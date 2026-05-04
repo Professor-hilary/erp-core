@@ -17,7 +17,7 @@ impl ManufacturingRepo {
         &self,
         dto: CreateProductionOrderDto,
     ) -> Result<ProductionOrder, AppError> {
-        let row = sqlx::query(
+        let row: PgRow = sqlx::query(
             r#"
             INSERT INTO manufacturing.production_orders(
                 order_number, product_item_uuid, quantity_ordered, start_date,
@@ -419,7 +419,7 @@ impl ManufacturingRepo {
         tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
         item_uuid: Uuid,
     ) -> Result<BigDecimal, AppError> {
-        let row = sqlx::query("SELECT manufacturing.calculate_standard_cost($1) AS standard_cost")
+        let row: PgRow = sqlx::query("SELECT manufacturing.calculate_standard_cost($1) AS standard_cost")
             .bind(item_uuid)
             .fetch_one(&mut **tx)
             .await?;

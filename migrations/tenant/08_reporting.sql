@@ -477,6 +477,7 @@ SELECT DISTINCT ON (code)
     path,
     total_balance AS balance
 FROM tree
+WHERE total_balance <> 0
 ORDER BY code, depth DESC;
 
 $$ LANGUAGE sql STABLE;
