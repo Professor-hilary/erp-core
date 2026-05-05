@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use crate::{interface::api::errors::AppError, models::reports::*};
 
 use async_trait::async_trait;
+use bigdecimal::{BigDecimal, FromPrimitive, Zero};
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
@@ -267,7 +268,7 @@ impl ReportRepository for PostgresReportRepo {
         let mut children_map: HashMap<String, Vec<String>> = HashMap::new();
 
         for row in &rows {
-            let mut signed = row.balance;
+            let mut signed: BigDecimal = row.balance.clone();
 
             // credit normal accounts (income) should be positive when credits exceed debits
             if row.normal_balance == "cr" {
@@ -307,14 +308,14 @@ impl ReportRepository for PostgresReportRepo {
             if let Some(children) = children_map.get(code) {
                 for c in children {
                     if let Some(child) = build(c, nodes, children_map) {
-                        node.total += child.total;
+                        node.total += child.total.clone();
                         node.children.push(child);
                     }
                 }
             }
 
             // 4) Prune zero branches
-            if node.total.abs() < 0.01 && node.children.is_empty() {
+            if node.total.abs() < BigDecimal::from_f64(0.01).unwrap() && node.children.is_empty() {
                 None
             } else {
                 Some(node)
@@ -324,7 +325,11 @@ impl ReportRepository for PostgresReportRepo {
         // 5) Roots = accounts without parent
         let root_codes: Vec<String> = nodes
             .keys()
-            .filter(|code| !children_map.values().any(|v| v.contains(code)))
+            .filter(|code| {
+                !children_map
+                    .values()
+                    .any(|v: &Vec<String>| v.contains(code))
+            })
             .cloned()
             .collect();
 
@@ -336,6 +341,52 @@ impl ReportRepository for PostgresReportRepo {
             }
         }
 
+        // 7) Extract key sections
+        let mut revenue = BigDecimal::zero();
+        let mut cogs = BigDecimal::zero();
+        let mut expenses = BigDecimal::zero();
+
+        for node in &result {
+            let name: String = node.name.to_lowercase();
+
+            if name.contains("revenue") || name.contains("income") {
+                revenue += node.total.clone();
+            } else if name.contains("cost of goods") || name.contains("cogs") {
+                cogs += node.total.clone();
+            } else if node.category == "expense" {
+                expenses += node.total.clone();
+            }
+        }
+
+        // 8) Compute profits
+        let gross_profit: BigDecimal = revenue - cogs.clone();
+        let operating_profits: BigDecimal = gross_profit.clone() - (expenses - cogs); //remove double-counting
+        let net_profit: BigDecimal = operating_profits.clone(); // TODO: less other expenses add other incomes here
+
+        // 9) Push computed nodes
+        result.push(Node {
+            code: "GROSS_PROFIT".to_string(),
+            name: "Gross Profit".to_string(),
+            category: "computed".to_string(),
+            total: gross_profit,
+            children: vec![],
+        });
+
+        result.push(Node {
+            code: "OPERATING_PROFIT".to_string(),
+            name: "Operating Profit".to_string(),
+            category: "computed".to_string(),
+            total: operating_profits,
+            children: vec![],
+        });
+
+        result.push(Node {
+            code: "NET_PROFIT".to_string(),
+            name: "Net Profit".to_string(),
+            category: "computed".to_string(),
+            total: net_profit,
+            children: vec![],
+        });
         Ok(result)
     }
 
