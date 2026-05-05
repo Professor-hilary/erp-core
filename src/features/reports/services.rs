@@ -2,11 +2,7 @@
 use crate::{
     features::reports::repository::{ForceReload, ReportRepository},
     interface::api::errors::AppError,
-    models::reports::{
-        ApAgingDto, ArAgingDto, BalanceSheetCompareRow, BalanceSheetRow, CashFlowRow,
-        CashbookRowDto, CashflowGroup, CustomerStatementDto, EquityChangeRow, IncomeStatementRow,
-        InventoryValuationDto, PayrollSummaryDto, TrialBalanceRow,
-    },
+    models::{self, reports::*},
 };
 use chrono::NaiveDate;
 use sqlx::PgPool;
@@ -43,8 +39,8 @@ impl<R: ReportRepository> ReportService<R> {
         tenant_pool: &PgPool,
         start: NaiveDate,
         end: NaiveDate,
-    ) -> Result<Vec<IncomeStatementRow>, AppError> {
-        self.repo.get_income(tenant_pool, start, end).await
+    ) -> Result<Vec<models::reports::Node>, AppError> {
+        self.repo.income_statement(tenant_pool, start, end).await
     }
     pub async fn cf_direct(
         &self,

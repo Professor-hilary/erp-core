@@ -18,7 +18,7 @@ use crate::{
     interface::api::{errors::AppError, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,
     models::reports::{
-        BalanceSheetCompareRow, BalanceSheetRow, CashFlowRow, EquityChangeRow, IncomeStatementRow,
+        BalanceSheetCompareRow, BalanceSheetRow, CashFlowRow, EquityChangeRow, Node,
         TrialBalanceRow,
     },
     state::AppState,
@@ -130,7 +130,7 @@ async fn http_income(
     let repo: PostgresReportRepo = PostgresReportRepo::new();
     let service: ReportService<PostgresReportRepo> = ReportService::new(repo);
 
-    let report: Vec<IncomeStatementRow> = service
+    let report: Vec<Node> = service
         .income_statement(&user.tenant_pool, start, end)
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;

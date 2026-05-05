@@ -189,8 +189,8 @@ pub struct IncomeStatementRow {
     pub balance: BigDecimal,
 }
 
-#[derive(Debug, sqlx::FromRow)]
-pub struct FlatAccount{
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+pub struct FlatAccount {
     pub code: String,
     pub name: String,
     pub parent_code: Option<String>,
@@ -200,8 +200,8 @@ pub struct FlatAccount{
     pub balance: f64,
 }
 
-#[derive(Debug, sqlx::FromRow)]
-pub struct Node{
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+pub struct Node {
     pub code: String,
     pub name: String,
     pub category: String,

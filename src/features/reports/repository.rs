@@ -29,12 +29,12 @@ pub trait ReportRepository: Send + Sync {
         as_of_2: NaiveDate,
     ) -> Result<Vec<BalanceSheetCompareRow>, AppError>;
 
-    async fn get_income(
-        &self,
-        pool: &PgPool,
-        start: NaiveDate,
-        end: NaiveDate,
-    ) -> Result<Vec<IncomeStatementRow>, AppError>;
+    // async fn get_income(
+    //     &self,
+    //     pool: &PgPool,
+    //     start: NaiveDate,
+    //     end: NaiveDate,
+    // ) -> Result<Vec<IncomeStatementRow>, AppError>;
 
     async fn income_statement(
         &self,
@@ -190,41 +190,41 @@ impl ReportRepository for PostgresReportRepo {
         Ok(rows)
     }
 
-    async fn get_income(
-        &self,
-        pool: &PgPool,
-        start: NaiveDate,
-        end: NaiveDate,
-    ) -> Result<Vec<IncomeStatementRow>, AppError> {
-        let rows = sqlx::query_as::<_, IncomeStatementRow>(
-            r#"SELECT code, name, category, depth, path, balance
-            FROM reporting.get_income_statement($1, $2)
-            ORDER BY path"#,
-        )
-        .bind(start)
-        .bind(end)
-        .fetch_all(pool)
-        .await?;
+    // async fn get_income(
+    //     &self,
+    //     pool: &PgPool,
+    //     start: NaiveDate,
+    //     end: NaiveDate,
+    // ) -> Result<Vec<IncomeStatementRow>, AppError> {
+    //     let rows = sqlx::query_as::<_, IncomeStatementRow>(
+    //         r#"SELECT code, name, category, depth, path, balance
+    //         FROM reporting.get_income_statement($1, $2)
+    //         ORDER BY path"#,
+    //     )
+    //     .bind(start)
+    //     .bind(end)
+    //     .fetch_all(pool)
+    //     .await?;
 
-        println!("\n=== INCOME STATEMENT DEBUG ===\n");
+    //     println!("\n=== INCOME STATEMENT DEBUG ===\n");
 
-        for row in &rows {
-            let indent = "    ".repeat(row.depth as usize);
+    //     for row in &rows {
+    //         let indent = "    ".repeat(row.depth as usize);
 
-            println!(
-                "{}{} [{}] {} → {}",
-                indent,
-                if row.depth == 0 { "►" } else { "↳" },
-                row.code,
-                row.name,
-                row.balance
-            );
-        }
+    //         println!(
+    //             "{}{} [{}] {} → {}",
+    //             indent,
+    //             if row.depth == 0 { "►" } else { "↳" },
+    //             row.code,
+    //             row.name,
+    //             row.balance
+    //         );
+    //     }
 
-        println!("\n=== END DEBUG ===\n");
+    //     println!("\n=== END DEBUG ===\n");
 
-        Ok(rows)
-    }
+    //     Ok(rows)
+    // }
 
     async fn income_statement(
         &self,
@@ -289,7 +289,10 @@ impl ReportRepository for PostgresReportRepo {
             );
 
             if let Some(p) = &row.parent_code {
-                children_map.entry(p.to_string()).or_default().push(row.code);
+                children_map
+                    .entry(p.to_string())
+                    .or_default()
+                    .push(row.code.clone());
             }
         }
 
@@ -319,7 +322,7 @@ impl ReportRepository for PostgresReportRepo {
         }
 
         // 5) Roots = accounts without parent
-        let root_codes:Vec<String> = nodes
+        let root_codes: Vec<String> = nodes
             .keys()
             .filter(|code| !children_map.values().any(|v| v.contains(code)))
             .cloned()
