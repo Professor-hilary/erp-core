@@ -18,7 +18,7 @@ use crate::{
     interface::api::{errors::AppError, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,
     models::reports::{
-        BalanceSheetCompareRow, BalanceSheetRow, CashFlowRow, EquityChangeRow, Node,
+        BalanceSheetCompareRow, CashFlowRow, EquityChangeRow, Node,
         TrialBalanceRow,
     },
     state::AppState,
@@ -74,7 +74,7 @@ async fn http_balancesheet(
     let as_of: NaiveDate = NaiveDate::parse_from_str(&as_of, "%Y-%m-%d")
         .map_err(|e: chrono::ParseError| AppError::BadRequest(format!("invalid date: {}", e)))?;
 
-    let report: Vec<BalanceSheetRow> = service
+    let report: Vec<Node> = service
         .balancesheet(&user.tenant_pool, as_of)
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;

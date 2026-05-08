@@ -21,7 +21,7 @@ impl<R: ReportRepository> ReportService<R> {
         &self,
         tenant_pool: &PgPool,
         as_of: NaiveDate,
-    ) -> Result<Vec<BalanceSheetRow>, AppError> {
+    ) -> Result<Vec<Node>, AppError> {
         self.repo.get_balancesheet(tenant_pool, as_of).await
     }
     pub async fn balancesheet_compare(

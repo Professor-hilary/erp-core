@@ -21,7 +21,7 @@ pub trait ReportRepository: Send + Sync {
         &self,
         pool: &PgPool,
         as_of: NaiveDate,
-    ) -> Result<Vec<BalanceSheetRow>, AppError>;
+    ) -> Result<Vec<Node>, AppError>;
 
     async fn get_balancesheet_comparison(
         &self,
@@ -29,13 +29,6 @@ pub trait ReportRepository: Send + Sync {
         as_of_1: NaiveDate,
         as_of_2: NaiveDate,
     ) -> Result<Vec<BalanceSheetCompareRow>, AppError>;
-
-    // async fn get_income(
-    //     &self,
-    //     pool: &PgPool,
-    //     start: NaiveDate,
-    //     end: NaiveDate,
-    // ) -> Result<Vec<IncomeStatementRow>, AppError>;
 
     async fn income_statement(
         &self,
@@ -137,29 +130,160 @@ impl ReportRepository for PostgresReportRepo {
         &self,
         pool: &PgPool,
         as_of: NaiveDate,
-    ) -> Result<Vec<BalanceSheetRow>, AppError> {
-        let rows = sqlx::query_as::<_, BalanceSheetRow>(
+    ) -> Result<Vec<Node>, AppError> {
+        // 1) Pull flat balances from accounts table
+        let rows: Vec<FlatAccount> = sqlx::query_as::<_, FlatAccount>(
             r#"SELECT
-                code,
-                name,
-                category,
-                depth,
-                path,
-                balance
-            FROM reporting.get_balance_sheet($1)
-            ORDER BY path
+                acc.code,
+                acc.name,
+                acc.parent_code,
+                acc.category,
+                acc.normal_balance,
+                acc.is_contra,
+                COALESCE(SUM(te.debit) FILTER (WHERE te.created_at <= $1), 0)
+                - COALESCE(SUM(te.credit) FILTER (WHERE te.created_at <= $1), 0)
+                    AS balance
+                FROM accounting.accounts acc
+                LEFT JOIN accounting.transaction_entries te
+                    ON te.account_uuid = acc.uuid
+                WHERE acc.category IN ('asset', 'liability', 'equity')
+                GROUP BY acc.code, acc.name, acc.parent_code,
+                    acc.category, acc.normal_balance, acc.is_contra
             "#,
         )
         .bind(as_of)
         .fetch_all(pool)
         .await?;
 
+        // 2) Normalize sign si:
+        //  income  => positive when credit >  debit
+        //  expense => positive when debit  > credit
+        let mut nodes: HashMap<String, Node> = HashMap::new();
+        let mut children_map: HashMap<String, Vec<String>> = HashMap::new();
+
         for row in &rows {
-            let indent = "  ".repeat(row.depth as usize);
-            println!("{}{}  {}", indent, row.name, row.balance);
+            let mut signed: BigDecimal = row.balance.clone();
+
+            // credit normal accounts (income) should be positive when credits exceed debits
+            if row.normal_balance == "cr" {
+                signed = -signed;
+            }
+            if row.is_contra {
+                signed = -signed;
+            }
+
+            nodes.insert(
+                row.code.clone(),
+                Node {
+                    code: row.code.clone(),
+                    name: row.name.clone(),
+                    category: row.category.clone(),
+                    total: signed,
+                    children: vec![],
+                },
+            );
+
+            if let Some(p) = &row.parent_code {
+                children_map
+                    .entry(p.to_string())
+                    .or_default()
+                    .push(row.code.clone());
+            }
         }
 
-        Ok(rows)
+        // 3) Build + aggregate in one recursive closure
+        fn build(
+            code: &str,
+            nodes: &mut HashMap<String, Node>,
+            children_map: &HashMap<String, Vec<String>>,
+        ) -> Option<Node> {
+            let mut node = nodes.remove(code)?;
+
+            if let Some(children) = children_map.get(code) {
+                for c in children {
+                    if let Some(child) = build(c, nodes, children_map) {
+                        node.total += child.total.clone();
+                        node.children.push(child);
+                    }
+                }
+            }
+
+            // 4) Prune zero branches
+            if node.total.abs() < BigDecimal::from_f64(0.01).unwrap() && node.children.is_empty() {
+                None
+            } else {
+                Some(node)
+            }
+        }
+
+        // 5) Roots = accounts without parent
+        let root_codes: Vec<String> = nodes
+            .keys()
+            .filter(|code| {
+                !children_map
+                    .values()
+                    .any(|v: &Vec<String>| v.contains(code))
+            })
+            .cloned()
+            .collect();
+
+        // 6) Build final forest
+        let mut result: Vec<Node> = Vec::new();
+        for code in root_codes {
+            if let Some(tree) = build(&code, &mut nodes, &children_map) {
+                result.push(tree);
+            }
+        }
+
+        // 7) Balance Sheet specific balances
+        let mut total_assets = BigDecimal::from(0);
+        let mut total_liabilities = BigDecimal::from(0);
+        let mut total_equity = BigDecimal::from(0);
+
+        for node in &result {
+            match node.category.as_str() {
+                "asset" => total_assets += node.total.clone(),
+                "liability" => total_liabilities += node.total.clone(),
+                "equity" => total_equity += node.total.clone(),
+                _ => (),
+            }
+        }
+
+        let total_liabilities_equity = total_liabilities.clone() + total_equity.clone();
+
+        result.push(Node {
+            code: "TOTAL_ASSETS".to_string(),
+            name: "Total Assets".to_string(),
+            category: "computed".to_string(),
+            total: total_assets,
+            children: vec![],
+        });
+
+        result.push(Node {
+            code: "TOTAL_LIABILITIES".to_string(),
+            name: "Total Liabilities".to_string(),
+            category: "computed".to_string(),
+            total: total_liabilities,
+            children: vec![],
+        });
+
+        result.push(Node {
+            code: "TOTAL_EQUITY".to_string(),
+            name: "Total Equity".to_string(),
+            category: "computed".to_string(),
+            total: total_equity,
+            children: vec![],
+        });
+
+        result.push(Node {
+            code: "TOTAL_LIABILITIES_EQUITY".to_string(),
+            name: "Total Liabilities + Equity".to_string(),
+            category: "computed".to_string(),
+            total: total_liabilities_equity,
+            children: vec![],
+        });
+
+        Ok(result)
     }
 
     async fn get_balancesheet_comparison(
@@ -190,42 +314,6 @@ impl ReportRepository for PostgresReportRepo {
 
         Ok(rows)
     }
-
-    // async fn get_income(
-    //     &self,
-    //     pool: &PgPool,
-    //     start: NaiveDate,
-    //     end: NaiveDate,
-    // ) -> Result<Vec<IncomeStatementRow>, AppError> {
-    //     let rows = sqlx::query_as::<_, IncomeStatementRow>(
-    //         r#"SELECT code, name, category, depth, path, balance
-    //         FROM reporting.get_income_statement($1, $2)
-    //         ORDER BY path"#,
-    //     )
-    //     .bind(start)
-    //     .bind(end)
-    //     .fetch_all(pool)
-    //     .await?;
-
-    //     println!("\n=== INCOME STATEMENT DEBUG ===\n");
-
-    //     for row in &rows {
-    //         let indent = "    ".repeat(row.depth as usize);
-
-    //         println!(
-    //             "{}{} [{}] {} → {}",
-    //             indent,
-    //             if row.depth == 0 { "►" } else { "↳" },
-    //             row.code,
-    //             row.name,
-    //             row.balance
-    //         );
-    //     }
-
-    //     println!("\n=== END DEBUG ===\n");
-
-    //     Ok(rows)
-    // }
 
     async fn income_statement(
         &self,
@@ -334,7 +422,7 @@ impl ReportRepository for PostgresReportRepo {
             .collect();
 
         // 6) Build final forest
-        let mut result = Vec::new();
+        let mut result: Vec<Node> = Vec::new();
         for code in root_codes {
             if let Some(tree) = build(&code, &mut nodes, &children_map) {
                 result.push(tree);
