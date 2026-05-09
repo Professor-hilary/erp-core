@@ -430,9 +430,9 @@ impl ReportRepository for PostgresReportRepo {
         }
 
         // 7) Extract key sections
-        let mut revenue = BigDecimal::zero();
-        let mut cogs = BigDecimal::zero();
-        let mut expenses = BigDecimal::zero();
+        let mut revenue: BigDecimal = BigDecimal::zero();
+        let mut cogs: BigDecimal = BigDecimal::zero();
+        let mut expenses: BigDecimal = BigDecimal::zero();
 
         for node in &result {
             let name: String = node.name.to_lowercase();
@@ -448,8 +448,8 @@ impl ReportRepository for PostgresReportRepo {
 
         // 8) Compute profits
         let gross_profit: BigDecimal = revenue - cogs.clone();
-        let operating_profits: BigDecimal = gross_profit.clone() - (expenses - cogs); //remove double-counting
-        let net_profit: BigDecimal = operating_profits.clone(); // TODO: less other expenses add other incomes here
+        let operating_profits: BigDecimal = gross_profit.clone() - (expenses.clone() - cogs); //remove double-counting
+        let net_profit: BigDecimal = gross_profit.clone() - expenses; // TODO: less other expenses add other incomes here
 
         // 9) Push computed nodes
         result.push(Node {
