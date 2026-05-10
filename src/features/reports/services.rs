@@ -47,7 +47,7 @@ impl<R: ReportRepository> ReportService<R> {
         tenant_pool: &PgPool,
         start: NaiveDate,
         end: NaiveDate,
-    ) -> Result<Vec<CashflowGroup>, AppError> {
+    ) -> Result<Vec<Node>, AppError> {
         self.repo.get_cf_direct(tenant_pool, start, end).await
     }
     pub async fn cf_indirect(
@@ -55,7 +55,7 @@ impl<R: ReportRepository> ReportService<R> {
         tenant_pool: &PgPool,
         start: NaiveDate,
         end: NaiveDate,
-    ) -> Result<Vec<CashFlowRow>, AppError> {
+    ) -> Result<Vec<Node>, AppError> {
         self.repo.get_cf_indirect(tenant_pool, start, end).await
     }
     pub async fn change_of_equity(

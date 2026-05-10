@@ -38,33 +38,6 @@ pub struct BalanceSheetRow {
 }
 
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
-pub struct CashFlowRow {
-    pub section: String,
-    pub description: String,
-    pub amount: f64,
-}
-
-// Leaf-level row
-#[derive(Debug, Serialize)]
-pub struct CashflowItem {
-    pub code: String,
-    pub name: String,
-    pub inflow: f64,
-    pub outflow: f64,
-    pub net_cash: f64,
-}
-
-// Top-level activity group (Operating, Investing, Financing)
-#[derive(Debug, Serialize)]
-pub struct CashflowGroup {
-    pub group_name: String,
-    pub accounts: Vec<CashflowItem>,
-    pub total_inflow: f64,
-    pub total_outflow: f64,
-    pub total_net_cash: f64,
-}
-
-#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
 pub struct EquityChangeRow {
     pub code: String,
     pub name: String,
@@ -207,4 +180,31 @@ pub struct Node {
     pub category: String,
     pub total: BigDecimal,
     pub children: Vec<Node>,
+}
+
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+pub struct CashFlowRow {
+    pub cash_flow_category: Option<String>,
+    pub total: BigDecimal,
+}
+
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+pub struct CashBalanceRow {
+    pub opening_cash: BigDecimal,
+}
+
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+pub struct BalanceDeltaRow {
+    pub account_type: String,
+    pub delta: BigDecimal,
+}
+
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+pub struct NonCashRow {
+    pub total: BigDecimal,
+}
+
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+pub struct NetProfitRow {
+    pub net_profit: BigDecimal,
 }

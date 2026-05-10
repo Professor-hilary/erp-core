@@ -17,10 +17,7 @@ use crate::{
     },
     interface::api::{errors::AppError, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,
-    models::reports::{
-        BalanceSheetCompareRow, CashFlowRow, EquityChangeRow, Node,
-        TrialBalanceRow,
-    },
+    models::reports::*,
     state::AppState,
 };
 
@@ -169,26 +166,29 @@ async fn http_cf_direct(
     Query(q): Query<DateRangeQuery>,
     Extension(user): Extension<AuthenticatedTenant>,
 ) -> Result<Response, AppError> {
-    let start = q
+    let start: String = q
         .from
         .unwrap_or_else(|| chrono::Local::now().naive_local().to_string());
     let end =
         q.to.unwrap_or_else(|| chrono::Local::now().naive_local().to_string());
 
-    let start = NaiveDate::parse_from_str(&start, "%Y-%m-%d")
+    let start: NaiveDate = NaiveDate::parse_from_str(&start, "%Y-%m-%d")
         .map_err(|e| AppError::BadRequest(format!("invalid date: {}", e)))?;
-    let end = NaiveDate::parse_from_str(&end, "%Y-%m-%d")
+    let end: NaiveDate = NaiveDate::parse_from_str(&end, "%Y-%m-%d")
         .map_err(|e| AppError::BadRequest(format!("invalid date: {}", e)))?;
 
     let repo: PostgresReportRepo = PostgresReportRepo::new();
     let service: ReportService<PostgresReportRepo> = ReportService::new(repo);
 
-    let report = service
+    let report: Vec<Node> = service
         .cf_direct(&user.tenant_pool, start, end)
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
-    Ok(ApiResponse::success(report, "Report updated"))
+    Ok(ApiResponse::success(
+        report,
+        "Direct Cash Flow Report Generated",
+    ))
 }
 
 async fn http_cf_indirect(
@@ -210,7 +210,7 @@ async fn http_cf_indirect(
     let repo: PostgresReportRepo = PostgresReportRepo::new();
     let service: ReportService<PostgresReportRepo> = ReportService::new(repo);
 
-    let report: Vec<CashFlowRow> = service
+    let report: Vec<Node> = service
         .cf_indirect(&user.tenant_pool, start, end)
         .await
         .map_err(|e: AppError| AppError::Internal(e.to_string()))?;
