@@ -34,6 +34,9 @@ CREATE TABLE accounting.accounts (
     normal_balance TEXT NOT NULL CHECK (
         normal_balance IN ('cr', 'dr')
     ), -- 'DR' or 'CR'
+    cash_flow_category TEXT CHECK(
+        cash_flow_category IN('Operating', 'Investing', 'Financing', 'Cash', 'Non-Cash')
+    ),
     path public.ltree,
     hierarchy_depth smallint GENERATED ALWAYS AS (nlevel (path)) STORED,
     is_contra BOOLEAN DEFAULT FALSE,
