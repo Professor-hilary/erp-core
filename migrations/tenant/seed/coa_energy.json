@@ -1,1063 +1,1195 @@
 {
-  "industry": "energy",
-  "name": "Energy & Utilities",
-  "description": "COA for power generation, transmission, distribution, water supply, oil & gas, and renewable energy providers. IFRS, URA, and regulatory reporting compliant. (Updated 2025-12-16: added current/non-current asset detail, regulatory/derivative accounts, expanded PP&E and accumulated depreciation, regulatory & tax positions, and more granular expense and revenue lines.)",
-  "accounts": [
-    {
-      "code": "100000",
-      "name": "Assets",
-      "category": "asset",
-      "parent_code": null,
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "110000",
-      "name": "Current Assets",
-      "category": "asset",
-      "parent_code": "100000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "110100",
-      "name": "Cash on Hand",
-      "category": "asset",
-      "parent_code": "110000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "110200",
-      "name": "Bank Accounts",
-      "category": "asset",
-      "parent_code": "110000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "110300",
-      "name": "Accounts Receivable",
-      "category": "asset",
-      "parent_code": "110000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "110301",
-      "name": "Customer Billings",
-      "category": "asset",
-      "parent_code": "110300",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "110302",
-      "name": "Unbilled Revenue (Accrued)",
-      "category": "asset",
-      "parent_code": "110300",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "110303",
-      "name": "Allowance for Doubtful Accounts",
-      "category": "asset",
-      "parent_code": "110300",
-      "normal_balance": "cr",
-      "is_contra": true
-    },
-    {
-      "code": "110400",
-      "name": "Inventory",
-      "category": "asset",
-      "parent_code": "110000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "110401",
-      "name": "Fuel Inventory (Diesel, HFO)",
-      "category": "asset",
-      "parent_code": "110400",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "110402",
-      "name": "Spare Parts & Consumables",
-      "category": "asset",
-      "parent_code": "110400",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "110403",
-      "name": "Chemicals & Treatment Materials",
-      "category": "asset",
-      "parent_code": "110400",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "110500",
-      "name": "Prepaid Expenses",
-      "category": "asset",
-      "parent_code": "110000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "110501",
-      "name": "Prepaid Insurance",
-      "category": "asset",
-      "parent_code": "110500",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "110502",
-      "name": "Prepaid License Fees",
-      "category": "asset",
-      "parent_code": "110500",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "110503",
-      "name": "Prepaid Rent",
-      "category": "asset",
-      "parent_code": "110500",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "110504",
-      "name": "Prepaid Maintenance Contracts",
-      "category": "asset",
-      "parent_code": "110500",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "110600",
-      "name": "Short-term Investments",
-      "category": "asset",
-      "parent_code": "110000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "110700",
-      "name": "Regulatory Assets",
-      "category": "asset",
-      "parent_code": "110000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "110800",
-      "name": "Derivative Assets",
-      "category": "asset",
-      "parent_code": "110000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "110900",
-      "name": "Other Current Assets",
-      "category": "asset",
-      "parent_code": "110000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "120000",
-      "name": "Non-Current Assets",
-      "category": "asset",
-      "parent_code": "100000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "120100",
-      "name": "Property, Plant & Equipment",
-      "category": "asset",
-      "parent_code": "120000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "120101",
-      "name": "Land & Substations",
-      "category": "asset",
-      "parent_code": "120100",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "120102",
-      "name": "Power Plants & Generators",
-      "category": "asset",
-      "parent_code": "120100",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "120103",
-      "name": "Transmission Lines",
-      "category": "asset",
-      "parent_code": "120100",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "120104",
-      "name": "Distribution Network",
-      "category": "asset",
-      "parent_code": "120100",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "120105",
-      "name": "Solar Panels & Inverters",
-      "category": "asset",
-      "parent_code": "120100",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "120106",
-      "name": "Wind Turbines",
-      "category": "asset",
-      "parent_code": "120100",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "120107",
-      "name": "Hydro Plants & Dams",
-      "category": "asset",
-      "parent_code": "120100",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "120108",
-      "name": "Pipelines & Wells (Oil & Gas)",
-      "category": "asset",
-      "parent_code": "120100",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "120109",
-      "name": "Water Treatment Plants",
-      "category": "asset",
-      "parent_code": "120100",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "120200",
-      "name": "Capital Work in Progress (CWIP)",
-      "category": "asset",
-      "parent_code": "120000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "120201",
-      "name": "Buildings & Offices",
-      "category": "asset",
-      "parent_code": "120200",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "120202",
-      "name": "Vehicles & Fleet",
-      "category": "asset",
-      "parent_code": "120200",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "120203",
-      "name": "Meters & Customer Equipment",
-      "category": "asset",
-      "parent_code": "120200",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "120300",
-      "name": "Accumulated Depreciation",
-      "category": "asset",
-      "parent_code": "120000",
-      "normal_balance": "cr",
-      "is_contra": true
-    },
-    {
-      "code": "120301",
-      "name": "Acc. Dep. - Power Plants",
-      "category": "asset",
-      "parent_code": "120300",
-      "normal_balance": "cr",
-      "is_contra": true
-    },
-    {
-      "code": "120302",
-      "name": "Acc. Dep. - Transmission Lines",
-      "category": "asset",
-      "parent_code": "120300",
-      "normal_balance": "cr",
-      "is_contra": true
-    },
-    {
-      "code": "120303",
-      "name": "Acc. Dep. - Distribution Network",
-      "category": "asset",
-      "parent_code": "120300",
-      "normal_balance": "cr",
-      "is_contra": true
-    },
-    {
-      "code": "120304",
-      "name": "Acc. Dep. - Renewable Assets",
-      "category": "asset",
-      "parent_code": "120300",
-      "normal_balance": "cr",
-      "is_contra": true
-    },
-    {
-      "code": "120305",
-      "name": "Acc. Dep. - Buildings",
-      "category": "asset",
-      "parent_code": "120300",
-      "normal_balance": "cr",
-      "is_contra": true
-    },
-    {
-      "code": "120400",
-      "name": "Intangible Assets",
-      "category": "asset",
-      "parent_code": "120000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "120401",
-      "name": "Software & Licenses",
-      "category": "asset",
-      "parent_code": "120400",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "120402",
-      "name": "Emission Allowances",
-      "category": "asset",
-      "parent_code": "120400",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "120500",
-      "name": "Accumulated Amortization",
-      "category": "asset",
-      "parent_code": "120000",
-      "normal_balance": "cr",
-      "is_contra": true
-    },
-    {
-      "code": "120600",
-      "name": "Long-term Investments",
-      "category": "asset",
-      "parent_code": "120000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "120700",
-      "name": "Deferred Tax Assets",
-      "category": "asset",
-      "parent_code": "120000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "200000",
-      "name": "Liabilities",
-      "category": "liability",
-      "parent_code": null,
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "210000",
-      "name": "Current Liabilities",
-      "category": "liability",
-      "parent_code": "200000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "210100",
-      "name": "Accounts Payable",
-      "category": "liability",
-      "parent_code": "210000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "210200",
-      "name": "Accrued Salaries",
-      "category": "liability",
-      "parent_code": "210000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "210300",
-      "name": "Customer Deposits",
-      "category": "liability",
-      "parent_code": "210000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "210400",
-      "name": "Taxes Payable",
-      "category": "liability",
-      "parent_code": "210000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "210500",
-      "name": "Current Portion of Long-Term Debt",
-      "category": "liability",
-      "parent_code": "210000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "210600",
-      "name": "Accrued Expenses",
-      "category": "liability",
-      "parent_code": "210000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "210700",
-      "name": "Accrued Interest",
-      "category": "liability",
-      "parent_code": "210000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "210800",
-      "name": "Regulatory Liabilities",
-      "category": "liability",
-      "parent_code": "210000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "210900",
-      "name": "Derivative Liabilities",
-      "category": "liability",
-      "parent_code": "210000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "220000",
-      "name": "Non-Current Liabilities",
-      "category": "liability",
-      "parent_code": "200000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "220100",
-      "name": "Long-Term Loans",
-      "category": "liability",
-      "parent_code": "220000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "220101",
-      "name": "Bank Loans - Infrastructure",
-      "category": "liability",
-      "parent_code": "220100",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "220102",
-      "name": "Development Partner Funding",
-      "category": "liability",
-      "parent_code": "220100",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "220200",
-      "name": "Bonds Payable",
-      "category": "liability",
-      "parent_code": "220000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "220300",
-      "name": "Deferred Revenue",
-      "category": "liability",
-      "parent_code": "220000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "220400",
-      "name": "Asset Retirement Obligation",
-      "category": "liability",
-      "parent_code": "220000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "220500",
-      "name": "Deferred Tax Liability",
-      "category": "liability",
-      "parent_code": "220000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "220600",
-      "name": "Lease Liabilities - Long Term",
-      "category": "liability",
-      "parent_code": "220000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "300000",
-      "name": "Equity",
-      "category": "equity",
-      "parent_code": null,
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "310000",
-      "name": "Owner's Equity",
-      "category": "equity",
-      "parent_code": "300000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "310100",
-      "name": "Share Capital",
-      "category": "equity",
-      "parent_code": "310000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "310200",
-      "name": "Retained Earnings",
-      "category": "equity",
-      "parent_code": "310000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "310300",
-      "name": "Revaluation Reserve",
-      "category": "equity",
-      "parent_code": "310000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "310400",
-      "name": "Grants Received (Capital)",
-      "category": "equity",
-      "parent_code": "310000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "400000",
-      "name": "Revenue",
-      "category": "income",
-      "parent_code": null,
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "410000",
-      "name": "Utility Sales Revenue",
-      "category": "income",
-      "parent_code": "400000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "410100",
-      "name": "Electricity Sales",
-      "category": "income",
-      "parent_code": "410000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "410200",
-      "name": "Water Sales",
-      "category": "income",
-      "parent_code": "410000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "410300",
-      "name": "Connection Fees",
-      "category": "income",
-      "parent_code": "410000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "420000",
-      "name": "Service & Other Revenue",
-      "category": "income",
-      "parent_code": "400000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "420100",
-      "name": "Meter Reading & Inspection",
-      "category": "income",
-      "parent_code": "420000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "420200",
-      "name": "Reconnection Fees",
-      "category": "income",
-      "parent_code": "420000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "420300",
-      "name": "Late Payment Penalties",
-      "category": "income",
-      "parent_code": "420000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "420400",
-      "name": "Scrap Sales",
-      "category": "income",
-      "parent_code": "420000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "430000",
-      "name": "Government Subsidies",
-      "category": "income",
-      "parent_code": "400000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "430100",
-      "name": "Renewable Energy Certificates Sales",
-      "category": "income",
-      "parent_code": "400000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "440000",
-      "name": "Revenue Deductions",
-      "category": "income",
-      "parent_code": "400000",
-      "normal_balance": "dr",
-      "is_contra": true
-    },
-    {
-      "code": "450000",
-      "name": "Interest Income",
-      "category": "income",
-      "parent_code": "400000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "460000",
-      "name": "Other Incomes",
-      "category": "income",
-      "parent_code": "400000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "460100",
-      "name": "Gain on Disposal of Assets",
-      "category": "income",
-      "parent_code": "460000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "500000",
-      "name": "Cost of Operations",
-      "category": "expense",
-      "parent_code": null,
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "510000",
-      "name": "Fuel & Energy Costs",
-      "category": "expense",
-      "parent_code": "500000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "510100",
-      "name": "Diesel & HFO",
-      "category": "expense",
-      "parent_code": "510000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "510200",
-      "name": "Grid Purchase Power",
-      "category": "expense",
-      "parent_code": "510000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "510300",
-      "name": "Natural Gas Purchases",
-      "category": "expense",
-      "parent_code": "510000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "510400",
-      "name": "Transmission Charges",
-      "category": "expense",
-      "parent_code": "510000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "520000",
-      "name": "Maintenance & Repairs",
-      "category": "expense",
-      "parent_code": "500000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "520100",
-      "name": "Plant Overhauls",
-      "category": "expense",
-      "parent_code": "520000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "520200",
-      "name": "Line & Transformer Repairs",
-      "category": "expense",
-      "parent_code": "520000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "520300",
-      "name": "Meter Maintenance",
-      "category": "expense",
-      "parent_code": "520000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "520400",
-      "name": "Vegetation Management",
-      "category": "expense",
-      "parent_code": "520000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "530000",
-      "name": "Network Losses (Technical & Non-Technical)",
-      "category": "expense",
-      "parent_code": "500000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "530100",
-      "name": "Technical Losses Provision",
-      "category": "expense",
-      "parent_code": "530000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "530200",
-      "name": "Non-Technical Losses (Theft)",
-      "category": "expense",
-      "parent_code": "530000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "600000",
-      "name": "Operating Expenses",
-      "category": "expense",
-      "parent_code": null,
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "610000",
-      "name": "Payroll Expenses",
-      "category": "expense",
-      "parent_code": "600000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "610100",
-      "name": "Salaries & Wages",
-      "category": "expense",
-      "parent_code": "610000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "610200",
-      "name": "Staff Training",
-      "category": "expense",
-      "parent_code": "610000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "610300",
-      "name": "Employee Benefits",
-      "category": "expense",
-      "parent_code": "610000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "610400",
-      "name": "Pension Contributions",
-      "category": "expense",
-      "parent_code": "610000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "610500",
-      "name": "Payroll Taxes",
-      "category": "expense",
-      "parent_code": "610000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "620000",
-      "name": "Regulatory & Compliance",
-      "category": "expense",
-      "parent_code": "600000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "620100",
-      "name": "License Fees",
-      "category": "expense",
-      "parent_code": "620000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "620200",
-      "name": "Environmental Compliance Costs",
-      "category": "expense",
-      "parent_code": "620000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "620300",
-      "name": "Regulatory Levies",
-      "category": "expense",
-      "parent_code": "620000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "630000",
-      "name": "Depreciation Expense",
-      "category": "expense",
-      "parent_code": "600000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "630100",
-      "name": "Amortization Expense",
-      "category": "expense",
-      "parent_code": "600000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "640000",
-      "name": "Insurance Expense",
-      "category": "expense",
-      "parent_code": "600000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "640100",
-      "name": "Property Insurance",
-      "category": "expense",
-      "parent_code": "640000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "640200",
-      "name": "Liability Insurance",
-      "category": "expense",
-      "parent_code": "640000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "650000",
-      "name": "Bad Debt Expense",
-      "category": "expense",
-      "parent_code": "600000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "660000",
-      "name": "Interest Expense",
-      "category": "expense",
-      "parent_code": "600000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "670000",
-      "name": "Other Expense",
-      "category": "expense",
-      "parent_code": "600000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "670100",
-      "name": "Office Expenses",
-      "category": "expense",
-      "parent_code": "670000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "670200",
-      "name": "Vehicle Expenses",
-      "category": "expense",
-      "parent_code": "670000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "670300",
-      "name": "Travel & Entertainment",
-      "category": "expense",
-      "parent_code": "670000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "670400",
-      "name": "Marketing & Customer Education",
-      "category": "expense",
-      "parent_code": "670000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "670500",
-      "name": "Professional Fees",
-      "category": "expense",
-      "parent_code": "670000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "670600",
-      "name": "Bank Charges",
-      "category": "expense",
-      "parent_code": "670000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "670700",
-      "name": "Loss on Disposal of Assets",
-      "category": "expense",
-      "parent_code": "670000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "680000",
-      "name": "Asset Retirement Costs",
-      "category": "expense",
-      "parent_code": "600000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "690000",
-      "name": "Income Tax Expense",
-      "category": "expense",
-      "parent_code": "600000",
-      "normal_balance": "dr",
-      "is_contra": false
-    }
-  ]
+    "industry": "energy",
+    "name": "Energy & Utilities",
+    "description": "COA for power generation, transmission, distribution, water supply, oil & gas, and renewable energy providers. IFRS, URA, and regulatory reporting compliant. (Updated 2025-12-16: added current/non-current asset detail, regulatory/derivative accounts, expanded PP&E and accumulated depreciation, regulatory & tax positions, and more granular expense and revenue lines.)",
+    "accounts": [
+        {
+            "code": "100000",
+            "name": "Assets",
+            "category": "asset",
+            "parent_code": null,
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": null
+        },
+        {
+            "code": "110000",
+            "name": "Current Assets",
+            "category": "asset",
+            "parent_code": "100000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "110100",
+            "name": "Cash on Hand",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "cash"
+        },
+        {
+            "code": "110200",
+            "name": "Bank Accounts",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "cash"
+        },
+        {
+            "code": "110300",
+            "name": "Accounts Receivable",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "110301",
+            "name": "Customer Billings",
+            "category": "asset",
+            "parent_code": "110300",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "110302",
+            "name": "Unbilled Revenue (Accrued)",
+            "category": "asset",
+            "parent_code": "110300",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "110303",
+            "name": "Allowance for Doubtful Accounts",
+            "category": "asset",
+            "parent_code": "110300",
+            "normal_balance": "cr",
+            "is_contra": true,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "110400",
+            "name": "Inventory",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "110401",
+            "name": "Fuel Inventory (Diesel, HFO)",
+            "category": "asset",
+            "parent_code": "110400",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "110402",
+            "name": "Spare Parts & Consumables",
+            "category": "asset",
+            "parent_code": "110400",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "110403",
+            "name": "Chemicals & Treatment Materials",
+            "category": "asset",
+            "parent_code": "110400",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "110500",
+            "name": "Prepaid Expenses",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "110501",
+            "name": "Prepaid Insurance",
+            "category": "asset",
+            "parent_code": "110500",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "110502",
+            "name": "Prepaid License Fees",
+            "category": "asset",
+            "parent_code": "110500",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "110503",
+            "name": "Prepaid Rent",
+            "category": "asset",
+            "parent_code": "110500",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "110504",
+            "name": "Prepaid Maintenance Contracts",
+            "category": "asset",
+            "parent_code": "110500",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "110600",
+            "name": "Short-term Investments",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "110700",
+            "name": "Regulatory Assets",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "110800",
+            "name": "Derivative Assets",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "110900",
+            "name": "Other Current Assets",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "120000",
+            "name": "Non-Current Assets",
+            "category": "asset",
+            "parent_code": "100000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "investing"
+        },
+        {
+            "code": "120100",
+            "name": "Property, Plant & Equipment",
+            "category": "asset",
+            "parent_code": "120000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "investing"
+        },
+        {
+            "code": "120101",
+            "name": "Land & Substations",
+            "category": "asset",
+            "parent_code": "120100",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "investing"
+        },
+        {
+            "code": "120102",
+            "name": "Power Plants & Generators",
+            "category": "asset",
+            "parent_code": "120100",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "investing"
+        },
+        {
+            "code": "120103",
+            "name": "Transmission Lines",
+            "category": "asset",
+            "parent_code": "120100",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "investing"
+        },
+        {
+            "code": "120104",
+            "name": "Distribution Network",
+            "category": "asset",
+            "parent_code": "120100",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "investing"
+        },
+        {
+            "code": "120105",
+            "name": "Solar Panels & Inverters",
+            "category": "asset",
+            "parent_code": "120100",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "investing"
+        },
+        {
+            "code": "120106",
+            "name": "Wind Turbines",
+            "category": "asset",
+            "parent_code": "120100",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "investing"
+        },
+        {
+            "code": "120107",
+            "name": "Hydro Plants & Dams",
+            "category": "asset",
+            "parent_code": "120100",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "investing"
+        },
+        {
+            "code": "120108",
+            "name": "Pipelines & Wells (Oil & Gas)",
+            "category": "asset",
+            "parent_code": "120100",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "investing"
+        },
+        {
+            "code": "120109",
+            "name": "Water Treatment Plants",
+            "category": "asset",
+            "parent_code": "120100",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "investing"
+        },
+        {
+            "code": "120200",
+            "name": "Capital Work in Progress (CWIP)",
+            "category": "asset",
+            "parent_code": "120000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "investing"
+        },
+        {
+            "code": "120201",
+            "name": "Buildings & Offices",
+            "category": "asset",
+            "parent_code": "120200",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "investing"
+        },
+        {
+            "code": "120202",
+            "name": "Vehicles & Fleet",
+            "category": "asset",
+            "parent_code": "120200",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "investing"
+        },
+        {
+            "code": "120203",
+            "name": "Meters & Customer Equipment",
+            "category": "asset",
+            "parent_code": "120200",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "investing"
+        },
+        {
+            "code": "120300",
+            "name": "Accumulated Depreciation",
+            "category": "asset",
+            "parent_code": "120000",
+            "normal_balance": "cr",
+            "is_contra": true,
+            "cash_flow_category": "non-cash"
+        },
+        {
+            "code": "120301",
+            "name": "Acc. Dep. - Power Plants",
+            "category": "asset",
+            "parent_code": "120300",
+            "normal_balance": "cr",
+            "is_contra": true,
+            "cash_flow_category": "non-cash"
+        },
+        {
+            "code": "120302",
+            "name": "Acc. Dep. - Transmission Lines",
+            "category": "asset",
+            "parent_code": "120300",
+            "normal_balance": "cr",
+            "is_contra": true,
+            "cash_flow_category": "non-cash"
+        },
+        {
+            "code": "120303",
+            "name": "Acc. Dep. - Distribution Network",
+            "category": "asset",
+            "parent_code": "120300",
+            "normal_balance": "cr",
+            "is_contra": true,
+            "cash_flow_category": "non-cash"
+        },
+        {
+            "code": "120304",
+            "name": "Acc. Dep. - Renewable Assets",
+            "category": "asset",
+            "parent_code": "120300",
+            "normal_balance": "cr",
+            "is_contra": true,
+            "cash_flow_category": "non-cash"
+        },
+        {
+            "code": "120305",
+            "name": "Acc. Dep. - Buildings",
+            "category": "asset",
+            "parent_code": "120300",
+            "normal_balance": "cr",
+            "is_contra": true,
+            "cash_flow_category": "non-cash"
+        },
+        {
+            "code": "120400",
+            "name": "Intangible Assets",
+            "category": "asset",
+            "parent_code": "120000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "investing"
+        },
+        {
+            "code": "120401",
+            "name": "Software & Licenses",
+            "category": "asset",
+            "parent_code": "120400",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "investing"
+        },
+        {
+            "code": "120402",
+            "name": "Emission Allowances",
+            "category": "asset",
+            "parent_code": "120400",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "investing"
+        },
+        {
+            "code": "120500",
+            "name": "Accumulated Amortization",
+            "category": "asset",
+            "parent_code": "120000",
+            "normal_balance": "cr",
+            "is_contra": true,
+            "cash_flow_category": "non-cash"
+        },
+        {
+            "code": "120600",
+            "name": "Long-term Investments",
+            "category": "asset",
+            "parent_code": "120000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "investing"
+        },
+        {
+            "code": "120700",
+            "name": "Deferred Tax Assets",
+            "category": "asset",
+            "parent_code": "120000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "investing"
+        },
+        {
+            "code": "200000",
+            "name": "Liabilities",
+            "category": "liability",
+            "parent_code": null,
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": null
+        },
+        {
+            "code": "210000",
+            "name": "Current Liabilities",
+            "category": "liability",
+            "parent_code": "200000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "210100",
+            "name": "Accounts Payable",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "210200",
+            "name": "Accrued Salaries",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "210300",
+            "name": "Customer Deposits",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "210400",
+            "name": "Taxes Payable",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "210500",
+            "name": "Current Portion of Long-Term Debt",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "210600",
+            "name": "Accrued Expenses",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "210700",
+            "name": "Accrued Interest",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "210800",
+            "name": "Regulatory Liabilities",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "210900",
+            "name": "Derivative Liabilities",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "220000",
+            "name": "Non-Current Liabilities",
+            "category": "liability",
+            "parent_code": "200000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "financing"
+        },
+        {
+            "code": "220100",
+            "name": "Long-Term Loans",
+            "category": "liability",
+            "parent_code": "220000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "financing"
+        },
+        {
+            "code": "220101",
+            "name": "Bank Loans - Infrastructure",
+            "category": "liability",
+            "parent_code": "220100",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "financing"
+        },
+        {
+            "code": "220102",
+            "name": "Development Partner Funding",
+            "category": "liability",
+            "parent_code": "220100",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "financing"
+        },
+        {
+            "code": "220200",
+            "name": "Bonds Payable",
+            "category": "liability",
+            "parent_code": "220000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "financing"
+        },
+        {
+            "code": "220300",
+            "name": "Deferred Revenue",
+            "category": "liability",
+            "parent_code": "220000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "financing"
+        },
+        {
+            "code": "220400",
+            "name": "Asset Retirement Obligation",
+            "category": "liability",
+            "parent_code": "220000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "financing"
+        },
+        {
+            "code": "220500",
+            "name": "Deferred Tax Liability",
+            "category": "liability",
+            "parent_code": "220000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "financing"
+        },
+        {
+            "code": "220600",
+            "name": "Lease Liabilities - Long Term",
+            "category": "liability",
+            "parent_code": "220000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "financing"
+        },
+        {
+            "code": "300000",
+            "name": "Equity",
+            "category": "equity",
+            "parent_code": null,
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": null
+        },
+        {
+            "code": "310000",
+            "name": "Owner's Equity",
+            "category": "equity",
+            "parent_code": "300000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "financing"
+        },
+        {
+            "code": "310100",
+            "name": "Share Capital",
+            "category": "equity",
+            "parent_code": "310000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "financing"
+        },
+        {
+            "code": "310200",
+            "name": "Retained Earnings",
+            "category": "equity",
+            "parent_code": "310000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "financing"
+        },
+        {
+            "code": "310300",
+            "name": "Revaluation Reserve",
+            "category": "equity",
+            "parent_code": "310000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "financing"
+        },
+        {
+            "code": "310400",
+            "name": "Grants Received (Capital)",
+            "category": "equity",
+            "parent_code": "310000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "financing"
+        },
+        {
+            "code": "400000",
+            "name": "Revenue",
+            "category": "income",
+            "parent_code": null,
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": null
+        },
+        {
+            "code": "410000",
+            "name": "Utility Sales Revenue",
+            "category": "income",
+            "parent_code": "400000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "410100",
+            "name": "Electricity Sales",
+            "category": "income",
+            "parent_code": "410000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "410200",
+            "name": "Water Sales",
+            "category": "income",
+            "parent_code": "410000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "410300",
+            "name": "Connection Fees",
+            "category": "income",
+            "parent_code": "410000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "420000",
+            "name": "Service & Other Revenue",
+            "category": "income",
+            "parent_code": "400000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "420100",
+            "name": "Meter Reading & Inspection",
+            "category": "income",
+            "parent_code": "420000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "420200",
+            "name": "Reconnection Fees",
+            "category": "income",
+            "parent_code": "420000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "420300",
+            "name": "Late Payment Penalties",
+            "category": "income",
+            "parent_code": "420000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "420400",
+            "name": "Scrap Sales",
+            "category": "income",
+            "parent_code": "420000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "430000",
+            "name": "Government Subsidies",
+            "category": "income",
+            "parent_code": "400000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "430100",
+            "name": "Renewable Energy Certificates Sales",
+            "category": "income",
+            "parent_code": "400000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "440000",
+            "name": "Revenue Deductions",
+            "category": "income",
+            "parent_code": "400000",
+            "normal_balance": "dr",
+            "is_contra": true,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "450000",
+            "name": "Interest Income",
+            "category": "income",
+            "parent_code": "400000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "460000",
+            "name": "Other Incomes",
+            "category": "income",
+            "parent_code": "400000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "460100",
+            "name": "Gain on Disposal of Assets",
+            "category": "income",
+            "parent_code": "460000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "500000",
+            "name": "Cost of Operations",
+            "category": "expense",
+            "parent_code": null,
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": null
+        },
+        {
+            "code": "510000",
+            "name": "Fuel & Energy Costs",
+            "category": "expense",
+            "parent_code": "500000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "510100",
+            "name": "Diesel & HFO",
+            "category": "expense",
+            "parent_code": "510000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "510200",
+            "name": "Grid Purchase Power",
+            "category": "expense",
+            "parent_code": "510000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "510300",
+            "name": "Natural Gas Purchases",
+            "category": "expense",
+            "parent_code": "510000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "510400",
+            "name": "Transmission Charges",
+            "category": "expense",
+            "parent_code": "510000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "520000",
+            "name": "Maintenance & Repairs",
+            "category": "expense",
+            "parent_code": "500000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "520100",
+            "name": "Plant Overhauls",
+            "category": "expense",
+            "parent_code": "520000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "520200",
+            "name": "Line & Transformer Repairs",
+            "category": "expense",
+            "parent_code": "520000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "520300",
+            "name": "Meter Maintenance",
+            "category": "expense",
+            "parent_code": "520000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "520400",
+            "name": "Vegetation Management",
+            "category": "expense",
+            "parent_code": "520000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "530000",
+            "name": "Network Losses (Technical & Non-Technical)",
+            "category": "expense",
+            "parent_code": "500000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "530100",
+            "name": "Technical Losses Provision",
+            "category": "expense",
+            "parent_code": "530000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "530200",
+            "name": "Non-Technical Losses (Theft)",
+            "category": "expense",
+            "parent_code": "530000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "600000",
+            "name": "Operating Expenses",
+            "category": "expense",
+            "parent_code": null,
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": null
+        },
+        {
+            "code": "610000",
+            "name": "Payroll Expenses",
+            "category": "expense",
+            "parent_code": "600000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "610100",
+            "name": "Salaries & Wages",
+            "category": "expense",
+            "parent_code": "610000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "610200",
+            "name": "Staff Training",
+            "category": "expense",
+            "parent_code": "610000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "610300",
+            "name": "Employee Benefits",
+            "category": "expense",
+            "parent_code": "610000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "610400",
+            "name": "Pension Contributions",
+            "category": "expense",
+            "parent_code": "610000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "610500",
+            "name": "Payroll Taxes",
+            "category": "expense",
+            "parent_code": "610000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "620000",
+            "name": "Regulatory & Compliance",
+            "category": "expense",
+            "parent_code": "600000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "620100",
+            "name": "License Fees",
+            "category": "expense",
+            "parent_code": "620000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "620200",
+            "name": "Environmental Compliance Costs",
+            "category": "expense",
+            "parent_code": "620000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "620300",
+            "name": "Regulatory Levies",
+            "category": "expense",
+            "parent_code": "620000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "630000",
+            "name": "Depreciation Expense",
+            "category": "expense",
+            "parent_code": "600000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "non-cash"
+        },
+        {
+            "code": "630100",
+            "name": "Amortization Expense",
+            "category": "expense",
+            "parent_code": "600000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "non-cash"
+        },
+        {
+            "code": "640000",
+            "name": "Insurance Expense",
+            "category": "expense",
+            "parent_code": "600000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "640100",
+            "name": "Property Insurance",
+            "category": "expense",
+            "parent_code": "640000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "640200",
+            "name": "Liability Insurance",
+            "category": "expense",
+            "parent_code": "640000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "650000",
+            "name": "Bad Debt Expense",
+            "category": "expense",
+            "parent_code": "600000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "660000",
+            "name": "Interest Expense",
+            "category": "expense",
+            "parent_code": "600000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "670000",
+            "name": "Other Expense",
+            "category": "expense",
+            "parent_code": "600000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "670100",
+            "name": "Office Expenses",
+            "category": "expense",
+            "parent_code": "670000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "670200",
+            "name": "Vehicle Expenses",
+            "category": "expense",
+            "parent_code": "670000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "670300",
+            "name": "Travel & Entertainment",
+            "category": "expense",
+            "parent_code": "670000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "670400",
+            "name": "Marketing & Customer Education",
+            "category": "expense",
+            "parent_code": "670000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "670500",
+            "name": "Professional Fees",
+            "category": "expense",
+            "parent_code": "670000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "670600",
+            "name": "Bank Charges",
+            "category": "expense",
+            "parent_code": "670000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "670700",
+            "name": "Loss on Disposal of Assets",
+            "category": "expense",
+            "parent_code": "670000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "680000",
+            "name": "Asset Retirement Costs",
+            "category": "expense",
+            "parent_code": "600000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "690000",
+            "name": "Income Tax Expense",
+            "category": "expense",
+            "parent_code": "600000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        }
+    ]
 }

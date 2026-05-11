@@ -1,991 +1,1114 @@
 {
-  "industry": "wholesale",
-  "name": "Wholesale & Distribution",
-  "description": "COA for importers, wholesalers, distributors, FMCG supply chains, and retail backends. Supports multi-warehouse, landed cost, and URA VAT compliance.",
-  "accounts": [
-    {
-      "code": "100000",
-      "name": "Assets",
-      "category": "asset",
-      "parent_code": null,
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "110000",
-      "name": "Current Assets",
-      "category": "asset",
-      "parent_code": "100000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "110100",
-      "name": "Cash on Hand",
-      "category": "asset",
-      "parent_code": "110000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "110200",
-      "name": "Bank Accounts",
-      "category": "asset",
-      "parent_code": "110000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "110300",
-      "name": "Accounts Receivable",
-      "category": "asset",
-      "parent_code": "110000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "110301",
-      "name": "Trade Receivables",
-      "category": "asset",
-      "parent_code": "110300",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "110302",
-      "name": "Allowance for Doubtful Accounts",
-      "category": "asset",
-      "parent_code": "110300",
-      "normal_balance": "cr",
-      "is_contra": true
-    },
-    {
-      "code": "110303",
-      "name": "Other Receivables",
-      "category": "asset",
-      "parent_code": "110300",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "110400",
-      "name": "Inventory",
-      "category": "asset",
-      "parent_code": "110000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "110401",
-      "name": "Finished Goods - Warehouse A",
-      "category": "asset",
-      "parent_code": "110400",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "110402",
-      "name": "Finished Goods - Warehouse B",
-      "category": "asset",
-      "parent_code": "110400",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "110403",
-      "name": "Goods in Transit",
-      "category": "asset",
-      "parent_code": "110400",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "110404",
-      "name": "Landed Cost Reserve",
-      "category": "asset",
-      "parent_code": "110400",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "110405",
-      "name": "Inventory Reserve (Obsolescence)",
-      "category": "asset",
-      "parent_code": "110400",
-      "normal_balance": "cr",
-      "is_contra": true
-    },
-    {
-      "code": "110406",
-      "name": "Packaging Materials",
-      "category": "asset",
-      "parent_code": "110400",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "110500",
-      "name": "Prepaid Expenses",
-      "category": "asset",
-      "parent_code": "110000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "110501",
-      "name": "Prepaid Customs Duty",
-      "category": "asset",
-      "parent_code": "110500",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "110502",
-      "name": "Prepaid Freight & Insurance",
-      "category": "asset",
-      "parent_code": "110500",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "110503",
-      "name": "Prepaid Rent",
-      "category": "asset",
-      "parent_code": "110500",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "110504",
-      "name": "Prepaid Insurance",
-      "category": "asset",
-      "parent_code": "110500",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "110505",
-      "name": "Prepaid Maintenance",
-      "category": "asset",
-      "parent_code": "110500",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "110600",
-      "name": "Short-term Investments",
-      "category": "asset",
-      "parent_code": "110000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "110700",
-      "name": "Other Current Assets",
-      "category": "asset",
-      "parent_code": "110000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "110701",
-      "name": "Input VAT",
-      "category": "liability",
-      "parent_code": "110700",
-      "normal_balance": "dr",
-      "is_contra": true
-    },
-    {
-      "code": "110800",
-      "name": "Advances to Suppliers",
-      "category": "asset",
-      "parent_code": "110000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "120000",
-      "name": "Non-Current Assets",
-      "category": "asset",
-      "parent_code": "100000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "120100",
-      "name": "Property, Plant & Equipment",
-      "category": "asset",
-      "parent_code": "120000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "120101",
-      "name": "Warehouse Buildings",
-      "category": "asset",
-      "parent_code": "120100",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "120102",
-      "name": "Delivery Vehicles",
-      "category": "asset",
-      "parent_code": "120100",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "120103",
-      "name": "Forklifts & Racking",
-      "category": "asset",
-      "parent_code": "120100",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "120104",
-      "name": "Office Equipment & Computers",
-      "category": "asset",
-      "parent_code": "120100",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "120105",
-      "name": "Leasehold Improvements",
-      "category": "asset",
-      "parent_code": "120100",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "120200",
-      "name": "Accumulated Depreciation",
-      "category": "asset",
-      "parent_code": "120000",
-      "normal_balance": "cr",
-      "is_contra": true
-    },
-    {
-      "code": "120201",
-      "name": "Acc. Dep. - Buildings",
-      "category": "asset",
-      "parent_code": "120200",
-      "normal_balance": "cr",
-      "is_contra": true
-    },
-    {
-      "code": "120202",
-      "name": "Acc. Dep. - Vehicles",
-      "category": "asset",
-      "parent_code": "120200",
-      "normal_balance": "cr",
-      "is_contra": true
-    },
-    {
-      "code": "120203",
-      "name": "Acc. Dep. - Forklifts & Racking",
-      "category": "asset",
-      "parent_code": "120200",
-      "normal_balance": "cr",
-      "is_contra": true
-    },
-    {
-      "code": "120204",
-      "name": "Acc. Dep. - Office Equipment",
-      "category": "asset",
-      "parent_code": "120200",
-      "normal_balance": "cr",
-      "is_contra": true
-    },
-    {
-      "code": "120300",
-      "name": "Intangible Assets",
-      "category": "asset",
-      "parent_code": "120000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "120301",
-      "name": "Software & WMS Systems",
-      "category": "asset",
-      "parent_code": "120300",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "120400",
-      "name": "Accumulated Amortization",
-      "category": "asset",
-      "parent_code": "120000",
-      "normal_balance": "cr",
-      "is_contra": true
-    },
-    {
-      "code": "120500",
-      "name": "Capital Work in Progress",
-      "category": "asset",
-      "parent_code": "120000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "200000",
-      "name": "Liabilities",
-      "category": "liability",
-      "parent_code": null,
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "210000",
-      "name": "Current Liabilities",
-      "category": "liability",
-      "parent_code": "200000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "210100",
-      "name": "Accounts Payable",
-      "category": "liability",
-      "parent_code": "210000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "210101",
-      "name": "Local Suppliers",
-      "category": "liability",
-      "parent_code": "210100",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "210102",
-      "name": "Import Suppliers",
-      "category": "liability",
-      "parent_code": "210100",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "210200",
-      "name": "Accrued Expenses",
-      "category": "liability",
-      "parent_code": "210000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "210300",
-      "name": "VAT Payable",
-      "category": "liability",
-      "parent_code": "210000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "210301",
-      "name": "Output VAT",
-      "category": "liability",
-      "parent_code": "210300",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "210400",
-      "name": "Import Duties Payable",
-      "category": "liability",
-      "parent_code": "210000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "210500",
-      "name": "Accrued Salaries",
-      "category": "liability",
-      "parent_code": "210000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "210600",
-      "name": "Current Portion of Long-Term Debt",
-      "category": "liability",
-      "parent_code": "210000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "210700",
-      "name": "Payroll Taxes Payable",
-      "category": "liability",
-      "parent_code": "210000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "220000",
-      "name": "Non-Current Liabilities",
-      "category": "liability",
-      "parent_code": "200000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "220010",
-      "name": "Long-Term Loan",
-      "category": "liability",
-      "parent_code": "220000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "220020",
-      "name": "Mortgage Payable",
-      "category": "liability",
-      "parent_code": "220000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "220030",
-      "name": "Deferred Tax Liability",
-      "category": "liability",
-      "parent_code": "220000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "300000",
-      "name": "Equity",
-      "category": "equity",
-      "parent_code": null,
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "310000",
-      "name": "Owner's Equity",
-      "category": "equity",
-      "parent_code": "300000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "310100",
-      "name": "Owner's Capital",
-      "category": "equity",
-      "parent_code": "310000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "310200",
-      "name": "Owner's Drawings",
-      "category": "equity",
-      "parent_code": "310000",
-      "normal_balance": "dr",
-      "is_contra": true
-    },
-    {
-      "code": "310300",
-      "name": "Retained Earnings",
-      "category": "equity",
-      "parent_code": "310000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "310400",
-      "name": "Revaluation Reserve",
-      "category": "equity",
-      "parent_code": "310000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "400000",
-      "name": "Revenue",
-      "category": "income",
-      "parent_code": null,
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "410000",
-      "name": "Sales Revenue",
-      "category": "income",
-      "parent_code": "400000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "410100",
-      "name": "Wholesale Sales",
-      "category": "income",
-      "parent_code": "410000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "410200",
-      "name": "Export Sales",
-      "category": "income",
-      "parent_code": "410000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "410300",
-      "name": "Online Sales",
-      "category": "income",
-      "parent_code": "410000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "410400",
-      "name": "Drop Shipping Sales",
-      "category": "income",
-      "parent_code": "410000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "420000",
-      "name": "Other Revenue",
-      "category": "income",
-      "parent_code": "400000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "420100",
-      "name": "Freight Recovery",
-      "category": "income",
-      "parent_code": "420000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "420200",
-      "name": "Storage Fees",
-      "category": "income",
-      "parent_code": "420000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "430000",
-      "name": "Revenue Deductions",
-      "category": "income",
-      "parent_code": "400000",
-      "normal_balance": "dr",
-      "is_contra": true
-    },
-    {
-      "code": "430100",
-      "name": "Sales Discounts",
-      "category": "income",
-      "parent_code": "430000",
-      "normal_balance": "dr",
-      "is_contra": true
-    },
-    {
-      "code": "430200",
-      "name": "Sales Returns",
-      "category": "income",
-      "parent_code": "430000",
-      "normal_balance": "dr",
-      "is_contra": true
-    },
-    {
-      "code": "430300",
-      "name": "Volume Rebates",
-      "category": "income",
-      "parent_code": "430000",
-      "normal_balance": "dr",
-      "is_contra": true
-    },
-    {
-      "code": "440000",
-      "name": "Interest Income",
-      "category": "income",
-      "parent_code": "400000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "450000",
-      "name": "Gain on Disposal of Assets",
-      "category": "income",
-      "parent_code": "400000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "500000",
-      "name": "Cost of Goods Sold",
-      "category": "expense",
-      "parent_code": null,
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "510000",
-      "name": "Purchases",
-      "category": "expense",
-      "parent_code": "500000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "510100",
-      "name": "Local Purchases",
-      "category": "expense",
-      "parent_code": "510000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "510200",
-      "name": "Import Purchases",
-      "category": "expense",
-      "parent_code": "510000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "510300",
-      "name": "Purchase Returns",
-      "category": "expense",
-      "parent_code": "510000",
-      "normal_balance": "cr",
-      "is_contra": true
-    },
-    {
-      "code": "520000",
-      "name": "Landed Costs",
-      "category": "expense",
-      "parent_code": "500000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "520100",
-      "name": "Freight In",
-      "category": "expense",
-      "parent_code": "520000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "520200",
-      "name": "Customs Duty",
-      "category": "expense",
-      "parent_code": "520000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "520300",
-      "name": "Clearing & Forwarding",
-      "category": "expense",
-      "parent_code": "520000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "520400",
-      "name": "Marine Insurance",
-      "category": "expense",
-      "parent_code": "520000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "530000",
-      "name": "Inventory Adjustments",
-      "category": "expense",
-      "parent_code": "500000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "530100",
-      "name": "Stock Write-Offs",
-      "category": "expense",
-      "parent_code": "530000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "530200",
-      "name": "Inventory Shrinkage",
-      "category": "expense",
-      "parent_code": "530000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "600000",
-      "name": "Operating Expenses",
-      "category": "expense",
-      "parent_code": null,
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "610000",
-      "name": "Payroll Expenses",
-      "category": "expense",
-      "parent_code": "600000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "610100",
-      "name": "Sales Staff Salaries",
-      "category": "expense",
-      "parent_code": "610000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "610200",
-      "name": "Warehouse Staff",
-      "category": "expense",
-      "parent_code": "610000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "610300",
-      "name": "Administrative Salaries",
-      "category": "expense",
-      "parent_code": "610000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "610400",
-      "name": "Payroll Taxes",
-      "category": "expense",
-      "parent_code": "610000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "610500",
-      "name": "Employee Benefits",
-      "category": "expense",
-      "parent_code": "610000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "620000",
-      "name": "Warehouse Operations",
-      "category": "expense",
-      "parent_code": "600000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "620100",
-      "name": "Rent & Utilities",
-      "category": "expense",
-      "parent_code": "620000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "620200",
-      "name": "Security & Cleaning",
-      "category": "expense",
-      "parent_code": "620000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "620300",
-      "name": "Warehouse Maintenance",
-      "category": "expense",
-      "parent_code": "620000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "630000",
-      "name": "Transportation & Delivery",
-      "category": "expense",
-      "parent_code": "600000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "630100",
-      "name": "Fuel & Vehicle Maintenance",
-      "category": "expense",
-      "parent_code": "630000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "630200",
-      "name": "Third-Party Delivery",
-      "category": "expense",
-      "parent_code": "630000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "640000",
-      "name": "Selling Expenses",
-      "category": "expense",
-      "parent_code": "600000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "640100",
-      "name": "Commissions",
-      "category": "expense",
-      "parent_code": "640000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "640200",
-      "name": "Advertising & Marketing",
-      "category": "expense",
-      "parent_code": "640000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "640300",
-      "name": "Travel & Entertainment",
-      "category": "expense",
-      "parent_code": "640000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "650000",
-      "name": "Depreciation Expense",
-      "category": "expense",
-      "parent_code": "600000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "650100",
-      "name": "Depreciation - Buildings",
-      "category": "expense",
-      "parent_code": "650000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "650200",
-      "name": "Depreciation - Vehicles",
-      "category": "expense",
-      "parent_code": "650000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "650300",
-      "name": "Depreciation - Equipment",
-      "category": "expense",
-      "parent_code": "650000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "660000",
-      "name": "Other Expense",
-      "category": "expense",
-      "parent_code": "600000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "660100",
-      "name": "Office Supplies",
-      "category": "expense",
-      "parent_code": "660000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "660200",
-      "name": "Telephone & Internet",
-      "category": "expense",
-      "parent_code": "660000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "660300",
-      "name": "Insurance Expense",
-      "category": "expense",
-      "parent_code": "660000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "660400",
-      "name": "Professional Fees",
-      "category": "expense",
-      "parent_code": "660000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "660500",
-      "name": "Bank Charges",
-      "category": "expense",
-      "parent_code": "660000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "660600",
-      "name": "Bad Debt Expense",
-      "category": "expense",
-      "parent_code": "660000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "660700",
-      "name": "Loss on Disposal",
-      "category": "expense",
-      "parent_code": "660000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "670000",
-      "name": "Interest Expense",
-      "category": "expense",
-      "parent_code": "600000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "680000",
-      "name": "Income Tax Expense",
-      "category": "expense",
-      "parent_code": "600000",
-      "normal_balance": "dr",
-      "is_contra": false
-    }
-  ]
+    "industry": "wholesale",
+    "name": "Wholesale & Distribution",
+    "description": "COA for importers, wholesalers, distributors, FMCG supply chains, and retail backends. Supports multi-warehouse, landed cost, and URA VAT compliance.",
+    "accounts": [
+        {
+            "code": "100000",
+            "name": "Assets",
+            "category": "asset",
+            "parent_code": null,
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": null
+        },
+        {
+            "code": "110000",
+            "name": "Current Assets",
+            "category": "asset",
+            "parent_code": "100000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "110100",
+            "name": "Cash on Hand",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "cash"
+        },
+        {
+            "code": "110200",
+            "name": "Bank Accounts",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "cash"
+        },
+        {
+            "code": "110300",
+            "name": "Accounts Receivable",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "110301",
+            "name": "Trade Receivables",
+            "category": "asset",
+            "parent_code": "110300",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "110302",
+            "name": "Allowance for Doubtful Accounts",
+            "category": "asset",
+            "parent_code": "110300",
+            "normal_balance": "cr",
+            "is_contra": true,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "110303",
+            "name": "Other Receivables",
+            "category": "asset",
+            "parent_code": "110300",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "110400",
+            "name": "Inventory",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "110401",
+            "name": "Finished Goods - Warehouse A",
+            "category": "asset",
+            "parent_code": "110400",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "110402",
+            "name": "Finished Goods - Warehouse B",
+            "category": "asset",
+            "parent_code": "110400",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "110403",
+            "name": "Goods in Transit",
+            "category": "asset",
+            "parent_code": "110400",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "110404",
+            "name": "Landed Cost Reserve",
+            "category": "asset",
+            "parent_code": "110400",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "110405",
+            "name": "Inventory Reserve (Obsolescence)",
+            "category": "asset",
+            "parent_code": "110400",
+            "normal_balance": "cr",
+            "is_contra": true,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "110406",
+            "name": "Packaging Materials",
+            "category": "asset",
+            "parent_code": "110400",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "110500",
+            "name": "Prepaid Expenses",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "110501",
+            "name": "Prepaid Customs Duty",
+            "category": "asset",
+            "parent_code": "110500",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "110502",
+            "name": "Prepaid Freight & Insurance",
+            "category": "asset",
+            "parent_code": "110500",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "110503",
+            "name": "Prepaid Rent",
+            "category": "asset",
+            "parent_code": "110500",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "110504",
+            "name": "Prepaid Insurance",
+            "category": "asset",
+            "parent_code": "110500",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "110505",
+            "name": "Prepaid Maintenance",
+            "category": "asset",
+            "parent_code": "110500",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "110600",
+            "name": "Short-term Investments",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "110700",
+            "name": "Other Current Assets",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "110701",
+            "name": "Input VAT",
+            "category": "liability",
+            "parent_code": "110700",
+            "normal_balance": "dr",
+            "is_contra": true,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "110800",
+            "name": "Advances to Suppliers",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "120000",
+            "name": "Non-Current Assets",
+            "category": "asset",
+            "parent_code": "100000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "investing"
+        },
+        {
+            "code": "120100",
+            "name": "Property, Plant & Equipment",
+            "category": "asset",
+            "parent_code": "120000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "investing"
+        },
+        {
+            "code": "120101",
+            "name": "Warehouse Buildings",
+            "category": "asset",
+            "parent_code": "120100",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "investing"
+        },
+        {
+            "code": "120102",
+            "name": "Delivery Vehicles",
+            "category": "asset",
+            "parent_code": "120100",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "investing"
+        },
+        {
+            "code": "120103",
+            "name": "Forklifts & Racking",
+            "category": "asset",
+            "parent_code": "120100",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "investing"
+        },
+        {
+            "code": "120104",
+            "name": "Office Equipment & Computers",
+            "category": "asset",
+            "parent_code": "120100",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "investing"
+        },
+        {
+            "code": "120105",
+            "name": "Leasehold Improvements",
+            "category": "asset",
+            "parent_code": "120100",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "investing"
+        },
+        {
+            "code": "120200",
+            "name": "Accumulated Depreciation",
+            "category": "asset",
+            "parent_code": "120000",
+            "normal_balance": "cr",
+            "is_contra": true,
+            "cash_flow_category": "non-cash"
+        },
+        {
+            "code": "120201",
+            "name": "Acc. Dep. - Buildings",
+            "category": "asset",
+            "parent_code": "120200",
+            "normal_balance": "cr",
+            "is_contra": true,
+            "cash_flow_category": "non-cash"
+        },
+        {
+            "code": "120202",
+            "name": "Acc. Dep. - Vehicles",
+            "category": "asset",
+            "parent_code": "120200",
+            "normal_balance": "cr",
+            "is_contra": true,
+            "cash_flow_category": "non-cash"
+        },
+        {
+            "code": "120203",
+            "name": "Acc. Dep. - Forklifts & Racking",
+            "category": "asset",
+            "parent_code": "120200",
+            "normal_balance": "cr",
+            "is_contra": true,
+            "cash_flow_category": "non-cash"
+        },
+        {
+            "code": "120204",
+            "name": "Acc. Dep. - Office Equipment",
+            "category": "asset",
+            "parent_code": "120200",
+            "normal_balance": "cr",
+            "is_contra": true,
+            "cash_flow_category": "non-cash"
+        },
+        {
+            "code": "120300",
+            "name": "Intangible Assets",
+            "category": "asset",
+            "parent_code": "120000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "investing"
+        },
+        {
+            "code": "120301",
+            "name": "Software & WMS Systems",
+            "category": "asset",
+            "parent_code": "120300",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "investing"
+        },
+        {
+            "code": "120400",
+            "name": "Accumulated Amortization",
+            "category": "asset",
+            "parent_code": "120000",
+            "normal_balance": "cr",
+            "is_contra": true,
+            "cash_flow_category": "non-cash"
+        },
+        {
+            "code": "120500",
+            "name": "Capital Work in Progress",
+            "category": "asset",
+            "parent_code": "120000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "investing"
+        },
+        {
+            "code": "200000",
+            "name": "Liabilities",
+            "category": "liability",
+            "parent_code": null,
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": null
+        },
+        {
+            "code": "210000",
+            "name": "Current Liabilities",
+            "category": "liability",
+            "parent_code": "200000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "210100",
+            "name": "Accounts Payable",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "210101",
+            "name": "Local Suppliers",
+            "category": "liability",
+            "parent_code": "210100",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "210102",
+            "name": "Import Suppliers",
+            "category": "liability",
+            "parent_code": "210100",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "210200",
+            "name": "Accrued Expenses",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "210300",
+            "name": "VAT Payable",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "210301",
+            "name": "Output VAT",
+            "category": "liability",
+            "parent_code": "210300",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "210400",
+            "name": "Import Duties Payable",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "210500",
+            "name": "Accrued Salaries",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "210600",
+            "name": "Current Portion of Long-Term Debt",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "210700",
+            "name": "Payroll Taxes Payable",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "220000",
+            "name": "Non-Current Liabilities",
+            "category": "liability",
+            "parent_code": "200000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "financing"
+        },
+        {
+            "code": "220010",
+            "name": "Long-Term Loan",
+            "category": "liability",
+            "parent_code": "220000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "financing"
+        },
+        {
+            "code": "220020",
+            "name": "Mortgage Payable",
+            "category": "liability",
+            "parent_code": "220000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "financing"
+        },
+        {
+            "code": "220030",
+            "name": "Deferred Tax Liability",
+            "category": "liability",
+            "parent_code": "220000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "financing"
+        },
+        {
+            "code": "300000",
+            "name": "Equity",
+            "category": "equity",
+            "parent_code": null,
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": null
+        },
+        {
+            "code": "310000",
+            "name": "Owner's Equity",
+            "category": "equity",
+            "parent_code": "300000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "financing"
+        },
+        {
+            "code": "310100",
+            "name": "Owner's Capital",
+            "category": "equity",
+            "parent_code": "310000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "financing"
+        },
+        {
+            "code": "310200",
+            "name": "Owner's Drawings",
+            "category": "equity",
+            "parent_code": "310000",
+            "normal_balance": "dr",
+            "is_contra": true,
+            "cash_flow_category": "financing"
+        },
+        {
+            "code": "310300",
+            "name": "Retained Earnings",
+            "category": "equity",
+            "parent_code": "310000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "financing"
+        },
+        {
+            "code": "310400",
+            "name": "Revaluation Reserve",
+            "category": "equity",
+            "parent_code": "310000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "financing"
+        },
+        {
+            "code": "400000",
+            "name": "Revenue",
+            "category": "income",
+            "parent_code": null,
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": null
+        },
+        {
+            "code": "410000",
+            "name": "Sales Revenue",
+            "category": "income",
+            "parent_code": "400000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "410100",
+            "name": "Wholesale Sales",
+            "category": "income",
+            "parent_code": "410000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "410200",
+            "name": "Export Sales",
+            "category": "income",
+            "parent_code": "410000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "410300",
+            "name": "Online Sales",
+            "category": "income",
+            "parent_code": "410000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "410400",
+            "name": "Drop Shipping Sales",
+            "category": "income",
+            "parent_code": "410000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "420000",
+            "name": "Other Revenue",
+            "category": "income",
+            "parent_code": "400000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "420100",
+            "name": "Freight Recovery",
+            "category": "income",
+            "parent_code": "420000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "420200",
+            "name": "Storage Fees",
+            "category": "income",
+            "parent_code": "420000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "430000",
+            "name": "Revenue Deductions",
+            "category": "income",
+            "parent_code": "400000",
+            "normal_balance": "dr",
+            "is_contra": true,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "430100",
+            "name": "Sales Discounts",
+            "category": "income",
+            "parent_code": "430000",
+            "normal_balance": "dr",
+            "is_contra": true,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "430200",
+            "name": "Sales Returns",
+            "category": "income",
+            "parent_code": "430000",
+            "normal_balance": "dr",
+            "is_contra": true,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "430300",
+            "name": "Volume Rebates",
+            "category": "income",
+            "parent_code": "430000",
+            "normal_balance": "dr",
+            "is_contra": true,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "440000",
+            "name": "Interest Income",
+            "category": "income",
+            "parent_code": "400000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "450000",
+            "name": "Gain on Disposal of Assets",
+            "category": "income",
+            "parent_code": "400000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "500000",
+            "name": "Cost of Goods Sold",
+            "category": "expense",
+            "parent_code": null,
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": null
+        },
+        {
+            "code": "510000",
+            "name": "Purchases",
+            "category": "expense",
+            "parent_code": "500000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "510100",
+            "name": "Local Purchases",
+            "category": "expense",
+            "parent_code": "510000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "510200",
+            "name": "Import Purchases",
+            "category": "expense",
+            "parent_code": "510000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "510300",
+            "name": "Purchase Returns",
+            "category": "expense",
+            "parent_code": "510000",
+            "normal_balance": "cr",
+            "is_contra": true,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "520000",
+            "name": "Landed Costs",
+            "category": "expense",
+            "parent_code": "500000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "520100",
+            "name": "Freight In",
+            "category": "expense",
+            "parent_code": "520000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "520200",
+            "name": "Customs Duty",
+            "category": "expense",
+            "parent_code": "520000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "520300",
+            "name": "Clearing & Forwarding",
+            "category": "expense",
+            "parent_code": "520000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "520400",
+            "name": "Marine Insurance",
+            "category": "expense",
+            "parent_code": "520000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "530000",
+            "name": "Inventory Adjustments",
+            "category": "expense",
+            "parent_code": "500000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "530100",
+            "name": "Stock Write-Offs",
+            "category": "expense",
+            "parent_code": "530000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "530200",
+            "name": "Inventory Shrinkage",
+            "category": "expense",
+            "parent_code": "530000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "600000",
+            "name": "Operating Expenses",
+            "category": "expense",
+            "parent_code": null,
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": null
+        },
+        {
+            "code": "610000",
+            "name": "Payroll Expenses",
+            "category": "expense",
+            "parent_code": "600000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "610100",
+            "name": "Sales Staff Salaries",
+            "category": "expense",
+            "parent_code": "610000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "610200",
+            "name": "Warehouse Staff",
+            "category": "expense",
+            "parent_code": "610000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "610300",
+            "name": "Administrative Salaries",
+            "category": "expense",
+            "parent_code": "610000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "610400",
+            "name": "Payroll Taxes",
+            "category": "expense",
+            "parent_code": "610000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "610500",
+            "name": "Employee Benefits",
+            "category": "expense",
+            "parent_code": "610000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "620000",
+            "name": "Warehouse Operations",
+            "category": "expense",
+            "parent_code": "600000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "620100",
+            "name": "Rent & Utilities",
+            "category": "expense",
+            "parent_code": "620000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "620200",
+            "name": "Security & Cleaning",
+            "category": "expense",
+            "parent_code": "620000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "620300",
+            "name": "Warehouse Maintenance",
+            "category": "expense",
+            "parent_code": "620000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "630000",
+            "name": "Transportation & Delivery",
+            "category": "expense",
+            "parent_code": "600000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "630100",
+            "name": "Fuel & Vehicle Maintenance",
+            "category": "expense",
+            "parent_code": "630000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "630200",
+            "name": "Third-Party Delivery",
+            "category": "expense",
+            "parent_code": "630000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "640000",
+            "name": "Selling Expenses",
+            "category": "expense",
+            "parent_code": "600000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "640100",
+            "name": "Commissions",
+            "category": "expense",
+            "parent_code": "640000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "640200",
+            "name": "Advertising & Marketing",
+            "category": "expense",
+            "parent_code": "640000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "640300",
+            "name": "Travel & Entertainment",
+            "category": "expense",
+            "parent_code": "640000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "650000",
+            "name": "Depreciation Expense",
+            "category": "expense",
+            "parent_code": "600000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "non-cash"
+        },
+        {
+            "code": "650100",
+            "name": "Depreciation - Buildings",
+            "category": "expense",
+            "parent_code": "650000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "non-cash"
+        },
+        {
+            "code": "650200",
+            "name": "Depreciation - Vehicles",
+            "category": "expense",
+            "parent_code": "650000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "non-cash"
+        },
+        {
+            "code": "650300",
+            "name": "Depreciation - Equipment",
+            "category": "expense",
+            "parent_code": "650000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "non-cash"
+        },
+        {
+            "code": "660000",
+            "name": "Other Expense",
+            "category": "expense",
+            "parent_code": "600000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "660100",
+            "name": "Office Supplies",
+            "category": "expense",
+            "parent_code": "660000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "660200",
+            "name": "Telephone & Internet",
+            "category": "expense",
+            "parent_code": "660000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "660300",
+            "name": "Insurance Expense",
+            "category": "expense",
+            "parent_code": "660000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "660400",
+            "name": "Professional Fees",
+            "category": "expense",
+            "parent_code": "660000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "660500",
+            "name": "Bank Charges",
+            "category": "expense",
+            "parent_code": "660000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "660600",
+            "name": "Bad Debt Expense",
+            "category": "expense",
+            "parent_code": "660000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "660700",
+            "name": "Loss on Disposal",
+            "category": "expense",
+            "parent_code": "660000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "670000",
+            "name": "Interest Expense",
+            "category": "expense",
+            "parent_code": "600000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "680000",
+            "name": "Income Tax Expense",
+            "category": "expense",
+            "parent_code": "600000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        }
+    ]
 }

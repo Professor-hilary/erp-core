@@ -9,7 +9,8 @@
             "category": "asset",
             "parent_code": null,
             "normal_balance": "dr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": null
         },
         {
             "code": "110000",
@@ -17,7 +18,8 @@
             "category": "asset",
             "parent_code": "100000",
             "normal_balance": "dr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
         },
         {
             "code": "110100",
@@ -25,7 +27,8 @@
             "category": "asset",
             "parent_code": "110000",
             "normal_balance": "dr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "cash"
         },
         {
             "code": "110200",
@@ -33,7 +36,8 @@
             "category": "asset",
             "parent_code": "110000",
             "normal_balance": "dr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
         },
         {
             "code": "110300",
@@ -41,7 +45,8 @@
             "category": "asset",
             "parent_code": "110000",
             "normal_balance": "dr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
         },
         {
             "code": "110301",
@@ -49,7 +54,8 @@
             "category": "asset",
             "parent_code": "110300",
             "normal_balance": "cr",
-            "is_contra": true
+            "is_contra": true,
+            "cash_flow_category": "working-capital"
         },
         {
             "code": "110400",
@@ -57,23 +63,26 @@
             "category": "asset",
             "parent_code": "110000",
             "normal_balance": "dr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
         },
         {
             "code": "110500",
-            "name": "Investment Securities – Trading",
+            "name": "Investment Securities \u2013 Trading",
             "category": "asset",
             "parent_code": "110000",
             "normal_balance": "dr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
         },
         {
             "code": "110600",
-            "name": "Investment Securities – Available for Sale",
+            "name": "Investment Securities \u2013 Available for Sale",
             "category": "asset",
             "parent_code": "110000",
             "normal_balance": "dr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
         },
         {
             "code": "110700",
@@ -81,7 +90,8 @@
             "category": "asset",
             "parent_code": "110000",
             "normal_balance": "dr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
         },
         {
             "code": "110800",
@@ -89,7 +99,8 @@
             "category": "asset",
             "parent_code": "110000",
             "normal_balance": "dr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
         },
         {
             "code": "110900",
@@ -97,7 +108,8 @@
             "category": "asset",
             "parent_code": "110000",
             "normal_balance": "dr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
         },
         {
             "code": "111000",
@@ -105,7 +117,8 @@
             "category": "asset",
             "parent_code": "110000",
             "normal_balance": "dr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
         },
         {
             "code": "111100",
@@ -113,7 +126,8 @@
             "category": "asset",
             "parent_code": "110000",
             "normal_balance": "dr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
         },
         {
             "code": "111300",
@@ -121,7 +135,8 @@
             "category": "asset",
             "parent_code": "110000",
             "normal_balance": "dr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
         },
         {
             "code": "111400",
@@ -129,15 +144,17 @@
             "category": "asset",
             "parent_code": "110000",
             "normal_balance": "dr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
         },
         {
             "code": "111500",
-            "name": "Accounts Receivable – Fees & Commissions",
+            "name": "Accounts Receivable \u2013 Fees & Commissions",
             "category": "asset",
             "parent_code": "110000",
             "normal_balance": "dr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
         },
         {
             "code": "111600",
@@ -145,7 +162,8 @@
             "category": "asset",
             "parent_code": "110000",
             "normal_balance": "dr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
         },
         {
             "code": "111700",
@@ -153,7 +171,8 @@
             "category": "asset",
             "parent_code": "110000",
             "normal_balance": "dr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
         },
         {
             "code": "111800",
@@ -161,7 +180,8 @@
             "category": "asset",
             "parent_code": "110000",
             "normal_balance": "dr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
         },
         {
             "code": "120000",
@@ -169,7 +189,8 @@
             "category": "asset",
             "parent_code": "100000",
             "normal_balance": "dr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "investing"
         },
         {
             "code": "120100",
@@ -177,7 +198,8 @@
             "category": "asset",
             "parent_code": "120000",
             "normal_balance": "dr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "investing"
         },
         {
             "code": "120200",
@@ -185,7 +207,8 @@
             "category": "asset",
             "parent_code": "120000",
             "normal_balance": "cr",
-            "is_contra": true
+            "is_contra": true,
+            "cash_flow_category": "non-cash"
         },
         {
             "code": "120300",
@@ -193,7 +216,8 @@
             "category": "asset",
             "parent_code": "120000",
             "normal_balance": "dr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "investing"
         },
         {
             "code": "120400",
@@ -201,7 +225,8 @@
             "category": "asset",
             "parent_code": "120000",
             "normal_balance": "dr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "investing"
         },
         {
             "code": "120500",
@@ -209,7 +234,8 @@
             "category": "asset",
             "parent_code": "120000",
             "normal_balance": "dr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "investing"
         },
         {
             "code": "120600",
@@ -217,15 +243,17 @@
             "category": "asset",
             "parent_code": "120000",
             "normal_balance": "dr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "investing"
         },
         {
             "code": "120700",
-            "name": "Investment Securities – Held to Maturity",
+            "name": "Investment Securities \u2013 Held to Maturity",
             "category": "asset",
             "parent_code": "120000",
             "normal_balance": "dr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "investing"
         },
         {
             "code": "120800",
@@ -233,7 +261,8 @@
             "category": "asset",
             "parent_code": "120000",
             "normal_balance": "dr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "investing"
         },
         {
             "code": "120900",
@@ -241,7 +270,8 @@
             "category": "asset",
             "parent_code": "120000",
             "normal_balance": "dr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "investing"
         },
         {
             "code": "121000",
@@ -249,7 +279,8 @@
             "category": "asset",
             "parent_code": "120000",
             "normal_balance": "dr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "operating"
         },
         {
             "code": "121100",
@@ -257,7 +288,8 @@
             "category": "asset",
             "parent_code": "120000",
             "normal_balance": "dr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "operating"
         },
         {
             "code": "200000",
@@ -265,7 +297,8 @@
             "category": "liability",
             "parent_code": null,
             "normal_balance": "cr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": null
         },
         {
             "code": "210000",
@@ -273,31 +306,35 @@
             "category": "liability",
             "parent_code": "200000",
             "normal_balance": "cr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
         },
         {
             "code": "210100",
-            "name": "Customer Deposits – Demand",
+            "name": "Customer Deposits \u2013 Demand",
             "category": "liability",
             "parent_code": "210000",
             "normal_balance": "cr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
         },
         {
             "code": "210200",
-            "name": "Customer Deposits – Savings",
+            "name": "Customer Deposits \u2013 Savings",
             "category": "liability",
             "parent_code": "210000",
             "normal_balance": "cr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
         },
         {
             "code": "210300",
-            "name": "Customer Deposits – Short Term",
+            "name": "Customer Deposits \u2013 Short Term",
             "category": "liability",
             "parent_code": "210000",
             "normal_balance": "cr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
         },
         {
             "code": "220000",
@@ -305,15 +342,17 @@
             "category": "liability",
             "parent_code": "200000",
             "normal_balance": "cr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "financing"
         },
         {
             "code": "220100",
-            "name": "Customer Deposits – Long Term",
+            "name": "Customer Deposits \u2013 Long Term",
             "category": "liability",
             "parent_code": "220000",
             "normal_balance": "cr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "financing"
         },
         {
             "code": "210400",
@@ -321,7 +360,8 @@
             "category": "liability",
             "parent_code": "210000",
             "normal_balance": "cr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
         },
         {
             "code": "220200",
@@ -329,7 +369,8 @@
             "category": "liability",
             "parent_code": "220000",
             "normal_balance": "cr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "financing"
         },
         {
             "code": "210500",
@@ -337,7 +378,8 @@
             "category": "liability",
             "parent_code": "210000",
             "normal_balance": "cr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
         },
         {
             "code": "220300",
@@ -345,7 +387,8 @@
             "category": "liability",
             "parent_code": "220000",
             "normal_balance": "cr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "financing"
         },
         {
             "code": "210600",
@@ -353,7 +396,8 @@
             "category": "liability",
             "parent_code": "210000",
             "normal_balance": "cr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
         },
         {
             "code": "220700",
@@ -361,7 +405,8 @@
             "category": "liability",
             "parent_code": "220000",
             "normal_balance": "cr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "financing"
         },
         {
             "code": "220800",
@@ -369,15 +414,17 @@
             "category": "liability",
             "parent_code": "220000",
             "normal_balance": "cr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "financing"
         },
         {
             "code": "210900",
-            "name": "Accounts Payable – Trade & Services",
+            "name": "Accounts Payable \u2013 Trade & Services",
             "category": "liability",
             "parent_code": "210000",
             "normal_balance": "cr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
         },
         {
             "code": "211000",
@@ -385,7 +432,8 @@
             "category": "liability",
             "parent_code": "210000",
             "normal_balance": "cr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
         },
         {
             "code": "211100",
@@ -393,7 +441,8 @@
             "category": "liability",
             "parent_code": "210000",
             "normal_balance": "cr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
         },
         {
             "code": "211200",
@@ -401,7 +450,8 @@
             "category": "liability",
             "parent_code": "210000",
             "normal_balance": "cr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
         },
         {
             "code": "211300",
@@ -409,23 +459,26 @@
             "category": "liability",
             "parent_code": "210000",
             "normal_balance": "cr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
         },
         {
             "code": "211400",
-            "name": "Provisions – Loan Losses",
+            "name": "Provisions \u2013 Loan Losses",
             "category": "liability",
             "parent_code": "210000",
             "normal_balance": "cr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
         },
         {
             "code": "211500",
-            "name": "Provisions – Legal/Contingent",
+            "name": "Provisions \u2013 Legal/Contingent",
             "category": "liability",
             "parent_code": "210000",
             "normal_balance": "cr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
         },
         {
             "code": "211600",
@@ -433,7 +486,8 @@
             "category": "liability",
             "parent_code": "210000",
             "normal_balance": "cr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
         },
         {
             "code": "221700",
@@ -441,7 +495,8 @@
             "category": "liability",
             "parent_code": "220000",
             "normal_balance": "cr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "financing"
         },
         {
             "code": "211800",
@@ -449,7 +504,8 @@
             "category": "liability",
             "parent_code": "210000",
             "normal_balance": "cr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
         },
         {
             "code": "221900",
@@ -457,7 +513,8 @@
             "category": "liability",
             "parent_code": "210000",
             "normal_balance": "cr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "financing"
         },
         {
             "code": "222000",
@@ -465,7 +522,8 @@
             "category": "liability",
             "parent_code": "220000",
             "normal_balance": "cr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "financing"
         },
         {
             "code": "300000",
@@ -473,7 +531,8 @@
             "category": "equity",
             "parent_code": null,
             "normal_balance": "cr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": null
         },
         {
             "code": "310000",
@@ -481,7 +540,8 @@
             "category": "equity",
             "parent_code": "300000",
             "normal_balance": "cr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "financing"
         },
         {
             "code": "320000",
@@ -489,23 +549,26 @@
             "category": "equity",
             "parent_code": "300000",
             "normal_balance": "cr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "financing"
         },
         {
             "code": "330000",
-            "name": "Reserves – Statutory",
+            "name": "Reserves \u2013 Statutory",
             "category": "equity",
             "parent_code": "300000",
             "normal_balance": "cr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "financing"
         },
         {
             "code": "340000",
-            "name": "Reserves – Regulatory",
+            "name": "Reserves \u2013 Regulatory",
             "category": "equity",
             "parent_code": "300000",
             "normal_balance": "cr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "financing"
         },
         {
             "code": "350000",
@@ -513,7 +576,8 @@
             "category": "equity",
             "parent_code": "300000",
             "normal_balance": "cr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "financing"
         },
         {
             "code": "400000",
@@ -521,23 +585,26 @@
             "category": "income",
             "parent_code": null,
             "normal_balance": "cr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": null
         },
         {
             "code": "410000",
-            "name": "Interest Income – Loans",
+            "name": "Interest Income \u2013 Loans",
             "category": "income",
             "parent_code": "400000",
             "normal_balance": "cr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "operating"
         },
         {
             "code": "420000",
-            "name": "Interest Income – Investments",
+            "name": "Interest Income \u2013 Investments",
             "category": "income",
             "parent_code": "400000",
             "normal_balance": "cr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "operating"
         },
         {
             "code": "430000",
@@ -545,7 +612,8 @@
             "category": "income",
             "parent_code": "400000",
             "normal_balance": "cr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "operating"
         },
         {
             "code": "440000",
@@ -553,7 +621,8 @@
             "category": "income",
             "parent_code": "400000",
             "normal_balance": "cr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "operating"
         },
         {
             "code": "450000",
@@ -561,7 +630,8 @@
             "category": "income",
             "parent_code": "400000",
             "normal_balance": "cr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "operating"
         },
         {
             "code": "460000",
@@ -569,7 +639,8 @@
             "category": "income",
             "parent_code": "400000",
             "normal_balance": "cr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "operating"
         },
         {
             "code": "470000",
@@ -577,7 +648,8 @@
             "category": "income",
             "parent_code": "400000",
             "normal_balance": "cr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "operating"
         },
         {
             "code": "480000",
@@ -585,7 +657,8 @@
             "category": "income",
             "parent_code": "400000",
             "normal_balance": "cr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "operating"
         },
         {
             "code": "490000",
@@ -593,7 +666,8 @@
             "category": "income",
             "parent_code": "400000",
             "normal_balance": "cr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "operating"
         },
         {
             "code": "500000",
@@ -601,7 +675,8 @@
             "category": "expense",
             "parent_code": null,
             "normal_balance": "dr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": null
         },
         {
             "code": "510000",
@@ -609,7 +684,8 @@
             "category": "expense",
             "parent_code": "500000",
             "normal_balance": "dr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "operating"
         },
         {
             "code": "520000",
@@ -617,7 +693,8 @@
             "category": "expense",
             "parent_code": "500000",
             "normal_balance": "dr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "operating"
         },
         {
             "code": "530000",
@@ -625,7 +702,8 @@
             "category": "expense",
             "parent_code": "500000",
             "normal_balance": "dr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "operating"
         },
         {
             "code": "540000",
@@ -633,7 +711,8 @@
             "category": "expense",
             "parent_code": "500000",
             "normal_balance": "dr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "operating"
         },
         {
             "code": "550000",
@@ -641,7 +720,8 @@
             "category": "expense",
             "parent_code": "500000",
             "normal_balance": "dr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "operating"
         },
         {
             "code": "560000",
@@ -649,7 +729,8 @@
             "category": "expense",
             "parent_code": "500000",
             "normal_balance": "dr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "operating"
         },
         {
             "code": "570000",
@@ -657,7 +738,8 @@
             "category": "expense",
             "parent_code": "500000",
             "normal_balance": "dr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "operating"
         },
         {
             "code": "580000",
@@ -665,7 +747,8 @@
             "category": "expense",
             "parent_code": "500000",
             "normal_balance": "dr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "operating"
         },
         {
             "code": "600000",
@@ -673,7 +756,8 @@
             "category": "expense",
             "parent_code": null,
             "normal_balance": "dr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": null
         },
         {
             "code": "601000",
@@ -681,7 +765,8 @@
             "category": "expense",
             "parent_code": "600000",
             "normal_balance": "dr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "operating"
         },
         {
             "code": "602000",
@@ -689,7 +774,8 @@
             "category": "expense",
             "parent_code": "600000",
             "normal_balance": "dr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "operating"
         },
         {
             "code": "603000",
@@ -697,7 +783,8 @@
             "category": "expense",
             "parent_code": "600000",
             "normal_balance": "dr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "operating"
         },
         {
             "code": "604000",
@@ -705,7 +792,8 @@
             "category": "expense",
             "parent_code": "600000",
             "normal_balance": "dr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "operating"
         },
         {
             "code": "605000",
@@ -713,7 +801,8 @@
             "category": "expense",
             "parent_code": "600000",
             "normal_balance": "dr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "non-cash"
         },
         {
             "code": "606000",
@@ -721,7 +810,8 @@
             "category": "expense",
             "parent_code": "600000",
             "normal_balance": "dr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "operating"
         },
         {
             "code": "607000",
@@ -729,7 +819,8 @@
             "category": "expense",
             "parent_code": "600000",
             "normal_balance": "dr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "operating"
         },
         {
             "code": "608000",
@@ -737,7 +828,8 @@
             "category": "expense",
             "parent_code": "600000",
             "normal_balance": "dr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "operating"
         },
         {
             "code": "609000",
@@ -745,7 +837,8 @@
             "category": "expense",
             "parent_code": "600000",
             "normal_balance": "dr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "operating"
         },
         {
             "code": "610000",
@@ -753,7 +846,8 @@
             "category": "expense",
             "parent_code": "600000",
             "normal_balance": "dr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "operating"
         },
         {
             "code": "611000",
@@ -761,7 +855,8 @@
             "category": "expense",
             "parent_code": "600000",
             "normal_balance": "dr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "operating"
         },
         {
             "code": "612000",
@@ -769,7 +864,8 @@
             "category": "expense",
             "parent_code": "600000",
             "normal_balance": "dr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "operating"
         },
         {
             "code": "613000",
@@ -777,7 +873,8 @@
             "category": "expense",
             "parent_code": "600000",
             "normal_balance": "dr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "operating"
         },
         {
             "code": "614000",
@@ -785,7 +882,8 @@
             "category": "expense",
             "parent_code": "600000",
             "normal_balance": "dr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "operating"
         },
         {
             "code": "615000",
@@ -793,7 +891,8 @@
             "category": "expense",
             "parent_code": "600000",
             "normal_balance": "dr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "operating"
         },
         {
             "code": "616000",
@@ -801,7 +900,8 @@
             "category": "expense",
             "parent_code": "600000",
             "normal_balance": "dr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "operating"
         },
         {
             "code": "617000",
@@ -809,7 +909,8 @@
             "category": "expense",
             "parent_code": "600000",
             "normal_balance": "dr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "operating"
         },
         {
             "code": "618000",
@@ -817,7 +918,8 @@
             "category": "expense",
             "parent_code": "600000",
             "normal_balance": "dr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "operating"
         },
         {
             "code": "619000",
@@ -825,7 +927,8 @@
             "category": "expense",
             "parent_code": "600000",
             "normal_balance": "dr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "operating"
         },
         {
             "code": "620000",
@@ -833,7 +936,8 @@
             "category": "expense",
             "parent_code": "600000",
             "normal_balance": "dr",
-            "is_contra": false
+            "is_contra": false,
+            "cash_flow_category": "operating"
         }
     ]
 }

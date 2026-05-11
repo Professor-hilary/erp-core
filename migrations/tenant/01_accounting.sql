@@ -31,11 +31,9 @@ CREATE TABLE accounting.accounts (
         )
     ),
     parent_code TEXT REFERENCES accounting.accounts (code) ON DELETE SET NULL, -- FK uses UUID
-    normal_balance TEXT NOT NULL CHECK (
-        normal_balance IN ('cr', 'dr')
-    ), -- 'DR' or 'CR'
+    normal_balance TEXT NOT NULL CHECK ( normal_balance IN ('cr', 'dr')),
     cash_flow_category TEXT CHECK(
-        cash_flow_category IN('Operating', 'Investing', 'Financing', 'Cash', 'Non-Cash')
+        cash_flow_category IN('operating', 'investing', 'financing', 'cash', 'non-cash', 'working-capital')
     ),
     path public.ltree,
     hierarchy_depth smallint GENERATED ALWAYS AS (nlevel (path)) STORED,

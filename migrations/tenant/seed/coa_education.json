@@ -1,1111 +1,1249 @@
 {
-  "industry": "education",
-  "name": "Education & Schools",
-  "description": "Expanded COA for private schools, colleges, universities, and education service providers. Supports tuition tracking, student deposits, grants, departmental cost centers, scholarship tracking, and detailed operating and non-operating accounts.",
-  "accounts": [
-    {
-      "code": "100000",
-      "name": "Assets",
-      "category": "asset",
-      "parent_code": null,
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "110000",
-      "name": "Current Assets",
-      "category": "asset",
-      "parent_code": "100000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "110100",
-      "name": "Cash and Cash Equivalents",
-      "category": "asset",
-      "parent_code": "110000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "110101",
-      "name": "Cash on Hand",
-      "category": "asset",
-      "parent_code": "110100",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "110102",
-      "name": "Petty Cash",
-      "category": "asset",
-      "parent_code": "110100",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "110103",
-      "name": "Bank - Operating",
-      "category": "asset",
-      "parent_code": "110100",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "110104",
-      "name": "Bank - Payroll",
-      "category": "asset",
-      "parent_code": "110100",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "110105",
-      "name": "Bank - Trust & Student Funds",
-      "category": "asset",
-      "parent_code": "110100",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "110200",
-      "name": "Short-term Investments",
-      "category": "asset",
-      "parent_code": "110000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "110300",
-      "name": "Accounts Receivable",
-      "category": "asset",
-      "parent_code": "110000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "110301",
-      "name": "Tuition Fees Receivable",
-      "category": "asset",
-      "parent_code": "110300",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "110302",
-      "name": "Other Student Fees Receivable",
-      "category": "asset",
-      "parent_code": "110300",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "110304",
-      "name": "Allowance for Doubtful Tuition",
-      "category": "asset",
-      "parent_code": "110300",
-      "normal_balance": "cr",
-      "is_contra": true
-    },
-    {
-      "code": "110400",
-      "name": "Inventories",
-      "category": "asset",
-      "parent_code": "110000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "110401",
-      "name": "Inventory - Textbooks",
-      "category": "asset",
-      "parent_code": "110400",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "110402",
-      "name": "Inventory - Uniforms",
-      "category": "asset",
-      "parent_code": "110400",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "110403",
-      "name": "Inventory - Cafeteria Supplies",
-      "category": "asset",
-      "parent_code": "110400",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "110500",
-      "name": "Prepaid Expenses",
-      "category": "asset",
-      "parent_code": "110000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "110501",
-      "name": "Prepaid Insurance",
-      "category": "asset",
-      "parent_code": "110500",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "110502",
-      "name": "Prepaid Rent",
-      "category": "asset",
-      "parent_code": "110500",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "110503",
-      "name": "Prepaid Licenses & Subscriptions",
-      "category": "asset",
-      "parent_code": "110500",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "110600",
-      "name": "Other Current Assets",
-      "category": "asset",
-      "parent_code": "110000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "110601",
-      "name": "Deposits - Utilities",
-      "category": "asset",
-      "parent_code": "110600",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "110602",
-      "name": "Deposits - Rent & Facilities",
-      "category": "asset",
-      "parent_code": "110600",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "120000",
-      "name": "Non-Current Assets",
-      "category": "asset",
-      "parent_code": "100000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "120100",
-      "name": "Property, Plant and Equipment",
-      "category": "asset",
-      "parent_code": "120000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "120101",
-      "name": "Land and Buildings",
-      "category": "asset",
-      "parent_code": "120100",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "120102",
-      "name": "Campus Land",
-      "category": "asset",
-      "parent_code": "120100",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "120103",
-      "name": "Academic Buildings",
-      "category": "asset",
-      "parent_code": "120100",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "120104",
-      "name": "Dormitories",
-      "category": "asset",
-      "parent_code": "120100",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "120105",
-      "name": "Administrative Buildings",
-      "category": "asset",
-      "parent_code": "120100",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "120200",
-      "name": "Computers and IT Equipment",
-      "category": "asset",
-      "parent_code": "120000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "120201",
-      "name": "Servers and Networking",
-      "category": "asset",
-      "parent_code": "120200",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "120202",
-      "name": "Classroom Computers",
-      "category": "asset",
-      "parent_code": "120200",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "120300",
-      "name": "Furniture and Fixtures",
-      "category": "asset",
-      "parent_code": "120000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "120301",
-      "name": "Laboratory Equipment",
-      "category": "asset",
-      "parent_code": "120300",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "120400",
-      "name": "Vehicles",
-      "category": "asset",
-      "parent_code": "120000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "120500",
-      "name": "Library Collections",
-      "category": "asset",
-      "parent_code": "120000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "120600",
-      "name": "Long-term Investments",
-      "category": "asset",
-      "parent_code": "120000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "120700",
-      "name": "Accumulated Depreciation",
-      "category": "asset",
-      "parent_code": "120000",
-      "normal_balance": "cr",
-      "is_contra": true
-    },
-    {
-      "code": "120701",
-      "name": "Acc. Dep. - Buildings",
-      "category": "asset",
-      "parent_code": "120700",
-      "normal_balance": "cr",
-      "is_contra": true
-    },
-    {
-      "code": "120702",
-      "name": "Acc. Dep. - IT Equipment",
-      "category": "asset",
-      "parent_code": "120700",
-      "normal_balance": "cr",
-      "is_contra": true
-    },
-    {
-      "code": "120703",
-      "name": "Acc. Dep. - Vehicles",
-      "category": "asset",
-      "parent_code": "120700",
-      "normal_balance": "cr",
-      "is_contra": true
-    },
-    {
-      "code": "120800",
-      "name": "Intangible Assets",
-      "category": "asset",
-      "parent_code": "120000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "120801",
-      "name": "Software and Licenses",
-      "category": "asset",
-      "parent_code": "120800",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "120900",
-      "name": "Other Non-Current Assets",
-      "category": "asset",
-      "parent_code": "120000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "121000",
-      "name": "Deferred Tax Asset",
-      "category": "asset",
-      "parent_code": "120000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "200000",
-      "name": "Liabilities",
-      "category": "liability",
-      "parent_code": null,
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "210000",
-      "name": "Current Liabilities",
-      "category": "liability",
-      "parent_code": "200000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "210100",
-      "name": "Accounts Payable",
-      "category": "liability",
-      "parent_code": "210000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "210101",
-      "name": "Trade Payables",
-      "category": "liability",
-      "parent_code": "210100",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "210200",
-      "name": "Accrued Expenses",
-      "category": "liability",
-      "parent_code": "210000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "210201",
-      "name": "Accrued Salaries",
-      "category": "liability",
-      "parent_code": "210200",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "210202",
-      "name": "Accrued Vacation Pay",
-      "category": "liability",
-      "parent_code": "210200",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "210300",
-      "name": "Student Deposits",
-      "category": "liability",
-      "parent_code": "210000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "210301",
-      "name": "Caution Money",
-      "category": "liability",
-      "parent_code": "210300",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "210302",
-      "name": "Advance Tuition Paid",
-      "category": "liability",
-      "parent_code": "210300",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "210303",
-      "name": "Dormitory Deposits",
-      "category": "liability",
-      "parent_code": "210300",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "210400",
-      "name": "Payroll Liabilities",
-      "category": "liability",
-      "parent_code": "210000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "210401",
-      "name": "Payroll Taxes Payable",
-      "category": "liability",
-      "parent_code": "210400",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "210402",
-      "name": "Pension Contributions Payable",
-      "category": "liability",
-      "parent_code": "210400",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "210500",
-      "name": "Deferred Revenue",
-      "category": "liability",
-      "parent_code": "210000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "210501",
-      "name": "Deferred Tuition Revenue",
-      "category": "liability",
-      "parent_code": "210500",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "210502",
-      "name": "Deferred Grants",
-      "category": "liability",
-      "parent_code": "210500",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "210600",
-      "name": "Other Current Liabilities",
-      "category": "liability",
-      "parent_code": "210000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "210601",
-      "name": "Unapplied Receipts (Clearing)",
-      "category": "liability",
-      "parent_code": "210600",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "210602",
-      "name": "Student Refunds Payable",
-      "category": "liability",
-      "parent_code": "210600",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "220000",
-      "name": "Non-Current Liabilities",
-      "category": "liability",
-      "parent_code": "200000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "220100",
-      "name": "Long-term Loans",
-      "category": "liability",
-      "parent_code": "220000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "220101",
-      "name": "Bank Loan - Building",
-      "category": "liability",
-      "parent_code": "220100",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "220102",
-      "name": "Bonds Payable",
-      "category": "liability",
-      "parent_code": "220100",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "220103",
-      "name": "Lease Liabilities",
-      "category": "liability",
-      "parent_code": "220000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "220200",
-      "name": "Deferred Tax Liability",
-      "category": "liability",
-      "parent_code": "220000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "220300",
-      "name": "Endowment Obligations",
-      "category": "liability",
-      "parent_code": "220000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "300000",
-      "name": "Equity / Net Assets",
-      "category": "equity",
-      "parent_code": null,
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "310000",
-      "name": "Fund Balances / Owner's Equity",
-      "category": "equity",
-      "parent_code": "300000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "310100",
-      "name": "Capital / Fund - Details",
-      "category": "equity",
-      "parent_code": "310000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "310101",
-      "name": "Fund - Restricted",
-      "category": "equity",
-      "parent_code": "310100",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "310102",
-      "name": "Fund - Unrestricted",
-      "category": "equity",
-      "parent_code": "310100",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "310103",
-      "name": "Fund - Temporarily Restricted",
-      "category": "equity",
-      "parent_code": "310100",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "310200",
-      "name": "Owner's Drawings / Distributions",
-      "category": "equity",
-      "parent_code": "310000",
-      "normal_balance": "dr",
-      "is_contra": true
-    },
-    {
-      "code": "310300",
-      "name": "Retained Earnings / Prior Surplus",
-      "category": "equity",
-      "parent_code": "310000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "310400",
-      "name": "Prior Year Adjustments",
-      "category": "equity",
-      "parent_code": "310000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "310500",
-      "name": "Current Year Surplus / (Deficit)",
-      "category": "equity",
-      "parent_code": "310000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "400000",
-      "name": "Revenue",
-      "category": "income",
-      "parent_code": null,
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "410000",
-      "name": "Tuition and Academic Fees",
-      "category": "income",
-      "parent_code": "400000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "410100",
-      "name": "Term Fees",
-      "category": "income",
-      "parent_code": "410000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "410101",
-      "name": "Term Fees - Undergraduate",
-      "category": "income",
-      "parent_code": "410100",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "410102",
-      "name": "Term Fees - Postgraduate",
-      "category": "income",
-      "parent_code": "410100",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "410103",
-      "name": "Term Fees - Short Courses",
-      "category": "income",
-      "parent_code": "410100",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "410200",
-      "name": "Registration and Admission Fees",
-      "category": "income",
-      "parent_code": "410000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "410300",
-      "name": "Examination Fees",
-      "category": "income",
-      "parent_code": "410000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "410400",
-      "name": "Library Fines and Fees",
-      "category": "income",
-      "parent_code": "410000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "410500",
-      "name": "Laboratory Fees",
-      "category": "income",
-      "parent_code": "410000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "410700",
-      "name": "Online Course Revenue",
-      "category": "income",
-      "parent_code": "410000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "410800",
-      "name": "Continuing Education & Short Course Revenue",
-      "category": "income",
-      "parent_code": "410000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "420000",
-      "name": "Auxiliary Revenue",
-      "category": "income",
-      "parent_code": "400000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "420100",
-      "name": "Boarding and Meals",
-      "category": "income",
-      "parent_code": "420000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "420101",
-      "name": "Cafeteria Sales",
-      "category": "income",
-      "parent_code": "420100",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "420102",
-      "name": "Dormitory Income",
-      "category": "income",
-      "parent_code": "420100",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "420200",
-      "name": "Transport Fees",
-      "category": "income",
-      "parent_code": "420000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "420201",
-      "name": "Bus Fees",
-      "category": "income",
-      "parent_code": "420200",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "420300",
-      "name": "Sales of Uniforms and Books",
-      "category": "income",
-      "parent_code": "420000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "420400",
-      "name": "Facility Rentals",
-      "category": "income",
-      "parent_code": "420000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "420500",
-      "name": "Conference and Event Income",
-      "category": "income",
-      "parent_code": "420000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "430000",
-      "name": "Grants and Donations",
-      "category": "income",
-      "parent_code": "400000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "430100",
-      "name": "Government Grants",
-      "category": "income",
-      "parent_code": "430000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "430101",
-      "name": "Government Operating Grants",
-      "category": "income",
-      "parent_code": "430100",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "430102",
-      "name": "Research Grants (Income)",
-      "category": "income",
-      "parent_code": "430100",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "430200",
-      "name": "PTA & Community Contributions",
-      "category": "income",
-      "parent_code": "430000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "430300",
-      "name": "Private Donations and Endowments",
-      "category": "income",
-      "parent_code": "430000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "430400",
-      "name": "Scholarship Income (recoveries / refunds)",
-      "category": "income",
-      "parent_code": "430000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "440000",
-      "name": "Revenue Adjustments (Contra)",
-      "category": "income",
-      "parent_code": "400000",
-      "normal_balance": "dr",
-      "is_contra": true
-    },
-    {
-      "code": "440100",
-      "name": "Scholarships and Waivers (Contra Income)",
-      "category": "income",
-      "parent_code": "440000",
-      "normal_balance": "dr",
-      "is_contra": true
-    },
-    {
-      "code": "440200",
-      "name": "Discounts and Refunds",
-      "category": "income",
-      "parent_code": "440000",
-      "normal_balance": "dr",
-      "is_contra": true
-    },
-    {
-      "code": "450000",
-      "name": "Interest & Investment Income",
-      "category": "income",
-      "parent_code": "400000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "450100",
-      "name": "Interest Income - Bank",
-      "category": "income",
-      "parent_code": "450000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "450200",
-      "name": "Investment Income - Long Term",
-      "category": "income",
-      "parent_code": "450000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "460000",
-      "name": "Other Income",
-      "category": "income",
-      "parent_code": "400000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "460100",
-      "name": "Miscellaneous Income",
-      "category": "income",
-      "parent_code": "460000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "460200",
-      "name": "Gain on Disposal of Assets",
-      "category": "income",
-      "parent_code": "460000",
-      "normal_balance": "cr",
-      "is_contra": false
-    },
-    {
-      "code": "500000",
-      "name": "Cost of Education Services",
-      "category": "expense",
-      "parent_code": null,
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "510000",
-      "name": "Teaching Staff Costs",
-      "category": "expense",
-      "parent_code": "500000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "510100",
-      "name": "Salaries - Faculty",
-      "category": "expense",
-      "parent_code": "510000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "510101",
-      "name": "Salaries - Professors / Senior Faculty",
-      "category": "expense",
-      "parent_code": "510100",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "510102",
-      "name": "Salaries - Lecturers / Instructors",
-      "category": "expense",
-      "parent_code": "510100",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "510200",
-      "name": "Staff Development and Training",
-      "category": "expense",
-      "parent_code": "510000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "510300",
-      "name": "Teaching Assistants Salaries",
-      "category": "expense",
-      "parent_code": "510000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "510400",
-      "name": "Pension and Benefits - Teaching Staff",
-      "category": "expense",
-      "parent_code": "510000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "520000",
-      "name": "Learning Materials & Academic Supplies",
-      "category": "expense",
-      "parent_code": "500000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "520100",
-      "name": "Textbooks and Stationery",
-      "category": "expense",
-      "parent_code": "520000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "520200",
-      "name": "Laboratory Supplies",
-      "category": "expense",
-      "parent_code": "520000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "520300",
-      "name": "Library Acquisitions",
-      "category": "expense",
-      "parent_code": "520000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "600000",
-      "name": "Operating Expenses",
-      "category": "expense",
-      "parent_code": null,
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "610000",
-      "name": "Administrative Expenses",
-      "category": "expense",
-      "parent_code": "600000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "610100",
-      "name": "Admin Salaries",
-      "category": "expense",
-      "parent_code": "610000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "610200",
-      "name": "Office Supplies",
-      "category": "expense",
-      "parent_code": "610000",
-      "normal_balance": "dr",
-      "is_contra": false
-    },
-    {
-      "code": "610300",
-      "name": "Professional Fees",
-      "category": "expense",
-      "parent_code": "610000",
-      "normal_balance": "dr",
-      "is_contra": false
-    }
-  ]
+    "industry": "education",
+    "name": "Education & Schools",
+    "description": "Expanded COA for private schools, colleges, universities, and education service providers. Supports tuition tracking, student deposits, grants, departmental cost centers, scholarship tracking, and detailed operating and non-operating accounts.",
+    "accounts": [
+        {
+            "code": "100000",
+            "name": "Assets",
+            "category": "asset",
+            "parent_code": null,
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": null
+        },
+        {
+            "code": "110000",
+            "name": "Current Assets",
+            "category": "asset",
+            "parent_code": "100000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "110100",
+            "name": "Cash and Cash Equivalents",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "cash"
+        },
+        {
+            "code": "110101",
+            "name": "Cash on Hand",
+            "category": "asset",
+            "parent_code": "110100",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "cash"
+        },
+        {
+            "code": "110102",
+            "name": "Petty Cash",
+            "category": "asset",
+            "parent_code": "110100",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "cash"
+        },
+        {
+            "code": "110103",
+            "name": "Bank - Operating",
+            "category": "asset",
+            "parent_code": "110100",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "cash"
+        },
+        {
+            "code": "110104",
+            "name": "Bank - Payroll",
+            "category": "asset",
+            "parent_code": "110100",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "cash"
+        },
+        {
+            "code": "110105",
+            "name": "Bank - Trust & Student Funds",
+            "category": "asset",
+            "parent_code": "110100",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "cash"
+        },
+        {
+            "code": "110200",
+            "name": "Short-term Investments",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "110300",
+            "name": "Accounts Receivable",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "110301",
+            "name": "Tuition Fees Receivable",
+            "category": "asset",
+            "parent_code": "110300",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "110302",
+            "name": "Other Student Fees Receivable",
+            "category": "asset",
+            "parent_code": "110300",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "110304",
+            "name": "Allowance for Doubtful Tuition",
+            "category": "asset",
+            "parent_code": "110300",
+            "normal_balance": "cr",
+            "is_contra": true,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "110400",
+            "name": "Inventories",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "110401",
+            "name": "Inventory - Textbooks",
+            "category": "asset",
+            "parent_code": "110400",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "110402",
+            "name": "Inventory - Uniforms",
+            "category": "asset",
+            "parent_code": "110400",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "110403",
+            "name": "Inventory - Cafeteria Supplies",
+            "category": "asset",
+            "parent_code": "110400",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "110500",
+            "name": "Prepaid Expenses",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "110501",
+            "name": "Prepaid Insurance",
+            "category": "asset",
+            "parent_code": "110500",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "110502",
+            "name": "Prepaid Rent",
+            "category": "asset",
+            "parent_code": "110500",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "110503",
+            "name": "Prepaid Licenses & Subscriptions",
+            "category": "asset",
+            "parent_code": "110500",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "110600",
+            "name": "Other Current Assets",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "110601",
+            "name": "Deposits - Utilities",
+            "category": "asset",
+            "parent_code": "110600",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "110602",
+            "name": "Deposits - Rent & Facilities",
+            "category": "asset",
+            "parent_code": "110600",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "120000",
+            "name": "Non-Current Assets",
+            "category": "asset",
+            "parent_code": "100000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "investing"
+        },
+        {
+            "code": "120100",
+            "name": "Property, Plant and Equipment",
+            "category": "asset",
+            "parent_code": "120000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "investing"
+        },
+        {
+            "code": "120101",
+            "name": "Land and Buildings",
+            "category": "asset",
+            "parent_code": "120100",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "investing"
+        },
+        {
+            "code": "120102",
+            "name": "Campus Land",
+            "category": "asset",
+            "parent_code": "120100",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "investing"
+        },
+        {
+            "code": "120103",
+            "name": "Academic Buildings",
+            "category": "asset",
+            "parent_code": "120100",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "investing"
+        },
+        {
+            "code": "120104",
+            "name": "Dormitories",
+            "category": "asset",
+            "parent_code": "120100",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "investing"
+        },
+        {
+            "code": "120105",
+            "name": "Administrative Buildings",
+            "category": "asset",
+            "parent_code": "120100",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "investing"
+        },
+        {
+            "code": "120200",
+            "name": "Computers and IT Equipment",
+            "category": "asset",
+            "parent_code": "120000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "investing"
+        },
+        {
+            "code": "120201",
+            "name": "Servers and Networking",
+            "category": "asset",
+            "parent_code": "120200",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "investing"
+        },
+        {
+            "code": "120202",
+            "name": "Classroom Computers",
+            "category": "asset",
+            "parent_code": "120200",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "investing"
+        },
+        {
+            "code": "120300",
+            "name": "Furniture and Fixtures",
+            "category": "asset",
+            "parent_code": "120000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "investing"
+        },
+        {
+            "code": "120301",
+            "name": "Laboratory Equipment",
+            "category": "asset",
+            "parent_code": "120300",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "investing"
+        },
+        {
+            "code": "120400",
+            "name": "Vehicles",
+            "category": "asset",
+            "parent_code": "120000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "investing"
+        },
+        {
+            "code": "120500",
+            "name": "Library Collections",
+            "category": "asset",
+            "parent_code": "120000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "investing"
+        },
+        {
+            "code": "120600",
+            "name": "Long-term Investments",
+            "category": "asset",
+            "parent_code": "120000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "investing"
+        },
+        {
+            "code": "120700",
+            "name": "Accumulated Depreciation",
+            "category": "asset",
+            "parent_code": "120000",
+            "normal_balance": "cr",
+            "is_contra": true,
+            "cash_flow_category": "non-cash"
+        },
+        {
+            "code": "120701",
+            "name": "Acc. Dep. - Buildings",
+            "category": "asset",
+            "parent_code": "120700",
+            "normal_balance": "cr",
+            "is_contra": true,
+            "cash_flow_category": "non-cash"
+        },
+        {
+            "code": "120702",
+            "name": "Acc. Dep. - IT Equipment",
+            "category": "asset",
+            "parent_code": "120700",
+            "normal_balance": "cr",
+            "is_contra": true,
+            "cash_flow_category": "non-cash"
+        },
+        {
+            "code": "120703",
+            "name": "Acc. Dep. - Vehicles",
+            "category": "asset",
+            "parent_code": "120700",
+            "normal_balance": "cr",
+            "is_contra": true,
+            "cash_flow_category": "non-cash"
+        },
+        {
+            "code": "120800",
+            "name": "Intangible Assets",
+            "category": "asset",
+            "parent_code": "120000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "investing"
+        },
+        {
+            "code": "120801",
+            "name": "Software and Licenses",
+            "category": "asset",
+            "parent_code": "120800",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "investing"
+        },
+        {
+            "code": "120900",
+            "name": "Other Non-Current Assets",
+            "category": "asset",
+            "parent_code": "120000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "investing"
+        },
+        {
+            "code": "121000",
+            "name": "Deferred Tax Asset",
+            "category": "asset",
+            "parent_code": "120000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "200000",
+            "name": "Liabilities",
+            "category": "liability",
+            "parent_code": null,
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": null
+        },
+        {
+            "code": "210000",
+            "name": "Current Liabilities",
+            "category": "liability",
+            "parent_code": "200000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "210100",
+            "name": "Accounts Payable",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "210101",
+            "name": "Trade Payables",
+            "category": "liability",
+            "parent_code": "210100",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "210200",
+            "name": "Accrued Expenses",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "210201",
+            "name": "Accrued Salaries",
+            "category": "liability",
+            "parent_code": "210200",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "210202",
+            "name": "Accrued Vacation Pay",
+            "category": "liability",
+            "parent_code": "210200",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "210300",
+            "name": "Student Deposits",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "210301",
+            "name": "Caution Money",
+            "category": "liability",
+            "parent_code": "210300",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "210302",
+            "name": "Advance Tuition Paid",
+            "category": "liability",
+            "parent_code": "210300",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "210303",
+            "name": "Dormitory Deposits",
+            "category": "liability",
+            "parent_code": "210300",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "210400",
+            "name": "Payroll Liabilities",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "210401",
+            "name": "Payroll Taxes Payable",
+            "category": "liability",
+            "parent_code": "210400",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "210402",
+            "name": "Pension Contributions Payable",
+            "category": "liability",
+            "parent_code": "210400",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "210500",
+            "name": "Deferred Revenue",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "210501",
+            "name": "Deferred Tuition Revenue",
+            "category": "liability",
+            "parent_code": "210500",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "210502",
+            "name": "Deferred Grants",
+            "category": "liability",
+            "parent_code": "210500",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "210600",
+            "name": "Other Current Liabilities",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "210601",
+            "name": "Unapplied Receipts (Clearing)",
+            "category": "liability",
+            "parent_code": "210600",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "210602",
+            "name": "Student Refunds Payable",
+            "category": "liability",
+            "parent_code": "210600",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
+        {
+            "code": "220000",
+            "name": "Non-Current Liabilities",
+            "category": "liability",
+            "parent_code": "200000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "financing"
+        },
+        {
+            "code": "220100",
+            "name": "Long-term Loans",
+            "category": "liability",
+            "parent_code": "220000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "financing"
+        },
+        {
+            "code": "220101",
+            "name": "Bank Loan - Building",
+            "category": "liability",
+            "parent_code": "220100",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "financing"
+        },
+        {
+            "code": "220102",
+            "name": "Bonds Payable",
+            "category": "liability",
+            "parent_code": "220100",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "financing"
+        },
+        {
+            "code": "220103",
+            "name": "Lease Liabilities",
+            "category": "liability",
+            "parent_code": "220000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "financing"
+        },
+        {
+            "code": "220200",
+            "name": "Deferred Tax Liability",
+            "category": "liability",
+            "parent_code": "220000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "financing"
+        },
+        {
+            "code": "220300",
+            "name": "Endowment Obligations",
+            "category": "liability",
+            "parent_code": "220000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "financing"
+        },
+        {
+            "code": "300000",
+            "name": "Equity / Net Assets",
+            "category": "equity",
+            "parent_code": null,
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": null
+        },
+        {
+            "code": "310000",
+            "name": "Fund Balances / Owner's Equity",
+            "category": "equity",
+            "parent_code": "300000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "financing"
+        },
+        {
+            "code": "310100",
+            "name": "Capital / Fund - Details",
+            "category": "equity",
+            "parent_code": "310000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "financing"
+        },
+        {
+            "code": "310101",
+            "name": "Fund - Restricted",
+            "category": "equity",
+            "parent_code": "310100",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "financing"
+        },
+        {
+            "code": "310102",
+            "name": "Fund - Unrestricted",
+            "category": "equity",
+            "parent_code": "310100",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "financing"
+        },
+        {
+            "code": "310103",
+            "name": "Fund - Temporarily Restricted",
+            "category": "equity",
+            "parent_code": "310100",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "financing"
+        },
+        {
+            "code": "310200",
+            "name": "Owner's Drawings / Distributions",
+            "category": "equity",
+            "parent_code": "310000",
+            "normal_balance": "dr",
+            "is_contra": true,
+            "cash_flow_category": "financing"
+        },
+        {
+            "code": "310300",
+            "name": "Retained Earnings / Prior Surplus",
+            "category": "equity",
+            "parent_code": "310000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "financing"
+        },
+        {
+            "code": "310400",
+            "name": "Prior Year Adjustments",
+            "category": "equity",
+            "parent_code": "310000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "financing"
+        },
+        {
+            "code": "310500",
+            "name": "Current Year Surplus / (Deficit)",
+            "category": "equity",
+            "parent_code": "310000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "financing"
+        },
+        {
+            "code": "400000",
+            "name": "Revenue",
+            "category": "income",
+            "parent_code": null,
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": null
+        },
+        {
+            "code": "410000",
+            "name": "Tuition and Academic Fees",
+            "category": "income",
+            "parent_code": "400000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "410100",
+            "name": "Term Fees",
+            "category": "income",
+            "parent_code": "410000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "410101",
+            "name": "Term Fees - Undergraduate",
+            "category": "income",
+            "parent_code": "410100",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "410102",
+            "name": "Term Fees - Postgraduate",
+            "category": "income",
+            "parent_code": "410100",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "410103",
+            "name": "Term Fees - Short Courses",
+            "category": "income",
+            "parent_code": "410100",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "410200",
+            "name": "Registration and Admission Fees",
+            "category": "income",
+            "parent_code": "410000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "410300",
+            "name": "Examination Fees",
+            "category": "income",
+            "parent_code": "410000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "410400",
+            "name": "Library Fines and Fees",
+            "category": "income",
+            "parent_code": "410000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "410500",
+            "name": "Laboratory Fees",
+            "category": "income",
+            "parent_code": "410000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "410700",
+            "name": "Online Course Revenue",
+            "category": "income",
+            "parent_code": "410000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "410800",
+            "name": "Continuing Education & Short Course Revenue",
+            "category": "income",
+            "parent_code": "410000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "420000",
+            "name": "Auxiliary Revenue",
+            "category": "income",
+            "parent_code": "400000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "420100",
+            "name": "Boarding and Meals",
+            "category": "income",
+            "parent_code": "420000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "420101",
+            "name": "Cafeteria Sales",
+            "category": "income",
+            "parent_code": "420100",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "420102",
+            "name": "Dormitory Income",
+            "category": "income",
+            "parent_code": "420100",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "420200",
+            "name": "Transport Fees",
+            "category": "income",
+            "parent_code": "420000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "420201",
+            "name": "Bus Fees",
+            "category": "income",
+            "parent_code": "420200",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "420300",
+            "name": "Sales of Uniforms and Books",
+            "category": "income",
+            "parent_code": "420000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "420400",
+            "name": "Facility Rentals",
+            "category": "income",
+            "parent_code": "420000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "420500",
+            "name": "Conference and Event Income",
+            "category": "income",
+            "parent_code": "420000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "430000",
+            "name": "Grants and Donations",
+            "category": "income",
+            "parent_code": "400000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "430100",
+            "name": "Government Grants",
+            "category": "income",
+            "parent_code": "430000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "430101",
+            "name": "Government Operating Grants",
+            "category": "income",
+            "parent_code": "430100",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "430102",
+            "name": "Research Grants (Income)",
+            "category": "income",
+            "parent_code": "430100",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "430200",
+            "name": "PTA & Community Contributions",
+            "category": "income",
+            "parent_code": "430000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "430300",
+            "name": "Private Donations and Endowments",
+            "category": "income",
+            "parent_code": "430000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "430400",
+            "name": "Scholarship Income (recoveries / refunds)",
+            "category": "income",
+            "parent_code": "430000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "440000",
+            "name": "Revenue Adjustments (Contra)",
+            "category": "income",
+            "parent_code": "400000",
+            "normal_balance": "dr",
+            "is_contra": true,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "440100",
+            "name": "Scholarships and Waivers (Contra Income)",
+            "category": "income",
+            "parent_code": "440000",
+            "normal_balance": "dr",
+            "is_contra": true,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "440200",
+            "name": "Discounts and Refunds",
+            "category": "income",
+            "parent_code": "440000",
+            "normal_balance": "dr",
+            "is_contra": true,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "450000",
+            "name": "Interest & Investment Income",
+            "category": "income",
+            "parent_code": "400000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "450100",
+            "name": "Interest Income - Bank",
+            "category": "income",
+            "parent_code": "450000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "450200",
+            "name": "Investment Income - Long Term",
+            "category": "income",
+            "parent_code": "450000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "460000",
+            "name": "Other Income",
+            "category": "income",
+            "parent_code": "400000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "460100",
+            "name": "Miscellaneous Income",
+            "category": "income",
+            "parent_code": "460000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "460200",
+            "name": "Gain on Disposal of Assets",
+            "category": "income",
+            "parent_code": "460000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "500000",
+            "name": "Cost of Education Services",
+            "category": "expense",
+            "parent_code": null,
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": null
+        },
+        {
+            "code": "510000",
+            "name": "Teaching Staff Costs",
+            "category": "expense",
+            "parent_code": "500000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "510100",
+            "name": "Salaries - Faculty",
+            "category": "expense",
+            "parent_code": "510000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "510101",
+            "name": "Salaries - Professors / Senior Faculty",
+            "category": "expense",
+            "parent_code": "510100",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "510102",
+            "name": "Salaries - Lecturers / Instructors",
+            "category": "expense",
+            "parent_code": "510100",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "510200",
+            "name": "Staff Development and Training",
+            "category": "expense",
+            "parent_code": "510000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "510300",
+            "name": "Teaching Assistants Salaries",
+            "category": "expense",
+            "parent_code": "510000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "510400",
+            "name": "Pension and Benefits - Teaching Staff",
+            "category": "expense",
+            "parent_code": "510000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "520000",
+            "name": "Learning Materials & Academic Supplies",
+            "category": "expense",
+            "parent_code": "500000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "520100",
+            "name": "Textbooks and Stationery",
+            "category": "expense",
+            "parent_code": "520000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "520200",
+            "name": "Laboratory Supplies",
+            "category": "expense",
+            "parent_code": "520000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "520300",
+            "name": "Library Acquisitions",
+            "category": "expense",
+            "parent_code": "520000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "600000",
+            "name": "Operating Expenses",
+            "category": "expense",
+            "parent_code": null,
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": null
+        },
+        {
+            "code": "610000",
+            "name": "Administrative Expenses",
+            "category": "expense",
+            "parent_code": "600000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "610100",
+            "name": "Admin Salaries",
+            "category": "expense",
+            "parent_code": "610000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "610200",
+            "name": "Office Supplies",
+            "category": "expense",
+            "parent_code": "610000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        },
+        {
+            "code": "610300",
+            "name": "Professional Fees",
+            "category": "expense",
+            "parent_code": "610000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "operating"
+        }
+    ]
 }
