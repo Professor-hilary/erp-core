@@ -293,7 +293,7 @@ impl CompanyService {
             let result: Result<sqlx::postgres::PgQueryResult, sqlx::Error> = sqlx::query(
                 r#"
             INSERT INTO accounting.accounts (
-                code, name, category, parent_code, normal_balance, is_contra
+                code, name, category, parent_code, normal_balance, is_contra, cash_flow_category
             ) VALUES ($1, $2, $3, $4, $5, $6)
             ON CONFLICT (code) DO NOTHING
             "#,
@@ -304,6 +304,7 @@ impl CompanyService {
             .bind(&entry.parent_code)
             .bind(&entry.normal_balance)
             .bind(entry.is_contra)
+            .bind(entry.cash_flow_category.clone())
             .execute(tenant_pool)
             .await;
 
@@ -319,6 +320,7 @@ impl CompanyService {
                     eprintln!("Name: {}", entry.name);
                     eprintln!("Category: {}", entry.category);
                     eprintln!("Parent code: {:?}", entry.parent_code);
+                    eprintln!("Cash Flow Category: {:?}", entry.cash_flow_category);
                     eprintln!("Error: {e}");
                     eprintln!("Full sqlx error: {e:?}\n");
                     return Err(AppError::Internal(format!(

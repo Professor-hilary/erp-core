@@ -533,7 +533,7 @@ impl ReportRepository for PostgresReportRepo {
                 FROM accounting.transaction_entries te
                 JOIN accounting.accounts acc
                     ON acc.uuid = te.account_uuid
-                WHERE acc.is_cash_account = true
+                WHERE acc.cash_flow_category = 'cash'
                 AND te.created_at BETWEEN $1 AND $2
             ),
 
@@ -555,7 +555,7 @@ impl ReportRepository for PostgresReportRepo {
             JOIN accounting.accounts acc
                 ON acc.uuid = p.opposite_account_uuid
             WHERE acc.cash_flow_category IS NOT NULL
-                AND acc.is_cash_account = false
+                AND acc.cash_flow_category != 'cash'
             GROUP BY acc.cash_flow_category
             "#,
         )
@@ -574,7 +574,7 @@ impl ReportRepository for PostgresReportRepo {
             FROM accounting,transaction_entries te
             JOIN accounting.accounts acc
                 ON acc.uuid = te.account_uuid
-            WHERE acc.is_cash_account = true
+            WHERE acc.cash_flow_category = 'cash'
                 AND te.created_at < $1
             "#,
         )

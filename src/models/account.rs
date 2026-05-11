@@ -19,6 +19,7 @@ pub struct Account {
     pub created_at: DateTime<Utc>,   // Required, Auto_gen
     pub updated_at: DateTime<Utc>,   // Required, Auto_gen
     pub category: String,            // Required
+    pub cash_flow_category: Option<String>, // Optional, Null Default
 }
 
 #[derive(Debug, Deserialize, FromRow)]
@@ -29,6 +30,7 @@ pub struct CreateAccount {
     pub normal_balance: String,
     pub parent_code: String,
     pub is_contra: bool,
+    pub cash_flow_category: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -37,6 +39,7 @@ pub struct ChartOfAccountsEntry {
     pub name: String,
     pub category: String,
     pub parent_code: Option<String>,
+    pub cash_flow_category: Option<String>,
     pub normal_balance: String,
     pub is_contra: bool,
 }
