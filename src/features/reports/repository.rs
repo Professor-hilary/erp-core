@@ -526,10 +526,10 @@ impl ReportRepository for PostgresReportRepo {
             WITH cash_entries AS (
                 SELECT
                     te.transaction_uuid,
-                    te.action_uuid,
+                    te.account_uuid,
                     te.debit,
                     te.credit,
-                    te.credit_at
+                    te.created_at
                 FROM accounting.transaction_entries te
                 JOIN accounting.accounts acc
                     ON acc.uuid = te.account_uuid
@@ -537,7 +537,7 @@ impl ReportRepository for PostgresReportRepo {
                 AND te.created_at BETWEEN $1 AND $2
             ),
 
-            pared_entries AS (
+            paired_entries AS (
                 SELECT
                     c.transaction_uuid,
                     other.account_uuid AS opposite_account_uuid,
@@ -571,7 +571,7 @@ impl ReportRepository for PostgresReportRepo {
             r#"
             SELECT
                 COALESCE(SUM(te.debit - te.credit), 0) AS opening_cash
-            FROM accounting,transaction_entries te
+            FROM accounting.transaction_entries te
             JOIN accounting.accounts acc
                 ON acc.uuid = te.account_uuid
             WHERE acc.cash_flow_category = 'cash'
