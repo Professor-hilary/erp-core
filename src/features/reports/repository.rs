@@ -521,7 +521,7 @@ impl ReportRepository for PostgresReportRepo {
         //=============================================================================
         // 1. Get grouped cash flow movements
         //=============================================================================
-        let rows: Vec<CashFlowRow> = sqlx::query_as::<_, CashFlowRow>(
+        let rows: Vec<FlatAccount> = sqlx::query_as::<_, FlatAccount>(
             r#"
             WITH cash_entries AS (
                 SELECT
@@ -541,7 +541,10 @@ impl ReportRepository for PostgresReportRepo {
                 SELECT
                     c.transaction_uuid,
                     other.account_uuid AS opposite_account_uuid,
-                    (c.debit - c.credit) AS cash_effect
+                CASE
+                    WHEN c.debit > 0 THEN c.debit
+                    ELSE -c.credit
+                END AS cash_effect
                 FROM cash_entries c
                 JOIN accounting.transaction_entries other
                     ON other.transaction_uuid = c.transaction_uuid
@@ -549,14 +552,17 @@ impl ReportRepository for PostgresReportRepo {
             )
 
             SELECT
-                acc.cash_flow_category,
-                COALESCE(SUM(p.cash_effect), 0) AS total
+                acc.code, acc.name, acc.parent_code, acc.cash_flow_category AS category,
+                COALESCE(SUM(p.cash_effect), 0) AS balance
             FROM paired_entries p
             JOIN accounting.accounts acc
                 ON acc.uuid = p.opposite_account_uuid
             WHERE acc.cash_flow_category IS NOT NULL
                 AND acc.cash_flow_category != 'cash'
-            GROUP BY acc.cash_flow_category
+                AND acc.cash_flow_category != 'non-cash'
+            GROUP BY acc.code, acc.name, acc.parent_code, acc.cash_flow_category
+
+            ORDER BY acc.code
             "#,
         )
         .bind(period_start)
@@ -585,61 +591,144 @@ impl ReportRepository for PostgresReportRepo {
         //=============================================================================
         // 3. Build categorized totals
         //=============================================================================
-        let mut operating: BigDecimal = BigDecimal::from(0);
-        let mut investing: BigDecimal = BigDecimal::from(0);
-        let mut financing: BigDecimal = BigDecimal::from(0);
+
+        let mut nodes: HashMap<String, Node> = HashMap::new();
+        let mut children_map: HashMap<String, Vec<String>> = HashMap::new();
 
         for row in rows {
-            let category: String = row.cash_flow_category.unwrap_or("Unknown".to_string());
+            // let category: String = row.cash_flow_category.unwrap_or("Unknown".to_string());
 
-            match category.as_str() {
-                "Operating" => {
-                    operating += row.total;
-                }
+            nodes.insert(
+                row.code.clone(),
+                Node {
+                    code: row.code.clone(),
+                    name: row.name.clone(),
+                    category: row.category.clone(),
+                    total: row.balance.clone(),
+                    children: vec![],
+                },
+            );
 
-                "Investing" => {
-                    investing += row.total;
-                }
-
-                "Financing" => {
-                    financing += row.total;
-                }
-
-                _ => {}
+            if let Some(parent) = &row.parent_code {
+                children_map
+                    .entry(parent.clone())
+                    .or_default()
+                    .push(row.code.clone());
             }
         }
 
         //=============================================================================
-        // 4. Compute cash totals as at period start and end
+        // 4. Recursive build
         //=============================================================================
-        let net_cash_flow: BigDecimal = operating.clone() + investing.clone() + financing.clone();
+        // let net_cash_flow: BigDecimal = operating.clone() + investing.clone() + financing.clone();
 
+        // let closing_cash: BigDecimal = opening.opening_cash.clone() + net_cash_flow.clone();
+
+        fn build(
+            code: &str,
+            nodes: &mut HashMap<String, Node>,
+            children_map: &HashMap<String, Vec<String>>,
+        ) -> Option<Node> {
+            let mut node = nodes.remove(code)?;
+
+            if let Some(children) = children_map.get(code) {
+                for child_code in children {
+                    if let Some(child) = build(child_code, nodes, children_map) {
+                        node.total += child.total.clone();
+                        node.children.push(child);
+                    }
+                }
+            }
+
+            // prune empty branches
+            if node.total.abs() < BigDecimal::from(1) / BigDecimal::from(100)
+                && node.children.is_empty()
+            {
+                None
+            } else {
+                Some(node)
+            }
+        }
+
+        //=============================================================================
+        // 5. Find roots
+        //=============================================================================
+        let root_codes: Vec<String> = nodes
+            .keys()
+            .filter(|code| {
+                !children_map
+                    .values()
+                    .any(|children| children.contains(code))
+            })
+            .cloned()
+            .collect();
+
+        //=============================================================================
+        // 6. Build final statement tree
+        //=============================================================================
+
+        let mut operating_children: Vec<Node> = vec![];
+        let mut investing_children: Vec<Node> = vec![];
+        let mut financing_children: Vec<Node> = vec![];
+
+        let mut operating_total: BigDecimal = BigDecimal::from(0);
+        let mut investing_total: BigDecimal = BigDecimal::from(0);
+        let mut financing_total: BigDecimal = BigDecimal::from(0);
+
+        for code in root_codes {
+            if let Some(tree) = build(&code, &mut nodes, &children_map) {
+                match tree.category.as_str() {
+                    "Operating" => {
+                        operating_total += tree.total.clone();
+                        operating_children.push(tree);
+                    }
+
+                    "Investing" => {
+                        investing_total += tree.total.clone();
+                        investing_children.push(tree);
+                    }
+
+                    "Financing" => {
+                        financing_total += tree.total.clone();
+                        financing_children.push(tree);
+                    }
+
+                    _ => {}
+                }
+            }
+        }
+
+        //=============================================================================
+        // 7. Total
+        //=============================================================================
+        let net_cash_flow: BigDecimal =
+            operating_total.clone() + investing_total.clone() + financing_total.clone();
         let closing_cash: BigDecimal = opening.opening_cash.clone() + net_cash_flow.clone();
 
         //=============================================================================
-        // 5. Build final statement tree
+        // 8. Build final statement tree
         //=============================================================================
         let result: Vec<Node> = vec![
             Node {
                 code: "OPERATING".to_string(),
                 name: "Operating Activities".to_string(),
                 category: "cashflow".to_string(),
-                total: operating,
-                children: vec![],
+                total: operating_total,
+                children: operating_children,
             },
             Node {
                 code: "INVESTING".to_string(),
                 name: "Investing Activities".to_string(),
                 category: "cashflow".to_string(),
-                total: investing,
-                children: vec![],
+                total: investing_total,
+                children: investing_children,
             },
             Node {
                 code: "FINANCING".to_string(),
-                name: "FInancing Activities".to_string(),
+                name: "Financing Activities".to_string(),
                 category: "cashflow".to_string(),
-                total: financing,
-                children: vec![],
+                total: financing_total,
+                children: financing_children,
             },
             Node {
                 code: "NET_CASH_FLOW".to_string(),
