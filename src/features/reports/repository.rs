@@ -541,10 +541,10 @@ impl ReportRepository for PostgresReportRepo {
                 SELECT
                     c.transaction_uuid,
                     other.account_uuid AS opposite_account_uuid,
-                CASE
-                    WHEN c.debit > 0 THEN c.debit
-                    ELSE -c.credit
-                END AS cash_effect
+                    CASE
+                        WHEN c.debit > 0 THEN c.debit
+                        ELSE -c.credit
+                    END AS cash_effect
                 FROM cash_entries c
                 JOIN accounting.transaction_entries other
                     ON other.transaction_uuid = c.transaction_uuid
@@ -552,7 +552,12 @@ impl ReportRepository for PostgresReportRepo {
             )
 
             SELECT
-                acc.code, acc.name, acc.parent_code, acc.cash_flow_category AS category,
+                acc.code,
+                acc.name,
+                acc.parent_code,
+                acc.normal_balance,
+                acc.is_contra,
+                acc.cash_flow_category AS category,
                 COALESCE(SUM(p.cash_effect), 0) AS balance
             FROM paired_entries p
             JOIN accounting.accounts acc
@@ -560,7 +565,13 @@ impl ReportRepository for PostgresReportRepo {
             WHERE acc.cash_flow_category IS NOT NULL
                 AND acc.cash_flow_category != 'cash'
                 AND acc.cash_flow_category != 'non-cash'
-            GROUP BY acc.code, acc.name, acc.parent_code, acc.cash_flow_category
+            GROUP BY
+                acc.code,
+                acc.name,
+                acc.parent_code,
+                acc.normal_balance,
+                acc.is_contra,
+                acc.cash_flow_category
 
             ORDER BY acc.code
             "#,
@@ -595,7 +606,7 @@ impl ReportRepository for PostgresReportRepo {
         let mut nodes: HashMap<String, Node> = HashMap::new();
         let mut children_map: HashMap<String, Vec<String>> = HashMap::new();
 
-        for row in rows {
+        for row in &rows {
             // let category: String = row.cash_flow_category.unwrap_or("Unknown".to_string());
 
             nodes.insert(
@@ -653,15 +664,20 @@ impl ReportRepository for PostgresReportRepo {
         //=============================================================================
         // 5. Find roots
         //=============================================================================
-        let root_codes: Vec<String> = nodes
-            .keys()
-            .filter(|code| {
-                !children_map
-                    .values()
-                    .any(|children| children.contains(code))
+        let root_codes: Vec<String> = rows
+            .iter()
+            .filter(|row| match &row.parent_code {
+                Some(parent) => !nodes.contains_key(parent),
+                None => true,
             })
-            .cloned()
+            .map(|row| row.code.clone())
             .collect();
+
+        print!(
+            "Number of codes {}, Number of nodes {}",
+            root_codes.len(),
+            nodes.len()
+        );
 
         //=============================================================================
         // 6. Build final statement tree
@@ -676,6 +692,7 @@ impl ReportRepository for PostgresReportRepo {
         let mut financing_total: BigDecimal = BigDecimal::from(0);
 
         for code in root_codes {
+            print!("Code: {}", code);
             if let Some(tree) = build(&code, &mut nodes, &children_map) {
                 match tree.category.as_str() {
                     "Operating" => {
