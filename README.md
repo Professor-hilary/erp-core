@@ -611,11 +611,145 @@ curl -sX POST http://127.0.0.1:8080/api/vendors/create/bill \
 }' | jq
 ```
 
-┌──(zeus㉿skywalker)-[~/Documents/Projects/Rust/erp-core]
-└─$ curl -sX POST http://127.0.0.1:8080/api/manufacturing/apply/labor-cost -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" -d '{"production_order_uuid":"019c8bc8-24a2-7279-a867-e2e18def98c9", "wip_account_code":"122000", "rate_per_hour":"3000", "hours":"12", "is_direct":true, "control_account_code":"540000", "renumeration_code":"212000", "reference":"Assembly team test"}' | jq
 {
-  "error": "Internal Server Error",
-  "message": "Database error: error returned from database: invalid input syntax for type uuid: \"24\"",
-  "status": 500
+  "status": 200,
+  "message": "Direct Cash Flow Report Generated",
+  "data": [
+    {
+      "category": "cashflow",
+      "children": [
+        {
+          "category": "operating",
+          "children": [],
+          "code": "540800",
+          "name": "Water & Gas - Factory",
+          "total": "-350000"
+        },
+        {
+          "category": "operating",
+          "children": [],
+          "code": "620200",
+          "name": "Office Rent",
+          "total": "-5000000"
+        },
+        {
+          "category": "operating",
+          "children": [],
+          "code": "540600",
+          "name": "Maintenance & Repairs",
+          "total": "-750000"
+        },
+        {
+          "category": "working-capital",
+          "children": [],
+          "code": "210301",
+          "name": "Output VAT Payable",
+          "total": "35133789.3278609544528690"
+        },
+        {
+          "category": "operating",
+          "children": [],
+          "code": "540000",
+          "name": "Manufacturing Overhead",
+          "total": "-13350000"
+        },
+        {
+          "category": "operating",
+          "children": [],
+          "code": "620500",
+          "name": "Telephone & Internet",
+          "total": "-200000"
+        },
+        {
+          "category": "operating",
+          "children": [],
+          "code": "510100",
+          "name": "Raw Materials Purchases",
+          "total": "168283105.3360695227717070"
+        },
+        {
+          "category": "working-capital",
+          "children": [],
+          "code": "210100",
+          "name": "Accounts Payable",
+          "total": "-19999999.9999999999998000"
+        },
+        {
+          "category": "working-capital",
+          "children": [],
+          "code": "110805",
+          "name": "Input VAT",
+          "total": "-50777999.9999999999988716"
+        },
+        {
+          "category": "working-capital",
+          "children": [],
+          "code": "110701",
+          "name": "Raw Materials Inventory",
+          "total": "-113816894.6639304772294214"
+        }
+      ],
+      "code": "OPERATING",
+      "name": "Cash Flows from Operating Activities",
+      "total": "-828000.0000000000035170"
+    },
+    {
+      "category": "cashflow",
+      "children": [
+        {
+          "category": "investing",
+          "children": [],
+          "code": "120102",
+          "name": "Factory Building",
+          "total": "-40000000.0000000000002000"
+        }
+      ],
+      "code": "INVESTING",
+      "name": "Cash Flows from Investing Activities",
+      "total": "-40000000.0000000000002000"
+    },
+    {
+      "category": "cashflow",
+      "children": [
+        {
+          "category": "financing",
+          "children": [],
+          "code": "310100",
+          "name": "Owner's Capital",
+          "total": "530000000"
+        },
+        {
+          "category": "financing",
+          "children": [],
+          "code": "220100",
+          "name": "Long-Term Bank Loan",
+          "total": "85000000"
+        }
+      ],
+      "code": "FINANCING",
+      "name": "Cash Flows from Financing Activities",
+      "total": "615000000"
+    },
+    {
+      "category": "computed",
+      "children": [],
+      "code": "NET_CASH_FLOW",
+      "name": "Net Increase / (Decrease) in Cash",
+      "total": "574171999.9999999999962830"
+    },
+    {
+      "category": "computed",
+      "children": [],
+      "code": "OPENING_CASH",
+      "name": "Cash at Beginning of Period",
+      "total": "0"
+    },
+    {
+      "category": "computed",
+      "children": [],
+      "code": "CLOSING_CASH",
+      "name": "Cash at End of Period",
+      "total": "574171999.9999999999962830"
+    }
+  ]
 }
-
