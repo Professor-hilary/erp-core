@@ -489,70 +489,101 @@ impl ReportRepository for PostgresReportRepo {
         //=============================================================================
         let rows: Vec<FlatAccount> = sqlx::query_as::<_, FlatAccount>(
             r#"
+
                 WITH txn_cash AS (
                     SELECT
-                      te.transaction_uuid,
+                        te.transaction_uuid,
 
-                      SUM(te.debit - te.credit) AS cash_delta
+                        SUM(te.debit - te.credit) AS cash_delta
 
                     FROM accounting.transaction_entries te
                     JOIN accounting.accounts acc
-                      ON acc.uuid = te.account_uuid
+                        ON acc.uuid = te.account_uuid
 
                     WHERE acc.cash_flow_category = 'cash'
-                      AND te.created_at >= $1
-                      AND te.created_at < ($2 + INTERVAL '1 day')
+                    AND te.created_at >= $1
+                    AND te.created_at < ($2 + INTERVAL '1 day')
 
                     GROUP BY te.transaction_uuid
                 ),
 
-                txn_counterparts AS (
+                counterpart_lines AS (
                     SELECT
                         te.transaction_uuid,
-                        acc.uuid AS account_uuid,
+                        te.account_uuid,
+
                         acc.code,
                         acc.name,
                         acc.parent_code,
                         acc.normal_balance,
                         acc.is_contra,
-                        acc.cash_flow_category AS category
+                        acc.cash_flow_category AS category,
+
+                        ABS(te.debit - te.credit) AS line_amount
 
                     FROM accounting.transaction_entries te
                     JOIN accounting.accounts acc
                         ON acc.uuid = te.account_uuid
 
                     WHERE acc.cash_flow_category IS NOT NULL
-                      AND acc.cash_flow_category != 'cash'
-                      AND acc.cash_flow_category != 'non-cash'
+                    AND acc.cash_flow_category != 'cash'
+                    AND acc.cash_flow_category != 'non-cash'
+                ),
+
+                counterpart_totals AS (
+                    SELECT
+                        transaction_uuid,
+
+                        SUM(line_amount) AS total_amount
+
+                    FROM counterpart_lines
+
+                    GROUP BY transaction_uuid
                 ),
 
                 classified_movements AS (
-                  SELECT
-                    cp.account_uuid,
-                    cp.code,
-                    cp.name,
-                    cp.parent_code,
-                    cp.normal_balance,
-                    cp.is_contra,
-                    category,
+                    SELECT
+                        cl.account_uuid,
+                        cl.code,
+                        cl.name,
+                        cl.parent_code,
+                        cl.normal_balance,
+                        cl.is_contra,
+                        cl.category,
 
-                    SUM(tc.cash_delta) AS balance
+                        SUM(
+                            CASE
+                                WHEN ct.total_amount = 0
+                                    THEN 0
+                                ELSE
+                                    (
+                                        cl.line_amount
+                                        / ct.total_amount
+                                    ) * tc.cash_delta
+                            END
+                        ) AS balance
 
-                    FROM txn_cash tc
-                    JOIN txn_counterparts cp
-                    ON cp.transaction_uuid = tc.transaction_uuid
+                    FROM counterpart_lines cl
+
+                    JOIN counterpart_totals ct
+                        ON ct.transaction_uuid = cl.transaction_uuid
+
+                    JOIN txn_cash tc
+                        ON tc.transaction_uuid = cl.transaction_uuid
 
                     GROUP BY
-                      cp.account_uuid,
-                      cp.code,
-                      cp.name,
-                      cp.parent_code,
-                      cp.normal_balance,
-                      cp.is_contra,
-                      category
+                        cl.account_uuid,
+                        cl.code,
+                        cl.name,
+                        cl.parent_code,
+                        cl.normal_balance,
+                        cl.is_contra,
+                        cl.category
                 )
 
-            SELECT * FROM classified_movements ORDER BY code;
+                SELECT *
+                FROM classified_movements
+                ORDER BY code;
             "#,
         )
         .bind(period_start)
