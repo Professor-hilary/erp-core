@@ -489,21 +489,14 @@ impl ReportRepository for PostgresReportRepo {
         //=============================================================================
         let rows: Vec<FlatAccount> = sqlx::query_as::<_, FlatAccount>(
             r#"
-
+                -- Get all cash transactions based on cash flow category
                 WITH txn_cash AS (
-                    SELECT
-                        te.transaction_uuid,
-
-                        SUM(te.debit - te.credit) AS cash_delta
-
+                    SELECT te.transaction_uuid, SUM(te.debit - te.credit) AS cash_delta
                     FROM accounting.transaction_entries te
-                    JOIN accounting.accounts acc
-                        ON acc.uuid = te.account_uuid
-
+                    JOIN accounting.accounts acc ON acc.uuid = te.account_uuid
                     WHERE acc.cash_flow_category = 'cash'
                     AND te.created_at >= $1
                     AND te.created_at < ($2 + INTERVAL '1 day')
-
                     GROUP BY te.transaction_uuid
                 ),
 
@@ -531,14 +524,8 @@ impl ReportRepository for PostgresReportRepo {
                 ),
 
                 counterpart_totals AS (
-                    SELECT
-                        transaction_uuid,
-
-                        SUM(line_amount) AS total_amount
-
-                    FROM counterpart_lines
-
-                    GROUP BY transaction_uuid
+                    SELECT transaction_uuid, SUM(line_amount) AS total_amount
+                        FROM counterpart_lines GROUP BY transaction_uuid
                 ),
 
                 classified_movements AS (
@@ -642,7 +629,7 @@ impl ReportRepository for PostgresReportRepo {
             account_map: &mut HashMap<String, Node>,
             children_map: &HashMap<String, Vec<String>>,
         ) -> Option<Node> {
-            let mut node = account_map.remove(code)?;
+            let mut node: Node = account_map.remove(code)?;
 
             if let Some(child_codes) = children_map.get(code) {
                 for child_code in child_codes {
@@ -665,13 +652,13 @@ impl ReportRepository for PostgresReportRepo {
         // 5. Build final statement tree
         // Group by cash flow section
         //=============================================================================
-        let mut operating_children = vec![];
-        let mut investing_children = vec![];
-        let mut financing_children = vec![];
+        let mut operating_children: Vec<Node> = vec![];
+        let mut investing_children: Vec<Node> = vec![];
+        let mut financing_children: Vec<Node> = vec![];
 
-        let mut operating_total = BigDecimal::from(0);
-        let mut investing_total = BigDecimal::from(0);
-        let mut financing_total = BigDecimal::from(0);
+        let mut operating_total: BigDecimal = BigDecimal::from(0);
+        let mut investing_total: BigDecimal = BigDecimal::from(0);
+        let mut financing_total: BigDecimal = BigDecimal::from(0);
 
         // Start from leaf accounts and roll up, but attach at the right section level
         for code in account_map.keys().cloned().collect::<Vec<_>>() {
@@ -697,10 +684,10 @@ impl ReportRepository for PostgresReportRepo {
         //=============================================================================
         // 6. Total then Build final statement tree
         //=============================================================================
-        let net_cash_flow = &operating_total + &investing_total + &financing_total;
-        let closing_cash = &opening.opening_cash + &net_cash_flow;
+        let net_cash_flow: BigDecimal = &operating_total + &investing_total + &financing_total;
+        let closing_cash: BigDecimal = &opening.opening_cash + &net_cash_flow;
 
-        let result = vec![
+        let result: Vec<Node> = vec![
             Node {
                 code: "OPERATING".to_string(),
                 name: "Cash Flows from Operating Activities".to_string(),
