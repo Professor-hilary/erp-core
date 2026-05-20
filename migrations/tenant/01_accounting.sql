@@ -81,6 +81,38 @@ CREATE TABLE accounting.financial_periods (
     CONSTRAINT period_date_unique UNIQUE (start_date, end_date)
 );
 
+CREATE TABLE accounting.cash_flow_entries (
+    uuid UUID DEFAULT uuidv7 () PRIMARY KEY,
+
+    transaction_uuid UUID NOT NULL REFERENCES
+        accounting.transactions(uuid) ON DELETE CASCADE,
+    transaction_entry_uuid UUID NULL REFERENCES
+        accounting.transaction_entries(uuid) ON DELETE CASCADE,
+
+    activity_section VARCHAR(32) NOT NULL CHECK(
+        activity_section IN('operating', 'investing', 'financing')
+    ),
+    activity_type VARCHAR(64) NOT NULL CHECK(
+        activity_type IN(
+            'customer_receipts', 'supplier_payments', 'payroll_payments', 'utilities_paid',
+            'tax_payments', 'rent_paid', 'vat_paid', 'vat_received', 'asset_financing',
+            'asset_sale', 'investment_purchases', 'loan_proceeds', 'loan_repayments',
+            'capital_contributions', 'dividents_paid'
+        )
+    ),
+    direction VARCHAR(16) NOT NULL CHECK(direction IN('inflow', 'outlow')),
+
+    amount NUMERIC(18,2) NOT NULL,
+    description TEXT,
+    created_at timestamptz DEFAULT now()
+);
+
+-- SELECT te.transaction_uuid, sum(te.debit - te.credit) AS cash_delta
+-- FROM accounting.transaction_entries te
+-- JOIN accounting.accounts acc on acc.uuid = te.account_uuid
+-- WHERE acc.cash_flow_category = 'cash'
+-- GROUP BY te.transaction_uuid;
+
 -----------------------------------------------------------------
 -- transactions: header/journal
 -----------------------------------------------------------------
