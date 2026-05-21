@@ -6,13 +6,7 @@ use serde_json::json;
 use sqlx::{Error, PgPool};
 use uuid::Uuid;
 
-use crate::{
-    interface::api::errors::AppError,
-    models::transaction::{
-        CreateJournalEntry, JournalEntry, JournalEntryLine, JournalEntryWithLines, LedgerFilter,
-        LedgerRowDto, TransactionLineInput, UpdateJournalEntry,
-    },
-};
+use crate::{interface::api::errors::AppError, models::transaction::*};
 
 #[async_trait]
 pub trait TransactionRepository: Send + Sync {
@@ -235,8 +229,14 @@ impl TransactionRepository for PostgresTransactionRepo {
                 .collect();
 
             // Validate balance
-            let total_debit: BigDecimal = lines.iter().map(|l| l.debit.clone()).sum();
-            let total_credit: BigDecimal = lines.iter().map(|l| l.credit.clone()).sum();
+            let total_debit: BigDecimal = lines
+                .iter()
+                .map(|l: &TransactionLineInput| l.debit.clone())
+                .sum();
+            let total_credit: BigDecimal = lines
+                .iter()
+                .map(|l: &TransactionLineInput| l.credit.clone())
+                .sum();
             if total_debit != total_credit {
                 return Err(AppError::BadRequest(format!(
                     "Unbalanced entry: debit {total_debit} ≠ credit {total_credit}"
@@ -504,7 +504,7 @@ impl TransactionRepository for PostgresTransactionRepo {
         pool: &PgPool,
         filter: LedgerFilter,
     ) -> Result<Vec<LedgerRowDto>, AppError> {
-        let rows = sqlx::query_as::<_, LedgerRowDto>(
+        let ledgers: Vec<LedgerRowDto> = sqlx::query_as::<_, LedgerRowDto>(
             r#"
             SELECT
                 t.uuid          AS transaction_uuid,
@@ -547,6 +547,6 @@ impl TransactionRepository for PostgresTransactionRepo {
         .fetch_all(pool)
         .await?;
 
-        Ok(rows)
+        Ok(ledgers)
     }
 }

@@ -87,12 +87,12 @@ CREATE TABLE accounting.cash_flow_entries (
     transaction_uuid UUID NOT NULL REFERENCES
         accounting.transactions(uuid) ON DELETE CASCADE,
     transaction_entry_uuid UUID NULL REFERENCES
-        accounting.transaction_entries(uuid) ON DELETE CASCADE,
+        accounting.transaction_entries(uuid) SET NULL,
 
-    activity_section VARCHAR(32) NOT NULL CHECK(
+    activity_section VARCHAR(16) NOT NULL CHECK(
         activity_section IN('operating', 'investing', 'financing')
     ),
-    activity_type VARCHAR(64) NOT NULL CHECK(
+    activity_type VARCHAR(32) CHECK(
         activity_type IN(
             'customer_receipts', 'supplier_payments', 'payroll_payments', 'utilities_paid',
             'tax_payments', 'rent_paid', 'vat_paid', 'vat_received', 'asset_financing',
@@ -100,12 +100,15 @@ CREATE TABLE accounting.cash_flow_entries (
             'capital_contributions', 'dividents_paid'
         )
     ),
-    direction VARCHAR(16) NOT NULL CHECK(direction IN('inflow', 'outlow')),
+    direction VARCHAR(8) NOT NULL CHECK(direction IN('inflow', 'outflow')),
 
     amount NUMERIC(18,2) NOT NULL,
     description TEXT,
     created_at timestamptz DEFAULT now()
 );
+
+CREATE INDEX idx_cash_flow_txn ON accounting.cash_flow_entries (transaction_uuid);
+CREATE INDEX idx_cash_flow_section_type ON accounting.cash_flow_entries (activity_section, activity_type);
 
 -- SELECT te.transaction_uuid, sum(te.debit - te.credit) AS cash_delta
 -- FROM accounting.transaction_entries te
@@ -165,7 +168,10 @@ CREATE OR REPLACE FUNCTION accounting.post_transaction(
     p_created_by UUID,
     p_module TEXT,
     p_txn_date DATE DEFAULT NULL,
-    p_lines JSONB DEFAULT NULL
+    p_lines JSONB DEFAULT NULL,
+    p_cash_flow_section VARCHAR(16) DEFAULT NULL,
+    p_cash_flow_activity VARCHAR(32) DEFAULT NULL,
+    p_cash_flow_description TEXT DEFAULT NULL
 ) RETURNS BIGINT
 LANGUAGE plpgsql
 AS $$
@@ -179,6 +185,7 @@ DECLARE
     v_account_uuid UUID;
     v_line_no INT := 0;
     v_ref_text TEXT;
+    v_cash_delta NUMERIC(18,2) := 0;
 BEGIN
     IF p_txn_date IS NULL THEN
         -- Opening balance transactions - default transaction date to period start
@@ -252,6 +259,27 @@ BEGIN
             v_line.memo
         );
     END LOOP;
+
+    -- Cash Flow Entry Generation --
+    IF p_cash_flow_section IS NOT NULL AND p_cash_flow_activity IS NOT NULL THEN
+        -- Calculate actual cash delta from cash accounts
+        SELECT COALESCE(SUM(te.debit - te.credit), 0)
+        INTO v_cash_delta
+        FROM accounting.transaction_entries te
+        JOIN accounting.accounts a ON a.uuid = te.account_uuid
+        WHERE te.transaction_uuid = v_txn_uuid
+          AND a.cash_flow_category = 'cash';
+
+        IF v_cash_delta <> 0 THEN
+            INSERT INTO accounting.cash_flow_entries(
+                transaction_uuid, activity_section, activity_type, direction, amount, description
+            ) VALUES (
+                v_txn_uuid, p_cash_flow_section, p_cash_flow_activity,
+                CASE WHEN v_cash_delta > 0 THEN 'inflow' ELSE 'outflow' END,
+                ABS(v_cash_delta), COALESCE(p_cash_flow_description, p_description)
+            );
+        END IF;
+    END IF;
 
     RETURN v_txn_serial_id;
 END;
