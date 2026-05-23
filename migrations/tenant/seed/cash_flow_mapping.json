@@ -159,6 +159,12 @@
       "default_description_template": "Capital injection"
     },
     {
+      "module": "equity",
+      "activity_section": "financing",
+      "activity_type": "capital_contributions",
+      "default_description_template": "Capital injection"
+    },
+    {
       "module": "dividend",
       "activity_section": "financing",
       "activity_type": "dividends_paid",

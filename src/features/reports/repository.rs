@@ -286,6 +286,172 @@ impl ReportRepository for PostgresReportRepo {
         Ok(result)
     }
 
+    async fn get_cf_direct(
+        &self,
+        pool: &PgPool,
+        period_start: NaiveDate,
+        period_close: NaiveDate,
+    ) -> Result<Vec<Node>, AppError> {
+        //=============================================================================
+        // 1. Get cash flow entries (clean & direct source)
+        //=============================================================================
+        let rows: Vec<CashFlowRow> = sqlx::query_as::<_, CashFlowRow>(
+        r#"
+            SELECT
+                activity_section,
+                activity_type,
+                direction,
+                amount,
+                description
+            FROM accounting.cash_flow_entries
+            WHERE created_at >= $1
+            AND created_at < ($2 + INTERVAL '1 day')
+            ORDER BY activity_section, activity_type;
+        "#,
+        )
+        .bind(period_start)
+        .bind(period_close)
+        .fetch_all(pool)
+        .await?;
+
+        //=============================================================================
+        // 2. Group and accumulate (handle multiple lines per transaction)
+        //=============================================================================
+        let mut operating_children: Vec<Node> = vec![];
+        let mut investing_children: Vec<Node> = vec![];
+        let mut financing_children: Vec<Node> = vec![];
+
+        let mut operating_total = BigDecimal::from(0);
+        let mut investing_total = BigDecimal::from(0);
+        let mut financing_total = BigDecimal::from(0);
+
+        // Use a map to accumulate same activity_type
+        let mut activity_map: HashMap<String, BigDecimal> = HashMap::new();
+        let mut description_map: HashMap<String, String> = HashMap::new();
+
+        for row in rows {
+            let key = row.activity_type.clone();
+
+            // Accumulate amount with correct sign
+            let signed_amount = if row.direction == "inflow" {
+                row.amount.clone()
+            } else {
+                -row.amount.clone()
+            };
+
+            *activity_map.entry(key.clone()).or_default() += signed_amount;
+
+            // Keep first meaningful description
+            if description_map.get(&key).is_none() && row.description.is_some() {
+                description_map.insert(key.clone(), row.description.unwrap());
+            }
+        }
+
+        //=============================================================================
+        // 3. Build nodes
+        //=============================================================================
+        for (activity_type, total) in activity_map {
+            let name = description_map
+                .get(&activity_type)
+                .cloned()
+                .unwrap_or_else(|| activity_type.replace('_', " ").to_lowercase());
+
+            let node = Node {
+                code: activity_type.clone(),
+                name,
+                category: "cashflow".to_string(), // or map from section
+                total: total.clone(),
+                children: vec![],
+            };
+
+            // Get section from first occurrence (we can improve this if needed)
+            // For now, we can determine by common patterns or add section to grouping
+
+            if activity_section == "operating"
+            {
+                // adjust as needed
+                operating_children.push(node);
+                operating_total += total;
+            } else if activity_section == "investing"
+            {
+                investing_children.push(node);
+                investing_total += total;
+            } else {
+                financing_children.push(node);
+                financing_total += total;
+            }
+        }
+
+        //=============================================================================
+        // 4. Opening / Closing Cash (keep your existing logic)
+        //=============================================================================
+        let opening: CashBalanceRow = sqlx::query_as::<_, CashBalanceRow>(
+            r#"
+                SELECT COALESCE(SUM(te.debit - te.credit), 0) AS opening_cash
+                FROM accounting.transaction_entries te
+                JOIN accounting.accounts acc ON acc.uuid = te.account_uuid
+                WHERE acc.cash_flow_category = 'cash'
+                AND te.created_at < $1
+            "#,
+        )
+        .bind(period_start)
+        .fetch_one(pool)
+        .await?;
+
+        let net_cash_flow = &operating_total + &investing_total + &financing_total;
+        let closing_cash = &opening.opening_cash + &net_cash_flow;
+
+        //=============================================================================
+        // 5. Final Result
+        //=============================================================================
+        let result: Vec<Node> = vec![
+            Node {
+                code: "OPERATING".to_string(),
+                name: "Cash Flows from Operating Activities".to_string(),
+                category: "cashflow".to_string(),
+                total: operating_total,
+                children: operating_children,
+            },
+            Node {
+                code: "INVESTING".to_string(),
+                name: "Cash Flows from Investing Activities".to_string(),
+                category: "cashflow".to_string(),
+                total: investing_total,
+                children: investing_children,
+            },
+            Node {
+                code: "FINANCING".to_string(),
+                name: "Cash Flows from Financing Activities".to_string(),
+                category: "cashflow".to_string(),
+                total: financing_total,
+                children: financing_children,
+            },
+            Node {
+                code: "NET_CASH_FLOW".to_string(),
+                name: "Net Increase / (Decrease) in Cash".to_string(),
+                category: "computed".to_string(),
+                total: net_cash_flow,
+                children: vec![],
+            },
+            Node {
+                code: "OPENING_CASH".to_string(),
+                name: "Cash at Beginning of Period".to_string(),
+                category: "computed".to_string(),
+                total: opening.opening_cash,
+                children: vec![],
+            },
+            Node {
+                code: "CLOSING_CASH".to_string(),
+                name: "Cash at End of Period".to_string(),
+                category: "computed".to_string(),
+                total: closing_cash,
+                children: vec![],
+            },
+        ];
+
+        Ok(result)
+    }
+
     async fn get_balancesheet_comparison(
         &self,
         pool: &PgPool,
@@ -475,263 +641,6 @@ impl ReportRepository for PostgresReportRepo {
             total: net_profit,
             children: vec![],
         });
-        Ok(result)
-    }
-
-    async fn get_cf_direct(
-        &self,
-        pool: &PgPool,
-        period_start: NaiveDate,
-        period_close: NaiveDate,
-    ) -> Result<Vec<Node>, AppError> {
-        //=============================================================================
-        // 1. Get grouped cash flow movements
-        //=============================================================================
-        let rows: Vec<FlatAccount> = sqlx::query_as::<_, FlatAccount>(
-            r#"
-                -- Get all cash transactions based on cash flow category
-                WITH txn_cash AS (
-                    SELECT te.transaction_uuid, SUM(te.debit - te.credit) AS cash_delta
-                    FROM accounting.transaction_entries te
-                    JOIN accounting.accounts acc ON acc.uuid = te.account_uuid
-                    WHERE acc.cash_flow_category = 'cash'
-                    AND te.created_at >= $1
-                    AND te.created_at < ($2 + INTERVAL '1 day')
-                    GROUP BY te.transaction_uuid
-                ),
-
-                counterpart_lines AS (
-                    SELECT
-                        te.transaction_uuid,
-                        te.account_uuid,
-
-                        acc.code,
-                        acc.name,
-                        acc.parent_code,
-                        acc.normal_balance,
-                        acc.is_contra,
-                        acc.cash_flow_category AS category,
-
-                        ABS(te.debit - te.credit) AS line_amount
-
-                    FROM accounting.transaction_entries te
-                    JOIN accounting.accounts acc
-                        ON acc.uuid = te.account_uuid
-
-                    WHERE acc.cash_flow_category IS NOT NULL
-                    AND acc.cash_flow_category != 'cash'
-                    AND acc.cash_flow_category != 'non-cash'
-                ),
-
-                counterpart_totals AS (
-                    SELECT transaction_uuid, SUM(line_amount) AS total_amount
-                        FROM counterpart_lines GROUP BY transaction_uuid
-                ),
-
-                classified_movements AS (
-                    SELECT
-                        cl.account_uuid,
-                        cl.code,
-                        cl.name,
-                        cl.parent_code,
-                        cl.normal_balance,
-                        cl.is_contra,
-                        cl.category,
-
-                        SUM(
-                            CASE
-                                WHEN ct.total_amount = 0
-                                    THEN 0
-                                ELSE
-                                    (
-                                        cl.line_amount
-                                        / ct.total_amount
-                                    ) * tc.cash_delta
-                            END
-                        ) AS balance
-
-                    FROM counterpart_lines cl
-
-                    JOIN counterpart_totals ct
-                        ON ct.transaction_uuid = cl.transaction_uuid
-
-                    JOIN txn_cash tc
-                        ON tc.transaction_uuid = cl.transaction_uuid
-
-                    GROUP BY
-                        cl.account_uuid,
-                        cl.code,
-                        cl.name,
-                        cl.parent_code,
-                        cl.normal_balance,
-                        cl.is_contra,
-                        cl.category
-                )
-
-                SELECT *
-                FROM classified_movements
-                ORDER BY code;
-            "#,
-        )
-        .bind(period_start)
-        .bind(period_close)
-        .fetch_all(pool)
-        .await?;
-
-        //=============================================================================
-        // 2. Get opening cash
-        //=============================================================================
-        let opening: CashBalanceRow = sqlx::query_as::<_, CashBalanceRow>(
-            r#"
-            SELECT COALESCE(SUM(te.debit - te.credit), 0) AS opening_cash
-            FROM accounting.transaction_entries te
-            JOIN accounting.accounts acc ON acc.uuid = te.account_uuid
-            WHERE acc.cash_flow_category = 'cash' AND te.created_at < $1
-        "#,
-        )
-        .bind(period_start)
-        .fetch_one(pool)
-        .await?;
-
-        //=============================================================================
-        // 3. Build categorized totals
-        // Build flat map
-        //=============================================================================
-        let mut account_map: HashMap<String, Node> = HashMap::new();
-        let mut children_map: HashMap<String, Vec<String>> = HashMap::new();
-
-        for row in &rows {
-            account_map.insert(
-                row.code.clone(),
-                Node {
-                    code: row.code.clone(),
-                    name: row.name.clone(),
-                    category: row.category.clone(),
-                    total: row.balance.clone(),
-                    children: vec![],
-                },
-            );
-
-            if let Some(parent) = &row.parent_code {
-                children_map
-                    .entry(parent.clone())
-                    .or_default()
-                    .push(row.code.clone());
-            }
-        }
-
-        //=============================================================================
-        // 4. Recursive build
-        // Helper to build tree recursively (with roll-up)
-        //=============================================================================
-        fn build_tree(
-            code: &str,
-            account_map: &mut HashMap<String, Node>,
-            children_map: &HashMap<String, Vec<String>>,
-        ) -> Option<Node> {
-            let mut node: Node = account_map.remove(code)?;
-
-            if let Some(child_codes) = children_map.get(code) {
-                for child_code in child_codes {
-                    if let Some(child) = build_tree(child_code, account_map, children_map) {
-                        node.total += child.total.clone();
-                        node.children.push(child);
-                    }
-                }
-            }
-
-            // Keep node even if small if it has children or meaningful amount
-            if node.children.is_empty() && node.total.abs() < BigDecimal::from_f64(0.01).unwrap() {
-                None
-            } else {
-                Some(node)
-            }
-        }
-
-        //=============================================================================
-        // 5. Build final statement tree
-        // Group by cash flow section
-        //=============================================================================
-        let mut operating_children: Vec<Node> = vec![];
-        let mut investing_children: Vec<Node> = vec![];
-        let mut financing_children: Vec<Node> = vec![];
-
-        let mut operating_total: BigDecimal = BigDecimal::from(0);
-        let mut investing_total: BigDecimal = BigDecimal::from(0);
-        let mut financing_total: BigDecimal = BigDecimal::from(0);
-
-        // Start from leaf accounts and roll up, but attach at the right section level
-        for code in account_map.keys().cloned().collect::<Vec<_>>() {
-            if let Some(node) = build_tree(&code, &mut account_map, &children_map) {
-                match node.category.as_str() {
-                    "operating" | "working-capital" => {
-                        operating_total += &node.total;
-                        operating_children.push(node);
-                    }
-                    "investing" => {
-                        investing_total += &node.total;
-                        investing_children.push(node);
-                    }
-                    "financing" => {
-                        financing_total += &node.total;
-                        financing_children.push(node);
-                    }
-                    _ => {} // non-cash or unknown
-                }
-            }
-        }
-
-        //=============================================================================
-        // 6. Total then Build final statement tree
-        //=============================================================================
-        let net_cash_flow: BigDecimal = &operating_total + &investing_total + &financing_total;
-        let closing_cash: BigDecimal = &opening.opening_cash + &net_cash_flow;
-
-        let result: Vec<Node> = vec![
-            Node {
-                code: "OPERATING".to_string(),
-                name: "Cash Flows from Operating Activities".to_string(),
-                category: "cashflow".to_string(),
-                total: operating_total,
-                children: operating_children,
-            },
-            Node {
-                code: "INVESTING".to_string(),
-                name: "Cash Flows from Investing Activities".to_string(),
-                category: "cashflow".to_string(),
-                total: investing_total,
-                children: investing_children,
-            },
-            Node {
-                code: "FINANCING".to_string(),
-                name: "Cash Flows from Financing Activities".to_string(),
-                category: "cashflow".to_string(),
-                total: financing_total,
-                children: financing_children,
-            },
-            Node {
-                code: "NET_CASH_FLOW".to_string(),
-                name: "Net Increase / (Decrease) in Cash".to_string(),
-                category: "computed".to_string(),
-                total: net_cash_flow,
-                children: vec![],
-            },
-            Node {
-                code: "OPENING_CASH".to_string(),
-                name: "Cash at Beginning of Period".to_string(),
-                category: "computed".to_string(),
-                total: opening.opening_cash,
-                children: vec![],
-            },
-            Node {
-                code: "CLOSING_CASH".to_string(),
-                name: "Cash at End of Period".to_string(),
-                category: "computed".to_string(),
-                total: closing_cash,
-                children: vec![],
-            },
-        ];
-
         Ok(result)
     }
 

@@ -37,6 +37,17 @@ pub struct BalanceSheetRow {
     pub balance: BigDecimal,
 }
 
+#[allow(unused)]
+#[derive(Debug, sqlx::FromRow)]
+pub struct CashFlowRow {
+    pub activity_section: String, // operating, investing, financing
+    pub activity_type: String,
+    pub direction: String, // inflow / outflow
+    pub amount: BigDecimal,
+    pub description: Option<String>,
+    // transaction_uuid if needed for debugging
+}
+
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
 pub struct EquityChangeRow {
     pub code: String,
@@ -182,11 +193,11 @@ pub struct Node {
     pub children: Vec<Node>,
 }
 
-#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
-pub struct CashFlowRow {
-    pub cash_flow_category: Option<String>,
-    pub total: BigDecimal,
-}
+// #[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+// pub struct CashFlowRow {
+//     pub cash_flow_category: Option<String>,
+//     pub total: BigDecimal,
+// }
 
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
 pub struct CashBalanceRow {

@@ -97,15 +97,15 @@ CREATE TABLE accounting.cash_flow_entries (
             'customer_receipts', 'supplier_payments', 'payroll_payments', 'utilities_paid',
             'tax_payments', 'rent_paid', 'vat_paid', 'vat_received', 'asset_financing',
             'asset_sale', 'investment_purchases', 'loan_proceeds', 'loan_repayments',
-            'capital_contributions', 'dividents_paid', 'fixed_asset_purchase',
-            'fixed_asset_sale', 'investment_sale', 'other_cash_movements', 'actual_overheads',
-            'cash_purchase'
+            'capital_contributions', 'dividents_paid', 'fixed_asset_purchase', 'cash_purchase',
+            'fixed_asset_sale', 'investment_sale', 'other_cash_movements', 'actual_overheads'
         )
     ),
     direction VARCHAR(8) NOT NULL CHECK(direction IN('inflow', 'outflow')),
 
     amount NUMERIC(18,2) NOT NULL,
     description TEXT,
+    txn_date DATE NOT NULL,
     created_at timestamptz DEFAULT now()
 );
 
@@ -505,7 +505,8 @@ CREATE OR REPLACE TRIGGER trg_account_path_maintain BEFORE INSERT OR UPDATE OF
 --     activity_type,
 --     direction,
 --     amount,
---     description
+--     description,
+--     txn_date
 -- )
 -- SELECT
 --     t.uuid,
@@ -514,7 +515,8 @@ CREATE OR REPLACE TRIGGER trg_account_path_maintain BEFORE INSERT OR UPDATE OF
 --     cfm.activity_type,
 --     CASE WHEN (te.debit - te.credit) > 0 THEN 'inflow' ELSE 'outflow' END,
 --     ABS(te.debit - te.credit),
---     COALESCE(t.description, 'Cash movement - ' || t.module)
+--     COALESCE(t.description, 'Cash movement - ' || t.module),
+--     t.txn_date
 -- FROM accounting.transactions t
 -- JOIN accounting.transaction_entries te ON te.transaction_uuid = t.uuid
 -- JOIN accounting.accounts a ON a.uuid = te.account_uuid
