@@ -1,0 +1,186 @@
+{
+  "table": "accounting.cash_flow_mapping",
+  "action": "upsert",
+  "data": [
+    {
+      "module": "sales",
+      "activity_section": "operating",
+      "activity_type": "customer_receipts",
+      "default_description_template": "Cash sale"
+    },
+    {
+      "module": "cash_sale",
+      "activity_section": "operating",
+      "activity_type": "customer_receipts",
+      "default_description_template": "Cash sale"
+    },
+    {
+      "module": "turnover",
+      "activity_section": "operating",
+      "activity_type": "customer_receipts",
+      "default_description_template": "Cash sale"
+    },
+    {
+      "module": "manufacturing",
+      "activity_section": "operating",
+      "activity_type": "actual_overheads",
+      "default_description_template": "Settling overhead costs"
+    },
+    {
+      "module": "customer_payment",
+      "activity_section": "operating",
+      "activity_type": "customer_receipts",
+      "default_description_template": "Receipt from customer"
+    },
+    {
+      "module": "receipt",
+      "activity_section": "operating",
+      "activity_type": "customer_receipts",
+      "default_description_template": "Customer receipt"
+    },
+    {
+      "module": "bill",
+      "activity_section": "operating",
+      "activity_type": "cash_purchase",
+      "default_description_template": "Goods bought with cash"
+    },
+    {
+      "module": "purchases",
+      "activity_section": "operating",
+      "activity_type": "supplier_payments",
+      "default_description_template": "Supplier payment"
+    },
+    {
+      "module": "supplier_payment",
+      "activity_section": "operating",
+      "activity_type": "supplier_payments",
+      "default_description_template": "Payment to supplier"
+    },
+    {
+      "module": "payment",
+      "activity_section": "operating",
+      "activity_type": "supplier_payments",
+      "default_description_template": "Cash payment"
+    },
+    {
+      "module": "expense",
+      "activity_section": "operating",
+      "activity_type": "supplier_payments",
+      "default_description_template": "Expense payment"
+    },
+    {
+      "module": "payroll",
+      "activity_section": "operating",
+      "activity_type": "payroll_payments",
+      "default_description_template": "Payroll payment"
+    },
+    {
+      "module": "salary",
+      "activity_section": "operating",
+      "activity_type": "payroll_payments",
+      "default_description_template": "Salary payment"
+    },
+    {
+      "module": "rent",
+      "activity_section": "operating",
+      "activity_type": "rent_paid",
+      "default_description_template": "Rent payment"
+    },
+    {
+      "module": "utility",
+      "activity_section": "operating",
+      "activity_type": "utilities_paid",
+      "default_description_template": "Utility payment"
+    },
+    {
+      "module": "utilities",
+      "activity_section": "operating",
+      "activity_type": "utilities_paid",
+      "default_description_template": "Utility payment"
+    },
+    {
+      "module": "tax",
+      "activity_section": "operating",
+      "activity_type": "tax_payments",
+      "default_description_template": "Tax payment"
+    },
+    {
+      "module": "vat_payment",
+      "activity_section": "operating",
+      "activity_type": "vat_paid",
+      "default_description_template": "VAT payment"
+    },
+    {
+      "module": "vat_refund",
+      "activity_section": "operating",
+      "activity_type": "vat_received",
+      "default_description_template": "VAT refund received"
+    },
+    {
+      "module": "asset_purchase",
+      "activity_section": "investing",
+      "activity_type": "fixed_asset_purchase",
+      "default_description_template": "Fixed asset purchase"
+    },
+    {
+      "module": "fixed_asset",
+      "activity_section": "investing",
+      "activity_type": "fixed_asset_purchase",
+      "default_description_template": "Fixed asset purchase"
+    },
+    {
+      "module": "asset_sale",
+      "activity_section": "investing",
+      "activity_type": "fixed_asset_sale",
+      "default_description_template": "Fixed asset sale"
+    },
+    {
+      "module": "loan_disbursement",
+      "activity_section": "financing",
+      "activity_type": "loan_proceeds",
+      "default_description_template": "Loan received"
+    },
+    {
+      "module": "loan_repayment",
+      "activity_section": "financing",
+      "activity_type": "loan_repayments",
+      "default_description_template": "Loan repayment"
+    },
+    {
+      "module": "owner_capital",
+      "activity_section": "financing",
+      "activity_type": "capital_contributions",
+      "default_description_template": "Owner capital contribution"
+    },
+    {
+      "module": "capital",
+      "activity_section": "financing",
+      "activity_type": "capital_contributions",
+      "default_description_template": "Capital injection"
+    },
+    {
+      "module": "dividend",
+      "activity_section": "financing",
+      "activity_type": "dividends_paid",
+      "default_description_template": "Dividend payment"
+    },
+    {
+      "module": "journal",
+      "activity_section": "operating",
+      "activity_type": "other_cash_movements",
+      "default_description_template": "Journal cash adjustment"
+    },
+    {
+      "module": "adjustment",
+      "activity_section": "operating",
+      "activity_type": "other_cash_movements",
+      "default_description_template": "Cash adjustment"
+    },
+    {
+      "module": "transfer",
+      "activity_section": "operating",
+      "activity_type": "other_cash_movements",
+      "default_description_template": "Cash transfer"
+    }
+  ]
+}

@@ -87,7 +87,7 @@ CREATE TABLE accounting.cash_flow_entries (
     transaction_uuid UUID NOT NULL REFERENCES
         accounting.transactions(uuid) ON DELETE CASCADE,
     transaction_entry_uuid UUID NULL REFERENCES
-        accounting.transaction_entries(uuid) SET NULL,
+        accounting.transaction_entries(uuid) ON DELETE SET NULL,
 
     activity_section VARCHAR(16) NOT NULL CHECK(
         activity_section IN('operating', 'investing', 'financing')
@@ -97,7 +97,9 @@ CREATE TABLE accounting.cash_flow_entries (
             'customer_receipts', 'supplier_payments', 'payroll_payments', 'utilities_paid',
             'tax_payments', 'rent_paid', 'vat_paid', 'vat_received', 'asset_financing',
             'asset_sale', 'investment_purchases', 'loan_proceeds', 'loan_repayments',
-            'capital_contributions', 'dividents_paid'
+            'capital_contributions', 'dividents_paid', 'fixed_asset_purchase',
+            'fixed_asset_sale', 'investment_sale', 'other_cash_movements', 'actual_overheads',
+            'cash_purchase'
         )
     ),
     direction VARCHAR(8) NOT NULL CHECK(direction IN('inflow', 'outflow')),
@@ -106,6 +108,22 @@ CREATE TABLE accounting.cash_flow_entries (
     description TEXT,
     created_at timestamptz DEFAULT now()
 );
+
+-- drop TABLE accounting.cash_flow_entries;
+
+-------------------------------------------------------------------------------------------
+INSERT INTO accounting.cash_flow_entries (
+    transaction_uuid, transaction_entry_uuid, activity_section, activity_type,
+    direction, direction, amount, description
+) SELECT
+    t.uuid AS transaction_uuid,
+    cf.suggested_section AS activity_section,
+    cf.suggested_activity AS activity_type,
+    cf.direction,
+    ABS(cf.cash_delta) AS amount,
+    COALESCE(t.description, 'Cash movement - ' || t.module) AS description
+FROM accounting.transactions t
+CROSS JOIN LATERAL ()
 
 CREATE INDEX idx_cash_flow_txn ON accounting.cash_flow_entries (transaction_uuid);
 CREATE INDEX idx_cash_flow_section_type ON accounting.cash_flow_entries (activity_section, activity_type);
@@ -160,6 +178,16 @@ CREATE INDEX ON accounting.transaction_entries (transaction_uuid);
 CREATE INDEX ON accounting.transaction_entries (created_at);
 
 CREATE INDEX ON accounting.transaction_entries (serial_id);
+
+CREATE TABLE IF NOT EXISTS accounting.cash_flow_mapping (
+    module VARCHAR(64) PRIMARY KEY,
+    activity_section VARCHAR(32) NOT NULL CHECK (activity_section IN ('operating', 'investing', 'financing')),
+    activity_type VARCHAR(64) NOT NULL,
+    default_description_template TEXT,
+    is_active BOOLEAN DEFAULT TRUE
+);
+
+COMMENT ON TABLE accounting.cash_flow_mapping IS 'Maps system modules to IAS 7 cash flow categories';
 
 -- Fixed accounting.post_transaction function:
 CREATE OR REPLACE FUNCTION accounting.post_transaction(
@@ -260,8 +288,34 @@ BEGIN
         );
     END LOOP;
 
-    -- Cash Flow Entry Generation --
-    IF p_cash_flow_section IS NOT NULL AND p_cash_flow_activity IS NOT NULL THEN
+    --------------------------------------------------------------------------------------------------------
+    -- === Auto Cash Flow from Module ===
+    IF p_cash_flow_section IS NULL AND p_cash_flow_activity IS NULL THEN
+        -- Try to auto-map using module
+        SELECT activity_section, activity_type, default_description_template
+        INTO v_section, v_activity, v_template
+        FROM accounting.cash_flow_mapping
+        WHERE module = p_module AND is_active = TRUE;
+
+        IF v_section IS NOT NULL THEN
+            INSERT INTO accounting.cash_flow_entries (
+                transaction_uuid, transaction_entry_uuid, activity_section, activity_type,
+                direction, amount, description
+            )
+            SELECT
+                v_txn_uuid, te.uuid, v_section, v_activity,
+                CASE WHEN (te.debit - te.credit) > 0 THEN 'inflow' ELSE 'outflow' END,
+                ABS(te.debit - te.credit),
+                COALESCE(p_cash_flow_description,
+                         format(v_template || ' - %s', COALESCE(p_reference, 'N/A')))
+            FROM accounting.transaction_entries te
+            JOIN accounting.accounts a ON a.uuid = te.account_uuid
+            WHERE te.transaction_uuid = v_txn_uuid
+              AND a.cash_flow_category = 'cash'
+              AND (te.debit - te.credit) <> 0;
+        END IF;
+    ELSE
+        -- Manual override provided by caller
         -- Calculate actual cash delta from cash accounts
         SELECT COALESCE(SUM(te.debit - te.credit), 0)
         INTO v_cash_delta
@@ -280,6 +334,7 @@ BEGIN
             );
         END IF;
     END IF;
+    --------------------------------------------------------------------------------------------------------
 
     RETURN v_txn_serial_id;
 END;
@@ -441,3 +496,49 @@ CREATE OR REPLACE TRIGGER trg_account_path_maintain BEFORE INSERT OR UPDATE OF
 --        {"account_ref": 42,       "debit": 0,      "credit": 1000.00, "memo": "AR"}
 --    ]'::jsonb
 --);
+
+-- Backfill cash_flow_entries from existing data
+-- INSERT INTO accounting.cash_flow_entries (
+--     transaction_uuid,
+--     transaction_entry_uuid,
+--     activity_section,
+--     activity_type,
+--     direction,
+--     amount,
+--     description
+-- )
+-- SELECT
+--     t.uuid,
+--     te.uuid,
+--     cfm.activity_section,
+--     cfm.activity_type,
+--     CASE WHEN (te.debit - te.credit) > 0 THEN 'inflow' ELSE 'outflow' END,
+--     ABS(te.debit - te.credit),
+--     COALESCE(t.description, 'Cash movement - ' || t.module)
+-- FROM accounting.transactions t
+-- JOIN accounting.transaction_entries te ON te.transaction_uuid = t.uuid
+-- JOIN accounting.accounts a ON a.uuid = te.account_uuid
+-- left join ACCOUNTING.cash_flow_mapping cfm on cfm."module" = t."module" and cfm.is_active = true
+-- WHERE a.cash_flow_category = 'cash'
+--   AND (te.debit - te.credit) <> 0
+--   AND NOT EXISTS (
+--         SELECT 1
+--         FROM accounting.cash_flow_entries cfe
+--         WHERE cfe.transaction_uuid = t.uuid
+--           AND cfe.transaction_entry_uuid = te.uuid
+--   );
+
+-- select
+--     regexp_split_to_table(
+--         regexp_replace(
+--             pg_get_constraintdef(oid),
+--             '.*ARRAY\[(.*)\].*', '\1', 'i'
+--         ),
+--         ','
+--     ) AS allowed_value
+-- from pg_constraint
+-- where conname = 'cash_flow_entries_activity_type_check';
+
+-- INSERT INTO accounting.cash_flow_mapping
+--     (module, activity_section, activity_type, default_description_template)
+-- VALUES ('fixed_asset', 'investing', ' fixed_asset_purchase', 'Asset financing');
