@@ -38,14 +38,16 @@ pub struct BalanceSheetRow {
 }
 
 #[allow(unused)]
-#[derive(Debug, sqlx::FromRow)]
+#[derive(Debug, sqlx::FromRow, Clone)]
 pub struct CashFlowRow {
+    pub transaction_uuid: Uuid,
+    pub transaction_entry_uuid: Option<Uuid>,
     pub activity_section: String, // operating, investing, financing
     pub activity_type: String,
     pub direction: String, // inflow / outflow
     pub amount: BigDecimal,
     pub description: Option<String>,
-    // transaction_uuid if needed for debugging
+    pub txn_date: NaiveDate,
 }
 
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
