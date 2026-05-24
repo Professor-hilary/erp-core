@@ -364,12 +364,8 @@ impl ReportRepository for PostgresReportRepo {
                 children: vec![],
             };
 
-            // Get section from first occurrence (we can improve this if needed)
-            // For now, we can determine by common patterns or add section to grouping
-
             if activity_section == "operating"
             {
-                // adjust as needed
                 operating_children.push(node);
                 operating_total += total;
             } else if activity_section == "investing"
