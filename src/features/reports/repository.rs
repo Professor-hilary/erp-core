@@ -16,8 +16,8 @@ use uuid::Uuid;
 fn prettify_activity_name(activity_type: &str) -> String {
     activity_type
         .split('_')
-        .map(|s| {
-            let mut chars = s.chars();
+        .map(|s: &str| {
+            let mut chars: std::str::Chars<'_> = s.chars();
 
             match chars.next() {
                 Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
@@ -319,25 +319,25 @@ impl ReportRepository for PostgresReportRepo {
         //=================================================================
 
         let rows: Vec<CashFlowRow> = sqlx::query_as::<_, CashFlowRow>(
-        r#"
-            SELECT
-                transaction_uuid,
-                transaction_entry_uuid,
-                activity_section,
-                activity_type,
-                direction,
-                amount,
-                description,
-                txn_date
-            FROM accounting.cash_flow_entries
-            WHERE txn_date >= $1
-            AND txn_date < ($2 + INTERVAL '1 day')
-            ORDER BY
-                activity_section,
-                activity_type,
-                txn_date,
-                transaction_uuid;
-        "#,
+            r#"
+                SELECT
+                    transaction_uuid,
+                    transaction_entry_uuid,
+                    activity_section,
+                    activity_type,
+                    direction,
+                    amount,
+                    description,
+                    txn_date
+                FROM accounting.cash_flow_entries
+                WHERE txn_date >= $1
+                AND txn_date < ($2 + INTERVAL '1 day')
+                ORDER BY
+                    activity_section,
+                    activity_type,
+                    txn_date,
+                    transaction_uuid;
+            "#,
         )
         .bind(period_start)
         .bind(period_close)
@@ -397,13 +397,13 @@ impl ReportRepository for PostgresReportRepo {
             // Activity key
             //=============================================================
 
-            let activity_key = (row.activity_section.clone(), row.activity_type.clone());
+            let activity_key: (String, String) = (row.activity_section.clone(), row.activity_type.clone());
 
             //=============================================================
             // Get or create activity group
             //=============================================================
 
-            let activity_group = activity_groups
+            let activity_group: &mut ActivityGroup = activity_groups
                 .entry(activity_key)
                 .or_insert(ActivityGroup {
                     section: row.activity_section.clone(),
@@ -433,14 +433,11 @@ impl ReportRepository for PostgresReportRepo {
             } else {
                 activity_group.transactions.push(TransactionGroup {
                     transaction_uuid: row.transaction_uuid,
-
                     description: row
                         .description
                         .clone()
                         .unwrap_or_else(|| "Transaction".to_string()),
-
                     total: signed_amount.clone(),
-
                     lines: vec![row],
                 });
             }
@@ -543,7 +540,7 @@ impl ReportRepository for PostgresReportRepo {
 
         let mut net_cash_flow: BigDecimal = BigDecimal::from(0);
 
-        let ordered_sections = vec![
+        let ordered_sections: Vec<(&str, &str)> = vec![
             ("operating", "Cash Flows from Operating Activities"),
             ("investing", "Cash Flows from Investing Activities"),
             ("financing", "Cash Flows from Financing Activities"),
@@ -572,17 +569,17 @@ impl ReportRepository for PostgresReportRepo {
         //=================================================================
 
         let opening: CashBalanceRow = sqlx::query_as::<_, CashBalanceRow>(
-        r#"
-            SELECT
-                COALESCE(
-                    SUM(te.debit - te.credit), 0
-                ) AS opening_cash
-            FROM accounting.transaction_entries te
-            JOIN accounting.accounts acc
-                ON acc.uuid = te.account_uuid
-            WHERE acc.cash_flow_category = 'cash'
-            AND te.created_at < $1
-        "#,
+            r#"
+                SELECT
+                    COALESCE(
+                        SUM(te.debit - te.credit), 0
+                    ) AS opening_cash
+                FROM accounting.transaction_entries te
+                JOIN accounting.accounts acc
+                    ON acc.uuid = te.account_uuid
+                WHERE acc.cash_flow_category = 'cash'
+                AND te.created_at < $1
+            "#,
         )
         .bind(period_start)
         .fetch_one(pool)
@@ -624,224 +621,6 @@ impl ReportRepository for PostgresReportRepo {
 
         Ok(result)
     }
-
-    // async fn get_cf_direct(
-    //     &self,
-    //     pool: &PgPool,
-    //     period_start: NaiveDate,
-    //     period_close: NaiveDate,
-    // ) -> Result<Vec<Node>, AppError> {
-    //     //=============================================================================
-    //     // 1. Get cash flow entries (clean & direct source)
-    //     //=============================================================================
-    //     let rows: Vec<CashFlowRow> = sqlx::query_as::<_, CashFlowRow>(
-    //         r#"
-    //         SELECT
-    //             transaction_uuid,
-    //             transaction_entry_uuid,
-    //             activity_section,
-    //             activity_type,
-    //             direction,
-    //             amount,
-    //             description,
-    //             txn_date
-    //         FROM accounting.cash_flow_entries
-    //         WHERE created_at >= $1
-    //           AND created_at < ($2 + INTERVAL '1 day')
-    //         ORDER BY
-    //             activity_section,
-    //             activity_type,
-    //             txn_date,
-    //             transaction_uuid;
-    //     "#,
-    //     )
-    //     .bind(period_start)
-    //     .bind(period_close)
-    //     .fetch_all(pool)
-    //     .await?;
-
-    //     #[derive(Debug, Clone)]
-    //     struct TransactionGroup {
-    //         transaction_uuid: Uuid,
-    //         description: String,
-    //         total: BigDecimal,
-    //         lines: Vec<CashFlowRow>,
-    //     }
-
-    //     #[derive(Debug, Clone)]
-    //     struct ActivityGroup {
-    //         section: String,
-    //         activity_type: String,
-    //         total: BigDecimal,
-    //         transactions: Vec<TransactionGroup>,
-    //     }
-
-    //     //=============================================================================
-    //     // 2. Group and accumulate (handle multiple lines per transaction)
-    //     //=============================================================================
-    //     let mut operating_children: Vec<Node> = vec![];
-    //     let mut investing_children: Vec<Node> = vec![];
-    //     let mut financing_children: Vec<Node> = vec![];
-
-    //     let mut operating_total: BigDecimal = BigDecimal::from(0);
-    //     let mut investing_total: BigDecimal = BigDecimal::from(0);
-    //     let mut financing_total: BigDecimal = BigDecimal::from(0);
-
-    //     // Use a map to accumulate same activity_type
-    //     let mut activity_groups: HashMap<(String, String), ActivityGroup> = HashMap::new();
-    //     let mut description_map: HashMap<String, String> = HashMap::new();
-
-    //     for row in rows {
-    //         // let key = row.activity_type.clone();
-
-    //         // Accumulate amount with correct sign
-    //         let signed_amount = if row.direction == "inflow" {
-    //             row.amount.clone()
-    //         } else {
-    //             -row.amount.clone()
-    //         };
-
-    //         // *activity_map.entry(key.clone()).or_default() += signed_amount;
-
-    //         // Keep first meaningful description
-    //         // if description_map.get(&key).is_none() && row.description.is_some() {
-    //         //     description_map.insert(key.clone(), row.description.unwrap());
-    //         // }
-    //         let activity_key: (String, String) = (row.activity_section.clone(), row.activity_type.clone());
-
-    //         let activity_group =
-    //             activity_groups
-    //                 .entry(activity_key.clone())
-    //                 .or_insert(ActivityGroup {
-    //                     section: row.activity_section.clone(),
-    //                     activity_type: row.activity_type.clone(),
-    //                     total: BigDecimal::from(0),
-    //                     transactions: vec![],
-    //                 });
-
-    //         activity_group.total += signed_amount.clone();
-
-    //         // ============================================================================
-    //         // Locate existing transaction
-    //         // ============================================================================
-    //         if let Some(existing_txn) = activity_group
-    //             .transactions
-    //             .iter_mut()
-    //             .find(|t| t.transaction_uuid == row.transaction_uuid)
-    //         {
-    //             existing_txn.total += signed_amount.clone();
-    //             existing_txn.lines.push(row);
-    //         } else {
-    //             activity_group.transactions.push(TransactionGroup {
-    //                 transaction_uuid: row.transaction_uuid,
-    //                 description: row
-    //                     .description
-    //                     .clone()
-    //                     .unwrap_or_else(|| "Transaction".to_string()),
-    //                 total: signed_amount.clone(),
-    //                 lines: vec![row],
-    //             });
-    //         }
-    //     }
-
-    //     //=============================================================================
-    //     // 3. Build nodes
-    //     //=============================================================================
-    //     // for (activity_type, total) in activity_map {
-    //     //     let name = description_map
-    //     //         .get(&activity_type)
-    //     //         .cloned()
-    //     //         .unwrap_or_else(|| activity_type.replace('_', " ").to_lowercase());
-
-    //     //     let node = Node {
-    //     //         code: activity_type.clone(),
-    //     //         name,
-    //     //         category: "cashflow".to_string(), // or map from section
-    //     //         total: total.clone(),
-    //     //         children: vec![],
-    //     //     };
-
-    //     //     if activity_section == "operating" {
-    //     //         operating_children.push(node);
-    //     //         operating_total += total;
-    //     //     } else if activity_section == "investing" {
-    //     //         investing_children.push(node);
-    //     //         investing_total += total;
-    //     //     } else {
-    //     //         financing_children.push(node);
-    //     //         financing_total += total;
-    //     //     }
-    //     // }
-
-    //     //=============================================================================
-    //     // 4. Opening / Closing Cash (keep your existing logic)
-    //     //=============================================================================
-    //     let opening: CashBalanceRow = sqlx::query_as::<_, CashBalanceRow>(
-    //         r#"
-    //             SELECT COALESCE(SUM(te.debit - te.credit), 0) AS opening_cash
-    //             FROM accounting.transaction_entries te
-    //             JOIN accounting.accounts acc ON acc.uuid = te.account_uuid
-    //             WHERE acc.cash_flow_category = 'cash'
-    //             AND te.created_at < $1
-    //         "#,
-    //     )
-    //     .bind(period_start)
-    //     .fetch_one(pool)
-    //     .await?;
-
-    //     let net_cash_flow = &operating_total + &investing_total + &financing_total;
-    //     let closing_cash = &opening.opening_cash + &net_cash_flow;
-
-    //     //=============================================================================
-    //     // 5. Final Result
-    //     //=============================================================================
-    //     let result: Vec<Node> = vec![
-    //         Node {
-    //             code: "OPERATING".to_string(),
-    //             name: "Cash Flows from Operating Activities".to_string(),
-    //             category: "cashflow".to_string(),
-    //             total: operating_total,
-    //             children: operating_children,
-    //         },
-    //         Node {
-    //             code: "INVESTING".to_string(),
-    //             name: "Cash Flows from Investing Activities".to_string(),
-    //             category: "cashflow".to_string(),
-    //             total: investing_total,
-    //             children: investing_children,
-    //         },
-    //         Node {
-    //             code: "FINANCING".to_string(),
-    //             name: "Cash Flows from Financing Activities".to_string(),
-    //             category: "cashflow".to_string(),
-    //             total: financing_total,
-    //             children: financing_children,
-    //         },
-    //         Node {
-    //             code: "NET_CASH_FLOW".to_string(),
-    //             name: "Net Increase / (Decrease) in Cash".to_string(),
-    //             category: "computed".to_string(),
-    //             total: net_cash_flow,
-    //             children: vec![],
-    //         },
-    //         Node {
-    //             code: "OPENING_CASH".to_string(),
-    //             name: "Cash at Beginning of Period".to_string(),
-    //             category: "computed".to_string(),
-    //             total: opening.opening_cash,
-    //             children: vec![],
-    //         },
-    //         Node {
-    //             code: "CLOSING_CASH".to_string(),
-    //             name: "Cash at End of Period".to_string(),
-    //             category: "computed".to_string(),
-    //             total: closing_cash,
-    //             children: vec![],
-    //         },
-    //     ];
-
-    //     Ok(result)
-    // }
 
     async fn get_balancesheet_comparison(
         &self,
