@@ -397,20 +397,22 @@ impl ReportRepository for PostgresReportRepo {
             // Activity key
             //=============================================================
 
-            let activity_key: (String, String) = (row.activity_section.clone(), row.activity_type.clone());
+            let activity_key: (String, String) =
+                (row.activity_section.clone(), row.activity_type.clone());
 
             //=============================================================
             // Get or create activity group
             //=============================================================
 
-            let activity_group: &mut ActivityGroup = activity_groups
-                .entry(activity_key)
-                .or_insert(ActivityGroup {
-                    section: row.activity_section.clone(),
-                    activity_type: row.activity_type.clone(),
-                    total: BigDecimal::from(0),
-                    transactions: vec![],
-                });
+            let activity_group: &mut ActivityGroup =
+                activity_groups
+                    .entry(activity_key)
+                    .or_insert(ActivityGroup {
+                        section: row.activity_section.clone(),
+                        activity_type: row.activity_type.clone(),
+                        total: BigDecimal::from(0),
+                        transactions: vec![],
+                    });
 
             //=============================================================
             // Add to activity total
@@ -618,6 +620,207 @@ impl ReportRepository for PostgresReportRepo {
             total: closing_cash,
             children: vec![],
         });
+
+        Ok(result)
+    }
+
+    //============================================================
+    // Indirect Cash Flow Engine
+    //============================================================
+    async fn get_cf_indirect(
+        &self,
+        pool: &PgPool,
+        period_start: NaiveDate,
+        period_close: NaiveDate,
+    ) -> Result<Vec<Node>, AppError> {
+        //========================================================
+        // 1. NET INCOME
+        //========================================================
+        let net_income: NetIncomeRow = sqlx::query_as(
+            r#"
+            SELECT
+                COALESCE(SUM(
+                    CASE
+                        WHEN a.category = 'income'
+                            THEN te.credit - te.debit
+                        WHEN a.category = 'expense'
+                            THEN te.debit - te.credit
+                        ELSE 0
+                    END
+                ), 0) AS net_income
+            FROM accounting.transaction_entries te
+            JOIN accounting.accounts a ON a.uuid = te.account_uuid
+            JOIN accounting.transactions t ON t.uuid = te.transaction_uuid
+            WHERE t.txn_date >= $1
+            AND t.txn_date < ($2 + INTERVAL '1 day')
+            "#,
+        )
+        .bind(period_start)
+        .bind(period_close)
+        .fetch_one(pool)
+        .await?;
+
+        //============================================================
+        // DTOs
+        //============================================================
+
+        #[derive(Debug, sqlx::FromRow)]
+        pub struct NetIncomeRow {
+            pub net_income: BigDecimal,
+        }
+
+        #[derive(Debug, sqlx::FromRow)]
+        pub struct NonCashRow {
+            pub account_name: String,
+            pub amount: BigDecimal,
+        }
+
+        #[allow(dead_code)]
+        #[derive(Debug, sqlx::FromRow)]
+        pub struct WorkingCapitalRow {
+            pub account_uuid: Uuid,
+            pub code: String,
+            pub name: String,
+            pub category: String, // asset / liability
+            pub opening_balance: BigDecimal,
+            pub closing_balance: BigDecimal,
+        }
+
+        //========================================================
+        // 2. NON-CASH ADJUSTMENTS
+        //========================================================
+        let non_cash: Vec<NonCashRow> = sqlx::query_as(
+            r#"
+            SELECT
+                a.name AS account_name,
+                SUM(te.debit - te.credit) AS amount
+            FROM accounting.transaction_entries te
+            JOIN accounting.accounts a ON a.uuid = te.account_uuid
+            JOIN accounting.transactions t ON t.uuid = te.transaction_uuid
+            WHERE a.cash_flow_category = 'non-cash'
+            AND t.txn_date >= $1
+            AND t.txn_date < ($2 + INTERVAL '1 day')
+            GROUP BY a.name
+            "#,
+        )
+        .bind(period_start)
+        .bind(period_close)
+        .fetch_all(pool)
+        .await?;
+
+        //========================================================
+        // 3. WORKING CAPITAL DELTA
+        //========================================================
+        let working_capital: Vec<WorkingCapitalRow> = sqlx::query_as(
+            r#"
+            WITH opening AS (
+                SELECT
+                    a.uuid,
+                    SUM(te.debit - te.credit) AS opening_balance
+                FROM accounting.transaction_entries te
+                JOIN accounting.accounts a ON a.uuid = te.account_uuid
+                JOIN accounting.transactions t ON t.uuid = te.transaction_uuid
+                WHERE t.txn_date < $1
+                AND a.cash_flow_category = 'working-capital'
+                GROUP BY a.uuid
+            ),
+            closing AS (
+                SELECT
+                    a.uuid,
+                    SUM(te.debit - te.credit) AS closing_balance
+                FROM accounting.transaction_entries te
+                JOIN accounting.accounts a ON a.uuid = te.account_uuid
+                JOIN accounting.transactions t ON t.uuid = te.transaction_uuid
+                WHERE t.txn_date < ($2 + INTERVAL '1 day')
+                AND a.cash_flow_category = 'working-capital'
+                GROUP BY a.uuid
+            )
+            SELECT
+                a.uuid AS account_uuid,
+                a.code,
+                a.name,
+                a.category,
+                COALESCE(o.opening_balance, 0) AS opening_balance,
+                COALESCE(c.closing_balance, 0) AS closing_balance
+            FROM accounting.accounts a
+            LEFT JOIN opening o ON o.uuid = a.uuid
+            LEFT JOIN closing c ON c.uuid = a.uuid
+            WHERE a.cash_flow_category = 'working-capital'
+            "#,
+        )
+        .bind(period_start)
+        .bind(period_close)
+        .fetch_all(pool)
+        .await?;
+
+        //========================================================
+        // 4. BUILD OPERATING SECTION
+        //========================================================
+        let mut operating_children: Vec<Node> = vec![];
+
+        let mut non_cash_total = BigDecimal::from(0);
+        let mut wc_total = BigDecimal::from(0);
+
+        //---- Net Income node
+        operating_children.push(Node {
+            code: "NET_INCOME".to_string(),
+            name: "Net Profit".to_string(),
+            category: "computed".to_string(),
+            total: net_income.net_income.clone(),
+            children: vec![],
+        });
+
+        //---- Non-cash adjustments
+        for row in non_cash {
+            let amount = -row.amount.clone();
+            non_cash_total += amount.clone();
+
+            operating_children.push(Node {
+                code: row.account_name.clone(),
+                name: row.account_name,
+                category: "non_cash_adjustment".to_string(),
+                total: amount,
+                children: vec![],
+            });
+        }
+
+        //---- Working capital adjustments
+        for wc in working_capital {
+            let delta: BigDecimal = wc.closing_balance.clone() - wc.opening_balance.clone();
+
+            let cash_effect: BigDecimal = match wc.category.as_str() {
+                "asset" => -delta.clone(),
+                "liability" => delta.clone(),
+                _ => BigDecimal::from(0),
+            };
+
+            wc_total += cash_effect.clone();
+
+            operating_children.push(Node {
+                code: wc.code.clone(),
+                name: wc.name.clone(),
+                category: "working_capital".to_string(),
+                total: cash_effect,
+                children: vec![],
+            });
+        }
+
+        //========================================================
+        // 5. FINAL OPERATING CASH FLOW
+        //========================================================
+        let operating_cash_flow =
+            net_income.net_income.clone() + non_cash_total.clone() + wc_total.clone();
+
+        //========================================================
+        // 6. RESULT TREE
+        //========================================================
+        let result: Vec<Node> = vec![Node {
+            code: "OPERATING".to_string(),
+            name: "Cash Flows from Operating Activities (Indirect Method)".to_string(),
+            category: "cashflow_section".to_string(),
+            total: operating_cash_flow,
+            children: operating_children,
+        }];
 
         Ok(result)
     }
@@ -846,163 +1049,6 @@ impl ReportRepository for PostgresReportRepo {
         .fetch_all(pool)
         .await?;
         Ok(rows)
-    }
-
-    async fn get_cf_indirect(
-        &self,
-        pool: &PgPool,
-        period_start: NaiveDate,
-        period_close: NaiveDate,
-    ) -> Result<Vec<Node>, AppError> {
-        //=========================================================================
-        // 1. NET PROFIT
-        //=========================================================================
-        let net_profit: NetProfitRow = sqlx::query_as(
-            r#"
-            SELECT COALESCE(SUM(te.credit - te.debit), 0) AS net_profit
-            FROM accounting.transaction_entries te
-            JOIN accounting.accounts acc
-                ON acc.uuid = te.account_uuid
-            WHERE acc.category IN ('income', 'expense')
-              AND te.created_at BETWEEN $1 AND $2
-            "#,
-        )
-        .bind(period_start)
-        .bind(period_close)
-        .fetch_one(pool)
-        .await?;
-
-        //=========================================================================
-        // 2. NON-CASH EXPENSES (ADD BACK)
-        //=========================================================================
-        let non_cash: NonCashRow = sqlx::query_as(
-            r#"
-            SELECT COALESCE(SUM(te.debit - te.credit), 0) AS total
-            FROM accounting.transaction_entries te
-            JOIN accounting.accounts acc
-                ON acc.uuid = te.account_uuid
-            WHERE acc.is_non_cash_expense = true
-              AND te.created_at BETWEEN $1 AND $2
-            "#,
-        )
-        .bind(period_start)
-        .bind(period_close)
-        .fetch_one(pool)
-        .await?;
-
-        //=========================================================================
-        // 3. WORKING CAPITAL DELTAS
-        //=========================================================================
-        let working_capital: Vec<BalanceDeltaRow> = sqlx::query_as(
-            r#"
-            WITH balances AS (
-                SELECT
-                    acc.cash_flow_category AS account_type,
-                    COALESCE(SUM(te.debit - te.credit), 0) AS balance
-                FROM accounting.transaction_entries te
-                JOIN accounting.accounts acc
-                    ON acc.uuid = te.account_uuid
-                WHERE acc.category = 'asset'
-                    OR acc.category = 'liability'
-                GROUP BY acc.cash_flow_category
-            ),
-
-            deltas AS (
-                SELECT
-                    account_type, balance -
-                    LAG(balance) OVER (PARTITION BY account_type ORDER BY account_type) AS delta
-                FROM balances
-            )
-            SELECT account_type, COALESCE(delta, 0) AS delta
-            FROM deltas
-            "#,
-        )
-        .bind(period_start)
-        .bind(period_close)
-        .fetch_all(pool)
-        .await?;
-
-        //=============================================================================
-        // 4. COMPUTE OPERATING CASH FLOW
-        //=============================================================================
-
-        let mut operating: BigDecimal = net_profit.net_profit;
-
-        // Add back non-cash expenses
-        operating += non_cash.total;
-
-        for wc in working_capital {
-            match wc.account_type.as_str() {
-                "Receivables" => {
-                    // increase -> subtract cash
-                    operating -= wc.delta;
-                }
-
-                "Inventory" => {
-                    operating -= wc.delta;
-                }
-
-                "Payables" => {
-                    operating += wc.delta;
-                }
-
-                _ => {}
-            }
-        }
-
-        //=============================================================================
-        // 5. INVESTING + FINANCING (reuse DIRECT CF LOGIC)
-        //=============================================================================
-        let direct: Vec<Node> = self.get_cf_direct(pool, period_start, period_close).await?;
-
-        let mut investing: BigDecimal = BigDecimal::from(0);
-        let mut financing: BigDecimal = BigDecimal::from(0);
-
-        for node in &direct {
-            match node.code.as_str() {
-                "INVESTING" => investing = node.total.clone(),
-                "FINANCING" => financing = node.total.clone(),
-                _ => {}
-            }
-        }
-
-        //=============================================================================
-        // 6. FINANAL CASH FLOW
-        //=============================================================================
-        let net_cash: BigDecimal = operating.clone() + investing.clone() + financing.clone();
-
-        let result: Vec<Node> = vec![
-            Node {
-                code: "OPERATING".to_string(),
-                name: "Operating Activities".to_string(),
-                category: "cashflow".to_string(),
-                total: operating,
-                children: vec![],
-            },
-            Node {
-                code: "INVESTING".to_string(),
-                name: "Investing Activities".to_string(),
-                category: "cashflow".to_string(),
-                total: investing,
-                children: vec![],
-            },
-            Node {
-                code: "FINANCING".to_string(),
-                name: "FInancing Activities".to_string(),
-                category: "cashflow".to_string(),
-                total: financing,
-                children: vec![],
-            },
-            Node {
-                code: "NET_CASH_FLOW".to_string(),
-                name: "Net Cash Flow".to_string(),
-                category: "computed".to_string(),
-                total: net_cash,
-                children: vec![],
-            },
-        ];
-
-        Ok(result)
     }
 
     async fn get_change_of_equity(
