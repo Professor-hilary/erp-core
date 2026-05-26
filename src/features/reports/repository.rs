@@ -695,6 +695,8 @@ impl ReportRepository for PostgresReportRepo {
             ON te.account_uuid = a.uuid
         WHERE a.is_active = true
           AND a.cash_flow_category IS NOT NULL
+          AND a.cash_flow_category IN ('non-cash', 'working-capital')
+          AND a.current_balance != 0
         GROUP BY a.code, a.name, a.category, a.cash_flow_category,
                  a.normal_balance, a.is_contra, a.current_balance
         "#,
@@ -710,7 +712,12 @@ impl ReportRepository for PostgresReportRepo {
         let mut wc_nodes: Vec<Node> = vec![];
 
         for acc in &accounts {
-            let delta = acc.end_balance.clone() - acc.begin_balance.clone();
+            let delta: BigDecimal = acc.end_balance.clone() - acc.begin_balance.clone();
+
+            // Check that the account is not zero to proceed
+            if delta.abs() < BigDecimal::from_f64(0.01).unwrap() {
+                continue;
+            }
 
             match acc.cash_flow_category.as_deref() {
                 Some("non-cash") => {
