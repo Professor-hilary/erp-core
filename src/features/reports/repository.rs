@@ -639,15 +639,27 @@ impl ReportRepository for PostgresReportRepo {
     }
 
     fn calculate_wc_adjustment(&self, acc: &AccountBalance, delta: &BigDecimal) -> BigDecimal {
-        let mut adj = delta.clone();
+        let mut adj: BigDecimal = delta.clone();
 
-        // Increatse in current asset = cash outflow
-        if acc.category == "asset" {
-            adj = -adj;
+        // 1. Apply category logic
+        match acc.category.as_str() {
+            "asset" => {
+                adj = -adj;
+            }
+            "liability" => {
+                // Increase = cash inflow -> no flip
+            }
+            _ => return BigDecimal::zero(),
+        }
+
+        // 2. Increatse in current asset = cash outflow
+        if acc.normal_balance == "cr" {
+            adj = -adj.clone();
         }
         if acc.is_contra {
-            adj = -adj;
+            adj = -adj.clone();
         }
+
         adj
     }
 
@@ -658,13 +670,13 @@ impl ReportRepository for PostgresReportRepo {
         period_end: NaiveDate,
     ) -> Result<Vec<Node>, AppError> {
         // 1. Get Net Profit from your existing income statement
-        let income_nodes = self
+        let income_nodes: Vec<Node> = self
             .income_statement(pool, period_start, period_end)
             .await?;
-        let net_profit = income_nodes
+        let net_profit: BigDecimal = income_nodes
             .iter()
-            .find(|n| n.code == "NET_PROFIT")
-            .map(|n| n.total.clone())
+            .find(|n: &&Node| n.code == "NET_PROFIT")
+            .map(|n: &Node| n.total.clone())
             .unwrap_or_else(BigDecimal::zero);
 
         // 2. Fetch all relevant account balances
@@ -681,9 +693,7 @@ impl ReportRepository for PostgresReportRepo {
             a.current_balance as end_balance,
             -- Beginning balance (from before period)
             COALESCE(
-                (SELECT current_balance
-                 FROM accounting.accounts
-                 WHERE code = a.code),
+                (SELECT current_balance FROM accounting.accounts WHERE code = a.code),
                 0
             ) -
             COALESCE(
@@ -722,7 +732,7 @@ impl ReportRepository for PostgresReportRepo {
             match acc.cash_flow_category.as_deref() {
                 Some("non-cash") => {
                     // e.g., Depreciation, Amortization, Provisions
-                    let signed = if acc.normal_balance == "cr" {
+                    let signed: BigDecimal = if acc.normal_balance == "cr" {
                         delta.clone()
                     } else {
                         -delta.clone()
@@ -732,7 +742,7 @@ impl ReportRepository for PostgresReportRepo {
                     // Optional: add as child node
                 }
                 Some("working-capital") => {
-                    let adjustment = self.calculate_wc_adjustment(acc, &delta);
+                    let adjustment: BigDecimal = self.calculate_wc_adjustment(acc, &delta);
                     working_capital_changes += adjustment.clone();
 
                     wc_nodes.push(Node {
@@ -747,14 +757,14 @@ impl ReportRepository for PostgresReportRepo {
             }
         }
 
-        let cash_from_operations =
+        let cash_from_operations: BigDecimal =
             net_profit.clone() + &non_cash_adjustments + working_capital_changes.clone();
 
         // 4. Build the tree (same structure as direct method)
         let mut result: Vec<Node> = vec![];
 
         // Operating Section (Indirect)
-        let mut operating_children = vec![Node {
+        let mut operating_children: Vec<Node> = vec![Node {
             code: "NET_PROFIT".to_string(),
             name: "Net Profit / (Loss)".to_string(),
             category: "cashflow_line".to_string(),
@@ -782,7 +792,7 @@ impl ReportRepository for PostgresReportRepo {
             });
         }
 
-        let operating_node = Node {
+        let operating_node: Node = Node {
             code: "OPERATING".to_string(),
             name: "Cash Flows from Operating Activities".to_string(),
             category: "cashflow_section".to_string(),
@@ -792,7 +802,7 @@ impl ReportRepository for PostgresReportRepo {
         result.push(operating_node);
 
         // 5. Investing & Financing — reuse direct method data
-        let direct_cf = self.get_cf_direct(pool, period_start, period_end).await?;
+        let direct_cf: Vec<Node> = self.get_cf_direct(pool, period_start, period_end).await?;
 
         for node in direct_cf {
             if node.code == "INVESTING" || node.code == "FINANCING" {
