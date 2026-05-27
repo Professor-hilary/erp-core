@@ -720,6 +720,7 @@ impl ReportRepository for PostgresReportRepo {
         let mut non_cash_adjustments: BigDecimal = BigDecimal::zero();
         let mut working_capital_changes: BigDecimal = BigDecimal::zero();
         let mut wc_nodes: Vec<Node> = vec![];
+        let mut nc_nodes: Vec<Node> = vec![];
 
         for acc in &accounts {
             let delta: BigDecimal = acc.end_balance.clone() - acc.begin_balance.clone();
@@ -731,7 +732,7 @@ impl ReportRepository for PostgresReportRepo {
 
             match acc.cash_flow_category.as_deref() {
                 Some("non-cash") => {
-                    // e.g., Depreciation, Amortization, Provisions
+                    // Depreciation, Amortization, Provisions
                     let signed: BigDecimal = if acc.normal_balance == "cr" {
                         delta.clone()
                     } else {
@@ -739,7 +740,14 @@ impl ReportRepository for PostgresReportRepo {
                     };
                     non_cash_adjustments += signed.clone();
 
-                    // Optional: add as child node
+                    // Add as child node
+                    nc_nodes.push(Node {
+                        code: acc.code.clone(),
+                        name: acc.name.clone(),
+                        category: "non_cash".to_string(),
+                        total: acc.end_balance.clone(),
+                        children: vec![],
+                    });
                 }
                 Some("working-capital") => {
                     let adjustment: BigDecimal = self.calculate_wc_adjustment(acc, &delta);
@@ -778,7 +786,7 @@ impl ReportRepository for PostgresReportRepo {
                 name: "Adjustments for non-cash items".to_string(),
                 category: "cashflow_line".to_string(),
                 total: non_cash_adjustments,
-                children: vec![],
+                children: nc_nodes,
             });
         }
 

@@ -874,7 +874,7 @@
             "parent_code": "500000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "operating"
+            "cash_flow_category": "non-cash"
         },
         {
             "code": "550100",
@@ -883,7 +883,7 @@
             "parent_code": "550000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "operating"
+            "cash_flow_category": "non-cash"
         },
         {
             "code": "550200",
@@ -892,7 +892,7 @@
             "parent_code": "550000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "operating"
+            "cash_flow_category": "non-cash"
         },
         {
             "code": "550300",
@@ -901,7 +901,7 @@
             "parent_code": "550000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "operating"
+            "cash_flow_category": "non-cash"
         },
         {
             "code": "600000",
