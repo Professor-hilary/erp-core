@@ -1,8 +1,7 @@
-use std::collections::HashMap;
-
 // src/features/reports/repository.rs
 use crate::{interface::api::errors::AppError, models::reports::*};
 
+use std::collections::HashMap;
 use async_trait::async_trait;
 use bigdecimal::{BigDecimal, FromPrimitive, Zero};
 use chrono::NaiveDate;
@@ -733,12 +732,7 @@ impl ReportRepository for PostgresReportRepo {
             match acc.cash_flow_category.as_deref() {
                 Some("non-cash") => {
                     // Depreciation, Amortization, Provisions
-                    let signed: BigDecimal = if acc.normal_balance == "cr" {
-                        delta.clone()
-                    } else {
-                        -delta.clone()
-                    };
-                    non_cash_adjustments += signed.clone();
+                    non_cash_adjustments += acc.end_balance.clone();
 
                     // Add as child node
                     nc_nodes.push(Node {

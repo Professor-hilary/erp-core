@@ -1,6 +1,7 @@
 // src/features/accounts/repositories.rs
 use crate::{interface::api::errors::AppError, models::manufacturing::*};
 use bigdecimal::{BigDecimal, One};
+use chrono::prelude::NaiveDate;
 use sqlx::{PgPool, Row, postgres::PgRow};
 use uuid::Uuid;
 pub struct ManufacturingRepo {
@@ -75,7 +76,7 @@ impl ManufacturingRepo {
     }
 
     pub async fn create_work_center(&self, dto: WorkCenterDto) -> Result<WorkCenter, AppError> {
-        let row = sqlx::query(
+        let row: PgRow = sqlx::query(
             r#"
             INSERT INTO manufacturing.work_centers(
                 code, name, labor_rate, allocation_base, department_code
@@ -106,7 +107,7 @@ impl ManufacturingRepo {
     }
 
     pub async fn create_routings(&self, dto: RoutingsDto) -> Result<Routings, AppError> {
-        let row = sqlx::query(
+        let row: PgRow = sqlx::query(
             r#"
             INSERT INTO manufacturing.routings(
                 product_item_uuid, routing_code, notes, version,
@@ -147,7 +148,7 @@ impl ManufacturingRepo {
         &self,
         dto: RoutingOperationsDto,
     ) -> Result<RoutingOperations, AppError> {
-        let row = sqlx::query(
+        let row: PgRow = sqlx::query(
             r#"
             INSERT INTO manufacturing.routing_operations(
                 routing_uuid, sequence, operation_name, work_center,
@@ -186,7 +187,7 @@ impl ManufacturingRepo {
         &self,
         dto: CreateOverheadRateDto,
     ) -> Result<OverheadRates, AppError> {
-        let row = sqlx::query(
+        let row: PgRow = sqlx::query(
             r#"
             INSERT INTO manufacturing.overhead_rates(
                 period_start, period_end, allocation_base, estimated_overhead,
@@ -223,10 +224,11 @@ impl ManufacturingRepo {
     }
 
     pub async fn get_production_order(&self, uuid: Uuid) -> Result<ProductionOrder, AppError> {
-        let row = sqlx::query("SELECT * FROM manufacturing.production_orders WHERE uuid = $1")
-            .bind(uuid)
-            .fetch_one(&self.pool)
-            .await?;
+        let row: PgRow =
+            sqlx::query("SELECT * FROM manufacturing.production_orders WHERE uuid = $1")
+                .bind(uuid)
+                .fetch_one(&self.pool)
+                .await?;
 
         Ok(ProductionOrder {
             uuid: row.get("uuid"),
@@ -250,7 +252,7 @@ impl ManufacturingRepo {
         dto: IssueMaterialDto,
         user_uuid: Uuid,
     ) -> Result<Vec<BomMaterialIssue>, AppError> {
-        let materials = sqlx::query_as::<_, BomMaterialIssue>(
+        let materials: Vec<BomMaterialIssue> = sqlx::query_as::<_, BomMaterialIssue>(
             r#"SELECT * FROM manufacturing.issue_material_from_bom($1, $2, $3, $4, $5)"#,
         )
         .bind(&dto.production_order_uuid)
@@ -269,7 +271,7 @@ impl ManufacturingRepo {
         dto: SingleMaterialIssueDto,
         user_uuid: Uuid,
     ) -> Result<Vec<FullMaterialIssue>, AppError> {
-        let materials = sqlx::query_as::<_, FullMaterialIssue>(
+        let materials: Vec<FullMaterialIssue> = sqlx::query_as::<_, FullMaterialIssue>(
             r#"SELECT * FROM manufacturing.issue_material_to_order($1, $2, $3, $4, $5, $6, $7)"#,
         )
         .bind(dto.item_serial_id)
@@ -293,10 +295,10 @@ impl ManufacturingRepo {
     ) -> Result<CostApplication, AppError> {
         let row: PgRow = sqlx::query(
             "
-            SELECT * FROM manufacturing.apply_overhead_to_order(
-                $1, $2, $3, $4, $5, $6
-            )
-        ",
+                SELECT * FROM manufacturing.apply_overhead_to_order(
+                    $1, $2, $3, $4, $5, $6
+                )
+            ",
         )
         .bind(dto.production_order)
         .bind(dto.base_hours)
@@ -326,10 +328,10 @@ impl ManufacturingRepo {
     ) -> Result<CostApplication, AppError> {
         let row: PgRow = sqlx::query(
             "
-            SELECT * FROM manufacturing.record_actual_overhead(
-                $1, $2, $3, $4, $5, $6, $7
-            )
-        ",
+                SELECT * FROM manufacturing.record_actual_overhead(
+                    $1, $2, $3, $4, $5, $6, $7
+                )
+            ",
         )
         .bind(dto.production_order_uuid)
         .bind(dto.base_amount)
@@ -359,10 +361,10 @@ impl ManufacturingRepo {
     ) -> Result<CostApplication, AppError> {
         let row: PgRow = sqlx::query(
             "
-            SELECT * FROM manufacturing.apply_direct_labor_from_routing(
-                $1, $2, $3, $4, $5
-            )
-        ",
+                SELECT * FROM manufacturing.apply_direct_labor_from_routing(
+                    $1, $2, $3, $4, $5
+                )
+            ",
         )
         .bind(dto.production_order_uuid)
         .bind(user_uuid)
@@ -382,47 +384,16 @@ impl ManufacturingRepo {
         })
     }
 
-    // pub async fn apply_indirect_labor(
-    //     &self,
-    //     dto: ApplyInDirectLaborDto,
-    //     user_uuid: Uuid,
-    // ) -> Result<CostApplication, AppError> {
-    //     let row: PgRow = sqlx::query(
-    //         "
-    //         SELECT * FROM manufacturing.record_indirect_labor(
-    //             $1, $2, $3, $4, $5, $6, $7
-    //         )
-    //     ",
-    //     )
-    //     .bind(dto.hours)
-    //     .bind(dto.rate_per_hour)
-    //     .bind(user_uuid)
-    //     .bind(dto.labor_account_code)
-    //     .bind(dto.control_account_code)
-    //     .bind(dto.department_code.unwrap_or_default())
-    //     .bind(dto.reference)
-    //     .fetch_one(&self.pool)
-    //     .await?;
-
-    //     Ok(CostApplication {
-    //         uuid: row.get("uuid"),
-    //         production_order_uuid: row.get("production_order_uuid"),
-    //         application_type: "IndirectLabor".to_string(),
-    //         amount: row.get("amount"),
-    //         applied_at: row.get("applied_at"),
-    //         reference: row.get("reference"),
-    //     })
-    // }
-
     pub async fn calculate_standard_cost_for_item(
         &self,
         tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
         item_uuid: Uuid,
     ) -> Result<BigDecimal, AppError> {
-        let row: PgRow = sqlx::query("SELECT manufacturing.calculate_standard_cost($1) AS standard_cost")
-            .bind(item_uuid)
-            .fetch_one(&mut **tx)
-            .await?;
+        let row: PgRow =
+            sqlx::query("SELECT manufacturing.calculate_standard_cost($1) AS standard_cost")
+                .bind(item_uuid)
+                .fetch_one(&mut **tx)
+                .await?;
 
         Ok(row.get("standard_cost"))
     }
@@ -460,7 +431,7 @@ impl ManufacturingRepo {
         dto: ProrateVarianceDto,
         user_uuid: Uuid,
     ) -> Result<VarianceProrationResult, AppError> {
-        let as_of = dto
+        let as_of: NaiveDate = dto
             .as_of_date
             .unwrap_or_else(|| chrono::Utc::now().date_naive());
 
@@ -519,7 +490,7 @@ impl ManufacturingRepo {
         dto: &CreateBomHeaderDto,
         user_uuid: Uuid,
     ) -> Result<BomHeader, AppError> {
-        let row = sqlx::query(
+        let row: PgRow = sqlx::query(
             r#"
             INSERT INTO manufacturing.bom_headers (
                 bom_code, product_item_uuid, description, revision, is_active,
@@ -561,7 +532,7 @@ impl ManufacturingRepo {
         header_uuid: Uuid,
         dto: &CreateBomLineDto,
     ) -> Result<BomLine, AppError> {
-        let row = sqlx::query(
+        let row: PgRow = sqlx::query(
             r#"
             INSERT INTO manufacturing.bom_lines (
                 bom_header_uuid, line_number, component_item_uuid,
@@ -594,7 +565,7 @@ impl ManufacturingRepo {
     }
 
     pub async fn get_full_bom(&self, bom_uuid: Uuid) -> Result<Option<BomWithLines>, AppError> {
-        let header_opt = sqlx::query_as::<_, BomHeader>(
+        let header_opt: Option<BomHeader> = sqlx::query_as::<_, BomHeader>(
             "SELECT * FROM manufacturing.bom_headers WHERE uuid = $1",
         )
         .bind(bom_uuid)
@@ -605,7 +576,7 @@ impl ManufacturingRepo {
             return Ok(None);
         };
 
-        let lines = sqlx::query_as::<_, BomLine>(
+        let lines: Vec<BomLine> = sqlx::query_as::<_, BomLine>(
             "SELECT * FROM manufacturing.bom_lines WHERE bom_header_uuid = $1 ORDER BY line_number",
         )
         .bind(bom_uuid)
@@ -634,7 +605,7 @@ impl ManufacturingRepo {
         .await?;
 
         if let Some(header) = header_opt {
-            let lines = sqlx::query_as::<_, BomLine>(
+            let lines: Vec<BomLine> = sqlx::query_as::<_, BomLine>(
                 "SELECT * FROM manufacturing.bom_lines WHERE bom_header_uuid = $1 ORDER BY line_number"
             )
             .bind(header.uuid)
