@@ -265,7 +265,7 @@ BEGIN
     ORDER BY bh.is_default DESC, bh.created_at DESC
     LIMIT 1;
 
-    --===================== MATERIAL COST =========================
+    --===================== MATERIAL STANDARD COST =======================
     IF v_bom_uuid IS NOT NULL THEN
         SELECT COALESCE(SUM(bl.quantity_per * i.standard_cost), 0)
         INTO v_material_cost
@@ -274,7 +274,8 @@ BEGIN
         WHERE bl.bom_header_uuid = v_bom_uuid;
     END IF;
 
-    --===================== PICK ROUTING ==========================
+    --======================= LABOR STANDARD COST ========================
+    -- Pick routing for product of current production order
     SELECT r.uuid
     INTO v_routing_uuid
     FROM manufacturing.routings r
@@ -283,7 +284,7 @@ BEGIN
     ORDER BY r.is_default DESC, r.created_at DESC
     LIMIT 1;
 
-    --========================== LABOR ===========================
+    -- Determine direct labor using routing and work station rates
     IF v_routing_uuid IS NOT NULL THEN
         SELECT COALESCE(SUM(
             ((ro.setup_time_minutes + ro.run_time_minutes) / 60.0)
@@ -296,11 +297,10 @@ BEGIN
         WHERE ro.routing_uuid = v_routing_uuid;
     END IF;
 
-    --========================= OVERHEAD ==========================
+    --===================== OVERHEAD STANDARD COST =======================
     IF v_routing_uuid IS NOT NULL THEN
         SELECT COALESCE(SUM(
-            ((ro.setup_time_minutes + ro.run_time_minutes) / 60.0)
-            * ohr.rate
+            ((ro.setup_time_minutes + ro.run_time_minutes) / 60.0) * ohr.rate
         ), 0)
         INTO v_overhead_cost
         FROM manufacturing.routing_operations ro
@@ -764,8 +764,6 @@ BEGIN
             last_updated_at = now();
     END IF;
 
-    RAISE NOTICE 'IF message';
-
     -- 10. Run variances ONLY when fully complete
     IF v_new_completed >= v_order.quantity_ordered THEN
         PERFORM manufacturing.calculate_and_post_variances(
@@ -773,8 +771,6 @@ BEGIN
             p_mfg_lab_var_account, p_mfg_moh_var_account, p_completion_date
         );
     END IF;
-
-    RAISE NOTICE 'Returning message';
 
     RETURN (SELECT uuid FROM accounting.transactions WHERE serial_id = v_txn_serial);
 END;

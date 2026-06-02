@@ -11,8 +11,8 @@ use axum::{
 use crate::{
     AppState,
     features::{
-        accounts, company, inventory, manufacturing, payroll, procurement, reports, sales,
-        transactions, workforce,
+        accounts, company, fixedassets, inventory, manufacturing, payroll, procurement, reports,
+        sales, transactions, workforce,
     },
     interface::api::errors::AppError,
     middleware::{auth::AuthenticatedUser, layer::auth_middleware},
@@ -53,6 +53,9 @@ pub fn create_router(state: Arc<AppState>) -> Router {
     let manufacturing_routes: Router<Arc<AppState>> = manufacturing::handlers::router().layer(
         middleware::from_fn_with_state(state.clone(), auth_middleware),
     );
+    let fixedassets_routes: Router<Arc<AppState>> = fixedassets::handlers::router().layer(
+        middleware::from_fn_with_state(state.clone(), auth_middleware),
+    );
 
     Router::new()
         // CHECK THAT SERVER IS UP AND RUNING
@@ -73,6 +76,7 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .nest("/api/procurement", vendor_routes)
         .nest("/api/workforce", employee_routes)
         .nest("/api/manufacturing", manufacturing_routes)
+        .nest("/api/fixedassets", fixedassets_routes)
         // CORS & global state
         .layer(Extension(state.clone()))
         .layer(CorsLayer::permissive())

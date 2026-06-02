@@ -1,12 +1,12 @@
 // src/features/reports/repository.rs
 use crate::{interface::api::errors::AppError, models::reports::*};
 
-use std::collections::HashMap;
 use async_trait::async_trait;
 use bigdecimal::{BigDecimal, FromPrimitive, Zero};
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
+use std::collections::HashMap;
 use uuid::Uuid;
 
 //=====================================================================
@@ -400,7 +400,7 @@ impl ReportRepository for PostgresReportRepo {
             // Determine signed amount
             //=============================================================
 
-            let signed_amount = if row.direction == "inflow" {
+            let signed_amount: BigDecimal = if row.direction == "inflow" {
                 row.amount.clone()
             } else {
                 -row.amount.clone()
@@ -481,7 +481,7 @@ impl ReportRepository for PostgresReportRepo {
                 let mut line_nodes: Vec<Node> = vec![];
 
                 for line in txn.lines {
-                    let signed_amount = if line.direction == "inflow" {
+                    let signed_amount: BigDecimal = if line.direction == "inflow" {
                         line.amount.clone()
                     } else {
                         -line.amount.clone()
@@ -813,7 +813,7 @@ impl ReportRepository for PostgresReportRepo {
         }
 
         // 6. Net cash flow + opening/closing cash (same as direct)
-        let net_cash_flow: BigDecimal = result.iter().map(|n| n.total.clone()).sum::<BigDecimal>();
+        let net_cash_flow: BigDecimal = result.iter().map(|n: &Node| n.total.clone()).sum::<BigDecimal>();
 
         //=================================================================
         // 5. Opening cash
@@ -1071,7 +1071,7 @@ impl ReportRepository for PostgresReportRepo {
         customer_uuid: Uuid,
         _user_id: Uuid,
     ) -> Result<Vec<ArAgingDto>, AppError> {
-        let rows = sqlx::query_as::<_, ArAgingDto>(
+        let rows: Vec<ArAgingDto> = sqlx::query_as::<_, ArAgingDto>(
             r#"SELECT * FROM reporting.ar_aging_detailed WHERE customer_serial_id = (
                     SELECT serial_id FROM sales.customers WHERE uuid = $1
                 )"#,
@@ -1088,7 +1088,7 @@ impl ReportRepository for PostgresReportRepo {
         vendor_uuid: Uuid,
         _user_id: Uuid,
     ) -> Result<Vec<ApAgingDto>, AppError> {
-        let rows = sqlx::query_as::<_, ApAgingDto>(
+        let rows: Vec<ApAgingDto> = sqlx::query_as::<_, ApAgingDto>(
             r#"SELECT * FROM reporting.ap_aging_detailed WHERE vendor_serial_id = (
                     SELECT serial_id FROM procurement.vendors WHERE uuid = $1
                 )"#,
@@ -1105,7 +1105,7 @@ impl ReportRepository for PostgresReportRepo {
         start: NaiveDate,
         end: NaiveDate,
     ) -> Result<Vec<EquityChangeRow>, AppError> {
-        let rows = sqlx::query_as::<_, EquityChangeRow>(
+        let rows: Vec<EquityChangeRow> = sqlx::query_as::<_, EquityChangeRow>(
             r#"
                 SELECT code, name, description, amount
                 FROM reporting.get_statement_of_changes_in_equity($1, $2)
@@ -1129,10 +1129,11 @@ impl ReportRepository for PostgresReportRepo {
         to: Option<NaiveDate>,
     ) -> Result<Vec<CashbookRowDto>, AppError> {
         // We'll map customer_uuid -> account_uuid or filter by txn_date
-        let from_d = from.unwrap_or_else(|| NaiveDate::from_ymd_opt(1970, 1, 1).unwrap());
-        let to_d = to.unwrap_or_else(|| NaiveDate::from_ymd_opt(9999, 12, 31).unwrap());
+        let from_d: NaiveDate =
+            from.unwrap_or_else(|| NaiveDate::from_ymd_opt(1970, 1, 1).unwrap());
+        let to_d: NaiveDate = to.unwrap_or_else(|| NaiveDate::from_ymd_opt(9999, 12, 31).unwrap());
 
-        let rows = sqlx::query_as::<_, CashbookRowDto>(
+        let rows: Vec<CashbookRowDto> = sqlx::query_as::<_, CashbookRowDto>(
             r#"
             SELECT cb.*
             FROM reporting.cashbook cb
@@ -1159,10 +1160,11 @@ impl ReportRepository for PostgresReportRepo {
         from: Option<NaiveDate>,
         to: Option<NaiveDate>,
     ) -> Result<Vec<CashbookRowDto>, AppError> {
-        let from_d = from.unwrap_or_else(|| NaiveDate::from_ymd_opt(1970, 1, 1).unwrap());
-        let to_d = to.unwrap_or_else(|| NaiveDate::from_ymd_opt(9999, 12, 31).unwrap());
+        let from_d: NaiveDate =
+            from.unwrap_or_else(|| NaiveDate::from_ymd_opt(1970, 1, 1).unwrap());
+        let to_d: NaiveDate = to.unwrap_or_else(|| NaiveDate::from_ymd_opt(9999, 12, 31).unwrap());
 
-        let rows = sqlx::query_as::<_, CashbookRowDto>(
+        let rows: Vec<CashbookRowDto> = sqlx::query_as::<_, CashbookRowDto>(
             r#"
             SELECT cb.*
             FROM reporting.cashbook cb
@@ -1186,16 +1188,12 @@ impl ReportRepository for PostgresReportRepo {
         pool: &PgPool,
         as_of: NaiveDate,
     ) -> Result<Vec<TrialBalanceRow>, AppError> {
-        let rows = sqlx::query_as::<_, TrialBalanceRow>(
+        let rows: Vec<TrialBalanceRow> = sqlx::query_as::<_, TrialBalanceRow>(
             r#"SELECT * FROM reporting.get_trial_balance($1)"#,
         )
         .bind(as_of)
         .fetch_all(pool)
         .await?;
-
-        // let total_debit : BigDecimal = rows.iter().map(|r| r.debit).sum();
-        // let total_credit: BigDecimal = rows.iter().map(|r| r.credit).sum();
-        // assert!((total_debit - total_credit).abs() < BigDecimal::zero());
 
         Ok(rows)
     }
@@ -1205,7 +1203,7 @@ impl ReportRepository for PostgresReportRepo {
         pool: &PgPool,
         _user_id: Uuid,
     ) -> Result<InventoryValuationDto, AppError> {
-        let row = sqlx::query_as::<_, InventoryValuationDto>(
+        let row: InventoryValuationDto = sqlx::query_as::<_, InventoryValuationDto>(
             r#"SELECT * FROM reporting.inventory_valuation"#,
         )
         .fetch_one(pool)
@@ -1218,7 +1216,7 @@ impl ReportRepository for PostgresReportRepo {
         pool: &PgPool,
         _user_id: Uuid,
     ) -> Result<CustomerStatementDto, AppError> {
-        let row = sqlx::query_as::<_, CustomerStatementDto>(
+        let row: CustomerStatementDto = sqlx::query_as::<_, CustomerStatementDto>(
             r#"SELECT * FROM reporting.customer_statement"#,
         )
         .fetch_one(pool)
@@ -1231,7 +1229,7 @@ impl ReportRepository for PostgresReportRepo {
         pool: &PgPool,
         _user_id: Uuid,
     ) -> Result<PayrollSummaryDto, AppError> {
-        let row =
+        let row: PayrollSummaryDto =
             sqlx::query_as::<_, PayrollSummaryDto>(r#"SELECT * FROM reporting.payroll_summary"#)
                 .fetch_one(pool)
                 .await?;
