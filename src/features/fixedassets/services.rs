@@ -359,7 +359,6 @@ impl<R: FixedAssetRepository> FixedAssetService<R> {
     }
 
     // Maintanance
-
     pub async fn create_maintenance(
         &self,
         tenant_pool: &PgPool,

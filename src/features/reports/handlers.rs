@@ -11,9 +11,12 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::{
-    features::reports::{
-        repository::{ForceReload, PostgresReportRepo},
-        services::ReportService,
+    features::{
+        fixedassets::{repository::PostgresFixedAssetRepository, services::FixedAssetService},
+        reports::{
+            repository::{ForceReload, PostgresReportRepo},
+            services::ReportService,
+        },
     },
     interface::api::{errors::AppError, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,
@@ -48,6 +51,10 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/inventory-valuation", get(http_inventory_valuation))
         .route("/customer-statement", get(http_customer_report))
         .route("/payroll", get(http_payroll))
+        .route("/asset/register", get(http_asset_register))
+        .route("/asset/movement", get(http_asset_movement_report))
+        .route("/asset/depreciation", get(http_asset_depreciation_report))
+        .route("/asset/disposal", get(http_asset_disposal_report))
         .route("/change-of-equity", get(http_change_equity))
 }
 
@@ -356,6 +363,70 @@ async fn http_payroll(
     let service: ReportService<PostgresReportRepo> = ReportService::new(repo);
     let report = service
         .payroll_statement(&user.tenant_pool, user.user_id)
+        .await?;
+    Ok(ApiResponse::success(report, "Report fetched"))
+}
+
+async fn http_asset_register(
+    State(_state): State<Arc<AppState>>,
+    Extension(user): Extension<AuthenticatedTenant>,
+    Path(_uuid): Path<Uuid>,
+) -> Result<Response, AppError> {
+    let repo = PostgresFixedAssetRepository::new();
+    let service = FixedAssetService::new(repo);
+    let report = service
+        .fixed_asset_register(&user.tenant_pool, user.user_id)
+        .await?;
+    Ok(ApiResponse::success(report, "Report fetched"))
+}
+
+async fn http_asset_movement_report(
+    State(_state): State<Arc<AppState>>,
+    Extension(user): Extension<AuthenticatedTenant>,
+    Query(date): Query<(NaiveDate, NaiveDate)>,
+    Path(_uuid): Path<Uuid>,
+) -> Result<Response, AppError> {
+    let from_date = date.0;
+    let to_date = date.1;
+
+    let repo = PostgresFixedAssetRepository::new();
+    let service = FixedAssetService::new(repo);
+    let report = &service
+        .asset_movements_report(&user.tenant_pool, from_date, to_date, user.user_id)
+        .await?;
+    Ok(ApiResponse::success(report, "Report fetched"))
+}
+
+async fn http_asset_depreciation_report(
+    State(_state): State<Arc<AppState>>,
+    Extension(user): Extension<AuthenticatedTenant>,
+    Query(date): Query<(NaiveDate, NaiveDate)>,
+    Path(_uuid): Path<Uuid>,
+) -> Result<Response, AppError> {
+    let from_date = date.0;
+    let to_date = date.1;
+
+    let repo = PostgresFixedAssetRepository::new();
+    let service = FixedAssetService::new(repo);
+    let report = &service
+        .depreciation_report(&user.tenant_pool, from_date, to_date, user.user_id)
+        .await?;
+    Ok(ApiResponse::success(report, "Report fetched"))
+}
+
+async fn http_asset_disposal_report(
+    State(_state): State<Arc<AppState>>,
+    Extension(user): Extension<AuthenticatedTenant>,
+    Query(date): Query<(NaiveDate, NaiveDate)>,
+    Path(_uuid): Path<Uuid>,
+) -> Result<Response, AppError> {
+    let from_date = date.0;
+    let to_date = date.1;
+
+    let repo = PostgresFixedAssetRepository::new();
+    let service = FixedAssetService::new(repo);
+    let report = &service
+        .disposed_assets_report(&user.tenant_pool, from_date, to_date, user.user_id)
         .await?;
     Ok(ApiResponse::success(report, "Report fetched"))
 }

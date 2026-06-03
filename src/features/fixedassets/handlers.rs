@@ -42,8 +42,8 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/cwip/get/{uuid}", get(http_get_asset_cwip))
         .route("/cwip/capitalize/{uuid}", post(http_capitalize_cwip))
         .route("/cwip/delete", delete(http_delete_asset_cwip))
-        .route("/depreciation/compute", patch(http_compute_depreciation))
-        .route("/depreciation/run", get(http_run_depreciation))
+        .route("/depreciation/compute", post(http_compute_depreciation))
+        .route("/depreciation/run", post(http_run_depreciation))
         .route("/depreciation/schedule/{uuid}", get(http_get_depr_schedule))
         .route("/depreciation/post/{uuid}", post(http_post_depr_to_gl))
         .route("/component/create", post(http_create_asset_component))
@@ -51,6 +51,23 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/component/list", get(http_list_asset_component))
         .route("/component/get/{uuid}", get(http_get_asset_component))
         .route("/component/delete", delete(http_delete_asset_component))
+        .route("/insurance/create", post(http_create_insurance))
+        .route("/insurance/update", patch(http_update_insurance))
+        .route("/insurance/list", get(http_list_insurance))
+        .route("/insurance/get/{uuid}", get(http_get_insurance))
+        .route("/insurance/delete", delete(http_delete_insurance))
+        .route("/maintenance/create", post(http_create_maintenance))
+        .route("/maintenance/update", patch(http_update_maintenance))
+        .route("/maintenance/list", get(http_list_maintenance))
+        .route("/maintenance/get/{uuid}", get(http_get_maintenance))
+        .route("/maintenance/delete", delete(http_delete_maintenance))
+        .route("/transfer/create", post(http_transfer_asset))
+        .route("/transfer/history", get(http_transfer_history))
+        .route("/transaction/history", get(http_transaction_history))
+        .route("/revaluation/create", post(http_create_revaluation))
+        .route("/revaluation/history", get(http_revaluation_history))
+        .route("/disposal/create", post(http_dispose_asset))
+        .route("/disposal/history", get(http_disposal_history))
 }
 
 async fn http_create_asset(
@@ -488,5 +505,279 @@ async fn http_delete_asset_component(
     Ok(ApiResponse::success(
         "Asset Deleted",
         "Capital Work In Progress deleted",
+    ))
+}
+
+async fn http_create_insurance(
+    State(_state): State<Arc<AppState>>,
+    Extension(user): Extension<AuthenticatedTenant>,
+    AppJson(payload): AppJson<CreateAssetInsurance>,
+) -> Result<Response, AppError> {
+    let repo = PostgresFixedAssetRepository::new();
+    let service = FixedAssetService::new(repo);
+    let asset = service
+        .create_insurance(&user.tenant_pool, user.user_id, &payload)
+        .await?;
+    Ok(ApiResponse::created(
+        asset,
+        "Capital Work In Progress created",
+    ))
+}
+
+async fn http_list_insurance(
+    State(_state): State<Arc<AppState>>,
+    Path(uuid): Path<Uuid>,
+    Extension(user): Extension<AuthenticatedTenant>,
+) -> Result<Response, AppError> {
+    let repo = PostgresFixedAssetRepository::new();
+    let service = FixedAssetService::new(repo);
+    let list = service
+        .list_insurance(&user.tenant_pool, uuid, user.user_id)
+        .await?;
+    Ok(ApiResponse::success(
+        list,
+        "Capital Work In Progress fetched",
+    ))
+}
+
+async fn http_get_insurance(
+    State(_state): State<Arc<AppState>>,
+    Path(uuid): Path<Uuid>,
+    Extension(user): Extension<AuthenticatedTenant>,
+) -> Result<Response, AppError> {
+    let repo = PostgresFixedAssetRepository::new();
+    let service = FixedAssetService::new(repo);
+    let asset = service
+        .get_insurance(&user.tenant_pool, uuid, user.user_id)
+        .await?;
+    Ok(ApiResponse::success(
+        asset,
+        "Capital Work In Progress fetched",
+    ))
+}
+
+async fn http_update_insurance(
+    State(_state): State<Arc<AppState>>,
+    Path(uuid): Path<Uuid>,
+    Extension(user): Extension<AuthenticatedTenant>,
+    AppJson(payload): AppJson<CreateAssetInsurance>,
+) -> Result<Response, AppError> {
+    let repo = PostgresFixedAssetRepository::new();
+    let service = FixedAssetService::new(repo);
+    let asset = service
+        .update_insurance(&user.tenant_pool, uuid, user.user_id, &payload)
+        .await?;
+    Ok(ApiResponse::success(
+        asset,
+        "Capital Work In Progress updated",
+    ))
+}
+
+async fn http_delete_insurance(
+    State(_state): State<Arc<AppState>>,
+    Path(uuid): Path<Uuid>,
+    Extension(user): Extension<AuthenticatedTenant>,
+) -> Result<Response, AppError> {
+    let repo = PostgresFixedAssetRepository::new();
+    let service = FixedAssetService::new(repo);
+    service
+        .delete_insurance(&user.tenant_pool, uuid, user.user_id)
+        .await?;
+    Ok(ApiResponse::success(
+        "Asset Deleted",
+        "Capital Work In Progress deleted",
+    ))
+}
+
+async fn http_transfer_asset(
+    State(_state): State<Arc<AppState>>,
+    Extension(user): Extension<AuthenticatedTenant>,
+    AppJson(payload): AppJson<CreateAssetTransfer>,
+) -> Result<Response, AppError> {
+    let repo = PostgresFixedAssetRepository::new();
+    let service = FixedAssetService::new(repo);
+    let asset = service
+        .transfer_asset(&user.tenant_pool, user.user_id, &payload)
+        .await?;
+    Ok(ApiResponse::success(
+        asset,
+        "Capital Work In Progress updated",
+    ))
+}
+
+async fn http_transfer_history(
+    State(_state): State<Arc<AppState>>,
+    Path(uuid): Path<Uuid>,
+    Extension(user): Extension<AuthenticatedTenant>,
+) -> Result<Response, AppError> {
+    let repo = PostgresFixedAssetRepository::new();
+    let service = FixedAssetService::new(repo);
+    let asset = service
+        .asset_transfer_history(&user.tenant_pool, uuid, user.user_id)
+        .await?;
+    Ok(ApiResponse::success(
+        asset,
+        "Capital Work In Progress updated",
+    ))
+}
+
+async fn http_transaction_history(
+    State(_state): State<Arc<AppState>>,
+    Path(uuid): Path<Uuid>,
+    Extension(user): Extension<AuthenticatedTenant>,
+) -> Result<Response, AppError> {
+    let repo = PostgresFixedAssetRepository::new();
+    let service = FixedAssetService::new(repo);
+    let asset = service
+        .asset_transaction_history(&user.tenant_pool, uuid, user.user_id)
+        .await?;
+    Ok(ApiResponse::success(
+        asset,
+        "Capital Work In Progress updated",
+    ))
+}
+
+async fn http_create_maintenance(
+    State(_state): State<Arc<AppState>>,
+    Extension(user): Extension<AuthenticatedTenant>,
+    AppJson(payload): AppJson<CreateAssetMaintenance>,
+) -> Result<Response, AppError> {
+    let repo = PostgresFixedAssetRepository::new();
+    let service = FixedAssetService::new(repo);
+    let asset = service
+        .create_maintenance(&user.tenant_pool, user.user_id, &payload)
+        .await?;
+    Ok(ApiResponse::created(
+        asset,
+        "Capital Work In Progress created",
+    ))
+}
+
+async fn http_list_maintenance(
+    State(_state): State<Arc<AppState>>,
+    Path(uuid): Path<Uuid>,
+    Extension(user): Extension<AuthenticatedTenant>,
+) -> Result<Response, AppError> {
+    let repo = PostgresFixedAssetRepository::new();
+    let service = FixedAssetService::new(repo);
+    let list = service
+        .list_maintenance(&user.tenant_pool, uuid, user.user_id)
+        .await?;
+    Ok(ApiResponse::success(
+        list,
+        "Capital Work In Progress fetched",
+    ))
+}
+
+async fn http_get_maintenance(
+    State(_state): State<Arc<AppState>>,
+    Path(uuid): Path<Uuid>,
+    Extension(user): Extension<AuthenticatedTenant>,
+) -> Result<Response, AppError> {
+    let repo = PostgresFixedAssetRepository::new();
+    let service = FixedAssetService::new(repo);
+    let asset = service
+        .get_maintenance(&user.tenant_pool, uuid, user.user_id)
+        .await?;
+    Ok(ApiResponse::success(
+        asset,
+        "Capital Work In Progress fetched",
+    ))
+}
+
+async fn http_update_maintenance(
+    State(_state): State<Arc<AppState>>,
+    Path(uuid): Path<Uuid>,
+    Extension(user): Extension<AuthenticatedTenant>,
+    AppJson(payload): AppJson<CreateAssetMaintenance>,
+) -> Result<Response, AppError> {
+    let repo = PostgresFixedAssetRepository::new();
+    let service = FixedAssetService::new(repo);
+    let asset = service
+        .update_maintenance(&user.tenant_pool, uuid, user.user_id, &payload)
+        .await?;
+    Ok(ApiResponse::success(
+        asset,
+        "Capital Work In Progress updated",
+    ))
+}
+
+async fn http_delete_maintenance(
+    State(_state): State<Arc<AppState>>,
+    Path(uuid): Path<Uuid>,
+    Extension(user): Extension<AuthenticatedTenant>,
+) -> Result<Response, AppError> {
+    let repo = PostgresFixedAssetRepository::new();
+    let service = FixedAssetService::new(repo);
+    service
+        .delete_maintenance(&user.tenant_pool, uuid, user.user_id)
+        .await?;
+    Ok(ApiResponse::success(
+        "Asset Deleted",
+        "Capital Work In Progress deleted",
+    ))
+}
+
+async fn http_create_revaluation(
+    State(_state): State<Arc<AppState>>,
+    Extension(user): Extension<AuthenticatedTenant>,
+    AppJson(payload): AppJson<CreateAssetRevaluation>,
+) -> Result<Response, AppError> {
+    let repo = PostgresFixedAssetRepository::new();
+    let service = FixedAssetService::new(repo);
+    let asset = service
+        .create_revaluation(&user.tenant_pool, user.user_id, &payload)
+        .await?;
+    Ok(ApiResponse::success(
+        asset,
+        "Capital Work In Progress updated",
+    ))
+}
+
+async fn http_revaluation_history(
+    State(_state): State<Arc<AppState>>,
+    Path(uuid): Path<Uuid>,
+    Extension(user): Extension<AuthenticatedTenant>,
+) -> Result<Response, AppError> {
+    let repo = PostgresFixedAssetRepository::new();
+    let service = FixedAssetService::new(repo);
+    let asset = service
+        .asset_revaluation_history(&user.tenant_pool, uuid, user.user_id)
+        .await?;
+    Ok(ApiResponse::success(
+        asset,
+        "Capital Work In Progress updated",
+    ))
+}
+
+async fn http_dispose_asset(
+    State(_state): State<Arc<AppState>>,
+    Extension(user): Extension<AuthenticatedTenant>,
+    AppJson(payload): AppJson<CreateAssetDisposal>,
+) -> Result<Response, AppError> {
+    let repo = PostgresFixedAssetRepository::new();
+    let service = FixedAssetService::new(repo);
+    let asset = service
+        .dispose_asset(&user.tenant_pool, user.user_id, &payload)
+        .await?;
+    Ok(ApiResponse::success(
+        asset,
+        "Capital Work In Progress updated",
+    ))
+}
+
+async fn http_disposal_history(
+    State(_state): State<Arc<AppState>>,
+    Path(uuid): Path<Uuid>,
+    Extension(user): Extension<AuthenticatedTenant>,
+) -> Result<Response, AppError> {
+    let repo = PostgresFixedAssetRepository::new();
+    let service = FixedAssetService::new(repo);
+    let asset = service
+        .disposal_history(&user.tenant_pool, uuid, user.user_id)
+        .await?;
+    Ok(ApiResponse::success(
+        asset,
+        "Capital Work In Progress updated",
     ))
 }
