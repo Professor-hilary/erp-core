@@ -117,7 +117,7 @@ async fn http_update_asset(
     let asset = service
         .update_asset(&user.tenant_pool, uuid, user.user_id, &payload)
         .await?;
-    Ok(ApiResponse::success(asset, "Vendor updated"))
+    Ok(ApiResponse::success(asset, "Asset updated"))
 }
 
 async fn http_delete_asset(
@@ -143,7 +143,7 @@ async fn http_create_asset_class(
     let asset = service
         .new_asset_class(&user.tenant_pool, user.user_id, &payload)
         .await?;
-    Ok(ApiResponse::created(asset, "Asset created"))
+    Ok(ApiResponse::created(asset, "Asset class created"))
 }
 
 async fn http_list_asset_classes(
@@ -155,7 +155,7 @@ async fn http_list_asset_classes(
     let list = service
         .list_asset_classes(&user.tenant_pool, user.user_id)
         .await?;
-    Ok(ApiResponse::success(list, "Assets fetched"))
+    Ok(ApiResponse::success(list, "Assets class fetched"))
 }
 
 async fn http_get_asset_class(
@@ -168,7 +168,7 @@ async fn http_get_asset_class(
     let asset = service
         .get_asset_class(&user.tenant_pool, uuid, user.user_id)
         .await?;
-    Ok(ApiResponse::success(asset, "Asset fetched"))
+    Ok(ApiResponse::success(asset, "Asset class fetched"))
 }
 
 async fn http_update_asset_class(
@@ -182,7 +182,7 @@ async fn http_update_asset_class(
     let asset = service
         .update_asset_class(&user.tenant_pool, uuid, user.user_id, &payload)
         .await?;
-    Ok(ApiResponse::success(asset, "Vendor updated"))
+    Ok(ApiResponse::success(asset, "Asset class updated"))
 }
 
 async fn http_delete_asset_class(
@@ -195,7 +195,7 @@ async fn http_delete_asset_class(
     service
         .delete_asset_class(&user.tenant_pool, uuid, user.user_id)
         .await?;
-    Ok(ApiResponse::success("Asset Deleted", "Asset deleted"))
+    Ok(ApiResponse::success("Asset Deleted", "Asset class deleted"))
 }
 
 async fn http_create_asset_book(
@@ -261,7 +261,7 @@ async fn http_delete_asset_book(
     service
         .delete_asset_book(&user.tenant_pool, uuid, user.user_id)
         .await?;
-    Ok(ApiResponse::success("Asset Deleted", "Asset book deleted"))
+    Ok(ApiResponse::success("Deleted", "Asset book deleted"))
 }
 
 async fn http_create_asset_cwip(
@@ -337,7 +337,7 @@ async fn http_delete_asset_cwip(
         .delete_cwip(&user.tenant_pool, uuid, user.user_id)
         .await?;
     Ok(ApiResponse::success(
-        "Asset Deleted",
+        "Deleted",
         "Capital Work In Progress deleted",
     ))
 }
@@ -354,7 +354,7 @@ async fn http_capitalize_cwip(
         .capitalize_cwip(&user.tenant_pool, cwip_uuid, asset_uuid, user.user_id)
         .await?;
     Ok(ApiResponse::success(
-        "Asset Deleted",
+        "Capitalized",
         "Capital Work In Progress deleted",
     ))
 }
@@ -374,10 +374,7 @@ async fn http_compute_depreciation(
             payload.asset_id,
         )
         .await?;
-    Ok(ApiResponse::created(
-        asset,
-        "Capital Work In Progress created",
-    ))
+    Ok(ApiResponse::created(asset, "Depreciation computed"))
 }
 
 async fn http_run_depreciation(
@@ -390,10 +387,7 @@ async fn http_run_depreciation(
     let list = service
         .run_depreciation(&user.tenant_pool, payload.period_date, user.user_id)
         .await?;
-    Ok(ApiResponse::success(
-        list,
-        "Capital Work In Progress fetched",
-    ))
+    Ok(ApiResponse::success(list, "Depreciation run"))
 }
 
 async fn http_get_depr_schedule(
@@ -406,10 +400,7 @@ async fn http_get_depr_schedule(
     let asset = service
         .get_depreciation_schedule(&user.tenant_pool, uuid, user.user_id)
         .await?;
-    Ok(ApiResponse::success(
-        asset,
-        "Capital Work In Progress fetched",
-    ))
+    Ok(ApiResponse::success(asset, "Depreciation schedule fetched"))
 }
 
 async fn http_post_depr_to_gl(
@@ -424,7 +415,7 @@ async fn http_post_depr_to_gl(
         .await?;
     Ok(ApiResponse::success(
         asset,
-        "Capital Work In Progress updated",
+        "Posted depreciation to journal",
     ))
 }
 async fn http_create_asset_component(
@@ -437,10 +428,7 @@ async fn http_create_asset_component(
     let asset = service
         .create_asset_component(&user.tenant_pool, user.user_id, &payload)
         .await?;
-    Ok(ApiResponse::created(
-        asset,
-        "Capital Work In Progress created",
-    ))
+    Ok(ApiResponse::created(asset, "Asset component created"))
 }
 
 async fn http_list_asset_component(
@@ -453,10 +441,7 @@ async fn http_list_asset_component(
     let list = service
         .list_asset_components(&user.tenant_pool, uuid, user.user_id)
         .await?;
-    Ok(ApiResponse::success(
-        list,
-        "Capital Work In Progress fetched",
-    ))
+    Ok(ApiResponse::success(list, "Asset components fetched"))
 }
 
 async fn http_get_asset_component(
@@ -469,10 +454,7 @@ async fn http_get_asset_component(
     let asset = service
         .get_asset_component(&user.tenant_pool, uuid, user.user_id)
         .await?;
-    Ok(ApiResponse::success(
-        asset,
-        "Capital Work In Progress fetched",
-    ))
+    Ok(ApiResponse::success(asset, "Asset component fetched"))
 }
 
 async fn http_update_asset_component(
@@ -486,10 +468,7 @@ async fn http_update_asset_component(
     let asset = service
         .update_asset_component(&user.tenant_pool, uuid, user.user_id, &payload)
         .await?;
-    Ok(ApiResponse::success(
-        asset,
-        "Capital Work In Progress updated",
-    ))
+    Ok(ApiResponse::success(asset, "Asset component updated"))
 }
 
 async fn http_delete_asset_component(
@@ -502,10 +481,7 @@ async fn http_delete_asset_component(
     service
         .delete_asset_component(&user.tenant_pool, uuid, user.user_id)
         .await?;
-    Ok(ApiResponse::success(
-        "Asset Deleted",
-        "Capital Work In Progress deleted",
-    ))
+    Ok(ApiResponse::success("Deleted", "Asset component deleted"))
 }
 
 async fn http_create_insurance(
@@ -518,10 +494,7 @@ async fn http_create_insurance(
     let asset = service
         .create_insurance(&user.tenant_pool, user.user_id, &payload)
         .await?;
-    Ok(ApiResponse::created(
-        asset,
-        "Capital Work In Progress created",
-    ))
+    Ok(ApiResponse::created(asset, "Insurance created"))
 }
 
 async fn http_list_insurance(
@@ -534,10 +507,7 @@ async fn http_list_insurance(
     let list = service
         .list_insurance(&user.tenant_pool, uuid, user.user_id)
         .await?;
-    Ok(ApiResponse::success(
-        list,
-        "Capital Work In Progress fetched",
-    ))
+    Ok(ApiResponse::success(list, "Insurance fetched"))
 }
 
 async fn http_get_insurance(
@@ -550,10 +520,7 @@ async fn http_get_insurance(
     let asset = service
         .get_insurance(&user.tenant_pool, uuid, user.user_id)
         .await?;
-    Ok(ApiResponse::success(
-        asset,
-        "Capital Work In Progress fetched",
-    ))
+    Ok(ApiResponse::success(asset, "Insurance fetched"))
 }
 
 async fn http_update_insurance(
@@ -567,10 +534,7 @@ async fn http_update_insurance(
     let asset = service
         .update_insurance(&user.tenant_pool, uuid, user.user_id, &payload)
         .await?;
-    Ok(ApiResponse::success(
-        asset,
-        "Capital Work In Progress updated",
-    ))
+    Ok(ApiResponse::success(asset, "Insurance updated"))
 }
 
 async fn http_delete_insurance(
@@ -584,8 +548,8 @@ async fn http_delete_insurance(
         .delete_insurance(&user.tenant_pool, uuid, user.user_id)
         .await?;
     Ok(ApiResponse::success(
-        "Asset Deleted",
-        "Capital Work In Progress deleted",
+        "Deleted",
+        "Insurance schedule deleted",
     ))
 }
 
@@ -599,10 +563,7 @@ async fn http_transfer_asset(
     let asset = service
         .transfer_asset(&user.tenant_pool, user.user_id, &payload)
         .await?;
-    Ok(ApiResponse::success(
-        asset,
-        "Capital Work In Progress updated",
-    ))
+    Ok(ApiResponse::success(asset, "Asset transfered"))
 }
 
 async fn http_transfer_history(
@@ -617,7 +578,7 @@ async fn http_transfer_history(
         .await?;
     Ok(ApiResponse::success(
         asset,
-        "Capital Work In Progress updated",
+        "Asset transfer history fetched",
     ))
 }
 
@@ -633,7 +594,7 @@ async fn http_transaction_history(
         .await?;
     Ok(ApiResponse::success(
         asset,
-        "Capital Work In Progress updated",
+        "Asset transaction history fetched",
     ))
 }
 
@@ -647,10 +608,7 @@ async fn http_create_maintenance(
     let asset = service
         .create_maintenance(&user.tenant_pool, user.user_id, &payload)
         .await?;
-    Ok(ApiResponse::created(
-        asset,
-        "Capital Work In Progress created",
-    ))
+    Ok(ApiResponse::created(asset, "Maintenance created"))
 }
 
 async fn http_list_maintenance(
@@ -663,10 +621,7 @@ async fn http_list_maintenance(
     let list = service
         .list_maintenance(&user.tenant_pool, uuid, user.user_id)
         .await?;
-    Ok(ApiResponse::success(
-        list,
-        "Capital Work In Progress fetched",
-    ))
+    Ok(ApiResponse::success(list, "Maintenance fetched"))
 }
 
 async fn http_get_maintenance(
@@ -679,10 +634,7 @@ async fn http_get_maintenance(
     let asset = service
         .get_maintenance(&user.tenant_pool, uuid, user.user_id)
         .await?;
-    Ok(ApiResponse::success(
-        asset,
-        "Capital Work In Progress fetched",
-    ))
+    Ok(ApiResponse::success(asset, "Maintenance fetched"))
 }
 
 async fn http_update_maintenance(
@@ -696,10 +648,7 @@ async fn http_update_maintenance(
     let asset = service
         .update_maintenance(&user.tenant_pool, uuid, user.user_id, &payload)
         .await?;
-    Ok(ApiResponse::success(
-        asset,
-        "Capital Work In Progress updated",
-    ))
+    Ok(ApiResponse::success(asset, "Maintenance updated"))
 }
 
 async fn http_delete_maintenance(
@@ -712,10 +661,7 @@ async fn http_delete_maintenance(
     service
         .delete_maintenance(&user.tenant_pool, uuid, user.user_id)
         .await?;
-    Ok(ApiResponse::success(
-        "Asset Deleted",
-        "Capital Work In Progress deleted",
-    ))
+    Ok(ApiResponse::success("Asset Deleted", "Maintenance deleted"))
 }
 
 async fn http_create_revaluation(
@@ -728,10 +674,7 @@ async fn http_create_revaluation(
     let asset = service
         .create_revaluation(&user.tenant_pool, user.user_id, &payload)
         .await?;
-    Ok(ApiResponse::success(
-        asset,
-        "Capital Work In Progress updated",
-    ))
+    Ok(ApiResponse::success(asset, "Revaluation created"))
 }
 
 async fn http_revaluation_history(
@@ -744,10 +687,7 @@ async fn http_revaluation_history(
     let asset = service
         .asset_revaluation_history(&user.tenant_pool, uuid, user.user_id)
         .await?;
-    Ok(ApiResponse::success(
-        asset,
-        "Capital Work In Progress updated",
-    ))
+    Ok(ApiResponse::success(asset, "Revaluation history fetched"))
 }
 
 async fn http_dispose_asset(
@@ -760,10 +700,7 @@ async fn http_dispose_asset(
     let asset = service
         .dispose_asset(&user.tenant_pool, user.user_id, &payload)
         .await?;
-    Ok(ApiResponse::success(
-        asset,
-        "Capital Work In Progress updated",
-    ))
+    Ok(ApiResponse::success(asset, "Asset disposed"))
 }
 
 async fn http_disposal_history(
@@ -778,6 +715,6 @@ async fn http_disposal_history(
         .await?;
     Ok(ApiResponse::success(
         asset,
-        "Capital Work In Progress updated",
+        "Asset disposal history fetched",
     ))
 }
