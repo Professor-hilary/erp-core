@@ -127,7 +127,7 @@ impl<R: FixedAssetRepository> FixedAssetService<R> {
             .await
     }
 
-    pub async fn list_asset_book(
+    pub async fn list_asset_books(
         &self,
         tenant_pool: &PgPool,
         asset_uuid: Uuid,
