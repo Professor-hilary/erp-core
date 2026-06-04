@@ -30,6 +30,8 @@ CREATE TABLE fixed_assets (
     department VARCHAR(100),
     custodian_id UUID, -- link to employees table
 
+    tax_class VARCHAR(20) CHECK (tax_class IN ('1', '2', '3', '4', 'building', 'machinery'))
+
     acquisition_date DATE NOT NULL,
     supplier_id UUID,
     po_reference VARCHAR(50),
@@ -91,7 +93,11 @@ CREATE TABLE asset_depreciation (
     period_date DATE NOT NULL,
     depreciation_amount NUMERIC(18,2) NOT NULL,
     accumulated_depreciation NUMERIC(18,2) NOT NULL,
+    financial_depreciation NUMERIC(18,2),
+    accumulated_tax_depreciation NUMERIC(18,2),
     nbv NUMERIC(18,2) NOT NULL,
+    nbv_financial NUMERIC(18,2),
+    nbv_tax NUMERIC(18,2),
     posted_to_gl BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -174,28 +180,6 @@ FOR EACH ROW EXECUTE FUNCTION update_timestamp();
 CREATE TRIGGER tg_fixed_assets_updated BEFORE UPDATE ON fixed_assets
 FOR EACH ROW EXECUTE FUNCTION update_timestamp();
 
-
--- Asset Register View (Main Report)
-CREATE VIEW vw_fixed_asset_register AS
-SELECT
-    fa.asset_code,
-    fa.asset_name,
-    ac.class_name,
-    fa.location,
-    fa.original_cost,
-    fa.acquisition_date,
-    fa.status,
-    COALESCE(SUM(ad.accumulated_financial_dep), 0) AS accumulated_dep,
-    fa.original_cost - COALESCE(SUM(ad.accumulated_financial_dep), 0) AS nbv_financial,
-    fa.financing_method,
-    fa.useful_life_years
-FROM fixed_assets fa
-LEFT JOIN asset_classes ac ON fa.class_id = ac.class_id
-LEFT JOIN asset_depreciation ad ON fa.asset_id = ad.asset_id
-GROUP BY fa.asset_id, fa.asset_code, fa.asset_name, ac.class_name,
-         fa.location, fa.original_cost, fa.acquisition_date,
-         fa.status, fa.financing_method, fa.useful_life_years;
-
 -- Depreciation Schedule View
 CREATE VIEW vw_depreciation_schedule AS
 SELECT
@@ -210,57 +194,266 @@ FROM asset_depreciation ad
 JOIN fixed_assets fa ON ad.asset_id = fa.asset_id
 ORDER BY fa.asset_code, ad.period_date;
 
--- Function: Capitalize an Asset
+/*
+async fn calculate_and_post_depreciation(
+    &self,
+    asset_id: Uuid,
+    period_date: NaiveDate,
+    user_id: Uuid,
+) -> Result<AssetDepreciation, AppError> {
+    let mut tx = self.pool.begin().await?;
+
+    let dep_record = sqlx::query_as::<_, AssetDepreciation>(
+        r#"
+        SELECT * FROM calculate_depreciation_full($1, $2, $3)
+        AS dep(financial_depreciation, tax_depreciation,
+               accumulated_financial_dep, accumulated_tax_dep,
+               nbv_financial, nbv_tax)
+        "#,
+    )
+    .bind(user_id)
+    .bind(asset_id)
+    .bind(period_date)
+    .fetch_one(&mut *tx)
+    .await?;
+
+    // Insert into depreciation table
+    let inserted = self.repo.create_depreciation_record(&mut tx, asset_id, user_id, &dep_record).await?;
+
+    tx.commit().await?;
+
+    Ok(inserted)
+}
+*/
+
+CREATE OR REPLACE FUNCTION calculate_depreciation_advanced(
+    p_user_id UUID,
+    p_asset_id UUID,
+    p_period_date DATE
+) RETURNS TABLE (
+    depreciation_amount NUMERIC(18,2),
+    accumulated_depreciation NUMERIC(18,2),
+    nbv NUMERIC(18,2),
+    notes TEXT
+) AS $$
+DECLARE
+    v_cost NUMERIC(18,2);
+    v_residual NUMERIC(18,2);
+    v_life INTEGER;
+    v_method TEXT;
+    v_rate NUMERIC(8,4);
+    v_start_date DATE;
+    v_months_used INTEGER;
+    v_total_months INTEGER;
+BEGIN
+    SELECT original_cost, residual_value, useful_life_years,
+           depreciation_method, depreciation_rate, depreciation_start_date
+    INTO v_cost, v_residual, v_life, v_method, v_rate, v_start_date
+    FROM fixed_assets
+    WHERE asset_id = p_asset_id AND user_id = p_user_id;
+
+    IF v_start_date IS NULL OR p_period_date < v_start_date THEN
+        RETURN QUERY SELECT 0::NUMERIC, 0::NUMERIC, v_cost, 'Depreciation not started yet';
+        RETURN;
+    END IF;
+
+    v_total_months := v_life * 12;
+    v_months_used := EXTRACT(YEAR FROM AGE(p_period_date, v_start_date))::int * 12
+                     + EXTRACT(MONTH FROM AGE(p_period_date, v_start_date))::int + 1;
+
+    CASE v_method
+        WHEN 'Straight_Line' THEN
+            depreciation_amount := ROUND((v_cost - v_residual) / v_total_months, 2);
+
+        WHEN 'Declining_Balance' THEN
+            depreciation_amount := ROUND(
+                v_cost * (v_rate / 100) * (1 - POWER(1 - v_rate/100, v_months_used-1)), 2
+            );
+
+        WHEN 'Units_of_Production' THEN
+            -- Requires units_used field. Simplified fallback:
+            depreciation_amount := ROUND((v_cost - v_residual) * 0.08, 2); -- placeholder
+        ELSE
+            depreciation_amount := 0;
+    END CASE;
+
+    SELECT COALESCE(SUM(depreciation_amount), 0)
+    INTO accumulated_depreciation
+    FROM asset_depreciation
+    WHERE asset_id = p_asset_id AND period_date <= p_period_date;
+
+    nbv := v_cost - accumulated_depreciation;
+
+    RETURN NEXT;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function: Calculate Monthly Depreciation
+CREATE OR REPLACE FUNCTION calculate_depreciation_full(
+    p_user_id UUID,
+    p_asset_id UUID,
+    p_period_date DATE
+) RETURNS TABLE (
+    financial_depreciation NUMERIC(18,2),
+    tax_depreciation NUMERIC(18,2),
+    accumulated_financial_dep NUMERIC(18,2),
+    accumulated_tax_dep NUMERIC(18,2),
+    nbv_financial NUMERIC(18,2),
+    nbv_tax NUMERIC(18,2)
+) AS $$
+DECLARE
+    v_original_cost NUMERIC(18,2);
+    v_residual NUMERIC(18,2);
+    v_useful_life INTEGER;
+    v_dep_method TEXT;
+    v_tax_rate NUMERIC(8,4);
+    v_tax_class TEXT;
+    v_start_date DATE;
+BEGIN
+    SELECT original_cost, residual_value, useful_life_years,
+           depreciation_method, tax_depreciation_rate, tax_class, depreciation_start_date
+    INTO v_original_cost, v_residual, v_useful_life, v_dep_method,
+         v_tax_rate, v_tax_class, v_start_date
+    FROM fixed_assets
+    WHERE asset_id = p_asset_id AND user_id = p_user_id;
+
+    -- Financial Depreciation (Straight Line by default)
+    financial_depreciation := ROUND((v_original_cost - v_residual) / (v_useful_life * 12.0), 2);
+
+    -- Tax Depreciation (Common URA rules)
+    CASE
+        WHEN v_tax_class IN ('Class1', 'Class2') THEN
+            tax_depreciation := ROUND(v_original_cost * (v_tax_rate / 100) / 12, 2);
+        WHEN v_tax_class = 'Building' THEN
+            tax_depreciation := ROUND(v_original_cost * 0.02 / 12, 2); -- 2% straight line
+        ELSE
+            tax_depreciation := financial_depreciation; -- fallback
+    END CASE;
+
+    -- Accumulated values
+    SELECT
+        COALESCE(SUM(financial_depreciation), 0),
+        COALESCE(SUM(tax_depreciation), 0)
+    INTO accumulated_financial_dep, accumulated_tax_dep
+    FROM asset_depreciation
+    WHERE asset_id = p_asset_id AND period_date < p_period_date;
+
+    accumulated_financial_dep := accumulated_financial_dep + financial_depreciation;
+    accumulated_tax_dep := accumulated_tax_dep + tax_depreciation;
+
+    nbv_financial := v_original_cost - accumulated_financial_dep;
+    nbv_tax := v_original_cost - accumulated_tax_dep;
+
+    RETURN NEXT;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE PROCEDURE dispose_asset_advanced(
+    p_user_id UUID,
+    p_asset_id UUID,
+    p_disposal_date DATE,
+    p_proceeds NUMERIC(18,2),
+    p_reason TEXT DEFAULT NULL,
+    p_disposal_type TEXT DEFAULT 'Sale'
+)
+LANGUAGE plpgsql AS $$
+DECLARE
+    v_nbv NUMERIC(18,2);
+    v_gain_loss NUMERIC(18,2);
+BEGIN
+    -- Lock row to prevent race conditions
+    PERFORM * FROM fixed_assets
+    WHERE asset_id = p_asset_id AND user_id = p_user_id FOR UPDATE;
+
+    SELECT original_cost - COALESCE(SUM(accumulated_depreciation), 0)
+    INTO v_nbv
+    FROM fixed_assets fa
+    LEFT JOIN asset_depreciation ad ON fa.asset_id = ad.asset_id
+    WHERE fa.asset_id = p_asset_id AND fa.user_id = p_user_id;
+
+    v_gain_loss := p_proceeds - v_nbv;
+
+    INSERT INTO asset_transactions (
+        user_id, asset_id, transaction_type, transaction_date,
+        proceeds, gain_loss, reason
+    ) VALUES (
+        p_user_id, p_asset_id, 'Disposal', p_disposal_date,
+        p_proceeds, v_gain_loss, p_reason
+    );
+
+    UPDATE fixed_assets
+    SET status = 'Disposed'
+    WHERE asset_id = p_asset_id AND user_id = p_user_id;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION capitalize_asset_advanced(
+    p_user_id UUID,
+    p_asset_id UUID,
+    p_cwip_id UUID DEFAULT NULL,
+    p_capitalized_amount NUMERIC DEFAULT NULL,
+    p_date DATE DEFAULT CURRENT_DATE
+) RETURNS VOID AS $$
+BEGIN
+    -- If coming from CWIP
+    IF p_cwip_id IS NOT NULL THEN
+        UPDATE asset_cwip
+        SET status = 'Completed', total_accumulated_cost = p_capitalized_amount
+        WHERE cwip_id = p_cwip_id AND user_id = p_user_id;
+    END IF;
+
+    UPDATE fixed_assets
+    SET is_capitalized = TRUE,
+        capitalization_date = p_date,
+        capitalized_amount = COALESCE(p_capitalized_amount, original_cost),
+        depreciation_start_date = p_date,
+        status = 'In_Use'
+    WHERE asset_id = p_asset_id AND user_id = p_user_id;
+
+    -- Create opening depreciation record
+    INSERT INTO asset_depreciation (
+        user_id, asset_id, period_date, depreciation_amount,
+        accumulated_depreciation, nbv, posted_to_gl
+    )
+    VALUES (p_user_id, p_asset_id, p_date, 0, 0,
+            (SELECT capitalized_amount FROM fixed_assets WHERE asset_id = p_asset_id),
+            FALSE);
+END;
+$$ LANGUAGE plpgsql;
+
+
+-- Capitalize CWIP / Asset
 CREATE OR REPLACE FUNCTION capitalize_asset(
-    p_asset_id INTEGER,
+    p_user_id UUID,
+    p_asset_id UUID,
     p_capitalized_amount NUMERIC,
-    p_date DATE
+    p_date DATE DEFAULT CURRENT_DATE
 ) RETURNS VOID AS $$
 BEGIN
     UPDATE fixed_assets
     SET is_capitalized = TRUE,
         capitalization_date = p_date,
         capitalized_amount = p_capitalized_amount,
-        depreciation_start_date = p_date
-    WHERE asset_id = p_asset_id;
+        depreciation_start_date = p_date,
+        status = 'In_Use'
+    WHERE asset_id = p_asset_id
+      AND user_id = p_user_id;
 
-    -- Create first depreciation record if needed
-END;
-$$ LANGUAGE plpgsql;
-
--- Function: Calculate Monthly Depreciation
-CREATE OR REPLACE FUNCTION calculate_depreciation(
-    p_asset_id INTEGER,
-    p_period_date DATE
-) RETURNS TABLE (
-    financial_dep NUMERIC,
-    tax_dep NUMERIC,
-    nbv_financial NUMERIC,
-    nbv_tax NUMERIC
-) AS $$
-DECLARE
-    v_cost NUMERIC;
-    v_residual NUMERIC;
-    v_life INTEGER;
-    v_method TEXT;
-    v_rate NUMERIC;
-BEGIN
-    SELECT original_cost, residual_value, useful_life_years,
-           depreciation_method, tax_depreciation_rate
-    INTO v_cost, v_residual, v_life, v_method, v_rate
-    FROM fixed_assets WHERE asset_id = p_asset_id;
-
-    -- Financial Depreciation Logic (example for Straight Line)
-    IF v_method = 'Straight_Line' THEN
-        financial_dep := (v_cost - v_residual) / v_life / 12;
+    -- Optionally create initial depreciation record
+    IF NOT EXISTS (
+        SELECT 1 FROM asset_depreciation
+        WHERE asset_id = p_asset_id AND period_date = p_date
+    ) THEN
+        INSERT INTO asset_depreciation (
+            user_id, asset_id, period_date,
+            depreciation_amount, accumulated_depreciation, nbv
+        )
+        SELECT
+            p_user_id, p_asset_id, p_date,
+            0, 0, p_capitalized_amount
+        FROM fixed_assets
+        WHERE asset_id = p_asset_id AND user_id = p_user_id;
     END IF;
-
-    -- Add logic for Declining Balance, Units of Production...
-
-    -- Tax Depreciation (Declining Balance per URA)
-    tax_dep := v_cost * (v_rate / 100) / 12;   -- Simplified
-
-    RETURN NEXT;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -295,6 +488,56 @@ BEGIN
     WHERE asset_id = p_asset_id;
 END;
 $$;
+
+-- =============================================
+-- VIEWS
+-- =============================================
+
+-- Main Fixed Asset Register View
+CREATE OR REPLACE VIEW vw_fixed_asset_register AS
+SELECT
+    fa.asset_id,
+    fa.asset_code,
+    fa.asset_name,
+    ac.class_name,
+    ac.category_type,
+    fa.location,
+    fa.department,
+    fa.original_cost,
+    fa.capitalized_amount,
+    fa.acquisition_date,
+    fa.capitalization_date,
+    fa.status,
+    fa.depreciation_method,
+    fa.useful_life_years,
+    COALESCE(SUM(ad.accumulated_depreciation), 0) AS accumulated_depreciation,
+    fa.original_cost - COALESCE(SUM(ad.accumulated_depreciation), 0) AS nbv,
+    fa.financing_method,
+    fa.residual_value
+FROM fixed_assets fa
+LEFT JOIN asset_classes ac ON fa.class_id = ac.class_id
+LEFT JOIN asset_depreciation ad ON fa.asset_id = ad.asset_id
+WHERE fa.user_id = ac.user_id  -- Safety
+GROUP BY
+    fa.asset_id, fa.asset_code, fa.asset_name, ac.class_name, ac.category_type,
+    fa.location, fa.department, fa.original_cost, fa.capitalized_amount,
+    fa.acquisition_date, fa.capitalization_date, fa.status,
+    fa.depreciation_method, fa.useful_life_years, fa.financing_method, fa.residual_value;
+
+-- Depreciation Schedule View
+CREATE OR REPLACE VIEW vw_depreciation_schedule AS
+SELECT
+    fa.asset_code,
+    fa.asset_name,
+    ad.period_date,
+    ad.depreciation_amount,
+    ad.accumulated_depreciation,
+    ad.nbv,
+    ad.posted_to_gl
+FROM asset_depreciation ad
+JOIN fixed_assets fa ON ad.asset_id = fa.asset_id
+WHERE fa.user_id = ad.user_id
+ORDER BY fa.asset_code, ad.period_date ASC;
 
 -- Indexes
 CREATE INDEX idx_assets_status ON fixed_assets(status);
