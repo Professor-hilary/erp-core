@@ -45,6 +45,7 @@ pub struct FixedAsset {
     pub capitalization_date: Option<NaiveDate>,
 
     pub financing_method: Option<String>,
+    pub tax_class: Option<String>,
 
     pub useful_life_years: i32,
     pub residual_value: BigDecimal,
@@ -70,6 +71,7 @@ pub struct CreateAsset {
     pub custodian_id: Option<Uuid>,
     pub acquisition_date: NaiveDate,
     pub supplier_id: Option<Uuid>,
+    pub tax_class: Option<String>,
     pub po_reference: Option<String>,
     pub original_cost: BigDecimal,
     pub capitalized_amount: Option<BigDecimal>,

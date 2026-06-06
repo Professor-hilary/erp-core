@@ -553,7 +553,6 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
     // ==========================================================
     // FIXED ASSETS
     // ==========================================================
-
     async fn create_asset(
         &self,
         pool: &PgPool,
@@ -564,13 +563,13 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
             r#"
         INSERT INTO fixed_assets (
             user_id, asset_code, asset_name, description, class_id, location,
-            department, custodian_id, acquisition_date, supplier_id, po_reference,
+            department, custodian_id, tax_class, acquisition_date, supplier_id, po_reference,
             original_cost, capitalized_amount, is_capitalized, capitalization_date,
             financing_method, useful_life_years, residual_value, depreciation_method,
             depreciation_rate, depreciation_start_date, status, created_by
         )
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
-                $15, $16, $17, $18, $19, $20, $21, $22, $23)
+                $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
         RETURNING *
         "#,
         )
@@ -582,6 +581,7 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
         .bind(&payload.location)
         .bind(&payload.department)
         .bind(payload.custodian_id)
+        .bind(&payload.tax_class)
         .bind(payload.acquisition_date)
         .bind(payload.supplier_id)
         .bind(&payload.po_reference)
@@ -639,14 +639,14 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
         user_id: Uuid,
         payload: &CreateAsset,
     ) -> Result<FixedAsset, AppError> {
-        let asset = sqlx::query_as::<_, FixedAsset>(
+        let asset: FixedAsset = sqlx::query_as::<_, FixedAsset>(
             r#"
         UPDATE fixed_assets
         SET asset_name = $3, description = $4, class_id = $5, location = $6,
-            department = $7, custodian_id = $8, acquisition_date = $9,
-            original_cost = $10, capitalized_amount = $11, financing_method = $12,
-            useful_life_years = $13, residual_value = $14, depreciation_method = $15,
-            depreciation_rate = $16, status = $17
+            department = $7, custodian_id = $8, acquisition_date = $9, tax_class = $10,
+            original_cost = $11, capitalized_amount = $12, financing_method = $13,
+            useful_life_years = $14, residual_value = $15, depreciation_method = $16,
+            depreciation_rate = $17, status = $18
         WHERE asset_id = $1 AND user_id = $2
         RETURNING *
         "#,
@@ -660,6 +660,7 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
         .bind(&payload.department)
         .bind(payload.custodian_id)
         .bind(payload.acquisition_date)
+        .bind(&payload.tax_class)
         .bind(&payload.original_cost)
         .bind(&payload.capitalized_amount)
         .bind(&payload.financing_method)

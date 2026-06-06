@@ -2,12 +2,12 @@
 -- IMPROVED FIXED ASSETS SCHEMA
 -- =============================================
 
--- Enable UUID extension
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- Create schema
+CREATE SCHEMA IF NOT EXISTS fixedassets;
 
 -- 1. Asset Classes
-CREATE TABLE asset_classes (
-    class_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+CREATE TABLE fixedassets.asset_classes (
+    class_id UUID PRIMARY KEY DEFAULT uuidv7(),
     user_id UUID NOT NULL,
     class_name VARCHAR(100) NOT NULL,
     category_type VARCHAR(50) NOT NULL CHECK (category_type IN ('PPE', 'INTANGIBLE', 'ROU', 'INVESTMENT_PROPERTY')),
@@ -17,8 +17,8 @@ CREATE TABLE asset_classes (
 );
 
 -- 2. Fixed Assets (Main Table)
-CREATE TABLE fixed_assets (
-    asset_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+CREATE TABLE fixedassets.fixed_assets (
+    asset_id UUID PRIMARY KEY DEFAULT uuidv7(),
     user_id UUID NOT NULL,
 
     asset_code VARCHAR(50) UNIQUE NOT NULL,
@@ -30,7 +30,7 @@ CREATE TABLE fixed_assets (
     department VARCHAR(100),
     custodian_id UUID, -- link to employees table
 
-    tax_class VARCHAR(20) CHECK (tax_class IN ('1', '2', '3', '4', 'building', 'machinery'))
+    tax_class VARCHAR(20) CHECK (tax_class IN ('1', '2', '3', '4')),
 
     acquisition_date DATE NOT NULL,
     supplier_id UUID,
@@ -59,8 +59,8 @@ CREATE TABLE fixed_assets (
 );
 
 -- 3. Capital Work in Progress (CWIP)
-CREATE TABLE asset_cwip (
-    cwip_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+CREATE TABLE fixedassets.asset_cwip (
+    cwip_id UUID PRIMARY KEY DEFAULT uuidv7(),
     user_id UUID NOT NULL,
     project_name VARCHAR(200) NOT NULL,
     total_accumulated_cost NUMERIC(18,2) DEFAULT 0,
@@ -72,10 +72,10 @@ CREATE TABLE asset_cwip (
 );
 
 -- 4. Asset Books (Multiple depreciation books per asset)
-CREATE TABLE asset_books (
-    book_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+CREATE TABLE fixedassets.asset_books (
+    book_id UUID PRIMARY KEY DEFAULT uuidv7(),
     user_id UUID NOT NULL,
-    asset_id UUID REFERENCES fixed_assets(asset_id) ON DELETE CASCADE,
+    asset_id UUID REFERENCES fixedassets.fixed_assets(asset_id) ON DELETE CASCADE,
     book_type VARCHAR(50) NOT NULL, -- 'FINANCIAL', 'TAX', 'IFRS', 'MANAGEMENT'
     useful_life_years INTEGER,
     depreciation_method VARCHAR(30),
@@ -85,11 +85,11 @@ CREATE TABLE asset_books (
 );
 
 -- 5. Depreciation History
-CREATE TABLE asset_depreciation (
-    dep_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+CREATE TABLE fixedassets.asset_depreciation (
+    dep_id UUID PRIMARY KEY DEFAULT uuidv7(),
     user_id UUID NOT NULL,
-    asset_id UUID REFERENCES fixed_assets(asset_id) ON DELETE CASCADE,
-    book_id UUID REFERENCES asset_books(book_id),
+    asset_id UUID REFERENCES fixedassets.fixed_assets(asset_id) ON DELETE CASCADE,
+    book_id UUID REFERENCES fixedassets.asset_books(book_id),
     period_date DATE NOT NULL,
     depreciation_amount NUMERIC(18,2) NOT NULL,
     accumulated_depreciation NUMERIC(18,2) NOT NULL,
@@ -103,10 +103,10 @@ CREATE TABLE asset_depreciation (
 );
 
 -- 6. Asset Components
-CREATE TABLE asset_components (
-    component_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+CREATE TABLE fixedassets.asset_components (
+    component_id UUID PRIMARY KEY DEFAULT uuidv7(),
     user_id UUID NOT NULL,
-    asset_id UUID REFERENCES fixed_assets(asset_id) ON DELETE CASCADE,
+    asset_id UUID REFERENCES fixedassets.fixed_assets(asset_id) ON DELETE CASCADE,
     component_name VARCHAR(150) NOT NULL,
     cost NUMERIC(18,2) NOT NULL,
     useful_life_years INTEGER,
@@ -115,10 +115,10 @@ CREATE TABLE asset_components (
 );
 
 -- 7. Maintenance
-CREATE TABLE asset_maintenance (
-    maintenance_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+CREATE TABLE fixedassets.asset_maintenance (
+    maintenance_id UUID PRIMARY KEY DEFAULT uuidv7(),
     user_id UUID NOT NULL,
-    asset_id UUID REFERENCES fixed_assets(asset_id) ON DELETE CASCADE,
+    asset_id UUID REFERENCES fixedassets.fixed_assets(asset_id) ON DELETE CASCADE,
     maintenance_type VARCHAR(50),
     description TEXT,
     cost NUMERIC(18,2),
@@ -128,10 +128,10 @@ CREATE TABLE asset_maintenance (
 );
 
 -- 8. Insurance
-CREATE TABLE asset_insurance (
-    insurance_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+CREATE TABLE fixedassets.asset_insurance (
+    insurance_id UUID PRIMARY KEY DEFAULT uuidv7(),
     user_id UUID NOT NULL,
-    asset_id UUID REFERENCES fixed_assets(asset_id) ON DELETE CASCADE,
+    asset_id UUID REFERENCES fixedassets.fixed_assets(asset_id) ON DELETE CASCADE,
     policy_number VARCHAR(100),
     insurer VARCHAR(150),
     insured_amount NUMERIC(18,2),
@@ -142,10 +142,10 @@ CREATE TABLE asset_insurance (
 );
 
 -- 9. Transfers, Revaluations, Disposals (Unified Transaction Log)
-CREATE TABLE asset_transactions (
-    trans_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+CREATE TABLE fixedassets.asset_transactions (
+    trans_id UUID PRIMARY KEY DEFAULT uuidv7(),
     user_id UUID NOT NULL,
-    asset_id UUID REFERENCES fixed_assets(asset_id) ON DELETE CASCADE,
+    asset_id UUID REFERENCES fixedassets.fixed_assets(asset_id) ON DELETE CASCADE,
     transaction_type VARCHAR(50) NOT NULL, -- Transfer, Revaluation, Disposal, Impairment
     transaction_date DATE NOT NULL,
     from_location VARCHAR(150),
@@ -159,14 +159,14 @@ CREATE TABLE asset_transactions (
 );
 
 -- Indexes
-CREATE INDEX idx_fixed_assets_user_id ON fixed_assets(user_id);
-CREATE INDEX idx_fixed_assets_class_id ON fixed_assets(class_id);
-CREATE INDEX idx_fixed_assets_status ON fixed_assets(status);
-CREATE INDEX idx_asset_depreciation_asset_period ON asset_depreciation(asset_id, period_date);
-CREATE INDEX idx_asset_transactions_asset_id ON asset_transactions(asset_id);
+CREATE INDEX idx_fixed_assets_user_id ON fixedassets.fixed_assets(user_id);
+CREATE INDEX idx_fixed_assets_class_id ON fixedassets.fixed_assets(class_id);
+CREATE INDEX idx_fixed_assets_status ON fixedassets.fixed_assets(status);
+CREATE INDEX idx_asset_depreciation_asset_period ON fixedassets.asset_depreciation(asset_id, period_date);
+CREATE INDEX idx_asset_transactions_asset_id ON fixedassets.asset_transactions(asset_id);
 
 -- Trigger for updated_at
-CREATE OR REPLACE FUNCTION update_timestamp()
+CREATE OR REPLACE FUNCTION fixedassets.update_timestamp()
 RETURNS TRIGGER AS $$
 BEGIN
     NEW.updated_at = NOW();
@@ -174,59 +174,37 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER tg_asset_classes_updated BEFORE UPDATE ON asset_classes
-FOR EACH ROW EXECUTE FUNCTION update_timestamp();
+-- async fn calculate_and_post_depreciation(
+--     &self,
+--     asset_id: Uuid,
+--     period_date: NaiveDate,
+--     user_id: Uuid,
+-- ) -> Result<AssetDepreciation, AppError> {
+--     let mut tx = self.pool.begin().await?;
 
-CREATE TRIGGER tg_fixed_assets_updated BEFORE UPDATE ON fixed_assets
-FOR EACH ROW EXECUTE FUNCTION update_timestamp();
+--     let dep_record = sqlx::query_as::<_, AssetDepreciation>(
+--         r#"
+--         SELECT * FROM calculate_depreciation_full($1, $2, $3)
+--         AS dep(financial_depreciation, tax_depreciation,
+--                accumulated_financial_dep, accumulated_tax_dep,
+--                nbv_financial, nbv_tax)
+--         "#,
+--     )
+--     .bind(user_id)
+--     .bind(asset_id)
+--     .bind(period_date)
+--     .fetch_one(&mut *tx)
+--     .await?;
 
--- Depreciation Schedule View
-CREATE VIEW vw_depreciation_schedule AS
-SELECT
-    fa.asset_code,
-    fa.asset_name,
-    ad.period_date,
-    ad.financial_depreciation,
-    ad.tax_depreciation,
-    ad.nbv_financial,
-    ad.nbv_tax
-FROM asset_depreciation ad
-JOIN fixed_assets fa ON ad.asset_id = fa.asset_id
-ORDER BY fa.asset_code, ad.period_date;
+--     -- Insert into depreciation table
+--     let inserted = self.repo.create_depreciation_record(&mut tx, asset_id, user_id, &dep_record).await?;
 
-/*
-async fn calculate_and_post_depreciation(
-    &self,
-    asset_id: Uuid,
-    period_date: NaiveDate,
-    user_id: Uuid,
-) -> Result<AssetDepreciation, AppError> {
-    let mut tx = self.pool.begin().await?;
+--     tx.commit().await?;
 
-    let dep_record = sqlx::query_as::<_, AssetDepreciation>(
-        r#"
-        SELECT * FROM calculate_depreciation_full($1, $2, $3)
-        AS dep(financial_depreciation, tax_depreciation,
-               accumulated_financial_dep, accumulated_tax_dep,
-               nbv_financial, nbv_tax)
-        "#,
-    )
-    .bind(user_id)
-    .bind(asset_id)
-    .bind(period_date)
-    .fetch_one(&mut *tx)
-    .await?;
+--     Ok(inserted)
+-- }
 
-    // Insert into depreciation table
-    let inserted = self.repo.create_depreciation_record(&mut tx, asset_id, user_id, &dep_record).await?;
-
-    tx.commit().await?;
-
-    Ok(inserted)
-}
-*/
-
-CREATE OR REPLACE FUNCTION calculate_depreciation_advanced(
+CREATE OR REPLACE FUNCTION fixedassets.calculate_depreciation_advanced(
     p_user_id UUID,
     p_asset_id UUID,
     p_period_date DATE
@@ -289,7 +267,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Function: Calculate Monthly Depreciation
-CREATE OR REPLACE FUNCTION calculate_depreciation_full(
+CREATE OR REPLACE FUNCTION fixedassets.calculate_depreciation_full(
     p_user_id UUID,
     p_asset_id UUID,
     p_period_date DATE
@@ -348,7 +326,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE PROCEDURE dispose_asset_advanced(
+CREATE OR REPLACE PROCEDURE fixedassets.dispose_asset_advanced(
     p_user_id UUID,
     p_asset_id UUID,
     p_disposal_date DATE,
@@ -387,7 +365,7 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION capitalize_asset_advanced(
+CREATE OR REPLACE FUNCTION fixedassets.capitalize_asset_advanced(
     p_user_id UUID,
     p_asset_id UUID,
     p_cwip_id UUID DEFAULT NULL,
@@ -423,7 +401,7 @@ $$ LANGUAGE plpgsql;
 
 
 -- Capitalize CWIP / Asset
-CREATE OR REPLACE FUNCTION capitalize_asset(
+CREATE OR REPLACE FUNCTION fixedassets.capitalize_asset(
     p_user_id UUID,
     p_asset_id UUID,
     p_capitalized_amount NUMERIC,
@@ -458,7 +436,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Procedure: Dispose Asset
-CREATE OR REPLACE PROCEDURE dispose_asset(
+CREATE OR REPLACE PROCEDURE fixedassets.dispose_asset(
     p_asset_id INTEGER,
     p_disposal_date DATE,
     p_proceeds NUMERIC,
@@ -492,9 +470,23 @@ $$;
 -- =============================================
 -- VIEWS
 -- =============================================
+-- Depreciation Schedule View
+CREATE OR REPLACE VIEW fixedassets.vw_depreciation_schedule AS
+SELECT
+    fa.asset_code,
+    fa.asset_name,
+    ad.period_date,
+    ad.depreciation_amount,
+    ad.accumulated_depreciation,
+    ad.nbv,
+    ad.posted_to_gl
+FROM fixedassets.asset_depreciation ad
+JOIN fixedassets.fixed_assets fa ON ad.asset_id = fa.asset_id
+WHERE fa.user_id = ad.user_id
+ORDER BY fa.asset_code, ad.period_date ASC;
 
 -- Main Fixed Asset Register View
-CREATE OR REPLACE VIEW vw_fixed_asset_register AS
+CREATE OR REPLACE VIEW fixedassets.vw_fixed_asset_register AS
 SELECT
     fa.asset_id,
     fa.asset_code,
@@ -514,9 +506,9 @@ SELECT
     fa.original_cost - COALESCE(SUM(ad.accumulated_depreciation), 0) AS nbv,
     fa.financing_method,
     fa.residual_value
-FROM fixed_assets fa
-LEFT JOIN asset_classes ac ON fa.class_id = ac.class_id
-LEFT JOIN asset_depreciation ad ON fa.asset_id = ad.asset_id
+FROM fixedassets.fixed_assets fa
+LEFT JOIN fixedassets.asset_classes ac ON fa.class_id = ac.class_id
+LEFT JOIN fixedassets.asset_depreciation ad ON fa.asset_id = ad.asset_id
 WHERE fa.user_id = ac.user_id  -- Safety
 GROUP BY
     fa.asset_id, fa.asset_code, fa.asset_name, ac.class_name, ac.category_type,
@@ -524,27 +516,8 @@ GROUP BY
     fa.acquisition_date, fa.capitalization_date, fa.status,
     fa.depreciation_method, fa.useful_life_years, fa.financing_method, fa.residual_value;
 
--- Depreciation Schedule View
-CREATE OR REPLACE VIEW vw_depreciation_schedule AS
-SELECT
-    fa.asset_code,
-    fa.asset_name,
-    ad.period_date,
-    ad.depreciation_amount,
-    ad.accumulated_depreciation,
-    ad.nbv,
-    ad.posted_to_gl
-FROM asset_depreciation ad
-JOIN fixed_assets fa ON ad.asset_id = fa.asset_id
-WHERE fa.user_id = ad.user_id
-ORDER BY fa.asset_code, ad.period_date ASC;
-
 -- Indexes
-CREATE INDEX idx_assets_status ON fixed_assets(status);
-CREATE INDEX idx_assets_location ON fixed_assets(location);
-CREATE INDEX idx_depreciation_asset_period ON asset_depreciation(asset_id, period_date);
+CREATE INDEX idx_assets_status ON fixedassets.fixed_assets(status);
+CREATE INDEX idx_assets_location ON fixedassets.fixed_assets(location);
+CREATE INDEX idx_depreciation_asset_period ON fixedassets.asset_depreciation(asset_id, period_date);
 
--- Trigger for Updated At
-CREATE TRIGGER tg_fixed_assets_updated
-BEFORE UPDATE ON fixed_assets
-FOR EACH ROW EXECUTE FUNCTION update_timestamp();
