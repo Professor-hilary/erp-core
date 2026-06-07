@@ -18,7 +18,6 @@ use crate::{
     models::fixed_assets::*,
     state::AppState,
 };
-
 pub fn router() -> Router<Arc<AppState>> {
     Router::new()
         .route("/asset/create", post(http_create_asset))
@@ -40,6 +39,7 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/cwip/update", patch(http_update_asset_cwip))
         .route("/cwip/list", get(http_list_asset_cwip))
         .route("/cwip/get/{uuid}", get(http_get_asset_cwip))
+        .route("/asset/capitalize/{uuid}", post(http_capitalize_asset))
         .route("/cwip/capitalize/{uuid}", post(http_capitalize_cwip))
         .route("/cwip/delete", delete(http_delete_asset_cwip))
         .route("/depreciation/compute", post(http_compute_depreciation))
@@ -355,8 +355,28 @@ async fn http_capitalize_cwip(
         .await?;
     Ok(ApiResponse::success(
         "Capitalized",
-        "Capital Work In Progress deleted",
+        "Capital Work In Progress Capitalized",
     ))
+}
+
+async fn http_capitalize_asset(
+    State(_state): State<Arc<AppState>>,
+    Extension(user): Extension<AuthenticatedTenant>,
+    AppJson(payload): AppJson<CapitalizeAssetOrCWIP>,
+) -> Result<Response, AppError> {
+    let repo = PostgresFixedAssetRepository::new();
+    let service = FixedAssetService::new(repo);
+    service
+        .capitalize_asset(
+            &user.tenant_pool,
+            user.user_id,
+            payload.asset_uuid,
+            payload.date,
+            payload.capitalized_amount,
+            payload.costs,
+        )
+        .await?;
+    Ok(ApiResponse::success("Capitalized", "Asset Capitalized"))
 }
 
 async fn http_compute_depreciation(

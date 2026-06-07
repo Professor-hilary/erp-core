@@ -22,6 +22,14 @@ pub struct CreateAssetClass {
     pub description: Option<String>,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct CapitalizeAssetOrCWIP {
+    pub asset_uuid: Uuid,
+    pub date: Option<NaiveDate>,
+    pub capitalized_amount: Option<BigDecimal>,
+    pub costs: Option<serde_json::Value>,
+}
+
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
 pub struct FixedAsset {
     pub asset_id: Uuid,
@@ -255,7 +263,7 @@ pub struct CreateAssetDisposal {
     pub asset_id: Uuid,
     pub disposal_date: NaiveDate,
     pub proceeds: BigDecimal,
-    pub gain_loss: Option<BigDecimal>,
+    // pub gain_loss: Option<BigDecimal>,
     pub reason: Option<String>,
 }
 

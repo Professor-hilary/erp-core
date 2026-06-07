@@ -3,6 +3,8 @@ use crate::{
     features::fixedassets::repository::FixedAssetRepository, interface::api::errors::AppError,
     models::fixed_assets::*,
 };
+use bigdecimal::BigDecimal;
+use chrono::NaiveDate;
 use sqlx::PgPool;
 use uuid::Uuid;
 
@@ -75,6 +77,27 @@ impl<R: FixedAssetRepository> FixedAssetService<R> {
         payload: &CreateAsset,
     ) -> Result<FixedAsset, AppError> {
         self.repo.create_asset(tenant_pool, user_id, payload).await
+    }
+
+    pub async fn capitalize_asset(
+        &self,
+        tenant_pool: &PgPool,
+        user_id: Uuid,
+        asset_id: Uuid,
+        date: Option<NaiveDate>,
+        capitalized_amount: Option<BigDecimal>,
+        costs: Option<serde_json::Value>,
+    ) -> Result<(), AppError> {
+        self.repo
+            .capitalize_asset(
+                tenant_pool,
+                asset_id,
+                user_id,
+                date,
+                capitalized_amount,
+                costs,
+            )
+            .await
     }
 
     pub async fn list_asset(
@@ -252,7 +275,7 @@ impl<R: FixedAssetRepository> FixedAssetService<R> {
         user_id: Uuid,
     ) -> Result<Vec<AssetDepreciation>, AppError> {
         self.repo
-            .run_depreciation(tenant_pool, period_date, user_id)
+            .run_periodic_depreciation(tenant_pool, period_date, user_id)
             .await
     }
 

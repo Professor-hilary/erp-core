@@ -20,23 +20,25 @@ CREATE TABLE fixedassets.asset_classes (
 CREATE TABLE fixedassets.fixed_assets (
     asset_id UUID PRIMARY KEY DEFAULT uuidv7(),
     user_id UUID NOT NULL,
-
     asset_code VARCHAR(50) UNIQUE NOT NULL,
     asset_name VARCHAR(200) NOT NULL,
     description TEXT,
+    class_id UUID REFERENCES fixedassets.asset_classes(class_id) ON DELETE SET NULL,
 
-    class_id UUID REFERENCES asset_classes(class_id),
     location VARCHAR(150),
     department VARCHAR(100),
     custodian_id UUID, -- link to employees table
 
-    tax_class VARCHAR(20) CHECK (tax_class IN ('1', '2', '3', '4')),
+    tax_class VARCHAR(20) CHECK (
+        tax_class IN ('Class1', 'Class2', 'Class3', 'Class4', 'Building')
+    ),
+    tax_depreciation_rate NUMERIC(8,4),
 
     acquisition_date DATE NOT NULL,
     supplier_id UUID,
     po_reference VARCHAR(50),
 
-    original_cost NUMERIC(18,2) NOT NULL,
+    original_cost NUMERIC(18,2) NOT NULL CHECK(original_cost > 0),
     capitalized_amount NUMERIC(18,2),
     is_capitalized BOOLEAN DEFAULT FALSE,
     capitalization_date DATE,
@@ -44,7 +46,7 @@ CREATE TABLE fixedassets.fixed_assets (
     financing_method VARCHAR(50) CHECK (financing_method IN ('Cash', 'Bank_Loan', 'Supplier_Credit', 'Finance_Lease')),
 
     useful_life_years INTEGER NOT NULL CHECK (useful_life_years > 0),
-    residual_value NUMERIC(18,2) DEFAULT 0,
+    residual_value NUMERIC(18,2) DEFAULT 0 CHECK(residual_value >= 0),
     depreciation_method VARCHAR(30) DEFAULT 'Straight_Line'
         CHECK (depreciation_method IN ('Straight_Line', 'Declining_Balance', 'Units_of_Production')),
     depreciation_rate NUMERIC(8,4),
@@ -93,7 +95,7 @@ CREATE TABLE fixedassets.asset_depreciation (
     dep_id UUID PRIMARY KEY DEFAULT uuidv7(),
     user_id UUID NOT NULL,
     asset_id UUID REFERENCES fixedassets.fixed_assets(asset_id) ON DELETE CASCADE,
-    book_id UUID REFERENCES fixedassets.asset_books(book_id),
+    -- book_id UUID REFERENCES fixedassets.asset_books(book_id),
     period_date DATE NOT NULL,
     depreciation_amount NUMERIC(18,2) NOT NULL,
     accumulated_depreciation NUMERIC(18,2) NOT NULL,
@@ -158,7 +160,6 @@ CREATE TABLE fixedassets.asset_transactions (
     proceeds NUMERIC(18,2),
     gain_loss NUMERIC(18,2),
     reason TEXT,
-    created_by UUID,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -345,32 +346,52 @@ CREATE OR REPLACE FUNCTION fixedassets.capitalize_asset(
     p_asset_id UUID,
     p_cwip_id UUID DEFAULT NULL,
     p_capitalized_amount NUMERIC DEFAULT NULL,
-    p_date DATE DEFAULT CURRENT_DATE
-) RETURNS VOID AS $$
+    p_date DATE DEFAULT CURRENT_DATE,
+    p_breakdown JSONB DEFAULT NULL
+) RETURNS TABLE(
+    asset_id            UUID,
+    capitalized_amount  NUMERIC,
+    breakdown           JSONB
+) AS $$
+    DECLARE v_final_amount NUMERIC;
 BEGIN
+    -- Calculate final capitalized amount
+    IF p_capitalized_amount IS NOT NULL THEN
+        v_final_amount := p_capitalized_amount;
+    ELSE
+        SELECT original_cost INTO v_final_amount
+        FROM fixedassets.fixed_assets
+        WHERE asset_id = p_asset_id AND user_id = p_user_id;
+    END IF;
+
     -- If coming from CWIP
     IF p_cwip_id IS NOT NULL THEN
-        UPDATE asset_cwip
-        SET status = 'Completed', total_accumulated_cost = p_capitalized_amount
+        UPDATE fixedassets.asset_cwip
+        SET status = 'Capitalized',
+            total_accumulated_cost = v_final_amount,
+            updated_at = NOW()
         WHERE cwip_id = p_cwip_id AND user_id = p_user_id;
     END IF;
 
-    UPDATE fixed_assets
+    UPDATE fixedassets.fixed_assets
     SET is_capitalized = TRUE,
         capitalization_date = p_date,
-        capitalized_amount = COALESCE(p_capitalized_amount, original_cost),
+        capitalized_amount = v_final_amount,
         depreciation_start_date = p_date,
-        status = 'In_Use'
+        status = 'In_Use',
+        description = COALESCE(description, '') ||
+            ' | Capitalized with breakdown: ' || p_breakdown::text
     WHERE asset_id = p_asset_id AND user_id = p_user_id;
 
     -- Create opening depreciation record
-    INSERT INTO asset_depreciation (
+    INSERT INTO fixedassets.asset_depreciation (
         user_id, asset_id, period_date, depreciation_amount,
         accumulated_depreciation, nbv, posted_to_gl
-    )
-    VALUES (p_user_id, p_asset_id, p_date, 0, 0,
-            (SELECT capitalized_amount FROM fixed_assets WHERE asset_id = p_asset_id),
-            FALSE);
+    ) VALUES (
+        p_user_id, p_asset_id, p_date, 0, 0, v_final_amount, FALSE
+    );
+
+    RETURN QUERY SELECT p_asset_id, v_final_amount, p_breakdown;
 END;
 $$ LANGUAGE plpgsql;
 
