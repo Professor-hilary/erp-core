@@ -367,7 +367,7 @@ async fn http_compute_depreciation(
     let repo = PostgresFixedAssetRepository::new();
     let service = FixedAssetService::new(repo);
     let asset = service
-        .compute_depreciation(
+        .compute_depreciation_and_post(
             &user.tenant_pool,
             user.user_id,
             payload.period_date,

@@ -2,6 +2,7 @@ use crate::{interface::api::errors::AppError, models::fixed_assets::*};
 
 use async_trait::async_trait;
 use sqlx::PgPool;
+use sqlx::types::chrono::NaiveDate;
 use uuid::Uuid;
 
 #[async_trait]
@@ -161,14 +162,6 @@ pub trait FixedAssetRepository: Send + Sync {
     // DEPRECIATION
     // ==========================================================
 
-    async fn calculate_depreciation(
-        &self,
-        pool: &PgPool,
-        asset_uuid: Uuid,
-        period_date: chrono::NaiveDate,
-        user_id: Uuid,
-    ) -> Result<AssetDepreciation, AppError>;
-
     async fn run_depreciation(
         &self,
         pool: &PgPool,
@@ -189,6 +182,14 @@ pub trait FixedAssetRepository: Send + Sync {
         depreciation_uuid: Uuid,
         user_id: Uuid,
     ) -> Result<(), AppError>;
+
+    async fn calculate_and_post_depreciation(
+        &self,
+        pool: &PgPool,
+        asset_id: Uuid,
+        period_date: NaiveDate,
+        user_id: Uuid,
+    ) -> Result<AssetDepreciation, AppError>;
 
     // ==========================================================
     // COMPONENTS
@@ -363,31 +364,6 @@ pub trait FixedAssetRepository: Send + Sync {
         asset_uuid: Uuid,
         user_id: Uuid,
     ) -> Result<Vec<AssetDisposal>, AppError>;
-
-    // ==========================================================
-    // DOCUMENTS
-    // ==========================================================
-
-    // async fn create_document(
-    //     &self,
-    //     pool: &PgPool,
-    //     user_id: Uuid,
-    //     payload: &CreateAssetDocument,
-    // ) -> Result<AssetDocument, AppError>;
-
-    // async fn list_documents(
-    //     &self,
-    //     pool: &PgPool,
-    //     asset_uuid: Uuid,
-    //     user_id: Uuid,
-    // ) -> Result<Vec<AssetDocument>, AppError>;
-
-    // async fn delete_document(
-    //     &self,
-    //     pool: &PgPool,
-    //     uuid: Uuid,
-    //     user_id: Uuid,
-    // ) -> Result<(), AppError>;
 
     // ==========================================================
     // TRANSACTIONS / AUDIT
@@ -915,32 +891,12 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
         asset_uuid: Uuid,
         user_id: Uuid,
     ) -> Result<(), AppError> {
-        // TODO: You can enhance this with a transaction for atomicity
-        sqlx::query(
-            r#"
-            UPDATE asset_cwip
-            SET status = 'Completed'
-            WHERE cwip_id = $1 AND user_id = $2
-            "#,
-        )
-        .bind(cwip_uuid)
-        .bind(user_id)
-        .execute(pool)
-        .await?;
-
-        sqlx::query(
-            r#"
-            UPDATE fixed_assets
-            SET is_capitalized = TRUE, capitalization_date = CURRENT_DATE,
-                cwip_id = $1
-            WHERE asset_id = $2 AND user_id = $3
-            "#,
-        )
-        .bind(cwip_uuid)
-        .bind(asset_uuid)
-        .bind(user_id)
-        .execute(pool)
-        .await?;
+        sqlx::query(r#"SELECT * FROM fixedassets.capitalize_asset($1, $2, $3)"#)
+            .bind(user_id)
+            .bind(asset_uuid)
+            .bind(cwip_uuid)
+            .execute(pool)
+            .await?;
 
         Ok(())
     }
@@ -949,44 +905,56 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
     // DEPRECIATION
     // ==========================================================
 
-    async fn calculate_depreciation(
+    async fn calculate_and_post_depreciation(
         &self,
         pool: &PgPool,
-        asset_uuid: Uuid,
-        period_date: chrono::NaiveDate,
+        asset_id: Uuid,
+        period_date: NaiveDate,
         user_id: Uuid,
     ) -> Result<AssetDepreciation, AppError> {
-        // This can be enhanced with business logic (call PL/pgSQL function or compute here)
-        let dep = sqlx::query_as::<_, AssetDepreciation>(
+        let mut tx = pool.begin().await?;
+
+        let dep_record = sqlx::query_as::<_, AssetDepreciation>(
             r#"
-        INSERT INTO asset_depreciation (
-            user_id, asset_id, period_date, depreciation_amount,
-            accumulated_depreciation, nbv, posted_to_gl
-        )
-        SELECT
-            $1, asset_id, $3,
-            -- Simplified Straight Line example (you can expand this)
-            (original_cost - residual_value) / (useful_life_years * 12)::numeric AS dep_amount,
-            COALESCE((SELECT SUM(depreciation_amount) FROM asset_depreciation
-                     WHERE asset_id = $2), 0) +
-                ((original_cost - residual_value) / (useful_life_years * 12)::numeric),
-            original_cost -
-                (COALESCE((SELECT SUM(depreciation_amount) FROM asset_depreciation
-                          WHERE asset_id = $2), 0) +
-                 ((original_cost - residual_value) / (useful_life_years * 12)::numeric)),
-            FALSE
-        FROM fixed_assets
-        WHERE asset_id = $2 AND user_id = $1
-        RETURNING *
+            SELECT * FROM calculate_depreciation_full($1, $2, $3)
+            AS dep(financial_depreciation, tax_depreciation,
+                accumulated_financial_dep, accumulated_tax_dep,
+                nbv_financial, nbv_tax)
         "#,
         )
         .bind(user_id)
-        .bind(asset_uuid)
+        .bind(asset_id)
         .bind(period_date)
-        .fetch_one(pool)
+        .fetch_one(&mut *tx)
         .await?;
 
-        Ok(dep)
+        // Insert into depreciation table
+        let inserted = sqlx::query_as::<_, AssetDepreciation>(
+            r#"
+            INSERT INTO asset_depreciation (
+                user_id, asset_id, book_id, period_date, depreciation_amount,
+                accumulated_depreciation, financial_depreciation,
+                accumulated_tax_depreciation, nbv, nbv_financial, twdv
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        "#,
+        )
+        .bind(user_id)
+        .bind(dep_record.asset_id)
+        .bind(dep_record.book_id)
+        .bind(period_date)
+        .bind(dep_record.depreciation_amount)
+        .bind(dep_record.accumulated_depreciation)
+        .bind(dep_record.financial_depreciation)
+        .bind(dep_record.accumulated_tax_depreciation)
+        .bind(dep_record.nbv)
+        .bind(dep_record.nbv_financial)
+        .bind(dep_record.twdv)
+        .fetch_one(&mut *tx)
+        .await?;
+
+        tx.commit().await?;
+
+        Ok(inserted)
     }
 
     async fn run_depreciation(
@@ -1090,10 +1058,11 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
     ) -> Result<AssetComponent, AppError> {
         let component = sqlx::query_as::<_, AssetComponent>(
             r#"
-        INSERT INTO asset_components (user_id, asset_id, component_name, cost,
-            useful_life_years, depreciation_start_date)
-        VALUES ($1, $2, $3, $4, $5, $6)
-        RETURNING *
+            INSERT INTO asset_components (
+                user_id, asset_id, component_name, cost, useful_life_years, depreciation_start_date
+            )
+            VALUES ($1, $2, $3, $4, $5, $6)
+            RETURNING *
         "#,
         )
         .bind(user_id)
@@ -1152,12 +1121,12 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
     ) -> Result<AssetComponent, AppError> {
         let component = sqlx::query_as::<_, AssetComponent>(
             r#"
-        UPDATE asset_components
-        SET component_name = $3, cost = $4, useful_life_years = $5,
-            depreciation_start_date = $6
-        WHERE component_id = $1 AND user_id = $2
-        RETURNING *
-        "#,
+            UPDATE asset_components
+            SET component_name = $3, cost = $4, useful_life_years = $5,
+                depreciation_start_date = $6
+            WHERE component_id = $1 AND user_id = $2
+            RETURNING *
+            "#,
         )
         .bind(uuid)
         .bind(user_id)
@@ -1371,11 +1340,6 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
         }
     }
 
-    // (get, update, delete similar to previous patterns - omitted for brevity but follow same structure)
-
-    // ==========================================================
-    // INSURANCE, REVALUATIONS, DISPOSALS (Summary)
-    // ==========================================================
     // ==========================================================
     // INSURANCE
     // ==========================================================
@@ -1581,18 +1545,6 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
 
         Ok(history)
     }
-
-    // Optional: Combined full history (maintenance + insurance + transactions)
-    // async fn get_full_asset_history(
-    //     &self,
-    //     pool: &PgPool,
-    //     asset_uuid: Uuid,
-    //     user_id: Uuid,
-    // ) -> Result<serde_json::Value, AppError> {
-    //     // or a custom struct
-    //     // You can join multiple tables here or return separate vectors from service layer
-    //     todo!("Implement combined history if needed")
-    // }
 
     async fn dispose_asset(
         &self,

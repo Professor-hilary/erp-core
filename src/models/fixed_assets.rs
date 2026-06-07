@@ -143,6 +143,10 @@ pub struct AssetDepreciation {
     pub nbv: BigDecimal,
     pub posted_to_gl: bool,
     pub created_at: DateTime<Utc>,
+    pub financial_depreciation: BigDecimal,
+    pub accumulated_tax_depreciation: BigDecimal,
+    pub nbv_financial: BigDecimal,
+    pub twdv: BigDecimal,
 }
 
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]

@@ -66,7 +66,9 @@ CREATE TABLE fixedassets.asset_cwip (
     total_accumulated_cost NUMERIC(18,2) DEFAULT 0,
     start_date DATE NOT NULL,
     expected_completion_date DATE,
-    status VARCHAR(30) DEFAULT 'In_Progress',
+    status VARCHAR(30) DEFAULT 'In_Progress' CHECK (
+        status IN ('Planned', 'In_Progress', 'Suspended', 'Completed', 'Capitalized', 'Cancelled', 'Impared', 'Disposed')
+    ),
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -76,7 +78,9 @@ CREATE TABLE fixedassets.asset_books (
     book_id UUID PRIMARY KEY DEFAULT uuidv7(),
     user_id UUID NOT NULL,
     asset_id UUID REFERENCES fixedassets.fixed_assets(asset_id) ON DELETE CASCADE,
-    book_type VARCHAR(50) NOT NULL, -- 'FINANCIAL', 'TAX', 'IFRS', 'MANAGEMENT'
+    book_type VARCHAR(50) NOT NULL CHECk(
+        book_type IN ('INSURANCE', 'TAX', 'IFRS', 'MANAGEMENT', 'REVALUATION'
+    )),
     useful_life_years INTEGER,
     depreciation_method VARCHAR(30),
     depreciation_rate NUMERIC(8,4),
@@ -97,7 +101,7 @@ CREATE TABLE fixedassets.asset_depreciation (
     accumulated_tax_depreciation NUMERIC(18,2),
     nbv NUMERIC(18,2) NOT NULL,
     nbv_financial NUMERIC(18,2),
-    nbv_tax NUMERIC(18,2),
+    twdv NUMERIC(18,2), -- Tax Written Down Value
     posted_to_gl BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -173,36 +177,6 @@ BEGIN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
-
--- async fn calculate_and_post_depreciation(
---     &self,
---     asset_id: Uuid,
---     period_date: NaiveDate,
---     user_id: Uuid,
--- ) -> Result<AssetDepreciation, AppError> {
---     let mut tx = self.pool.begin().await?;
-
---     let dep_record = sqlx::query_as::<_, AssetDepreciation>(
---         r#"
---         SELECT * FROM calculate_depreciation_full($1, $2, $3)
---         AS dep(financial_depreciation, tax_depreciation,
---                accumulated_financial_dep, accumulated_tax_dep,
---                nbv_financial, nbv_tax)
---         "#,
---     )
---     .bind(user_id)
---     .bind(asset_id)
---     .bind(period_date)
---     .fetch_one(&mut *tx)
---     .await?;
-
---     -- Insert into depreciation table
---     let inserted = self.repo.create_depreciation_record(&mut tx, asset_id, user_id, &dep_record).await?;
-
---     tx.commit().await?;
-
---     Ok(inserted)
--- }
 
 CREATE OR REPLACE FUNCTION fixedassets.calculate_depreciation_advanced(
     p_user_id UUID,
@@ -365,7 +339,8 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION fixedassets.capitalize_asset_advanced(
+-- Capitalize CWIP / Asset
+CREATE OR REPLACE FUNCTION fixedassets.capitalize_asset(
     p_user_id UUID,
     p_asset_id UUID,
     p_cwip_id UUID DEFAULT NULL,
@@ -396,42 +371,6 @@ BEGIN
     VALUES (p_user_id, p_asset_id, p_date, 0, 0,
             (SELECT capitalized_amount FROM fixed_assets WHERE asset_id = p_asset_id),
             FALSE);
-END;
-$$ LANGUAGE plpgsql;
-
-
--- Capitalize CWIP / Asset
-CREATE OR REPLACE FUNCTION fixedassets.capitalize_asset(
-    p_user_id UUID,
-    p_asset_id UUID,
-    p_capitalized_amount NUMERIC,
-    p_date DATE DEFAULT CURRENT_DATE
-) RETURNS VOID AS $$
-BEGIN
-    UPDATE fixed_assets
-    SET is_capitalized = TRUE,
-        capitalization_date = p_date,
-        capitalized_amount = p_capitalized_amount,
-        depreciation_start_date = p_date,
-        status = 'In_Use'
-    WHERE asset_id = p_asset_id
-      AND user_id = p_user_id;
-
-    -- Optionally create initial depreciation record
-    IF NOT EXISTS (
-        SELECT 1 FROM asset_depreciation
-        WHERE asset_id = p_asset_id AND period_date = p_date
-    ) THEN
-        INSERT INTO asset_depreciation (
-            user_id, asset_id, period_date,
-            depreciation_amount, accumulated_depreciation, nbv
-        )
-        SELECT
-            p_user_id, p_asset_id, p_date,
-            0, 0, p_capitalized_amount
-        FROM fixed_assets
-        WHERE asset_id = p_asset_id AND user_id = p_user_id;
-    END IF;
 END;
 $$ LANGUAGE plpgsql;
 

@@ -233,7 +233,7 @@ impl<R: FixedAssetRepository> FixedAssetService<R> {
     }
 
     // Depreciation
-    pub async fn compute_depreciation(
+    pub async fn compute_depreciation_and_post(
         &self,
         tenant_pool: &PgPool,
         user_id: Uuid,
@@ -241,7 +241,7 @@ impl<R: FixedAssetRepository> FixedAssetService<R> {
         asset_uuid: Uuid,
     ) -> Result<AssetDepreciation, AppError> {
         self.repo
-            .calculate_depreciation(tenant_pool, asset_uuid, period, user_id)
+            .calculate_and_post_depreciation(tenant_pool, asset_uuid, period, user_id)
             .await
     }
 
