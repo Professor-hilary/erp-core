@@ -29,7 +29,7 @@ CREATE TABLE fixedassets.fixed_assets (
     department VARCHAR(100),
     custodian_id UUID, -- link to employees table
 
-    tax_class VARCHAR(20) CHECK (
+    tax_class VARCHAR(10) CHECK (
         tax_class IN ('Class1', 'Class2', 'Class3', 'Class4', 'Building')
     ),
     tax_depreciation_rate NUMERIC(8,4),
@@ -55,7 +55,6 @@ CREATE TABLE fixedassets.fixed_assets (
     status VARCHAR(30) DEFAULT 'In_Use'
         CHECK (status IN ('In_Use', 'Idle', 'Under_Repair', 'Disposed', 'Impaired')),
 
-    created_by UUID,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -353,12 +352,10 @@ CREATE OR REPLACE FUNCTION fixedassets.capitalize_asset(
     capitalized_amount  NUMERIC,
     breakdown           JSONB
 ) AS $$
-    DECLARE v_final_amount NUMERIC;
+    DECLARE v_final_amount NUMERIC := p_capitalized_amount;
 BEGIN
     -- Calculate final capitalized amount
-    IF p_capitalized_amount IS NOT NULL THEN
-        v_final_amount := p_capitalized_amount;
-    ELSE
+    IF v_final_amount IS NULL THEN
         SELECT original_cost INTO v_final_amount
         FROM fixedassets.fixed_assets
         WHERE asset_id = p_asset_id AND user_id = p_user_id;

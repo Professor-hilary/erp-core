@@ -21,6 +21,7 @@ use crate::{
 pub fn router() -> Router<Arc<AppState>> {
     Router::new()
         .route("/asset/create", post(http_create_asset))
+        .route("/asset/capitalize", post(http_capitalize_asset))
         .route("/asset/update", patch(http_update_asset))
         .route("/asset/list", get(http_list_assets))
         .route("/asset/get/{uuid}", get(http_get_asset))
@@ -39,7 +40,6 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/cwip/update", patch(http_update_asset_cwip))
         .route("/cwip/list", get(http_list_asset_cwip))
         .route("/cwip/get/{uuid}", get(http_get_asset_cwip))
-        .route("/asset/capitalize/{uuid}", post(http_capitalize_asset))
         .route("/cwip/capitalize/{uuid}", post(http_capitalize_cwip))
         .route("/cwip/delete", delete(http_delete_asset_cwip))
         .route("/depreciation/compute", post(http_compute_depreciation))

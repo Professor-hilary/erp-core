@@ -65,7 +65,7 @@ pub trait FixedAssetRepository: Send + Sync {
         user_id: Uuid,
         date: Option<NaiveDate>,
         capitalized_amount: Option<BigDecimal>,
-        costs: Option<serde_json::Value>,
+        costs:Option<Vec<AdditionalCost>>,
     ) -> Result<(), AppError>;
 
     async fn list_assets(&self, pool: &PgPool, user_id: Uuid) -> Result<Vec<FixedAsset>, AppError>;
@@ -444,7 +444,7 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
     ) -> Result<AssetClass, AppError> {
         let asset_class: AssetClass = sqlx::query_as::<_, AssetClass>(
             r#"
-        INSERT INTO asset_classes (user_id, class_name, category_type, description)
+        INSERT INTO fixedassets.asset_classes (user_id, class_name, category_type, description)
         VALUES ($1, $2, $3, $4)
         RETURNING *
         "#,
@@ -466,7 +466,7 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
         user_id: Uuid,
         date: Option<NaiveDate>,
         capitalized_amount: Option<BigDecimal>,
-        costs: Option<serde_json::Value>, // e.g. {"purchase":1200000, "installation": 80000, ...}
+        costs: Option<Vec<AdditionalCost>>, // e.g. {"purchase":1200000, "installation": 80000, ...}
     ) -> Result<(), AppError> {
         let date: NaiveDate = date.unwrap_or_else(|| chrono::Local::now().date_naive());
 
@@ -572,15 +572,15 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
     ) -> Result<FixedAsset, AppError> {
         let asset: FixedAsset = sqlx::query_as::<_, FixedAsset>(
             r#"
-        INSERT INTO fixed_assets (
+        INSERT INTO fixedassets.fixed_assets (
             user_id, asset_code, asset_name, description, class_id, location,
             department, custodian_id, tax_class, acquisition_date, supplier_id, po_reference,
             original_cost, capitalized_amount, is_capitalized, capitalization_date,
             financing_method, useful_life_years, residual_value, depreciation_method,
-            depreciation_rate, depreciation_start_date, status, created_by
+            depreciation_rate, depreciation_start_date, status
         )
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
-                $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
+                $15, $16, $17, $18, $19, $20, $21, $22, $23)
         RETURNING *
         "#,
         )
@@ -607,7 +607,6 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
         .bind(&payload.depreciation_rate)
         .bind(payload.depreciation_start_date)
         .bind(&payload.status)
-        .bind(user_id) // created_by
         .fetch_one(pool)
         .await?;
 

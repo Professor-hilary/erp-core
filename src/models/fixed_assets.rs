@@ -15,6 +15,21 @@ pub struct AssetClass {
     pub updated_at: DateTime<Utc>,
 }
 
+#[derive(Debug, Clone)]
+pub struct AdditionalCost {
+    pub description: String,
+    pub amount: BigDecimal,
+}
+
+#[derive(Debug, Clone)]
+pub struct CapitalizationResult {
+    pub asset_id: Uuid,
+    pub capitalized_amount: BigDecimal,
+    pub breakdown: Option<serde_json::Value>,
+    pub additional_costs_count: usize,
+}
+
+
 #[derive(Debug, Deserialize)]
 pub struct CreateAssetClass {
     pub class_name: String,

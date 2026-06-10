@@ -5,6 +5,7 @@ use crate::{
 };
 use bigdecimal::BigDecimal;
 use chrono::NaiveDate;
+use serde_json::json;
 use sqlx::PgPool;
 use uuid::Uuid;
 
@@ -84,20 +85,61 @@ impl<R: FixedAssetRepository> FixedAssetService<R> {
         tenant_pool: &PgPool,
         user_id: Uuid,
         asset_id: Uuid,
-        date: Option<NaiveDate>,
+        capitalized_date: Option<NaiveDate>,
         capitalized_amount: Option<BigDecimal>,
-        costs: Option<serde_json::Value>,
-    ) -> Result<(), AppError> {
+        costs: Option<Vec<AdditionalCost>>,
+    ) -> Result<CapitalizationResult, AppError> {
+        let mut tx: sqlx::Transaction<'_, sqlx::Postgres> = tenant_pool.begin().await?;
+
+        // Step 1: Get base asset
+        let asset = self.repo.get_asset(tenant_pool, asset_id, user_id).await?;
+
+        // Step 2: Compute total capitalized amount
+        let base_cost = asset.original_cost;
+        let additional_total = costs.as_ref().map_or(BigDecimal::Zero, |costs| {
+            costs.iter().map(|c| c.amount).sum()
+        });
+
+        let total_capitalized = base_cost + additional_total;
+
+        // Step 3: Build detailed breakdown
+        let breakdown = if let Some(costs) = &costs {
+            let mut map = serde_json::Map::new();
+            map.insert("base_purchased".to_string(), json!(base_cost));
+
+            for cost in costs {
+                let key = cost.description.to_lowercase().replace([' ', '-'], "=");
+                map.insert(key, json!(cost.amount));
+            }
+            map.insert("additional_total".to_string(), json!(additional_total));
+            map.insert("grand_total".to_string(), json!(total_capitalized));
+            Some(serde_json::Value::Object(map))
+        } else {
+            None
+        };
+
+        let cap_date = capitalized_date.unwrap_or_else(|| chrono::Local::now().date_naive());
+
         self.repo
             .capitalize_asset(
                 tenant_pool,
                 asset_id,
                 user_id,
-                date,
-                capitalized_amount,
+                capitalized_date,
+                total_capitalized,
                 costs,
             )
-            .await
+            // .execute(&mut *tx)
+            .await?;
+
+        tx.commit().await.map_err(AppError::from)?;
+
+        Ok(CapitalizationResult {
+            asset_id,
+            capitalized_amount: total_capitalized,
+            breakdown,
+            additional_costs_count: costs.map_or(0, |v| v.len()),
+        })
     }
 
     pub async fn list_asset(
