@@ -96,7 +96,7 @@ impl<R: FixedAssetRepository> FixedAssetService<R> {
 
         // Step 2: Compute total capitalized amount
         let base_cost = asset.original_cost;
-        let additional_total = costs.as_ref().map_or(BigDecimal::Zero, |costs| {
+        let additional_total = costs.as_ref().map_or(BigDecimal::zero, |costs| {
             costs.iter().map(|c| c.amount).sum()
         });
 
@@ -126,8 +126,8 @@ impl<R: FixedAssetRepository> FixedAssetService<R> {
                 asset_id,
                 user_id,
                 capitalized_date,
-                total_capitalized,
-                costs,
+                Some(total_capitalized),
+                breakdown,
             )
             // .execute(&mut *tx)
             .await?;

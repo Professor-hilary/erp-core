@@ -65,7 +65,7 @@ pub trait FixedAssetRepository: Send + Sync {
         user_id: Uuid,
         date: Option<NaiveDate>,
         capitalized_amount: Option<BigDecimal>,
-        costs:Option<Vec<AdditionalCost>>,
+       costs: Option<serde_json::Value,
     ) -> Result<(), AppError>;
 
     async fn list_assets(&self, pool: &PgPool, user_id: Uuid) -> Result<Vec<FixedAsset>, AppError>;
@@ -466,7 +466,7 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
         user_id: Uuid,
         date: Option<NaiveDate>,
         capitalized_amount: Option<BigDecimal>,
-        costs: Option<Vec<AdditionalCost>>, // e.g. {"purchase":1200000, "installation": 80000, ...}
+        costs: Option<serde_json::Value>, // e.g. {"purchase":1200000, "installation": 80000, ...}
     ) -> Result<(), AppError> {
         let date: NaiveDate = date.unwrap_or_else(|| chrono::Local::now().date_naive());
 
