@@ -17,7 +17,7 @@ pub struct AssetClass {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct AdditionalCost {
     pub description: String,
     pub amount: BigDecimal,
