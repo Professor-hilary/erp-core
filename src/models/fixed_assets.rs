@@ -4,6 +4,8 @@ use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::models::fixed_assets;
+
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
 pub struct AssetClass {
     pub class_id: Uuid,
@@ -42,7 +44,8 @@ pub struct CapitalizeAssetOrCWIP {
     pub asset_uuid: Uuid,
     pub date: Option<NaiveDate>,
     pub capitalized_amount: Option<BigDecimal>,
-    pub costs: Option<serde_json::Value>,
+    pub costs: Option<Vec<fixed_assets::AdditionalCost>>,
+    // pub costs: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]

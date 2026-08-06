@@ -65,7 +65,7 @@ pub trait FixedAssetRepository: Send + Sync {
         user_id: Uuid,
         date: Option<NaiveDate>,
         capitalized_amount: Option<BigDecimal>,
-       costs: Option<serde_json::Value,
+        costs: Option<serde_json::Value>,
     ) -> Result<(), AppError>;
 
     async fn list_assets(&self, pool: &PgPool, user_id: Uuid) -> Result<Vec<FixedAsset>, AppError>;
