@@ -4,11 +4,11 @@ use crate::{
     models::fixed_assets::*,
 };
 use bigdecimal::BigDecimal;
+use bigdecimal::Zero;
 use chrono::NaiveDate;
 use serde_json::json;
 use sqlx::PgPool;
 use uuid::Uuid;
-
 pub struct FixedAssetService<R: FixedAssetRepository> {
     repo: R,
 }
@@ -86,25 +86,25 @@ impl<R: FixedAssetRepository> FixedAssetService<R> {
         user_id: Uuid,
         asset_id: Uuid,
         capitalized_date: Option<NaiveDate>,
-        capitalized_amount: Option<BigDecimal>,
+        _capitalized_amount: Option<BigDecimal>,
         costs: Option<Vec<AdditionalCost>>,
     ) -> Result<CapitalizationResult, AppError> {
-        let mut tx: sqlx::Transaction<'_, sqlx::Postgres> = tenant_pool.begin().await?;
+        let tx: sqlx::Transaction<'_, sqlx::Postgres> = tenant_pool.begin().await?;
 
         // Step 1: Get base asset
         let asset = self.repo.get_asset(tenant_pool, asset_id, user_id).await?;
 
         // Step 2: Compute total capitalized amount
-        let base_cost = asset.original_cost;
-        let additional_total = costs.as_ref().map_or(BigDecimal::zero, |costs| {
-            costs.iter().map(|c| c.amount).sum()
+        let base_cost: BigDecimal = asset.original_cost;
+        let additional_total: BigDecimal = costs.as_ref().map_or(BigDecimal::zero(), |costs| {
+            costs.iter().map(|cost| cost.amount.clone()).sum()
         });
 
-        let total_capitalized = base_cost + additional_total;
+        let total_capitalized = base_cost.clone() + additional_total.clone();
 
         // Step 3: Build detailed breakdown
-        let breakdown = if let Some(costs) = &costs {
-            let mut map = serde_json::Map::new();
+        let breakdown: Option<serde_json::Value> = if let Some(costs) = &costs {
+            let mut map: serde_json::Map<String, serde_json::Value> = serde_json::Map::new();
             map.insert("base_purchased".to_string(), json!(base_cost));
 
             for cost in costs {
@@ -118,7 +118,7 @@ impl<R: FixedAssetRepository> FixedAssetService<R> {
             None
         };
 
-        let cap_date = capitalized_date.unwrap_or_else(|| chrono::Local::now().date_naive());
+        let _cap_date = capitalized_date.unwrap_or_else(|| chrono::Local::now().date_naive());
 
         self.repo
             .capitalize_asset(
@@ -126,8 +126,8 @@ impl<R: FixedAssetRepository> FixedAssetService<R> {
                 asset_id,
                 user_id,
                 capitalized_date,
-                Some(total_capitalized),
-                breakdown,
+                Some(total_capitalized.clone()),
+                breakdown.clone(),
             )
             // .execute(&mut *tx)
             .await?;

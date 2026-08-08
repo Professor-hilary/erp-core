@@ -17,12 +17,13 @@ pub struct AssetClass {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, sqlx::FromRow)]
 pub struct AdditionalCost {
     pub description: String,
     pub amount: BigDecimal,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct CapitalizationResult {
     pub asset_id: Uuid,
@@ -30,7 +31,6 @@ pub struct CapitalizationResult {
     pub breakdown: Option<serde_json::Value>,
     pub additional_costs_count: usize,
 }
-
 
 #[derive(Debug, Deserialize)]
 pub struct CreateAssetClass {
