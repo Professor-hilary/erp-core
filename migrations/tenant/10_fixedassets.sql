@@ -30,7 +30,7 @@ CREATE TABLE fixedassets.fixed_assets (
     custodian_id UUID, -- link to employees table
 
     tax_class VARCHAR(10) CHECK (
-        tax_class IN ('Class1', 'Class2', 'Class3', 'Class4', 'Building')
+        tax_class IN ('Class1', 'Class2', 'Class3', 'Building')
     ),
     tax_depreciation_rate NUMERIC(8,4),
 
@@ -58,6 +58,11 @@ CREATE TABLE fixedassets.fixed_assets (
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+-- Class    Assets Included                                                     Depr. Rate
+-- Class1   = Computers and data handling equipment                             40% RBM
+-- Class2   = Plant and Machinery for farming, mining, manufacturing            30% RBM
+-- Class3   = Vehicles, furniture, fixtures, others not in class 1 or 2         20% RBM
+-- Building = Industrial/Commercial buildings only                              05% SLM
 
 -- 3. Capital Work in Progress (CWIP)
 CREATE TABLE fixedassets.asset_cwip (
@@ -201,7 +206,7 @@ BEGIN
     SELECT original_cost, residual_value, useful_life_years,
            depreciation_method, depreciation_rate, depreciation_start_date
     INTO v_cost, v_residual, v_life, v_method, v_rate, v_start_date
-    FROM fixed_assets
+    FROM fixedassets.fixed_assets
     WHERE asset_id = p_asset_id AND user_id = p_user_id;
 
     IF v_start_date IS NULL OR p_period_date < v_start_date THEN
@@ -266,7 +271,7 @@ BEGIN
            depreciation_method, tax_depreciation_rate, tax_class, depreciation_start_date
     INTO v_original_cost, v_residual, v_useful_life, v_dep_method,
          v_tax_rate, v_tax_class, v_start_date
-    FROM fixed_assets
+    FROM fixedassets.fixed_assets
     WHERE asset_id = p_asset_id AND user_id = p_user_id;
 
     -- Financial Depreciation (Straight Line by default)
@@ -314,12 +319,12 @@ DECLARE
     v_gain_loss NUMERIC(18,2);
 BEGIN
     -- Lock row to prevent race conditions
-    PERFORM * FROM fixed_assets
+    PERFORM * FROM fixedassets.fixed_assets
     WHERE asset_id = p_asset_id AND user_id = p_user_id FOR UPDATE;
 
     SELECT original_cost - COALESCE(SUM(accumulated_depreciation), 0)
     INTO v_nbv
-    FROM fixed_assets fa
+    FROM fixedassets.fixed_assets fa
     LEFT JOIN asset_depreciation ad ON fa.asset_id = ad.asset_id
     WHERE fa.asset_id = p_asset_id AND fa.user_id = p_user_id;
 
@@ -333,7 +338,7 @@ BEGIN
         p_proceeds, v_gain_loss, p_reason
     );
 
-    UPDATE fixed_assets
+    UPDATE fixedassets.fixed_assets
     SET status = 'Disposed'
     WHERE asset_id = p_asset_id AND user_id = p_user_id;
 END;

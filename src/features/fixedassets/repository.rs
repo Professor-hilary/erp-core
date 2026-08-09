@@ -615,7 +615,7 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
 
     async fn list_assets(&self, pool: &PgPool, user_id: Uuid) -> Result<Vec<FixedAsset>, AppError> {
         let assets: Vec<FixedAsset> = sqlx::query_as::<_, FixedAsset>(
-            "SELECT * FROM fixed_assets WHERE user_id = $1 ORDER BY asset_code",
+            "SELECT * FROM fixedassets.fixed_assets WHERE user_id = $1 ORDER BY asset_code",
         )
         .bind(user_id)
         .fetch_all(pool)
@@ -631,7 +631,7 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
         user_id: Uuid,
     ) -> Result<FixedAsset, AppError> {
         let asset: FixedAsset = sqlx::query_as::<_, FixedAsset>(
-            "SELECT * FROM fixed_assets WHERE asset_id = $1 AND user_id = $2",
+            "SELECT * FROM fixedassets.fixed_assets WHERE asset_id = $1 AND user_id = $2",
         )
         .bind(uuid)
         .bind(user_id)
@@ -651,7 +651,7 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
     ) -> Result<FixedAsset, AppError> {
         let asset: FixedAsset = sqlx::query_as::<_, FixedAsset>(
             r#"
-        UPDATE fixed_assets
+        UPDATE fixedassets.fixed_assets
         SET asset_name = $3, description = $4, class_id = $5, location = $6,
             department = $7, custodian_id = $8, acquisition_date = $9, tax_class = $10,
             original_cost = $11, capitalized_amount = $12, financing_method = $13,
@@ -687,7 +687,7 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
 
     async fn delete_asset(&self, pool: &PgPool, uuid: Uuid, user_id: Uuid) -> Result<(), AppError> {
         let res: PgQueryResult =
-            sqlx::query("DELETE FROM fixed_assets WHERE asset_id = $1 AND user_id = $2")
+            sqlx::query("DELETE FROM fixedassets.fixed_assets WHERE asset_id = $1 AND user_id = $2")
                 .bind(uuid)
                 .bind(user_id)
                 .execute(pool)
@@ -1204,7 +1204,7 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
         .await?;
 
         // Also update current location in fixed_assets
-        sqlx::query("UPDATE fixed_assets SET location = $1 WHERE asset_id = $2 AND user_id = $3")
+        sqlx::query("UPDATE fixedassets.fixed_assets SET location = $1 WHERE asset_id = $2 AND user_id = $3")
             .bind(&payload.to_location)
             .bind(payload.asset_id)
             .bind(user_id)
@@ -1619,7 +1619,7 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
         user_id: Uuid,
     ) -> Result<Vec<FixedAsset>, AppError> {
         let register: Vec<FixedAsset> = sqlx::query_as::<_, FixedAsset>(
-            r#"SELECT * FROM fixed_assets.vw_fixed_asset_register WHERE user_id = $1"#,
+            r#"SELECT * FROM fixedassets.fixed_assets.vw_fixed_asset_register WHERE user_id = $1"#,
         )
         .bind(user_id)
         .fetch_all(pool)
