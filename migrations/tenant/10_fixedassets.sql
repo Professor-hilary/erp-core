@@ -361,9 +361,9 @@ CREATE OR REPLACE FUNCTION fixedassets.capitalize_asset(
 BEGIN
     -- Calculate final capitalized amount
     IF v_final_amount IS NULL THEN
-        SELECT original_cost INTO v_final_amount
-        FROM fixedassets.fixed_assets
-        WHERE asset_id = p_asset_id AND user_id = p_user_id;
+        SELECT fa.original_cost INTO v_final_amount
+        FROM fixedassets.fixed_assets AS fa
+        WHERE fa.asset_id = p_asset_id AND fa.user_id = p_user_id;
     END IF;
 
     -- If coming from CWIP
@@ -375,7 +375,7 @@ BEGIN
         WHERE cwip_id = p_cwip_id AND user_id = p_user_id;
     END IF;
 
-    UPDATE fixedassets.fixed_assets
+    UPDATE fixedassets.fixed_assets AS fa
     SET is_capitalized = TRUE,
         capitalization_date = p_date,
         capitalized_amount = v_final_amount,
@@ -383,7 +383,8 @@ BEGIN
         status = 'In_Use',
         description = COALESCE(description, '') ||
             ' | Capitalized with breakdown: ' || p_breakdown::text
-    WHERE asset_id = p_asset_id AND user_id = p_user_id;
+    WHERE fa.asset_id = p_asset_id
+      AND fa.user_id = p_user_id;
 
     -- Create opening depreciation record
     INSERT INTO fixedassets.asset_depreciation (
