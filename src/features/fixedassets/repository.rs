@@ -341,7 +341,7 @@ pub trait FixedAssetRepository: Send + Sync {
     ) -> Result<(), AppError>;
 
     // ==========================================================
-    // REVALUATIONS
+    // REVALUATIONS & DISPOSALS
     // ==========================================================
 
     async fn create_revaluation(
@@ -351,23 +351,16 @@ pub trait FixedAssetRepository: Send + Sync {
         payload: &CreateAssetRevaluation,
     ) -> Result<AssetRevaluation, AppError>;
 
-    async fn asset_revaluation_history(
-        &self,
-        pool: &PgPool,
-        asset_uuid: Uuid,
-        user_id: Uuid,
-    ) -> Result<Vec<AssetRevaluation>, AppError>;
-
-    // ==========================================================
-    // DISPOSALS
-    // ==========================================================
-
     async fn dispose_asset(
         &self,
         pool: &PgPool,
         user_id: Uuid,
         payload: &CreateAssetDisposal,
     ) -> Result<AssetDisposal, AppError>;
+
+    // ==========================================================
+    // REPORTS / AUDIT
+    // ==========================================================
 
     async fn disposal_history(
         &self,
@@ -376,9 +369,12 @@ pub trait FixedAssetRepository: Send + Sync {
         user_id: Uuid,
     ) -> Result<Vec<AssetDisposal>, AppError>;
 
-    // ==========================================================
-    // TRANSACTIONS / AUDIT
-    // ==========================================================
+    async fn asset_revaluation_history(
+        &self,
+        pool: &PgPool,
+        asset_uuid: Uuid,
+        user_id: Uuid,
+    ) -> Result<Vec<AssetRevaluation>, AppError>;
 
     async fn asset_transaction_history(
         &self,
@@ -386,10 +382,6 @@ pub trait FixedAssetRepository: Send + Sync {
         asset_uuid: Uuid,
         user_id: Uuid,
     ) -> Result<Vec<AssetTransaction>, AppError>;
-
-    // ==========================================================
-    // REPORTS
-    // ==========================================================
 
     async fn fixed_asset_register(
         &self,
@@ -712,7 +704,7 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
     ) -> Result<AssetBook, AppError> {
         let book: AssetBook = sqlx::query_as::<_, AssetBook>(
             r#"
-        INSERT INTO asset_books (user_id, asset_id, book_type, useful_life_years,
+        INSERT INTO fixedassets.asset_books (user_id, asset_id, book_type, useful_life_years,
             depreciation_method, depreciation_rate, residual_value)
         VALUES ($1, $2, $3, $4, $5, $6, $7)
         RETURNING *
@@ -738,7 +730,7 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
         user_id: Uuid,
     ) -> Result<Vec<AssetBook>, AppError> {
         let books: Vec<AssetBook> = sqlx::query_as::<_, AssetBook>(
-            "SELECT * FROM asset_books WHERE asset_id = $1 AND user_id = $2",
+            "SELECT * FROM fixedassets.asset_books WHERE asset_id = $1 AND user_id = $2",
         )
         .bind(asset_uuid)
         .bind(user_id)
@@ -755,7 +747,7 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
         user_id: Uuid,
     ) -> Result<AssetBook, AppError> {
         let book: AssetBook = sqlx::query_as::<_, AssetBook>(
-            "SELECT * FROM asset_books WHERE book_id = $1 AND user_id = $2",
+            "SELECT * FROM fixedassets.asset_books WHERE book_id = $1 AND user_id = $2",
         )
         .bind(uuid)
         .bind(user_id)
@@ -775,7 +767,7 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
     ) -> Result<AssetBook, AppError> {
         let book: AssetBook = sqlx::query_as::<_, AssetBook>(
             r#"
-        UPDATE asset_books
+        UPDATE fixedassets.asset_books
         SET book_type = $3, useful_life_years = $4, depreciation_method = $5,
             depreciation_rate = $6, residual_value = $7
         WHERE book_id = $1 AND user_id = $2
@@ -802,7 +794,7 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
         user_id: Uuid,
     ) -> Result<(), AppError> {
         let res: PgQueryResult =
-            sqlx::query("DELETE FROM asset_books WHERE book_id = $1 AND user_id = $2")
+            sqlx::query("DELETE FROM fixedassets.asset_books WHERE book_id = $1 AND user_id = $2")
                 .bind(uuid)
                 .bind(user_id)
                 .execute(pool)
@@ -965,12 +957,12 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
         // Insert into depreciation table
         let inserted: AssetDepreciation = sqlx::query_as::<_, AssetDepreciation>(
             r#"
-            INSERT INTO fixedassets.asset_depreciation (
-                user_id, asset_id, period_date, depreciation_amount, accumulated_depreciation,
-                financial_depreciation, accumulated_tax_depreciation, nbv, nbv_financial, twdv,
-                posted_to_gl
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, FALSE)
-        "#,
+                INSERT INTO fixedassets.asset_depreciation (
+                    user_id, asset_id, period_date, depreciation_amount, accumulated_depreciation,
+                    financial_depreciation, accumulated_tax_depreciation, nbv, nbv_financial, twdv,
+                    posted_to_gl
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, FALSE)
+            "#,
         )
         .bind(user_id)
         .bind(asset_id)
@@ -1023,10 +1015,9 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
     ) -> Result<Vec<AssetDepreciation>, AppError> {
         let schedule = sqlx::query_as::<_, AssetDepreciation>(
             r#"
-        SELECT * FROM asset_depreciation
-        WHERE asset_id = $1 AND user_id = $2
-        ORDER BY period_date ASC
-        "#,
+            SELECT * FROM asset_depreciation WHERE asset_id = $1 AND user_id = $2
+            ORDER BY period_date ASC
+            "#,
         )
         .bind(asset_uuid)
         .bind(user_id)
