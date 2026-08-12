@@ -382,7 +382,7 @@ async fn http_capitalize_asset(
 async fn http_compute_depreciation(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    AppJson(payload): AppJson<AssetDepreciation>,
+    AppJson(payload): AppJson<CreateAssetDepreciation>,
 ) -> Result<Response, AppError> {
     let repo = PostgresFixedAssetRepository::new();
     let service = FixedAssetService::new(repo);
