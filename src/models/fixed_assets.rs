@@ -175,6 +175,12 @@ pub struct AssetDepreciation {
     pub twdv: BigDecimal,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct CreateAssetDepreciation {
+    pub asset_id: Uuid,
+    pub period_date: NaiveDate,
+}
+
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
 pub struct AssetComponent {
     pub component_id: Uuid,
