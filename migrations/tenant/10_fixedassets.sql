@@ -267,6 +267,7 @@ DECLARE
     v_tax_class TEXT;
     v_start_date DATE;
 BEGIN
+    RAISE NOTICE 'Beginning';
     SELECT original_cost, residual_value, useful_life_years,
            depreciation_method, tax_depreciation_rate, tax_class, depreciation_start_date
     INTO v_original_cost, v_residual, v_useful_life, v_dep_method,

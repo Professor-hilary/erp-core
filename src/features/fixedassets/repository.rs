@@ -678,12 +678,13 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
     }
 
     async fn delete_asset(&self, pool: &PgPool, uuid: Uuid, user_id: Uuid) -> Result<(), AppError> {
-        let res: PgQueryResult =
-            sqlx::query("DELETE FROM fixedassets.fixed_assets WHERE asset_id = $1 AND user_id = $2")
-                .bind(uuid)
-                .bind(user_id)
-                .execute(pool)
-                .await?;
+        let res: PgQueryResult = sqlx::query(
+            "DELETE FROM fixedassets.fixed_assets WHERE asset_id = $1 AND user_id = $2",
+        )
+        .bind(uuid)
+        .bind(user_id)
+        .execute(pool)
+        .await?;
 
         if res.rows_affected() == 0 {
             Err(AppError::NotFound("Asset not found".into()))
@@ -943,7 +944,7 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
     ) -> Result<AssetDepreciation, AppError> {
         let mut tx: sqlx::Transaction<'_, sqlx::Postgres> = pool.begin().await?;
 
-        let dep_record: AssetDepreciation = sqlx::query_as::<_, AssetDepreciation>(
+        let dep_record = sqlx::query_as::<_, AssetDepreciation>(
             r#"
                 SELECT * FROM fixedassets.calculate_depreciation_full($1, $2, $3)
             "#,
@@ -952,30 +953,31 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
         .bind(asset_id)
         .bind(period_date)
         .fetch_one(&mut *tx)
-        .await?;
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
 
         // Insert into depreciation table
-        // let inserted: AssetDepreciation = sqlx::query_as::<_, AssetDepreciation>(
-        //     r#"
-        //         INSERT INTO fixedassets.asset_depreciation (
-        //             user_id, asset_id, period_date, depreciation_amount, accumulated_depreciation,
-        //             financial_depreciation, accumulated_tax_depreciation, nbv, nbv_financial, twdv,
-        //             posted_to_gl
-        //         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, FALSE)
-        //     "#,
-        // )
-        // .bind(user_id)
-        // .bind(asset_id)
-        // .bind(period_date)
-        // .bind(dep_record.depreciation_amount)
-        // .bind(dep_record.accumulated_depreciation)
-        // .bind(dep_record.financial_depreciation)
-        // .bind(dep_record.accumulated_tax_depreciation)
-        // .bind(dep_record.nbv)
-        // .bind(dep_record.nbv_financial)
-        // .bind(dep_record.twdv)
-        // .fetch_one(&mut *tx)
-        // .await?;
+        let inserted: AssetDepreciation = sqlx::query_as::<_, AssetDepreciation>(
+            r#"
+                INSERT INTO fixedassets.asset_depreciation (
+                    user_id, asset_id, period_date, depreciation_amount, accumulated_depreciation,
+                    financial_depreciation, accumulated_tax_depreciation, nbv, nbv_financial, twdv,
+                    posted_to_gl
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, FALSE)
+            "#,
+        )
+        .bind(user_id)
+        .bind(asset_id)
+        .bind(period_date)
+        .bind(dep_record.depreciation_amount)
+        .bind(dep_record.accumulated_depreciation)
+        .bind(dep_record.financial_depreciation)
+        .bind(dep_record.accumulated_tax_depreciation)
+        .bind(dep_record.nbv)
+        .bind(dep_record.nbv_financial)
+        .bind(dep_record.twdv)
+        .fetch_one(&mut *tx)
+        .await?;
 
         tx.commit().await?;
 
