@@ -945,8 +945,8 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
 
         let dep_record: AssetDepreciation = sqlx::query_as::<_, AssetDepreciation>(
             r#"
-            SELECT * FROM calculate_depreciation_full($1, $2, $3)
-        "#,
+                SELECT * FROM fixedassets.calculate_depreciation_full($1, $2, $3)
+            "#,
         )
         .bind(user_id)
         .bind(asset_id)
@@ -955,31 +955,31 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
         .await?;
 
         // Insert into depreciation table
-        let inserted: AssetDepreciation = sqlx::query_as::<_, AssetDepreciation>(
-            r#"
-                INSERT INTO fixedassets.asset_depreciation (
-                    user_id, asset_id, period_date, depreciation_amount, accumulated_depreciation,
-                    financial_depreciation, accumulated_tax_depreciation, nbv, nbv_financial, twdv,
-                    posted_to_gl
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, FALSE)
-            "#,
-        )
-        .bind(user_id)
-        .bind(asset_id)
-        .bind(period_date)
-        .bind(dep_record.depreciation_amount)
-        .bind(dep_record.accumulated_depreciation)
-        .bind(dep_record.financial_depreciation)
-        .bind(dep_record.accumulated_tax_depreciation)
-        .bind(dep_record.nbv)
-        .bind(dep_record.nbv_financial)
-        .bind(dep_record.twdv)
-        .fetch_one(&mut *tx)
-        .await?;
+        // let inserted: AssetDepreciation = sqlx::query_as::<_, AssetDepreciation>(
+        //     r#"
+        //         INSERT INTO fixedassets.asset_depreciation (
+        //             user_id, asset_id, period_date, depreciation_amount, accumulated_depreciation,
+        //             financial_depreciation, accumulated_tax_depreciation, nbv, nbv_financial, twdv,
+        //             posted_to_gl
+        //         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, FALSE)
+        //     "#,
+        // )
+        // .bind(user_id)
+        // .bind(asset_id)
+        // .bind(period_date)
+        // .bind(dep_record.depreciation_amount)
+        // .bind(dep_record.accumulated_depreciation)
+        // .bind(dep_record.financial_depreciation)
+        // .bind(dep_record.accumulated_tax_depreciation)
+        // .bind(dep_record.nbv)
+        // .bind(dep_record.nbv_financial)
+        // .bind(dep_record.twdv)
+        // .fetch_one(&mut *tx)
+        // .await?;
 
         tx.commit().await?;
 
-        Ok(inserted)
+        Ok(dep_record)
     }
 
     async fn run_periodic_depreciation(
