@@ -251,7 +251,7 @@ CREATE OR REPLACE FUNCTION fixedassets.calculate_depreciation_full(
     p_asset_id UUID,
     p_period_date DATE
 ) RETURNS TABLE (
-    financial_depreciation NUMERIC(18,2),
+    financial_depr NUMERIC(18,2),
     tax_depreciation NUMERIC(18,2),
     accumulated_financial_dep NUMERIC(18,2),
     accumulated_tax_dep NUMERIC(18,2),
@@ -273,9 +273,10 @@ BEGIN
          v_tax_rate, v_tax_class, v_start_date
     FROM fixedassets.fixed_assets
     WHERE asset_id = p_asset_id AND user_id = p_user_id;
-
+    -- THEN
+    RAISE NOTICE 'First';
     -- Financial Depreciation (Straight Line by default)
-    financial_depreciation := ROUND((v_original_cost - v_residual) / (v_useful_life * 12.0), 2);
+    financial_depr := ROUND((v_original_cost - v_residual) / (v_useful_life * 12.0), 2);
 
     -- Tax Depreciation (Common URA rules)
     CASE
@@ -284,22 +285,30 @@ BEGIN
         WHEN v_tax_class = 'Building' THEN
             tax_depreciation := ROUND(v_original_cost * 0.02 / 12, 2); -- 2% straight line
         ELSE
-            tax_depreciation := financial_depreciation; -- fallback
+            tax_depreciation := financial_depr; -- fallback
     END CASE;
+
+    RAISE NOTICE 'Second';
 
     -- Accumulated values
     SELECT
-        COALESCE(SUM(financial_depreciation), 0),
+        COALESCE(SUM(financial_depr), 0),
         COALESCE(SUM(tax_depreciation), 0)
     INTO accumulated_financial_dep, accumulated_tax_dep
-    FROM asset_depreciation
+    FROM fixedassets.asset_depreciation
     WHERE asset_id = p_asset_id AND period_date < p_period_date;
 
-    accumulated_financial_dep := accumulated_financial_dep + financial_depreciation;
+    RAISE NOTICE 'Third';
+
+    accumulated_financial_dep := accumulated_financial_dep + financial_depr;
     accumulated_tax_dep := accumulated_tax_dep + tax_depreciation;
+
+    RAISE NOTICE 'Forth';
 
     nbv_financial := v_original_cost - accumulated_financial_dep;
     nbv_tax := v_original_cost - accumulated_tax_dep;
+
+    RAISE NOTICE 'Fifth';
 
     RETURN NEXT;
 END;
@@ -325,7 +334,7 @@ BEGIN
     SELECT original_cost - COALESCE(SUM(accumulated_depreciation), 0)
     INTO v_nbv
     FROM fixedassets.fixed_assets fa
-    LEFT JOIN asset_depreciation ad ON fa.asset_id = ad.asset_id
+    LEFT JOIN fixedassets.asset_depreciation ad ON fa.asset_id = ad.asset_id
     WHERE fa.asset_id = p_asset_id AND fa.user_id = p_user_id;
 
     v_gain_loss := p_proceeds - v_nbv;
