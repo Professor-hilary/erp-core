@@ -944,7 +944,7 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
     ) -> Result<AssetDepreciation, AppError> {
         let mut tx: sqlx::Transaction<'_, sqlx::Postgres> = pool.begin().await?;
 
-        let dep_record = sqlx::query_as::<_, AssetDepreciation>(
+        let dep_record: AssetDepreciation = sqlx::query_as::<_, AssetDepreciation>(
             r#"
                 SELECT * FROM fixedassets.calculate_depreciation_full($1, $2, $3)
             "#,
@@ -977,11 +977,12 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
         .bind(dep_record.nbv_financial)
         .bind(dep_record.twdv)
         .fetch_one(&mut *tx)
-        .await?;
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
 
         tx.commit().await?;
 
-        Ok(dep_record)
+        Ok(inserted)
     }
 
     async fn run_periodic_depreciation(

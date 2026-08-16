@@ -267,15 +267,13 @@ DECLARE
     v_tax_class TEXT;
     v_start_date DATE;
 BEGIN
-    RAISE NOTICE 'Beginning';
     SELECT original_cost, residual_value, useful_life_years,
-           depreciation_method, tax_depreciation_rate, tax_class, depreciation_start_date
+        depreciation_method, tax_depreciation_rate, tax_class, depreciation_start_date
     INTO v_original_cost, v_residual, v_useful_life, v_dep_method,
-         v_tax_rate, v_tax_class, v_start_date
+        v_tax_rate, v_tax_class, v_start_date
     FROM fixedassets.fixed_assets
     WHERE asset_id = p_asset_id AND user_id = p_user_id;
-    -- THEN
-    RAISE NOTICE 'First';
+
     -- Financial Depreciation (Straight Line by default)
     financial_depr := ROUND((v_original_cost - v_residual) / (v_useful_life * 12.0), 2);
 
@@ -289,8 +287,6 @@ BEGIN
             tax_depreciation := financial_depr; -- fallback
     END CASE;
 
-    RAISE NOTICE 'Second';
-
     -- Accumulated values
     SELECT
         COALESCE(SUM(financial_depr), 0),
@@ -299,17 +295,11 @@ BEGIN
     FROM fixedassets.asset_depreciation
     WHERE asset_id = p_asset_id AND period_date < p_period_date;
 
-    RAISE NOTICE 'Third';
-
     accumulated_financial_dep := accumulated_financial_dep + financial_depr;
     accumulated_tax_dep := accumulated_tax_dep + tax_depreciation;
 
-    RAISE NOTICE 'Forth';
-
     nbv_financial := v_original_cost - accumulated_financial_dep;
     nbv_tax := v_original_cost - accumulated_tax_dep;
-
-    RAISE NOTICE 'Fifth';
 
     RETURN NEXT;
 END;
