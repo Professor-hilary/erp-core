@@ -164,15 +164,15 @@ pub struct AssetDepreciation {
     pub asset_id: Uuid,
     pub book_id: Option<Uuid>,
     pub period_date: NaiveDate,
-    pub depreciation_amount: BigDecimal,
-    pub accumulated_depreciation: BigDecimal,
-    pub nbv: BigDecimal,
+    pub depreciation_amount: Option<BigDecimal>,
+    pub accumulated_depreciation: Option<BigDecimal>,
+    pub nbv: Option<BigDecimal>,
     pub posted_to_gl: bool,
     pub created_at: DateTime<Utc>,
-    pub financial_depreciation: BigDecimal,
-    pub accumulated_tax_depreciation: BigDecimal,
-    pub nbv_financial: BigDecimal,
-    pub twdv: BigDecimal,
+    pub financial_depreciation: Option<BigDecimal>,
+    pub accumulated_tax_depreciation: Option<BigDecimal>,
+    pub nbv_financial: Option<BigDecimal>,
+    pub twdv: Option<BigDecimal>,
 }
 
 #[derive(Debug, Deserialize)]

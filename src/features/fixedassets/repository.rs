@@ -978,7 +978,7 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
         .bind(dep_record.twdv)
         .fetch_one(&mut *tx)
         .await
-        .map_err(|e| AppError::Internal(e.to_string()))?;
+        .map_err(|e: sqlx::Error| AppError::Internal(e.to_string()))?;
 
         tx.commit().await?;
 

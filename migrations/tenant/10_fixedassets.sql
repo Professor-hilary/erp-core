@@ -250,14 +250,24 @@ CREATE OR REPLACE FUNCTION fixedassets.calculate_depreciation_full(
     p_user_id UUID,
     p_asset_id UUID,
     p_period_date DATE
-) RETURNS TABLE (
-    financial_depr NUMERIC(18,2),
-    tax_depreciation NUMERIC(18,2),
-    accumulated_financial_dep NUMERIC(18,2),
-    accumulated_tax_dep NUMERIC(18,2),
+)
+RETURNS TABLE (
+    dep_id UUID,
+    user_id UUID,
+    asset_id UUID,
+    book_id UUID,
+    period_date DATE,
+    depreciation_amount NUMERIC(18,2),
+    accumulated_depreciation NUMERIC(18,2),
+    nbv NUMERIC(18,2),
+    posted_to_gl BOOLEAN,
+    created_at TIMESTAMPTZ,
+    financial_depreciation NUMERIC(18,2),
+    accumulated_tax_depreciation NUMERIC(18,2),
     nbv_financial NUMERIC(18,2),
-    nbv_tax NUMERIC(18,2)
-) AS $$
+    twdv NUMERIC(18,2)
+)
+AS $$
 DECLARE
     v_original_cost NUMERIC(18,2);
     v_residual NUMERIC(18,2);
@@ -266,40 +276,127 @@ DECLARE
     v_tax_rate NUMERIC(8,4);
     v_tax_class TEXT;
     v_start_date DATE;
+
+    v_financial_depr NUMERIC(18,2);
+    v_tax_depr NUMERIC(18,2);
+
+    v_accumulated_financial NUMERIC(18,2);
+    v_accumulated_tax NUMERIC(18,2);
+
+    v_nbv_financial NUMERIC(18,2);
+    v_nbv_tax NUMERIC(18,2);
 BEGIN
-    SELECT original_cost, residual_value, useful_life_years,
-        depreciation_method, tax_depreciation_rate, tax_class, depreciation_start_date
-    INTO v_original_cost, v_residual, v_useful_life, v_dep_method,
-        v_tax_rate, v_tax_class, v_start_date
-    FROM fixedassets.fixed_assets
-    WHERE asset_id = p_asset_id AND user_id = p_user_id;
+    /*
+     * Get asset information
+     */
+    SELECT
+        fa.original_cost, fa.residual_value, fa.useful_life_years, fa.depreciation_method,
+        fa.tax_depreciation_rate, fa.tax_class, fa.depreciation_start_date
+    INTO
+        v_original_cost, v_residual, v_useful_life, v_dep_method, v_tax_rate,
+        v_tax_class, v_start_date
+    FROM fixedassets.fixed_assets as fa
+    WHERE fa.asset_id = p_asset_id
+      AND fa.user_id = p_user_id;
 
-    -- Financial Depreciation (Straight Line by default)
-    financial_depr := ROUND((v_original_cost - v_residual) / (v_useful_life * 12.0), 2);
+    /*
+     * Make sure the asset actually exists.
+     */
 
-    -- Tax Depreciation (Common URA rules)
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Asset % does not exist for user %', p_asset_id, p_user_id;
+    END IF;
+    /*
+     * Financial depreciation
+     */
+    v_financial_depr := ROUND((v_original_cost - v_residual) / (v_useful_life * 12.0), 2);
+
+    /*
+     * Tax depreciation
+     */
     CASE
         WHEN v_tax_class IN ('Class1', 'Class2') THEN
-            tax_depreciation := ROUND(v_original_cost * (v_tax_rate / 100) / 12, 2);
+            v_tax_depr := ROUND(v_original_cost * (v_tax_rate / 100) / 12, 2);
         WHEN v_tax_class = 'Building' THEN
-            tax_depreciation := ROUND(v_original_cost * 0.02 / 12, 2); -- 2% straight line
+            v_tax_depr := ROUND(v_original_cost * 0.02 / 12, 2);
         ELSE
-            tax_depreciation := financial_depr; -- fallback
+            v_tax_depr := v_financial_depr;
     END CASE;
 
-    -- Accumulated values
+    /*
+     * Previous accumulated depreciation
+     */
     SELECT
-        COALESCE(SUM(financial_depr), 0),
-        COALESCE(SUM(tax_depreciation), 0)
-    INTO accumulated_financial_dep, accumulated_tax_dep
-    FROM fixedassets.asset_depreciation
-    WHERE asset_id = p_asset_id AND period_date < p_period_date;
+        COALESCE(SUM(ad.financial_depreciation), 0),
+        COALESCE(SUM(ad.accumulated_tax_depreciation), 0)
+    INTO
+        v_accumulated_financial,
+        v_accumulated_tax
+    FROM fixedassets.asset_depreciation as ad
+    WHERE ad.asset_id = p_asset_id AND ad.period_date < p_period_date;
 
-    accumulated_financial_dep := accumulated_financial_dep + financial_depr;
-    accumulated_tax_dep := accumulated_tax_dep + tax_depreciation;
+    /*
+     * Add current period depreciation
+     */
+    v_accumulated_financial := v_accumulated_financial + v_financial_depr;
+    v_accumulated_tax := v_accumulated_tax + v_tax_depr;
 
-    nbv_financial := v_original_cost - accumulated_financial_dep;
-    nbv_tax := v_original_cost - accumulated_tax_dep;
+    /*
+     * Calculate NBVs
+     */
+    v_nbv_financial := v_original_cost - v_accumulated_financial;
+    v_nbv_tax := v_original_cost - v_accumulated_tax;
+
+
+    /*
+     * Return the shape expected by AssetDepreciation.
+     */
+    dep_id := gen_random_uuid();
+    user_id := p_user_id;
+    asset_id := p_asset_id;
+
+    /*
+     * Set this if the asset has a book relationship.
+     * Otherwise NULL is appropriate.
+     */
+    book_id := NULL;
+
+    period_date := p_period_date;
+
+    /*
+     * Generic depreciation fields.
+     *
+     * Here we treat financial depreciation as
+     * the primary accounting depreciation.
+     */
+    depreciation_amount := v_financial_depr;
+    accumulated_depreciation := v_accumulated_financial;
+    nbv := v_nbv_financial;
+
+    posted_to_gl := FALSE;
+    created_at := NOW();
+
+    financial_depreciation := v_financial_depr;
+    accumulated_tax_depreciation := v_accumulated_tax;
+    nbv_financial := v_nbv_financial;
+
+    /*
+     * TWDV = tax written-down value.
+     */
+    twdv := v_nbv_tax;
+
+    RAISE NOTICE 'dep_id: %, user: %, asset: %, book: %, period date: %, depreciation_amount: %,
+        accumulated_depreciation: %, nbv: %, posted: %, created_at: %, financial_depreciation: %,
+        accumulated_tax_depreciation %, nbv_financial: %, twdv: %',
+        dep_id, user_id, asset_id, book_id, period_date, depreciation_amount,
+        accumulated_depreciation, nbv, posted_to_gl, created_at, financial_depreciation,
+        accumulated_tax_depreciation, nbv_financial, twdv;
+
+    RAISE NOTICE 'v_original_cost: %, v_residual: %, v_useful_life: %, v_dep_method: %, v_tax_rate: %,
+        v_tax_class: %, v_start_date: %',
+        v_original_cost, v_residual, v_useful_life, v_dep_method, v_tax_rate,
+        v_tax_class, v_start_date;
+
 
     RETURN NEXT;
 END;
