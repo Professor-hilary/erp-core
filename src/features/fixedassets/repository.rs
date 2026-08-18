@@ -963,7 +963,7 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
                     user_id, asset_id, period_date, depreciation_amount, accumulated_depreciation,
                     financial_depreciation, accumulated_tax_depreciation, nbv, nbv_financial, twdv,
                     posted_to_gl
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, FALSE)
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, FALSE) RETURNING *
             "#,
         )
         .bind(user_id)

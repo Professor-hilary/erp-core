@@ -93,13 +93,13 @@ CREATE TABLE fixedassets.asset_books (
     residual_value NUMERIC(18,2),
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
-
+-- alter table fixedassets.asset_depreciation add column  book_id UUID REFERENCES fixedassets.asset_books(book_id);
 -- 5. Depreciation History
 CREATE TABLE fixedassets.asset_depreciation (
     dep_id UUID PRIMARY KEY DEFAULT uuidv7(),
     user_id UUID NOT NULL,
     asset_id UUID REFERENCES fixedassets.fixed_assets(asset_id) ON DELETE CASCADE,
-    -- book_id UUID REFERENCES fixedassets.asset_books(book_id),
+    book_id UUID REFERENCES fixedassets.asset_books(book_id),
     period_date DATE NOT NULL,
     depreciation_amount NUMERIC(18,2) NOT NULL,
     accumulated_depreciation NUMERIC(18,2) NOT NULL,
@@ -385,18 +385,12 @@ BEGIN
      */
     twdv := v_nbv_tax;
 
-    RAISE NOTICE 'dep_id: %, user: %, asset: %, book: %, period date: %, depreciation_amount: %,
-        accumulated_depreciation: %, nbv: %, posted: %, created_at: %, financial_depreciation: %,
-        accumulated_tax_depreciation %, nbv_financial: %, twdv: %',
-        dep_id, user_id, asset_id, book_id, period_date, depreciation_amount,
-        accumulated_depreciation, nbv, posted_to_gl, created_at, financial_depreciation,
-        accumulated_tax_depreciation, nbv_financial, twdv;
-
-    RAISE NOTICE 'v_original_cost: %, v_residual: %, v_useful_life: %, v_dep_method: %, v_tax_rate: %,
-        v_tax_class: %, v_start_date: %',
-        v_original_cost, v_residual, v_useful_life, v_dep_method, v_tax_rate,
-        v_tax_class, v_start_date;
-
+    -- RAISE NOTICE 'dep_id: %, user: %, asset: %, book: %, period date: %, depreciation_amount: %,
+    --     accumulated_depreciation: %, nbv: %, posted: %, created_at: %, financial_depreciation: %,
+    --     accumulated_tax_depreciation %, nbv_financial: %, twdv: %',
+    --     dep_id, user_id, asset_id, book_id, period_date, depreciation_amount,
+    --     accumulated_depreciation, nbv, posted_to_gl, created_at, financial_depreciation,
+    --     accumulated_tax_depreciation, nbv_financial, twdv;
 
     RETURN NEXT;
 END;
