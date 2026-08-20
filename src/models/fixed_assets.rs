@@ -69,6 +69,8 @@ pub struct FixedAsset {
     pub capitalized_amount: Option<BigDecimal>,
     pub is_capitalized: bool,
     pub capitalization_date: Option<NaiveDate>,
+    pub accumulated_depr_acc: Option<String>,
+    pub depreciation_exp_acc: Option<String>,
 
     pub financing_method: Option<String>,
     pub tax_class: Option<String>,

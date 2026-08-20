@@ -960,14 +960,15 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
         let inserted: AssetDepreciation = sqlx::query_as::<_, AssetDepreciation>(
             r#"
                 INSERT INTO fixedassets.asset_depreciation (
-                    user_id, asset_id, period_date, depreciation_amount, accumulated_depreciation,
+                    user_id, asset_id, book_id, period_date, depreciation_amount, accumulated_depreciation,
                     financial_depreciation, accumulated_tax_depreciation, nbv, nbv_financial, twdv,
                     posted_to_gl
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, FALSE) RETURNING *
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, FALSE) RETURNING *
             "#,
         )
         .bind(user_id)
         .bind(asset_id)
+        .bind(dep_record.book_id)
         .bind(period_date)
         .bind(dep_record.depreciation_amount)
         .bind(dep_record.accumulated_depreciation)
