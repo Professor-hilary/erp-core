@@ -168,6 +168,7 @@ pub struct AssetDepreciation {
     pub period_date: NaiveDate,
     pub depreciation_amount: Option<BigDecimal>,
     pub accumulated_depreciation: Option<BigDecimal>,
+    pub transaction_reference: String,
     pub nbv: Option<BigDecimal>,
     pub posted_to_gl: bool,
     pub created_at: DateTime<Utc>,

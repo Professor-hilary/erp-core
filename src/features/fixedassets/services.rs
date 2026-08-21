@@ -337,7 +337,7 @@ impl<R: FixedAssetRepository> FixedAssetService<R> {
         tenant_pool: &PgPool,
         depreciation_uuid: Uuid,
         user_id: Uuid,
-    ) -> Result<(), AppError> {
+    ) -> Result<AssetDepreciation, AppError> {
         self.repo
             .post_depreciation_to_gl(tenant_pool, depreciation_uuid, user_id)
             .await

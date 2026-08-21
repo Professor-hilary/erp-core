@@ -4,6 +4,7 @@
 
 -- Create schema
 CREATE SCHEMA IF NOT EXISTS fixedassets;
+create sequence fixedassets.depreciation_reference_seq;
 
 -- 1. Asset Classes
 CREATE TABLE fixedassets.asset_classes (
@@ -67,88 +68,6 @@ CREATE TABLE fixedassets.fixed_assets (
 -- Class3   = Vehicles, furniture, fixtures, others not in class 1 or 2         20% RBM
 -- Building = Industrial/Commercial buildings only                              05% SLM
 
-CREATE OR REPLACE FUNCTION fixedassets.post_depreciation(
-    p_user_id UUID,
-    p_dep_id UUID
-)
-RETURNS UUID
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    v_dep fixedassets.asset_depreciation%ROWTYPE;
-    v_book fixedassets.asset_books%ROWTYPE;
-    v_journal_id UUID;
-BEGIN
-
-    /*
-     * Get the depreciation record.
-     */
-    SELECT * INTO v_dep FROM fixedassets.asset_depreciation
-    WHERE dep_id = p_dep_id AND user_id = p_user_id
-    FOR UPDATE;
-
-    IF NOT FOUND THEN
-        RAISE EXCEPTION 'Depreciation record % was not found', p_dep_id;
-    END IF;
-
-    /*
-     * Prevent duplicate posting.
-     */
-    IF v_dep.posted_to_gl THEN
-        RAISE EXCEPTION
-            'Depreciation record % has already been posted', p_dep_id;
-    END IF;
-
-    /*
-     * Get the Asset Book.
-     */
-    SELECT * INTO v_book FROM fixedassets.asset_books
-    WHERE book_id = v_dep.book_id
-      AND asset_id = v_dep.asset_id
-      AND user_id = p_user_id;
-
-    IF NOT FOUND THEN
-        RAISE EXCEPTION
-            'Asset book % was not found',
-            v_dep.book_id;
-    END IF;
-
-    /*
-     * Debit depreciation expense, Credit accumulated depreciation.
-     */
-    v_journal_id := accounting.post_transaction(
-        v_bill.bill_number,
-        'Depreciation - Asset ' || v_dep.asset_id,
-        p_user, 'bill', v_bill.bill_date, jsonb_build_array(
-            jsonb_build_object(
-                'account_ref', v_book.depreciation_expense_account_id,
-                'debit', v_dep.depreciation_amount,
-                'credit', 0,
-                'memo', 'Recognizing depreciation expenditure'
-            ),
-            jsonb_build_object(
-                'account_ref', v_book.accumulated_depreciation_account_id,
-                'debit', 0,
-                'credit', v_dep.depreciation_amount,
-                'memo', 'Acummulating depreciation'
-            )
-        )
-    );
-
-    /*
-     * Mark depreciation as posted.
-     */
-    UPDATE fixedassets.asset_depreciation
-    SET
-        posted_to_gl = TRUE
-        -- journal_id = v_journal_id,
-        -- posted_at = NOW(),
-        -- posted_by = p_user_id
-    WHERE dep_id = p_dep_id;
-
-    RETURN v_journal_id;
-END;
-$$;
 
 -- 3. Capital Work in Progress (CWIP)
 CREATE TABLE fixedassets.asset_cwip (
@@ -191,6 +110,7 @@ CREATE TABLE fixedassets.asset_depreciation (
     accumulated_depreciation NUMERIC(18,2) NOT NULL,
     financial_depreciation NUMERIC(18,2),
     accumulated_tax_depreciation NUMERIC(18,2),
+    transaction_reference varchar(50),
     nbv NUMERIC(18,2) NOT NULL,
     nbv_financial NUMERIC(18,2),
     twdv NUMERIC(18,2), -- Tax Written Down Value
@@ -395,6 +315,83 @@ BEGIN
     RETURN NEXT;
 END;
 $$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION fixedassets.post_depreciation(
+    p_user_id UUID,
+    p_dep_id UUID
+)
+RETURNS fixedassets.asset_depreciation
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_dep fixedassets.asset_depreciation%ROWTYPE;
+    v_asset fixedassets.fixed_assets%ROWTYPE;
+    v_book fixedassets.asset_books%ROWTYPE;
+    v_journal_id BIGINT;
+    v_reference TEXT;
+    v_result fixedassets.asset_depreciation%ROWTYPE;
+BEGIN
+
+    /* Get the depreciation record. */
+    SELECT * INTO v_dep FROM fixedassets.asset_depreciation
+    WHERE dep_id = p_dep_id AND user_id = p_user_id
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Depreciation record % was not found', p_dep_id;
+    END IF;
+
+    /* Prevent duplicate posting. */
+    IF v_dep.posted_to_gl THEN
+        RAISE EXCEPTION
+            'Depreciation record % has already been posted', p_dep_id;
+    END IF;
+
+    /* Generate reference */
+    v_reference := 'DEP_' || LPAD(
+        nextval('fixedassets.depreciation_reference_seq')::TEXT, 6, '0'
+    );
+
+    /* Get the Asset Book. */
+    SELECT * INTO v_asset FROM fixedassets.fixed_assets AS fa
+    WHERE fa.asset_id = v_dep.asset_id
+      AND fa.user_id = p_user_id;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Asset % was not found', v_dep.asset_id;
+    END IF;
+
+    /* Debit depreciation expense, Credit accumulated depreciation. */
+    v_journal_id := accounting.post_transaction(
+        v_reference,
+        'Depreciation - Asset ' || v_dep.asset_id,
+        p_user_id, 'depreciation', v_dep.period_date, jsonb_build_array(
+            jsonb_build_object(
+                'account_ref', v_asset.depreciation_exp_acc,
+                'debit', v_dep.depreciation_amount,
+                'credit', 0,
+                'memo', 'Recognizing depreciation expenditure'
+            ),
+            jsonb_build_object(
+                'account_ref', v_asset.accumulated_depr_acc,
+                'debit', 0,
+                'credit', v_dep.depreciation_amount,
+                'memo', 'Acummulating depreciation'
+            )
+        )
+    );
+
+    /* Mark depreciation as posted. */
+    UPDATE fixedassets.asset_depreciation
+    SET
+        posted_to_gl = TRUE
+        -- journal_id = v_journal_id, posted_at = NOW(),
+        -- posted_by = p_user_id
+    WHERE dep_id = p_dep_id RETURNING * INTO v_result;
+
+    RETURN v_result;
+END;
+$$;
 
 CREATE OR REPLACE PROCEDURE fixedassets.dispose_asset_advanced(
     p_user_id UUID,

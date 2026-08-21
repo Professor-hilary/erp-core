@@ -192,7 +192,7 @@ pub trait FixedAssetRepository: Send + Sync {
         pool: &PgPool,
         depreciation_uuid: Uuid,
         user_id: Uuid,
-    ) -> Result<(), AppError>;
+    ) -> Result<AssetDepreciation, AppError>;
 
     async fn calculate_and_post_depreciation(
         &self,
@@ -960,16 +960,17 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
         let inserted: AssetDepreciation = sqlx::query_as::<_, AssetDepreciation>(
             r#"
                 INSERT INTO fixedassets.asset_depreciation (
-                    user_id, asset_id, book_id, period_date, depreciation_amount, accumulated_depreciation,
+                    user_id, asset_id, book_id, period_date, transaction_reference, depreciation_amount, accumulated_depreciation,
                     financial_depreciation, accumulated_tax_depreciation, nbv, nbv_financial, twdv,
                     posted_to_gl
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, FALSE) RETURNING *
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, FALSE) RETURNING *
             "#,
         )
         .bind(user_id)
         .bind(asset_id)
         .bind(dep_record.book_id)
         .bind(period_date)
+        .bind(dep_record.transaction_reference)
         .bind(dep_record.depreciation_amount)
         .bind(dep_record.accumulated_depreciation)
         .bind(dep_record.financial_depreciation)
@@ -1034,26 +1035,19 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
     async fn post_depreciation_to_gl(
         &self,
         pool: &PgPool,
-        depreciation_uuid: Uuid,
+        dep_uuid: Uuid,
         user_id: Uuid,
-    ) -> Result<(), AppError> {
-        let res = sqlx::query(
-            r#"
-        UPDATE asset_depreciation
-        SET posted_to_gl = TRUE
-        WHERE dep_id = $1 AND user_id = $2
-        "#,
+    ) -> Result<AssetDepreciation, AppError> {
+        let depreciation = sqlx::query_as::<_, AssetDepreciation>(
+            r#"SELECT * FROM fixedassets.post_depreciation($1, $2)"#,
         )
-        .bind(depreciation_uuid)
         .bind(user_id)
-        .execute(pool)
-        .await?;
+        .bind(dep_uuid)
+        .fetch_one(pool)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
 
-        if res.rows_affected() == 0 {
-            Err(AppError::NotFound("Depreciation record not found".into()))
-        } else {
-            Ok(())
-        }
+        Ok(depreciation)
     }
 
     // ==========================================================
