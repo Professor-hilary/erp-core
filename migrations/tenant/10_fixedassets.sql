@@ -347,6 +347,26 @@ BEGIN
             'Depreciation record % has already been posted', p_dep_id;
     END IF;
 
+    /* Don't post before depreciation start date */
+    IF v_dep.period_date < (
+        SELECT fa.depreciation_start_date FROM fixedassets.fixed_assets AS fa
+          WHERE fa.asset_id = v_dep.asset_id
+    ) THEN
+        RAISE EXCEPTION 'Cannot depreciate asset % before depreciation start date %',
+        p_asset_id, v_start_date;
+    END IF;
+
+    /* Don't post before depreciation start date */
+    IF (
+        SELECT 1 FROM fixedassets.asset_transactions AS at
+          WHERE at.asset_id = p_asset_id
+          AND at.transaction_type = 'Disposal'
+          AND at.transaction_date <= p_period_date
+    ) THEN
+        RAISE EXCEPTION 'Asset % has already been disposed and cannot be depreciated',
+        p_asset_id;
+    END IF;
+
     /* Generate reference */
     v_reference := 'DEP_' || LPAD(
         nextval('fixedassets.depreciation_reference_seq')::TEXT, 6, '0'
