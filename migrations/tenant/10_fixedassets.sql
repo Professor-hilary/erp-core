@@ -384,7 +384,7 @@ BEGIN
     /* Mark depreciation as posted. */
     UPDATE fixedassets.asset_depreciation
     SET
-        posted_to_gl = TRUE
+        posted_to_gl = TRUE, transaction_reference = v_reference
         -- journal_id = v_journal_id, posted_at = NOW(),
         -- posted_by = p_user_id
     WHERE dep_id = p_dep_id RETURNING * INTO v_result;
