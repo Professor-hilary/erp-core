@@ -956,35 +956,9 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?;
 
-        // Insert into depreciation table
-        let inserted: AssetDepreciation = sqlx::query_as::<_, AssetDepreciation>(
-            r#"
-                INSERT INTO fixedassets.asset_depreciation (
-                    user_id, asset_id, book_id, period_date, transaction_reference, depreciation_amount, accumulated_depreciation,
-                    financial_depreciation, accumulated_tax_depreciation, nbv, nbv_financial, twdv,
-                    posted_to_gl
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, FALSE) RETURNING *
-            "#,
-        )
-        .bind(user_id)
-        .bind(asset_id)
-        .bind(dep_record.book_id)
-        .bind(period_date)
-        .bind(dep_record.transaction_reference)
-        .bind(dep_record.depreciation_amount)
-        .bind(dep_record.accumulated_depreciation)
-        .bind(dep_record.financial_depreciation)
-        .bind(dep_record.accumulated_tax_depreciation)
-        .bind(dep_record.nbv)
-        .bind(dep_record.nbv_financial)
-        .bind(dep_record.twdv)
-        .fetch_one(&mut *tx)
-        .await
-        .map_err(|e: sqlx::Error| AppError::Internal(e.to_string()))?;
-
         tx.commit().await?;
 
-        Ok(inserted)
+        Ok(dep_record)
     }
 
     async fn run_periodic_depreciation(

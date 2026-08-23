@@ -98,7 +98,7 @@ CREATE TABLE fixedassets.asset_books (
     residual_value NUMERIC(18,2),
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
--- alter table fixedassets.asset_depreciation add column  book_id UUID REFERENCES fixedassets.asset_books(book_id);
+
 -- 5. Depreciation History
 CREATE TABLE fixedassets.asset_depreciation (
     dep_id UUID PRIMARY KEY DEFAULT uuidv7(),
@@ -107,11 +107,12 @@ CREATE TABLE fixedassets.asset_depreciation (
     book_id UUID REFERENCES fixedassets.asset_books(book_id),
     period_date DATE NOT NULL,
     depreciation_amount NUMERIC(18,2) NOT NULL,
-    accumulated_depreciation NUMERIC(18,2) NOT NULL,
+    accumulated_depreciation NUMERIC(18,2),
     financial_depreciation NUMERIC(18,2),
+    tax_depreciation NUMERIC(18,2),
     accumulated_tax_depreciation NUMERIC(18,2),
     transaction_reference varchar(50),
-    nbv NUMERIC(18,2) NOT NULL,
+    nbv NUMERIC(18,2),
     nbv_financial NUMERIC(18,2),
     twdv NUMERIC(18,2), -- Tax Written Down Value
     posted_to_gl BOOLEAN DEFAULT FALSE,
@@ -189,145 +190,103 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Function: Calculate Monthly Depreciation
+-- Function: Calculate Periodic Depreciation Draft
 CREATE OR REPLACE FUNCTION fixedassets.create_depreciation_entry(
     p_user_id UUID,
     p_asset_id UUID,
     p_period_date DATE
 )
-RETURNS TABLE (
-    dep_id UUID,
-    user_id UUID,
-    asset_id UUID,
-    book_id UUID,
-    period_date DATE,
-    depreciation_amount NUMERIC(18,2),
-    accumulated_depreciation NUMERIC(18,2),
-    nbv NUMERIC(18,2),
-    posted_to_gl BOOLEAN,
-    created_at TIMESTAMPTZ,
-    transaction_reference varchar(50),
-    financial_depreciation NUMERIC(18,2),
-    accumulated_tax_depreciation NUMERIC(18,2),
-    nbv_financial NUMERIC(18,2),
-    twdv NUMERIC(18,2)
-)
+RETURNS fixedassets.asset_depreciation
+LANGUAGE plpgsql
 AS $$
 DECLARE
-    v_original_cost NUMERIC(18,2);
-    v_residual NUMERIC(18,2);
-    v_useful_life INTEGER;
-    v_dep_method TEXT;
-    v_tax_rate NUMERIC(8,4);
-    v_tax_class TEXT;
-    v_start_date DATE;
-
+    v_asset fixedassets.fixed_assets%ROWTYPE;
     v_financial_depr NUMERIC(18,2);
     v_tax_depr NUMERIC(18,2);
-
-    v_accumulated_financial NUMERIC(18,2);
-    v_accumulated_tax NUMERIC(18,2);
-
-    v_nbv_financial NUMERIC(18,2);
-    v_nbv_tax NUMERIC(18,2);
+    v_book_id UUID;
+    v_result fixedassets.asset_depreciation%ROWTYPE;
 BEGIN
-    /* Check that no depereciation entry is unposted */
+
+    /* Get asset. */
+    SELECT * INTO v_asset FROM fixedassets.fixed_assets AS fa
+      WHERE fa.asset_id = p_asset_id AND fa.user_id = p_user_id;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Asset does not exist';
+    END IF;
+
+    /* Do not create depreciation before the depreciation start date. */
+    IF p_period_date < v_asset.depreciation_start_date THEN
+        RAISE EXCEPTION
+            'Cannot create depreciation for asset % before depreciation start date %',
+            v_asset.asset_code,
+            v_asset.depreciation_start_date;
+    END IF;
+
+    /* Do not allow another unposted depreciation. */
     IF EXISTS (
         SELECT 1
         FROM fixedassets.asset_depreciation AS ad
         WHERE ad.asset_id = p_asset_id
-        --   AND ad.book_id = p_book_id
+          AND ad.user_id = p_user_id
           AND ad.posted_to_gl = FALSE
     ) THEN
-        RAISE EXCEPTION 'Asset % already has an unposted depreciation entry',
-            p_asset_id;
+        RAISE EXCEPTION
+            'Asset % already has an unposted depreciation entry', v_asset.asset_code;
     END IF;
 
-    /* Get asset information */
-    SELECT
-        fa.original_cost, fa.residual_value, fa.useful_life_years, fa.depreciation_method,
-        fa.tax_depreciation_rate, fa.tax_class, fa.depreciation_start_date
-    INTO
-        v_original_cost, v_residual, v_useful_life, v_dep_method, v_tax_rate,
-        v_tax_class, v_start_date
-    FROM fixedassets.fixed_assets as fa
-    WHERE fa.asset_id = p_asset_id
-      AND fa.user_id = p_user_id;
+    /* Financial depreciation. */
+    v_financial_depr :=
+        ROUND(
+            (v_asset.original_cost - v_asset.residual_value)
+            / (v_asset.useful_life_years * 12.0),
+            2
+        );
 
-    /* Make sure the asset actually exists. */
 
-    IF NOT FOUND THEN
-        RAISE EXCEPTION 'Asset % does not exist for user %', p_asset_id, p_user_id;
-    END IF;
-    /* Financial depreciation */
-    v_financial_depr := ROUND((v_original_cost - v_residual) / (v_useful_life * 12.0), 2);
-
-    /* Tax depreciation */
+    /* Tax depreciation. */
     CASE
-        WHEN v_tax_class IN ('Class1', 'Class2') THEN
-            v_tax_depr := ROUND(v_original_cost * (v_tax_rate / 100) / 12, 2);
-        WHEN v_tax_class = 'Building' THEN
-            v_tax_depr := ROUND(v_original_cost * 0.02 / 12, 2);
-        ELSE
-            v_tax_depr := v_financial_depr;
+        WHEN v_asset.tax_class IN ('Class1', 'Class2') THEN
+            v_tax_depr := ROUND(
+                    v_asset.original_cost * (v_asset.tax_depreciation_rate / 100) / 12, 2
+                );
+
+        WHEN v_asset.tax_class = 'Building' THEN
+            v_tax_depr := ROUND(
+                    v_asset.original_cost * 0.02 / 12, 2
+                );
+
+        ELSE v_tax_depr := v_financial_depr;
     END CASE;
 
-    /* Previous accumulated depreciation */
-    SELECT
-        COALESCE(SUM(ad.financial_depreciation), 0),
-        COALESCE(SUM(ad.accumulated_tax_depreciation), 0)
-    INTO
-        v_accumulated_financial,
-        v_accumulated_tax
-    FROM fixedassets.asset_depreciation as ad
-    WHERE ad.asset_id = p_asset_id AND ad.period_date < p_period_date;
-
-    /* Add current period depreciation */
-    v_accumulated_financial := v_accumulated_financial + v_financial_depr;
-    v_accumulated_tax := v_accumulated_tax + v_tax_depr;
-
-    /* Calculate NBVs */
-    v_nbv_financial := v_original_cost - v_accumulated_financial;
-    v_nbv_tax := v_original_cost - v_accumulated_tax;
-
-
-    /* Return the shape expected by AssetDepreciation. */
-    dep_id := gen_random_uuid();
-    user_id := p_user_id;
-    asset_id := p_asset_id;
+    /* Get the asset book. */
+    SELECT ab.book_id INTO v_book_id FROM fixedassets.asset_books AS ab
+      WHERE ab.asset_id = p_asset_id LIMIT 1;
 
     /*
-     * Set this if the asset has a book relationship.
-     * Otherwise NULL is appropriate.
-     */
-    SELECT ab.book_id INTO book_id FROM fixedassets.asset_books
-      AS ab WHERE ab.asset_id = p_user_id;
-
-    period_date := p_period_date;
-
-    /*
-     * Generic depreciation fields.
+     * Create the UNPOSTED depreciation record.
      *
-     * Here we treat financial depreciation as
-     * the primary accounting depreciation.
+     * Accumulated values are deliberately not calculated here.
      */
-    depreciation_amount := v_financial_depr;
-    accumulated_depreciation := v_accumulated_financial;
-    nbv := v_nbv_financial;
+    INSERT INTO fixedassets.asset_depreciation (
+        dep_id, user_id, asset_id, book_id, period_date, depreciation_amount,
+        accumulated_depreciation, nbv, posted_to_gl, created_at, transaction_reference,
+        financial_depreciation, accumulated_tax_depreciation, nbv_financial, twdv
+    )
+    /*
+    * These are provisional because the entry
+    * has not yet affected the ledger.
+    */
+    VALUES (
+        gen_random_uuid(), p_user_id, p_asset_id, v_book_id, p_period_date,
+        v_financial_depr, NULL, NULL, FALSE, NOW(), NULL, v_financial_depr,
+        NULL, NULL, NULL
+    )
+    RETURNING * INTO v_result;
 
-    posted_to_gl := FALSE;
-    created_at := NOW();
-
-    financial_depreciation := v_financial_depr;
-    accumulated_tax_depreciation := v_accumulated_tax;
-    nbv_financial := v_nbv_financial;
-
-    /* TWDV = tax written-down value. */
-    twdv := v_nbv_tax;
-
-    RETURN NEXT;
+    RETURN v_result;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 CREATE OR REPLACE FUNCTION fixedassets.post_depreciation(
     p_user_id UUID,
@@ -339,90 +298,195 @@ AS $$
 DECLARE
     v_dep fixedassets.asset_depreciation%ROWTYPE;
     v_asset fixedassets.fixed_assets%ROWTYPE;
-    v_book fixedassets.asset_books%ROWTYPE;
     v_journal_id BIGINT;
     v_reference TEXT;
-    v_start_date DATE;
+    v_previous_financial NUMERIC(18,2);
+    v_previous_tax NUMERIC(18,2);
+    v_accumulated_financial NUMERIC(18,2);
+    v_accumulated_tax NUMERIC(18,2);
+    v_nbv_financial NUMERIC(18,2);
+    v_nbv_tax NUMERIC(18,2);
     v_result fixedassets.asset_depreciation%ROWTYPE;
 BEGIN
 
-    /* Get the depreciation record. */
-    SELECT * INTO v_dep FROM fixedassets.asset_depreciation
-    WHERE dep_id = p_dep_id AND user_id = p_user_id
-    FOR UPDATE;
+    /*
+     * ============================================================
+     * 1. Get and lock the depreciation draft
+     * ============================================================
+     */
+    SELECT * INTO v_dep FROM fixedassets.asset_depreciation AS ad
+      WHERE ad.dep_id = p_dep_id AND ad.user_id = p_user_id
+      FOR UPDATE;
 
     IF NOT FOUND THEN
         RAISE EXCEPTION 'Depreciation record % was not found', p_dep_id;
     END IF;
 
-    /* Prevent duplicate posting. */
+    /*
+     * ============================================================
+     * 2. Make sure it has not already been posted
+     * ============================================================
+     */
     IF v_dep.posted_to_gl THEN
         RAISE EXCEPTION
-            'Depreciation record % has already been posted', p_dep_id;
+            'Depreciation record % has already been posted',
+            p_dep_id;
     END IF;
 
-    /* Don't post before depreciation start date */
-    SELECT depreciation_start_date INTO v_start_date FROM fixedassets.fixed_assets AS fa
-        WHERE fa.asset_id = v_dep.asset_id;
+    /*
+     * ============================================================
+     * 3. Get the asset
+     * ============================================================
+     */
+    SELECT * INTO v_asset FROM fixedassets.fixed_assets AS fa
+    WHERE fa.asset_id = v_dep.asset_id AND fa.user_id = p_user_id;
 
-    IF v_dep.period_date < v_start_date THEN
-        RAISE EXCEPTION 'Cannot depreciate asset % before depreciation start date %',
-        v_dep.asset_id, v_start_date;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION
+            'Asset % was not found for user %',
+            v_dep.asset_id, p_user_id;
     END IF;
 
-    /* Don't post before depreciation start date */
-    IF (
-        SELECT 1 FROM fixedassets.asset_transactions AS at
-          WHERE at.asset_id = v_dep.asset_id
+    /*
+     * ============================================================
+     * 4. Cannot post before depreciation start date
+     * ============================================================
+     */
+    IF v_dep.period_date < v_asset.depreciation_start_date THEN
+        RAISE EXCEPTION
+            'Cannot depreciate asset % before depreciation start date %',
+            v_dep.asset_id, v_asset.depreciation_start_date;
+    END IF;
+
+    /*
+     * ============================================================
+     * 5. Cannot depreciate after disposal
+     * ============================================================
+     */
+    IF EXISTS (
+        SELECT 1
+        FROM fixedassets.asset_transactions AS at
+        WHERE at.asset_id = v_dep.asset_id
           AND at.transaction_type = 'Disposal'
-          AND at.transaction_date <= p_period_date
+          AND at.transaction_date <= v_dep.period_date
     ) THEN
-        RAISE EXCEPTION 'Asset % has already been disposed and cannot be depreciated',
-        v_dep.asset_id;
+        RAISE EXCEPTION
+            'Asset % has already been disposed and cannot be depreciated',
+            v_dep.asset_id;
     END IF;
 
-    /* Generate reference */
+    /*
+     * ============================================================
+     * 6. Get previously POSTED depreciation only
+     *
+     * Unposted drafts deliberately do not participate.
+     * ============================================================
+     */
+    SELECT
+        COALESCE(SUM(ad.financial_depreciation), 0),
+        COALESCE(SUM(ad.accumulated_tax_depreciation), 0)
+    INTO
+        v_previous_financial,
+        v_previous_tax
+    FROM fixedassets.asset_depreciation AS ad
+    WHERE ad.asset_id = v_dep.asset_id
+      AND ad.user_id = p_user_id
+      AND ad.posted_to_gl = TRUE
+      AND ad.period_date < v_dep.period_date;
+
+    /*
+     * ============================================================
+     * 7. Calculate new accumulated depreciation
+     * ============================================================
+     */
+    v_accumulated_financial := v_previous_financial + v_dep.financial_depreciation;
+    v_accumulated_tax := v_previous_tax + v_dep.tax_depreciation, 0;
+
+    /*
+     * ============================================================
+     * 8. Prevent depreciation beyond depreciable amount
+     * ============================================================
+     */
+    IF v_accumulated_financial >
+       (v_asset.original_cost - v_asset.residual_value)
+    THEN
+        RAISE EXCEPTION
+            'Depreciation for asset % exceeds its depreciable amount',
+            v_dep.asset_id;
+
+    END IF;
+
+    /*
+     * ============================================================
+     * 9. Calculate new NBV
+     * ============================================================
+     */
+    v_nbv_financial := v_asset.original_cost - v_accumulated_financial;
+    v_nbv_tax := v_asset.original_cost - v_accumulated_tax;
+
+    /*
+     * ============================================================
+     * 10. Generate transaction reference
+     * ============================================================
+     */
     v_reference := 'DEP_' || LPAD(
         nextval('fixedassets.depreciation_reference_seq')::TEXT, 6, '0'
     );
 
-    /* Get the Asset Book. */
-    SELECT * INTO v_asset FROM fixedassets.fixed_assets AS fa
-    WHERE fa.asset_id = v_dep.asset_id
-      AND fa.user_id = p_user_id;
-
-    IF NOT FOUND THEN
-        RAISE EXCEPTION 'Asset % was not found', v_dep.asset_id;
-    END IF;
-
-    /* Debit depreciation expense, Credit accumulated depreciation. */
+    /*
+     * ============================================================
+     * 11. Post the accounting transaction
+     *
+     * Dr Depreciation Expense
+     * Cr Accumulated Depreciation
+     * ============================================================
+     */
     v_journal_id := accounting.post_transaction(
-        v_reference,
-        'Depreciation - Asset ' || v_dep.asset_id,
-        p_user_id, 'depreciation', v_dep.period_date, jsonb_build_array(
+        v_reference, 'Depreciation - Asset ' || v_dep.asset_id,
+        p_user_id, 'depreciation', v_dep.period_date,
+        jsonb_build_array(
             jsonb_build_object(
                 'account_ref', v_asset.depreciation_exp_acc,
                 'debit', v_dep.depreciation_amount,
                 'credit', 0,
-                'memo', 'Recognizing depreciation expenditure'
+                'memo', 'Recognizing depreciation expense'
             ),
             jsonb_build_object(
                 'account_ref', v_asset.accumulated_depr_acc,
                 'debit', 0,
                 'credit', v_dep.depreciation_amount,
-                'memo', 'Acummulating depreciation'
+                'memo', 'Accumulating depreciation'
             )
         )
     );
 
-    /* Mark depreciation as posted. */
+    /*
+     * ============================================================
+     * 12. Only AFTER successful GL posting:
+     *
+     *     - mark posted
+     *     - save reference
+     *     - save accumulated depreciation
+     *     - save NBV
+     * ============================================================
+     */
     UPDATE fixedassets.asset_depreciation
     SET
-        posted_to_gl = TRUE, transaction_reference = v_reference
-        -- journal_id = v_journal_id, posted_at = NOW(),
-        -- posted_by = p_user_id
-    WHERE dep_id = p_dep_id RETURNING * INTO v_result;
+        posted_to_gl = TRUE,
+        transaction_reference = v_reference,
+        accumulated_depreciation = v_accumulated_financial,
+        accumulated_tax_depreciation = v_accumulated_tax,
+        nbv = v_nbv_financial,
+        nbv_financial = v_nbv_financial,
+        twdv = v_nbv_tax
+    WHERE dep_id = p_dep_id AND user_id = p_user_id
+    RETURNING * INTO v_result;
 
+    /*
+     * ============================================================
+     * 13. Return the complete updated depreciation row
+     * ============================================================
+     */
     RETURN v_result;
 END;
 $$;
