@@ -190,7 +190,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Function: Calculate Monthly Depreciation
-CREATE OR REPLACE FUNCTION fixedassets.calculate_depreciation_full(
+CREATE OR REPLACE FUNCTION fixedassets.create_depreciation_entry(
     p_user_id UUID,
     p_asset_id UUID,
     p_period_date DATE
@@ -206,6 +206,7 @@ RETURNS TABLE (
     nbv NUMERIC(18,2),
     posted_to_gl BOOLEAN,
     created_at TIMESTAMPTZ,
+    transaction_reference varchar(50),
     financial_depreciation NUMERIC(18,2),
     accumulated_tax_depreciation NUMERIC(18,2),
     nbv_financial NUMERIC(18,2),
@@ -230,6 +231,18 @@ DECLARE
     v_nbv_financial NUMERIC(18,2);
     v_nbv_tax NUMERIC(18,2);
 BEGIN
+    /* Check that no depereciation entry is unposted */
+    IF EXISTS (
+        SELECT 1
+        FROM fixedassets.asset_depreciation AS ad
+        WHERE ad.asset_id = p_asset_id
+        --   AND ad.book_id = p_book_id
+          AND ad.posted_to_gl = FALSE
+    ) THEN
+        RAISE EXCEPTION 'Asset % already has an unposted depreciation entry',
+            p_asset_id;
+    END IF;
+
     /* Get asset information */
     SELECT
         fa.original_cost, fa.residual_value, fa.useful_life_years, fa.depreciation_method,
@@ -329,6 +342,7 @@ DECLARE
     v_book fixedassets.asset_books%ROWTYPE;
     v_journal_id BIGINT;
     v_reference TEXT;
+    v_start_date DATE;
     v_result fixedassets.asset_depreciation%ROWTYPE;
 BEGIN
 
@@ -348,23 +362,23 @@ BEGIN
     END IF;
 
     /* Don't post before depreciation start date */
-    IF v_dep.period_date < (
-        SELECT fa.depreciation_start_date FROM fixedassets.fixed_assets AS fa
-          WHERE fa.asset_id = v_dep.asset_id
-    ) THEN
+    SELECT depreciation_start_date INTO v_start_date FROM fixedassets.fixed_assets AS fa
+        WHERE fa.asset_id = v_dep.asset_id;
+
+    IF v_dep.period_date < v_start_date THEN
         RAISE EXCEPTION 'Cannot depreciate asset % before depreciation start date %',
-        p_asset_id, v_start_date;
+        v_dep.asset_id, v_start_date;
     END IF;
 
     /* Don't post before depreciation start date */
     IF (
         SELECT 1 FROM fixedassets.asset_transactions AS at
-          WHERE at.asset_id = p_asset_id
+          WHERE at.asset_id = v_dep.asset_id
           AND at.transaction_type = 'Disposal'
           AND at.transaction_date <= p_period_date
     ) THEN
         RAISE EXCEPTION 'Asset % has already been disposed and cannot be depreciated',
-        p_asset_id;
+        v_dep.asset_id;
     END IF;
 
     /* Generate reference */

@@ -946,7 +946,7 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
 
         let dep_record: AssetDepreciation = sqlx::query_as::<_, AssetDepreciation>(
             r#"
-                SELECT * FROM fixedassets.calculate_depreciation_full($1, $2, $3)
+                SELECT * FROM fixedassets.create_depreciation_entry($1, $2, $3)
             "#,
         )
         .bind(user_id)
@@ -1001,7 +1001,7 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
                 WHERE user_id = $1 AND status = 'In_Use' AND is_capitalized
             )
             SELECT * FROM active_assets a
-            CROSS JOIN LATERAL fixedassets.calculate_depreciation_full($1, a.asset_id, $2) d
+            CROSS JOIN LATERAL fixedassets.create_depreciation_entry($1, a.asset_id, $2) d
             "#,
         )
         .bind(user_id)
