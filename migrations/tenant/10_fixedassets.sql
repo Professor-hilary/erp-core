@@ -289,8 +289,7 @@ END;
 $$;
 
 CREATE OR REPLACE FUNCTION fixedassets.post_depreciation(
-    p_user_id UUID,
-    p_dep_id UUID
+    p_user_id UUID, p_dep_id UUID
 )
 RETURNS fixedassets.asset_depreciation
 LANGUAGE plpgsql
@@ -308,7 +307,6 @@ DECLARE
     v_nbv_tax NUMERIC(18,2);
     v_result fixedassets.asset_depreciation%ROWTYPE;
 BEGIN
-
     /*
      * ============================================================
      * 1. Get and lock the depreciation draft
@@ -329,8 +327,7 @@ BEGIN
      */
     IF v_dep.posted_to_gl THEN
         RAISE EXCEPTION
-            'Depreciation record % has already been posted',
-            p_dep_id;
+            'Depreciation record % has already been posted', p_dep_id;
     END IF;
 
     /*
@@ -400,7 +397,7 @@ BEGIN
      * ============================================================
      */
     v_accumulated_financial := v_previous_financial + v_dep.financial_depreciation;
-    v_accumulated_tax := v_previous_tax + v_dep.tax_depreciation, 0;
+    v_accumulated_tax := v_previous_tax + COALESCE(v_dep.tax_depreciation, 0);
 
     /*
      * ============================================================

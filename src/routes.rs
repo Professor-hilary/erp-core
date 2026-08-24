@@ -9,13 +9,9 @@ use axum::{
 };
 
 use crate::{
-    AppState,
-    features::{
-        accounts, company, fixedassets, inventory, manufacturing, payroll, procurement, reports,
-        sales, transactions, workforce,
-    },
-    interface::api::errors::AppError,
-    middleware::{auth::AuthenticatedUser, layer::auth_middleware},
+    AppState, features::{
+        accounts, capital, company, fixedassets, inventory, manufacturing, payroll, procurement, reports, sales, transactions, workforce,
+    }, interface::api::errors::AppError, middleware::{auth::AuthenticatedUser, layer::auth_middleware},
 };
 
 use std::{sync::Arc, time::Duration};
@@ -24,6 +20,9 @@ use tower_http::{classify::ServerErrorsFailureClass, cors::CorsLayer, trace::Tra
 pub fn create_router(state: Arc<AppState>) -> Router {
     // Protected Routes - need a verified tenant (Company AppState)
     let company_routes: Router<Arc<AppState>> = company::handlers::router().layer(
+        middleware::from_fn_with_state(state.clone(), auth_middleware),
+    );
+     let capital_routes: Router<Arc<AppState>> = capital::handlers::router().layer(
         middleware::from_fn_with_state(state.clone(), auth_middleware),
     );
     let vendor_routes: Router<Arc<AppState>> = procurement::handlers::router().layer(
@@ -67,6 +66,7 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .nest("/api/auth", crate::features::auth::handlers::router())
         // PROTECTED ROUTES (require auth)
         .nest("/api/companies", company_routes)
+        .nest("/api/capital", capital_routes)
         .nest("/api/transactions", transaction_routes)
         .nest("/api/accounts", account_routes)
         .nest("/api/sales", customer_routes)

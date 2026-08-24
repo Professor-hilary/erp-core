@@ -994,7 +994,7 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
     ) -> Result<Vec<AssetDepreciation>, AppError> {
         let schedule = sqlx::query_as::<_, AssetDepreciation>(
             r#"
-            SELECT * FROM asset_depreciation WHERE asset_id = $1 AND user_id = $2
+            SELECT * FROM fixedassets.asset_depreciation WHERE asset_id = $1 AND user_id = $2
             ORDER BY period_date ASC
             "#,
         )

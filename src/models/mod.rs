@@ -1,5 +1,6 @@
 // src/models/mod.rs
 pub mod account;
+pub mod capital;
 pub mod company;
 pub mod customers;
 pub mod dto;

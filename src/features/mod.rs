@@ -2,6 +2,7 @@
 pub mod accounts;
 pub mod auth;
 pub mod company;
+pub mod capital;
 pub mod fixedassets;
 pub mod inventory;
 pub mod manufacturing;
