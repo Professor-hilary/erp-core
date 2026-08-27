@@ -1434,56 +1434,242 @@ impl CapitalRepository for PostgresCapitalRepo {
         Ok(row)
     }
 
+    // -------------------------------------------------------------------------
+    // Share Transactions & Dividends
+    // -------------------------------------------------------------------------
     async fn create_share_transaction(
         &self,
-        _tx: &mut Transaction<'_, Postgres>,
-        _company_id: Uuid,
+        tx: &mut Transaction<'_, Postgres>,
+        company_id: Uuid,
         _user_id: Uuid,
-        _payload: &CreateShareTransaction,
+        payload: &CreateShareTransaction,
     ) -> Result<ShareTransaction, AppError> {
         let row = sqlx::query_as::<_, ShareTransaction>(
             r#"
-            INSERT INTO capital.share_transactions
-            WHERE id = $1
-            transaction_type = $2, transaction_date = $3, from_shareholder_id = $4,
-            to_shareholder_id = $5, shares = $6, price_per_share = $7,
-            total_consideration = $8, currency_id = $9, premium = $10,
-            journal_entry_id = $11, reference = $12, notes = $13,
-            AND company_id = $14
+            INSERT INTO capital.share_transactions (
+                company_id, share_class_id, transaction_type, transaction_date,
+                from_shareholder_id, to_shareholder_id, shares,
+                price_per_share, total_consideration, currency_id,
+                premium, journal_entry_id, reference, notes
+            )
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+            RETURNING *
             "#,
         )
         .bind(company_id)
-        .bind(&_payload.share_class_id)
-        .bind(_payload.transaction_type)
-        .bind(_payload.transaction_date)
-        .bind(_payload.from_shareholder_id)
-        .bind(_payload.to_shareholder_id)
-        .bind(_payload.shares)
-        .bind(_payload.price_per_share)
-        .bind(_payload.total_consideration)
-        .bind(_payload.currency_id)
-        .bind(_payload.premium)
-        .bind(_payload.journal_entry_id)
-        .bind(_payload.reference)
-        .bind(_payload.notes)
+        .bind(payload.share_class_id)
+        .bind(&payload.transaction_type)
+        .bind(payload.transaction_date)
+        .bind(payload.from_shareholder_id)
+        .bind(payload.to_shareholder_id)
+        .bind(payload.shares)
+        .bind(payload.price_per_share)
+        .bind(payload.total_consideration)
+        .bind(payload.currency_id)
+        .bind(payload.premium)
+        .bind(payload.journal_entry_id)
+        .bind(&payload.reference)
+        .bind(&payload.notes)
         .fetch_one(&mut **tx)
-        .await?
-        .ok_or_else(|| AppError::NotFound("Capital instrument not found".into()));
+        .await?;
+
+        // Keep share_class issued / outstanding in sync (simplified)
+        match payload.transaction_type.as_str() {
+            "ISSUE" | "BONUS_ISSUE" | "CONVERSION" | "EXERCISE" => {
+                sqlx::query(
+                    r#"
+                    UPDATE capital.share_classes
+                    SET issued_shares      = issued_shares + $2,
+                        outstanding_shares = outstanding_shares + $2,
+                        updated_at         = now()
+                    WHERE id = $1
+                    "#,
+                )
+                .bind(payload.share_class_id)
+                .bind(payload.shares)
+                .execute(&mut **tx)
+                .await?;
+            }
+            "BUYBACK" | "CANCELLATION" | "FORFEITURE" => {
+                sqlx::query(
+                    r#"
+                    UPDATE capital.share_classes
+                    SET outstanding_shares = GREATEST(outstanding_shares - $2, 0),
+                        updated_at         = now()
+                    WHERE id = $1
+                    "#,
+                )
+                .bind(payload.share_class_id)
+                .bind(payload.shares)
+                .execute(&mut **tx)
+                .await?;
+            }
+            _ => {}
+        }
+
+        // Upsert shareholding for the recipient (if any)
+        if let Some(to_id) = payload.to_shareholder_id {
+            sqlx::query(
+                r#"
+                INSERT INTO capital.shareholdings (
+                    company_id, share_class_id, shareholder_id, shares_held
+                )
+                VALUES ($1, $2, $3, $4)
+                ON CONFLICT (share_class_id, shareholder_id)
+                DO UPDATE SET
+                    shares_held = capital.shareholdings.shares_held + EXCLUDED.shares_held,
+                    updated_at  = now()
+                "#,
+            )
+            .bind(company_id)
+            .bind(payload.share_class_id)
+            .bind(to_id)
+            .bind(payload.shares)
+            .execute(&mut **tx)
+            .await?;
+        }
+
+        // Reduce holding for the seller (if any)
+        if let Some(from_id) = payload.from_shareholder_id {
+            sqlx::query(
+                r#"
+                UPDATE capital.shareholdings
+                SET shares_held = GREATEST(shares_held - $3, 0),
+                    updated_at  = now()
+                WHERE share_class_id = $1 AND shareholder_id = $2
+                "#,
+            )
+            .bind(payload.share_class_id)
+            .bind(from_id)
+            .bind(payload.shares)
+            .execute(&mut **tx)
+            .await?;
+        }
 
         Ok(row)
     }
 
     async fn list_share_transactions(
         &self,
-        _pool: &PgPool,
-        _company_id: Uuid,
-        _share_class_id: Option<Uuid>,
+        pool: &PgPool,
+        company_id: Uuid,
+        share_class_id: Option<Uuid>,
     ) -> Result<Vec<ShareTransaction>, AppError> {
-         let rows = sqlx::query_as::<_, ShareTransaction>(
+        let mut qb =
+            QueryBuilder::new("SELECT * FROM capital.share_transactions WHERE company_id = ");
+        qb.push_bind(company_id);
+
+        if let Some(sc_id) = share_class_id {
+            qb.push(" AND share_class_id = ");
+            qb.push_bind(sc_id);
+        }
+        qb.push(" ORDER BY transaction_date DESC, created_at DESC");
+
+        let rows = qb
+            .build_query_as::<ShareTransaction>()
+            .fetch_all(pool)
+            .await?;
+        Ok(rows)
+    }
+
+    async fn create_dividend(
+        &self,
+        tx: &mut Transaction<'_, Postgres>,
+        company_id: Uuid,
+        payload: &CreateDividend,
+    ) -> Result<Dividend, AppError> {
+        let row = sqlx::query_as::<_, Dividend>(
             r#"
-            SELECT * FROM capital.share_transactions
+            INSERT INTO capital.dividends (
+                company_id, share_class_id, dividend_type,
+                declaration_date, record_date, ex_dividend_date, payment_date,
+                dividend_per_share, total_declared, currency_id, status
+            )
+            VALUES (
+                $1, $2, $3,
+                $4, $5, $6, $7,
+                $8, $9, $10, COALESCE($11, 'proposed')
+            )
+            RETURNING *
+            "#,
+        )
+        .bind(company_id)
+        .bind(payload.share_class_id)
+        .bind(&payload.dividend_type)
+        .bind(payload.declaration_date)
+        .bind(payload.record_date)
+        .bind(payload.ex_dividend_date)
+        .bind(payload.payment_date)
+        .bind(payload.dividend_per_share)
+        .bind(payload.total_declared)
+        .bind(payload.currency_id)
+        .bind(&payload.status)
+        .fetch_one(&mut **tx)
+        .await?;
+
+        Ok(row)
+    }
+
+    async fn list_dividends(
+        &self,
+        pool: &PgPool,
+        company_id: Uuid,
+        share_class_id: Option<Uuid>,
+    ) -> Result<Vec<Dividend>, AppError> {
+        let mut qb = QueryBuilder::new("SELECT * FROM capital.dividends WHERE company_id = ");
+        qb.push_bind(company_id);
+
+        if let Some(sc_id) = share_class_id {
+            qb.push(" AND share_class_id = ");
+            qb.push_bind(sc_id);
+        }
+        qb.push(" ORDER BY declaration_date DESC");
+
+        let rows = qb.build_query_as::<Dividend>().fetch_all(pool).await?;
+        Ok(rows)
+    }
+
+    // -------------------------------------------------------------------------
+    // Equity Accounts & Movements
+    // -------------------------------------------------------------------------
+    async fn create_equity_account(
+        &self,
+        tx: &mut Transaction<'_, Postgres>,
+        company_id: Uuid,
+        payload: &CreateEquityAccount,
+    ) -> Result<EquityAccount, AppError> {
+        let row = sqlx::query_as::<_, EquityAccount>(
+            r#"
+            INSERT INTO capital.equity_accounts (
+                company_id, account_code, account_name, account_type,
+                currency_id, is_distributable
+            )
+            VALUES ($1, $2, $3, $4, $5, COALESCE($6, false))
+            RETURNING *
+            "#,
+        )
+        .bind(company_id)
+        .bind(&payload.account_code)
+        .bind(&payload.account_name)
+        .bind(&payload.account_type)
+        .bind(payload.currency_id)
+        .bind(payload.is_distributable)
+        .fetch_one(&mut **tx)
+        .await?;
+
+        Ok(row)
+    }
+
+    async fn list_equity_accounts(
+        &self,
+        pool: &PgPool,
+        company_id: Uuid,
+    ) -> Result<Vec<EquityAccount>, AppError> {
+        let rows = sqlx::query_as::<_, EquityAccount>(
+            r#"
+            SELECT * FROM capital.equity_accounts
             WHERE company_id = $1
-            ORDER BY name
+            ORDER BY account_code
             "#,
         )
         .bind(company_id)
@@ -1493,237 +1679,550 @@ impl CapitalRepository for PostgresCapitalRepo {
         Ok(rows)
     }
 
-    async fn create_dividend(
+    async fn create_equity_movement(
         &self,
-        _tx: &mut Transaction<'_, Postgres>,
-        _company_id: Uuid,
-        _payload: &CreateDividend,
-    ) -> Result<Dividend, AppError> {
-         let row = sqlx::query_as::<_, Dividend>(
+        tx: &mut Transaction<'_, Postgres>,
+        company_id: Uuid,
+        payload: &CreateEquityMovement,
+    ) -> Result<EquityMovement, AppError> {
+        let row = sqlx::query_as::<_, EquityMovement>(
             r#"
-            INSERT INTO capital.dividends
-            WHERE id = $1
-            dividend_type = $2,
-            declaration_date = $3,
-            record_date = $4,
-            ex_dividend_date = $5,
-            payment_date = $6,
-            dividend_per_share = $7,
-            total_declared = $8,
-            currency_id = $9,
-            status = $10,
-            journal_entry_id = $11,
-            created_at = $12,
-            AND company_id = $1
+            INSERT INTO capital.equity_movements (
+                company_id, equity_account_id, movement_date, movement_type,
+                amount, description, related_instrument_id, related_event_id,
+                journal_entry_id, period_year, period_month
+            )
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+            RETURNING *
             "#,
         )
         .bind(company_id)
-        .bind(&_payload.share_class_id)
-        .bind(_payload.dividend_type)
-        .bind(_payload.declaration_date)
-        .bind(_payload.record_date)
-        .bind(_payload.ex_dividend_date)
-        .bind(_payload.payment_date)
-        .bind(_payload.dividend_per_share)
-        .bind(_payload.total_declared)
-        .bind(_payload.currency_id)
-        .bind(_payload.status)
-        .bind(_payload.journal_entry_id)
-        .bind(_payload.created_at)
+        .bind(payload.equity_account_id)
+        .bind(payload.movement_date)
+        .bind(&payload.movement_type)
+        .bind(payload.amount)
+        .bind(&payload.description)
+        .bind(payload.related_instrument_id)
+        .bind(payload.related_event_id)
+        .bind(payload.journal_entry_id)
+        .bind(payload.period_year)
+        .bind(payload.period_month)
         .fetch_one(&mut **tx)
-        .await?
-        .ok_or_else(|| AppError::NotFound("Capital instrument not found".into()));
+        .await?;
 
         Ok(row)
     }
 
-    async fn list_dividends(
-        &self,
-        _pool: &PgPool,
-        _company_id: Uuid,
-        _share_class_id: Option<Uuid>,
-    ) -> Result<Vec<Dividend>, AppError> {
-        todo!("Implement list_dividends")
-    }
-
-    async fn create_equity_account(
-        &self,
-        _tx: &mut Transaction<'_, Postgres>,
-        _company_id: Uuid,
-        _payload: &CreateEquityAccount,
-    ) -> Result<EquityAccount, AppError> {
-        todo!("Implement create_equity_account")
-    }
-
-    async fn list_equity_accounts(
-        &self,
-        _pool: &PgPool,
-        _company_id: Uuid,
-    ) -> Result<Vec<EquityAccount>, AppError> {
-        todo!("Implement list_equity_accounts")
-    }
-
-    async fn create_equity_movement(
-        &self,
-        _tx: &mut Transaction<'_, Postgres>,
-        _company_id: Uuid,
-        _payload: &CreateEquityMovement,
-    ) -> Result<EquityMovement, AppError> {
-        todo!("Implement create_equity_movement")
-    }
-
     async fn list_equity_movements(
         &self,
-        _pool: &PgPool,
-        _company_id: Uuid,
-        _equity_account_id: Option<Uuid>,
-        _from: Option<NaiveDate>,
-        _to: Option<NaiveDate>,
+        pool: &PgPool,
+        company_id: Uuid,
+        equity_account_id: Option<Uuid>,
+        from: Option<NaiveDate>,
+        to: Option<NaiveDate>,
     ) -> Result<Vec<EquityMovement>, AppError> {
-        todo!("Implement list_equity_movements")
+        let mut qb =
+            QueryBuilder::new("SELECT * FROM capital.equity_movements WHERE company_id = ");
+        qb.push_bind(company_id);
+
+        if let Some(acc_id) = equity_account_id {
+            qb.push(" AND equity_account_id = ");
+            qb.push_bind(acc_id);
+        }
+        if let Some(f) = from {
+            qb.push(" AND movement_date >= ");
+            qb.push_bind(f);
+        }
+        if let Some(t) = to {
+            qb.push(" AND movement_date <= ");
+            qb.push_bind(t);
+        }
+        qb.push(" ORDER BY movement_date DESC, created_at DESC");
+
+        let rows = qb
+            .build_query_as::<EquityMovement>()
+            .fetch_all(pool)
+            .await?;
+        Ok(rows)
     }
 
+    // -------------------------------------------------------------------------
+    // Capital Structure & Allocations
+    // -------------------------------------------------------------------------
     async fn create_structure_snapshot(
         &self,
-        _tx: &mut Transaction<'_, Postgres>,
-        _company_id: Uuid,
-        _payload: &CreateCapitalStructureSnapshot,
+        tx: &mut Transaction<'_, Postgres>,
+        company_id: Uuid,
+        payload: &CreateCapitalStructureSnapshot,
     ) -> Result<CapitalStructureSnapshot, AppError> {
-        todo!("Implement create_structure_snapshot")
+        let row = sqlx::query_as::<_, CapitalStructureSnapshot>(
+            r#"
+            INSERT INTO capital.capital_structure_snapshots (
+                company_id, as_of_date, total_debt, total_equity, total_hybrid,
+                cash_and_equivalents, debt_to_equity, equity_ratio, notes
+            )
+            VALUES (
+                $1, $2, $3, $4, COALESCE($5, 0),
+                $6, $7, $8, $9
+            )
+            RETURNING *
+            "#,
+        )
+        .bind(company_id)
+        .bind(payload.as_of_date)
+        .bind(payload.total_debt)
+        .bind(payload.total_equity)
+        .bind(payload.total_hybrid)
+        .bind(payload.cash_and_equivalents)
+        .bind(payload.debt_to_equity)
+        .bind(payload.equity_ratio)
+        .bind(&payload.notes)
+        .fetch_one(&mut **tx)
+        .await?;
+
+        Ok(row)
     }
 
     async fn get_latest_structure(
         &self,
-        _pool: &PgPool,
-        _company_id: Uuid,
+        pool: &PgPool,
+        company_id: Uuid,
     ) -> Result<Option<CapitalStructureSnapshot>, AppError> {
-        todo!("Implement get_latest_structure")
+        let row = sqlx::query_as::<_, CapitalStructureSnapshot>(
+            r#"
+            SELECT * FROM capital.capital_structure_snapshots
+            WHERE company_id = $1
+            ORDER BY as_of_date DESC
+            LIMIT 1
+            "#,
+        )
+        .bind(company_id)
+        .fetch_optional(pool)
+        .await?;
+
+        Ok(row)
     }
 
     async fn create_allocation(
         &self,
-        _tx: &mut Transaction<'_, Postgres>,
-        _company_id: Uuid,
-        _payload: &CreateCapitalAllocation,
+        tx: &mut Transaction<'_, Postgres>,
+        company_id: Uuid,
+        payload: &CreateCapitalAllocation,
     ) -> Result<CapitalAllocation, AppError> {
-        todo!("Implement create_allocation")
+        let row = sqlx::query_as::<_, CapitalAllocation>(
+            r#"
+            INSERT INTO capital.capital_allocations (
+                company_id, allocation_code, capital_source_type, capital_source_id,
+                allocation_type, allocation_target_id, amount, currency_id,
+                allocation_date, expected_return, status, notes
+            )
+            VALUES (
+                $1, $2, $3, $4,
+                $5, $6, $7, $8,
+                $9, $10, COALESCE($11, 'allocated'), $12
+            )
+            RETURNING *
+            "#,
+        )
+        .bind(company_id)
+        .bind(&payload.allocation_code)
+        .bind(&payload.capital_source_type)
+        .bind(payload.capital_source_id)
+        .bind(&payload.allocation_type)
+        .bind(payload.allocation_target_id)
+        .bind(payload.amount)
+        .bind(payload.currency_id)
+        .bind(payload.allocation_date)
+        .bind(payload.expected_return)
+        .bind(&payload.status)
+        .bind(&payload.notes)
+        .fetch_one(&mut **tx)
+        .await?;
+
+        Ok(row)
     }
 
     async fn list_allocations(
         &self,
-        _pool: &PgPool,
-        _company_id: Uuid,
+        pool: &PgPool,
+        company_id: Uuid,
     ) -> Result<Vec<CapitalAllocation>, AppError> {
-        todo!("Implement list_allocations")
+        let rows = sqlx::query_as::<_, CapitalAllocation>(
+            r#"
+            SELECT * FROM capital.capital_allocations
+            WHERE company_id = $1
+            ORDER BY allocation_date DESC
+            "#,
+        )
+        .bind(company_id)
+        .fetch_all(pool)
+        .await?;
+
+        Ok(rows)
     }
 
+    // -------------------------------------------------------------------------
+    // Projects
+    // -------------------------------------------------------------------------
     async fn create_project(
         &self,
-        _tx: &mut Transaction<'_, Postgres>,
-        _company_id: Uuid,
-        _payload: &CreateCapitalProject,
+        tx: &mut Transaction<'_, Postgres>,
+        company_id: Uuid,
+        payload: &CreateCapitalProject,
     ) -> Result<CapitalProject, AppError> {
-        todo!("Implement create_project")
+        let row = sqlx::query_as::<_, CapitalProject>(
+            r#"
+            INSERT INTO capital.capital_projects (
+                company_id, project_code, name, description, project_type,
+                start_date, expected_completion, approved_budget, currency_id,
+                expected_irr, expected_npv, expected_payback_years,
+                risk_rating, status, owner_id
+            )
+            VALUES (
+                $1, $2, $3, $4, $5,
+                $6, $7, $8, $9,
+                $10, $11, $12,
+                $13, COALESCE($14, 'planned'), $15
+            )
+            RETURNING *
+            "#,
+        )
+        .bind(company_id)
+        .bind(&payload.project_code)
+        .bind(&payload.name)
+        .bind(&payload.description)
+        .bind(&payload.project_type)
+        .bind(payload.start_date)
+        .bind(payload.expected_completion)
+        .bind(payload.approved_budget)
+        .bind(payload.currency_id)
+        .bind(payload.expected_irr)
+        .bind(payload.expected_npv)
+        .bind(payload.expected_payback_years)
+        .bind(&payload.risk_rating)
+        .bind(&payload.status)
+        .bind(payload.owner_id)
+        .fetch_one(&mut **tx)
+        .await?;
+
+        Ok(row)
     }
 
     async fn get_project(
         &self,
-        _pool: &PgPool,
-        _company_id: Uuid,
-        _id: Uuid,
+        pool: &PgPool,
+        company_id: Uuid,
+        id: Uuid,
     ) -> Result<CapitalProject, AppError> {
-        todo!("Implement get_project")
+        sqlx::query_as::<_, CapitalProject>(
+            r#"
+            SELECT * FROM capital.capital_projects
+            WHERE id = $1 AND company_id = $2
+            "#,
+        )
+        .bind(id)
+        .bind(company_id)
+        .fetch_optional(pool)
+        .await?
+        .ok_or_else(|| AppError::NotFound("Capital project not found".into()))
     }
 
     async fn list_projects(
         &self,
-        _pool: &PgPool,
-        _company_id: Uuid,
-        _status: Option<&str>,
+        pool: &PgPool,
+        company_id: Uuid,
+        status: Option<&str>,
     ) -> Result<Vec<CapitalProject>, AppError> {
-        todo!("Implement list_projects")
+        let mut qb =
+            QueryBuilder::new("SELECT * FROM capital.capital_projects WHERE company_id = ");
+        qb.push_bind(company_id);
+
+        if let Some(s) = status {
+            qb.push(" AND status = ");
+            qb.push_bind(s);
+        }
+        qb.push(" ORDER BY created_at DESC");
+
+        let rows = qb
+            .build_query_as::<CapitalProject>()
+            .fetch_all(pool)
+            .await?;
+        Ok(rows)
     }
 
     async fn update_project(
         &self,
-        _tx: &mut Transaction<'_, Postgres>,
-        _company_id: Uuid,
-        _id: Uuid,
-        _payload: &UpdateCapitalProject,
+        tx: &mut Transaction<'_, Postgres>,
+        company_id: Uuid,
+        id: Uuid,
+        payload: &UpdateCapitalProject,
     ) -> Result<CapitalProject, AppError> {
-        todo!("Implement update_project")
+        let row = sqlx::query_as::<_, CapitalProject>(
+            r#"
+            UPDATE capital.capital_projects SET
+                name               = COALESCE($3, name),
+                description        = COALESCE($4, description),
+                status             = COALESCE($5, status),
+                spent_to_date      = COALESCE($6, spent_to_date),
+                actual_completion  = COALESCE($7, actual_completion),
+                expected_irr       = COALESCE($8, expected_irr),
+                expected_npv       = COALESCE($9, expected_npv),
+                updated_at         = now()
+            WHERE id = $1 AND company_id = $2
+            RETURNING *
+            "#,
+        )
+        .bind(id)
+        .bind(company_id)
+        .bind(&payload.name)
+        .bind(&payload.description)
+        .bind(&payload.status)
+        .bind(payload.spent_to_date)
+        .bind(payload.actual_completion)
+        .bind(payload.expected_irr)
+        .bind(payload.expected_npv)
+        .fetch_optional(&mut **tx)
+        .await?
+        .ok_or_else(|| AppError::NotFound("Capital project not found".into()))?;
+
+        Ok(row)
     }
 
     async fn add_project_funding(
         &self,
-        _tx: &mut Transaction<'_, Postgres>,
-        _payload: &CreateProjectFunding,
+        tx: &mut Transaction<'_, Postgres>,
+        payload: &CreateProjectFunding,
     ) -> Result<ProjectFunding, AppError> {
-        todo!("Implement add_project_funding")
+        let row = sqlx::query_as::<_, ProjectFunding>(
+            r#"
+            INSERT INTO capital.project_funding (
+                project_id, funding_source_type, funding_source_id,
+                amount_committed, amount_drawn, currency_id, funding_date
+            )
+            VALUES ($1, $2, $3, $4, COALESCE($5, 0), $6, $7)
+            RETURNING *
+            "#,
+        )
+        .bind(payload.project_id)
+        .bind(&payload.funding_source_type)
+        .bind(payload.funding_source_id)
+        .bind(payload.amount_committed)
+        .bind(payload.amount_drawn)
+        .bind(payload.currency_id)
+        .bind(payload.funding_date)
+        .fetch_one(&mut **tx)
+        .await?;
+
+        Ok(row)
     }
 
+    // -------------------------------------------------------------------------
+    // Liquidity / Cash Forecasts
+    // -------------------------------------------------------------------------
     async fn create_cash_forecast(
         &self,
-        _tx: &mut Transaction<'_, Postgres>,
-        _company_id: Uuid,
-        _user_id: Uuid,
-        _payload: &CreateCashForecast,
+        tx: &mut Transaction<'_, Postgres>,
+        company_id: Uuid,
+        user_id: Uuid,
+        payload: &CreateCashForecast,
     ) -> Result<CashForecast, AppError> {
-        todo!("Implement create_cash_forecast")
+        let row = sqlx::query_as::<_, CashForecast>(
+            r#"
+            INSERT INTO capital.cash_forecasts (
+                company_id, forecast_name, forecast_date, horizon_days,
+                currency_id, opening_cash, scenario, status, created_by
+            )
+            VALUES (
+                $1, $2, $3, COALESCE($4, 90),
+                $5, $6, COALESCE($7, 'base'), COALESCE($8, 'draft'), $9
+            )
+            RETURNING *
+            "#,
+        )
+        .bind(company_id)
+        .bind(&payload.forecast_name)
+        .bind(payload.forecast_date)
+        .bind(payload.horizon_days)
+        .bind(payload.currency_id)
+        .bind(payload.opening_cash)
+        .bind(&payload.scenario)
+        .bind(&payload.status)
+        .bind(user_id)
+        .fetch_one(&mut **tx)
+        .await?;
+
+        Ok(row)
     }
 
     async fn add_forecast_line(
         &self,
-        _tx: &mut Transaction<'_, Postgres>,
-        _forecast_id: Uuid,
-        _payload: &CreateCashForecastLine,
+        tx: &mut Transaction<'_, Postgres>,
+        forecast_id: Uuid,
+        payload: &CreateCashForecastLine,
     ) -> Result<CashForecastLine, AppError> {
-        todo!("Implement add_forecast_line")
+        let row = sqlx::query_as::<_, CashForecastLine>(
+            r#"
+            INSERT INTO capital.cash_forecast_lines (
+                forecast_id, line_date, category, description,
+                amount, is_committed, related_facility_id, related_project_id
+            )
+            VALUES ($1, $2, $3, $4, $5, COALESCE($6, false), $7, $8)
+            RETURNING *
+            "#,
+        )
+        .bind(forecast_id)
+        .bind(payload.line_date)
+        .bind(&payload.category)
+        .bind(&payload.description)
+        .bind(payload.amount)
+        .bind(payload.is_committed)
+        .bind(payload.related_facility_id)
+        .bind(payload.related_project_id)
+        .fetch_one(&mut **tx)
+        .await?;
+
+        Ok(row)
     }
 
     async fn get_cash_forecast(
         &self,
-        _pool: &PgPool,
-        _company_id: Uuid,
-        _id: Uuid,
+        pool: &PgPool,
+        company_id: Uuid,
+        id: Uuid,
     ) -> Result<CashForecast, AppError> {
-        todo!("Implement get_cash_forecast")
+        sqlx::query_as::<_, CashForecast>(
+            r#"
+            SELECT * FROM capital.cash_forecasts
+            WHERE id = $1 AND company_id = $2
+            "#,
+        )
+        .bind(id)
+        .bind(company_id)
+        .fetch_optional(pool)
+        .await?
+        .ok_or_else(|| AppError::NotFound("Cash forecast not found".into()))
     }
 
     async fn list_forecast_lines(
         &self,
-        _pool: &PgPool,
-        _forecast_id: Uuid,
+        pool: &PgPool,
+        forecast_id: Uuid,
     ) -> Result<Vec<CashForecastLine>, AppError> {
-        todo!("Implement list_forecast_lines")
+        let rows = sqlx::query_as::<_, CashForecastLine>(
+            r#"
+            SELECT * FROM capital.cash_forecast_lines
+            WHERE forecast_id = $1
+            ORDER BY line_date, category
+            "#,
+        )
+        .bind(forecast_id)
+        .fetch_all(pool)
+        .await?;
+
+        Ok(rows)
     }
 
+    // -------------------------------------------------------------------------
+    // Analytics
+    // -------------------------------------------------------------------------
     async fn record_metric(
         &self,
-        _tx: &mut Transaction<'_, Postgres>,
-        _company_id: Uuid,
-        _payload: &CreateCapitalMetric,
+        tx: &mut Transaction<'_, Postgres>,
+        company_id: Uuid,
+        payload: &CreateCapitalMetric,
     ) -> Result<CapitalMetric, AppError> {
-        todo!("Implement record_metric")
+        let row = sqlx::query_as::<_, CapitalMetric>(
+            r#"
+            INSERT INTO capital.capital_metrics (
+                company_id, metric_date, metric_code, metric_name,
+                value, numerator, denominator, currency_id, period_type, notes
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            RETURNING *
+            "#,
+        )
+        .bind(company_id)
+        .bind(payload.metric_date)
+        .bind(&payload.metric_code)
+        .bind(&payload.metric_name)
+        .bind(payload.value)
+        .bind(payload.numerator)
+        .bind(payload.denominator)
+        .bind(payload.currency_id)
+        .bind(&payload.period_type)
+        .bind(&payload.notes)
+        .fetch_one(&mut **tx)
+        .await?;
+
+        Ok(row)
     }
 
     async fn list_metrics(
         &self,
-        _pool: &PgPool,
-        _company_id: Uuid,
-        _metric_code: Option<&str>,
-        _from: Option<NaiveDate>,
-        _to: Option<NaiveDate>,
+        pool: &PgPool,
+        company_id: Uuid,
+        metric_code: Option<&str>,
+        from: Option<NaiveDate>,
+        to: Option<NaiveDate>,
     ) -> Result<Vec<CapitalMetric>, AppError> {
-        todo!("Implement list_metrics")
+        let mut qb = QueryBuilder::new("SELECT * FROM capital.capital_metrics WHERE company_id = ");
+        qb.push_bind(company_id);
+
+        if let Some(code) = metric_code {
+            qb.push(" AND metric_code = ");
+            qb.push_bind(code);
+        }
+        if let Some(f) = from {
+            qb.push(" AND metric_date >= ");
+            qb.push_bind(f);
+        }
+        if let Some(t) = to {
+            qb.push(" AND metric_date <= ");
+            qb.push_bind(t);
+        }
+        qb.push(" ORDER BY metric_date DESC, metric_code");
+
+        let rows = qb.build_query_as::<CapitalMetric>().fetch_all(pool).await?;
+        Ok(rows)
     }
 
     async fn upsert_wacc(
         &self,
-        _tx: &mut Transaction<'_, Postgres>,
-        _company_id: Uuid,
-        _payload: &CreateWaccComponent,
+        tx: &mut Transaction<'_, Postgres>,
+        company_id: Uuid,
+        payload: &CreateWaccComponent,
     ) -> Result<WaccComponent, AppError> {
-        todo!("Implement upsert_wacc")
+        let row = sqlx::query_as::<_, WaccComponent>(
+            r#"
+            INSERT INTO capital.wacc_components (
+                company_id, as_of_date, cost_of_equity, cost_of_debt,
+                tax_rate, equity_weight, debt_weight, wacc, notes
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            ON CONFLICT (company_id, as_of_date)
+            DO UPDATE SET
+                cost_of_equity = EXCLUDED.cost_of_equity,
+                cost_of_debt   = EXCLUDED.cost_of_debt,
+                tax_rate       = EXCLUDED.tax_rate,
+                equity_weight  = EXCLUDED.equity_weight,
+                debt_weight    = EXCLUDED.debt_weight,
+                wacc           = EXCLUDED.wacc,
+                notes          = EXCLUDED.notes
+            RETURNING *
+            "#,
+        )
+        .bind(company_id)
+        .bind(payload.as_of_date)
+        .bind(payload.cost_of_equity)
+        .bind(payload.cost_of_debt)
+        .bind(payload.tax_rate)
+        .bind(payload.equity_weight)
+        .bind(payload.debt_weight)
+        .bind(payload.wacc)
+        .bind(&payload.notes)
+        .fetch_one(&mut **tx)
+        .await?;
+
+        Ok(row)
     }
 }
