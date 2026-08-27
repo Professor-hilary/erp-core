@@ -1,7 +1,6 @@
 use crate::{
-    features::capital::repository::CapitalRepository,
-    interface::api::errors::AppError,
-    models::capital::*
+    features::capital::repository::CapitalRepository, interface::api::errors::AppError,
+    models::capital::*,
 };
 
 use chrono::NaiveDate;
@@ -30,7 +29,9 @@ impl<R: CapitalRepository> CapitalService<R> {
         user_id: Uuid,
         payload: &CreateCapitalInstrument,
     ) -> Result<CapitalInstrument, AppError> {
-        payload.validate().map_err(|e| AppError::Validation(e.to_string()))?;
+        payload
+            .validate()
+            .map_err(|e| AppError::Validation(e.to_string()))?;
 
         let mut tx = pool.begin().await?;
         let instrument = self
@@ -69,7 +70,9 @@ impl<R: CapitalRepository> CapitalService<R> {
         id: Uuid,
         payload: &UpdateCapitalInstrument,
     ) -> Result<CapitalInstrument, AppError> {
-        payload.validate().map_err(|e| AppError::Validation(e.to_string()))?;
+        payload
+            .validate()
+            .map_err(|e| AppError::Validation(e.to_string()))?;
 
         let mut tx = pool.begin().await?;
         let instrument = self
@@ -91,7 +94,9 @@ impl<R: CapitalRepository> CapitalService<R> {
         user_id: Uuid,
         payload: &CreateCapitalEvent,
     ) -> Result<CapitalEvent, AppError> {
-        payload.validate().map_err(|e| AppError::Validation(e.to_string()))?;
+        payload
+            .validate()
+            .map_err(|e| AppError::Validation(e.to_string()))?;
 
         let mut tx = pool.begin().await?;
         let event = self
@@ -124,7 +129,9 @@ impl<R: CapitalRepository> CapitalService<R> {
         user_id: Uuid,
         payload: &CreateCapitalFacility,
     ) -> Result<CapitalFacility, AppError> {
-        payload.validate().map_err(|e| AppError::Validation(e.to_string()))?;
+        payload
+            .validate()
+            .map_err(|e| AppError::Validation(e.to_string()))?;
 
         if payload.committed_amount <= Decimal::ZERO {
             return Err(AppError::Validation(
@@ -166,7 +173,9 @@ impl<R: CapitalRepository> CapitalService<R> {
         id: Uuid,
         payload: &UpdateCapitalFacility,
     ) -> Result<CapitalFacility, AppError> {
-        payload.validate().map_err(|e| AppError::Validation(e.to_string()))?;
+        payload
+            .validate()
+            .map_err(|e| AppError::Validation(e.to_string()))?;
 
         let mut tx = pool.begin().await?;
         let facility = self
@@ -227,7 +236,9 @@ impl<R: CapitalRepository> CapitalService<R> {
         user_id: Uuid,
         payload: &CreateDrawdown,
     ) -> Result<DebtDrawdown, AppError> {
-        payload.validate().map_err(|e| AppError::Validation(e.to_string()))?;
+        payload
+            .validate()
+            .map_err(|e| AppError::Validation(e.to_string()))?;
 
         if payload.amount <= Decimal::ZERO {
             return Err(AppError::Validation(
@@ -274,10 +285,15 @@ impl<R: CapitalRepository> CapitalService<R> {
         pool: &PgPool,
         payload: &CreateRepaymentSchedule,
     ) -> Result<DebtRepaymentSchedule, AppError> {
-        payload.validate().map_err(|e| AppError::Validation(e.to_string()))?;
+        payload
+            .validate()
+            .map_err(|e| AppError::Validation(e.to_string()))?;
 
         let mut tx = pool.begin().await?;
-        let schedule = self.repo.create_repayment_schedule(&mut tx, payload).await?;
+        let schedule = self
+            .repo
+            .create_repayment_schedule(&mut tx, payload)
+            .await?;
         tx.commit().await?;
         Ok(schedule)
     }
@@ -297,11 +313,11 @@ impl<R: CapitalRepository> CapitalService<R> {
         user_id: Uuid,
         payload: &CreateRepayment,
     ) -> Result<DebtRepayment, AppError> {
-        payload.validate().map_err(|e| AppError::Validation(e.to_string()))?;
+        payload
+            .validate()
+            .map_err(|e| AppError::Validation(e.to_string()))?;
 
-        if payload.principal_amount < Decimal::ZERO
-            || payload.interest_amount < Decimal::ZERO
-        {
+        if payload.principal_amount < Decimal::ZERO || payload.interest_amount < Decimal::ZERO {
             return Err(AppError::Validation(
                 "principal and interest amounts cannot be negative".into(),
             ));
@@ -333,7 +349,9 @@ impl<R: CapitalRepository> CapitalService<R> {
         pool: &PgPool,
         payload: &CreateInterestAccrual,
     ) -> Result<DebtInterestAccrual, AppError> {
-        payload.validate().map_err(|e| AppError::Validation(e.to_string()))?;
+        payload
+            .validate()
+            .map_err(|e| AppError::Validation(e.to_string()))?;
 
         if payload.period_end < payload.period_start {
             return Err(AppError::Validation(
@@ -360,7 +378,9 @@ impl<R: CapitalRepository> CapitalService<R> {
         pool: &PgPool,
         payload: &CreateDebtFee,
     ) -> Result<DebtFee, AppError> {
-        payload.validate().map_err(|e| AppError::Validation(e.to_string()))?;
+        payload
+            .validate()
+            .map_err(|e| AppError::Validation(e.to_string()))?;
 
         let mut tx = pool.begin().await?;
         let fee = self.repo.create_debt_fee(&mut tx, payload).await?;
@@ -377,7 +397,9 @@ impl<R: CapitalRepository> CapitalService<R> {
         pool: &PgPool,
         payload: &CreateDebtCovenant,
     ) -> Result<DebtCovenant, AppError> {
-        payload.validate().map_err(|e| AppError::Validation(e.to_string()))?;
+        payload
+            .validate()
+            .map_err(|e| AppError::Validation(e.to_string()))?;
 
         let mut tx = pool.begin().await?;
         let covenant = self.repo.create_covenant(&mut tx, payload).await?;
@@ -431,7 +453,9 @@ impl<R: CapitalRepository> CapitalService<R> {
         pool: &PgPool,
         payload: &CreateDebtCollateral,
     ) -> Result<DebtCollateral, AppError> {
-        payload.validate().map_err(|e| AppError::Validation(e.to_string()))?;
+        payload
+            .validate()
+            .map_err(|e| AppError::Validation(e.to_string()))?;
 
         let mut tx = pool.begin().await?;
         let collateral = self.repo.create_collateral(&mut tx, payload).await?;
@@ -445,7 +469,9 @@ impl<R: CapitalRepository> CapitalService<R> {
         company_id: Uuid,
         payload: &CreateDebtRefinancing,
     ) -> Result<DebtRefinancing, AppError> {
-        payload.validate().map_err(|e| AppError::Validation(e.to_string()))?;
+        payload
+            .validate()
+            .map_err(|e| AppError::Validation(e.to_string()))?;
 
         let mut tx = pool.begin().await?;
         let refinancing = self
@@ -466,7 +492,9 @@ impl<R: CapitalRepository> CapitalService<R> {
         company_id: Uuid,
         payload: &CreateShareClass,
     ) -> Result<ShareClass, AppError> {
-        payload.validate().map_err(|e| AppError::Validation(e.to_string()))?;
+        payload
+            .validate()
+            .map_err(|e| AppError::Validation(e.to_string()))?;
 
         let mut tx = pool.begin().await?;
         let share_class = self
@@ -500,7 +528,9 @@ impl<R: CapitalRepository> CapitalService<R> {
         company_id: Uuid,
         payload: &CreateShareholder,
     ) -> Result<Shareholder, AppError> {
-        payload.validate().map_err(|e| AppError::Validation(e.to_string()))?;
+        payload
+            .validate()
+            .map_err(|e| AppError::Validation(e.to_string()))?;
 
         let mut tx = pool.begin().await?;
         let shareholder = self
@@ -541,7 +571,9 @@ impl<R: CapitalRepository> CapitalService<R> {
         user_id: Uuid,
         payload: &CreateShareTransaction,
     ) -> Result<ShareTransaction, AppError> {
-        payload.validate().map_err(|e| AppError::Validation(e.to_string()))?;
+        payload
+            .validate()
+            .map_err(|e| AppError::Validation(e.to_string()))?;
 
         if payload.shares <= 0 {
             return Err(AppError::Validation(
@@ -575,7 +607,9 @@ impl<R: CapitalRepository> CapitalService<R> {
         company_id: Uuid,
         payload: &CreateDividend,
     ) -> Result<Dividend, AppError> {
-        payload.validate().map_err(|e| AppError::Validation(e.to_string()))?;
+        payload
+            .validate()
+            .map_err(|e| AppError::Validation(e.to_string()))?;
 
         if payload.dividend_per_share < Decimal::ZERO {
             return Err(AppError::Validation(
@@ -613,7 +647,9 @@ impl<R: CapitalRepository> CapitalService<R> {
         company_id: Uuid,
         payload: &CreateEquityAccount,
     ) -> Result<EquityAccount, AppError> {
-        payload.validate().map_err(|e| AppError::Validation(e.to_string()))?;
+        payload
+            .validate()
+            .map_err(|e| AppError::Validation(e.to_string()))?;
 
         let mut tx = pool.begin().await?;
         let account = self
@@ -638,7 +674,9 @@ impl<R: CapitalRepository> CapitalService<R> {
         company_id: Uuid,
         payload: &CreateEquityMovement,
     ) -> Result<EquityMovement, AppError> {
-        payload.validate().map_err(|e| AppError::Validation(e.to_string()))?;
+        payload
+            .validate()
+            .map_err(|e| AppError::Validation(e.to_string()))?;
 
         let mut tx = pool.begin().await?;
         let movement = self
@@ -672,7 +710,9 @@ impl<R: CapitalRepository> CapitalService<R> {
         company_id: Uuid,
         payload: &CreateCapitalStructureSnapshot,
     ) -> Result<CapitalStructureSnapshot, AppError> {
-        payload.validate().map_err(|e| AppError::Validation(e.to_string()))?;
+        payload
+            .validate()
+            .map_err(|e| AppError::Validation(e.to_string()))?;
 
         let mut tx = pool.begin().await?;
         let snapshot = self
@@ -697,7 +737,9 @@ impl<R: CapitalRepository> CapitalService<R> {
         company_id: Uuid,
         payload: &CreateCapitalAllocation,
     ) -> Result<CapitalAllocation, AppError> {
-        payload.validate().map_err(|e| AppError::Validation(e.to_string()))?;
+        payload
+            .validate()
+            .map_err(|e| AppError::Validation(e.to_string()))?;
 
         if payload.amount <= Decimal::ZERO {
             return Err(AppError::Validation(
@@ -732,7 +774,9 @@ impl<R: CapitalRepository> CapitalService<R> {
         company_id: Uuid,
         payload: &CreateCapitalProject,
     ) -> Result<CapitalProject, AppError> {
-        payload.validate().map_err(|e| AppError::Validation(e.to_string()))?;
+        payload
+            .validate()
+            .map_err(|e| AppError::Validation(e.to_string()))?;
 
         let mut tx = pool.begin().await?;
         let project = self
@@ -768,7 +812,9 @@ impl<R: CapitalRepository> CapitalService<R> {
         id: Uuid,
         payload: &UpdateCapitalProject,
     ) -> Result<CapitalProject, AppError> {
-        payload.validate().map_err(|e| AppError::Validation(e.to_string()))?;
+        payload
+            .validate()
+            .map_err(|e| AppError::Validation(e.to_string()))?;
 
         let mut tx = pool.begin().await?;
         let project = self
@@ -784,7 +830,9 @@ impl<R: CapitalRepository> CapitalService<R> {
         pool: &PgPool,
         payload: &CreateProjectFunding,
     ) -> Result<ProjectFunding, AppError> {
-        payload.validate().map_err(|e| AppError::Validation(e.to_string()))?;
+        payload
+            .validate()
+            .map_err(|e| AppError::Validation(e.to_string()))?;
 
         let mut tx = pool.begin().await?;
         let funding = self.repo.add_project_funding(&mut tx, payload).await?;
@@ -803,7 +851,9 @@ impl<R: CapitalRepository> CapitalService<R> {
         user_id: Uuid,
         payload: &CreateCashForecast,
     ) -> Result<CashForecast, AppError> {
-        payload.validate().map_err(|e| AppError::Validation(e.to_string()))?;
+        payload
+            .validate()
+            .map_err(|e| AppError::Validation(e.to_string()))?;
 
         let mut tx = pool.begin().await?;
         let forecast = self
@@ -820,7 +870,9 @@ impl<R: CapitalRepository> CapitalService<R> {
         forecast_id: Uuid,
         payload: &CreateCashForecastLine,
     ) -> Result<CashForecastLine, AppError> {
-        payload.validate().map_err(|e| AppError::Validation(e.to_string()))?;
+        payload
+            .validate()
+            .map_err(|e| AppError::Validation(e.to_string()))?;
 
         let mut tx = pool.begin().await?;
         let line = self
@@ -858,7 +910,9 @@ impl<R: CapitalRepository> CapitalService<R> {
         company_id: Uuid,
         payload: &CreateCapitalMetric,
     ) -> Result<CapitalMetric, AppError> {
-        payload.validate().map_err(|e| AppError::Validation(e.to_string()))?;
+        payload
+            .validate()
+            .map_err(|e| AppError::Validation(e.to_string()))?;
 
         let mut tx = pool.begin().await?;
         let metric = self
@@ -888,7 +942,9 @@ impl<R: CapitalRepository> CapitalService<R> {
         company_id: Uuid,
         payload: &CreateWaccComponent,
     ) -> Result<WaccComponent, AppError> {
-        payload.validate().map_err(|e| AppError::Validation(e.to_string()))?;
+        payload
+            .validate()
+            .map_err(|e| AppError::Validation(e.to_string()))?;
 
         let mut tx = pool.begin().await?;
         let wacc = self.repo.upsert_wacc(&mut tx, company_id, payload).await?;
