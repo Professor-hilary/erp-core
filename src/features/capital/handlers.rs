@@ -1,9 +1,10 @@
 use axum::{
     Extension, Router,
-    extract::{Json, Path, Query, State},
+    extract::{Json, Path, Query},
     response::Response,
-    routing::{get, post, put},
+    routing::{get, post},
 };
+use bigdecimal::BigDecimal;
 use serde::Deserialize;
 use std::sync::Arc;
 use uuid::Uuid;
@@ -23,49 +24,96 @@ use crate::{
 pub fn router() -> Router<Arc<AppState>> {
     Router::new()
         // ----- Instruments -----
-        .route("/instruments", post(create_instrument).get(list_instruments))
-        .route("/instruments/{id}", get(get_instrument).put(update_instrument))
-        .route("/instruments/{id}/events", get(list_events_for_instrument).post(create_event))
-
+        .route(
+            "/instruments",
+            post(create_instrument).get(list_instruments),
+        )
+        .route(
+            "/instruments/{id}",
+            get(get_instrument).put(update_instrument),
+        )
+        .route(
+            "/instruments/{id}/events",
+            get(list_events_for_instrument).post(create_event),
+        )
         // ----- Facilities -----
         .route("/facilities", post(create_facility).get(list_facilities))
         .route("/facilities/{id}", get(get_facility).put(update_facility))
-        .route("/facilities/{id}/lenders", post(add_facility_lender).get(list_facility_lenders))
-        .route("/facilities/{id}/drawdowns", post(create_drawdown).get(list_drawdowns))
-        .route("/facilities/{id}/repayments", post(create_repayment).get(list_repayments))
-        .route("/facilities/{id}/schedules", post(create_repayment_schedule).get(list_repayment_schedules))
-        .route("/facilities/{id}/accruals", post(create_interest_accrual).get(list_interest_accruals))
+        .route(
+            "/facilities/{id}/lenders",
+            post(add_facility_lender).get(list_facility_lenders),
+        )
+        .route(
+            "/facilities/{id}/drawdowns",
+            post(create_drawdown).get(list_drawdowns),
+        )
+        .route(
+            "/facilities/{id}/repayments",
+            post(create_repayment).get(list_repayments),
+        )
+        .route(
+            "/facilities/{id}/schedules",
+            post(create_repayment_schedule).get(list_repayment_schedules),
+        )
+        .route(
+            "/facilities/{id}/accruals",
+            post(create_interest_accrual).get(list_interest_accruals),
+        )
         .route("/facilities/{id}/fees", post(create_debt_fee))
-        .route("/facilities/{id}/covenants", post(create_covenant).get(list_covenants))
+        .route(
+            "/facilities/{id}/covenants",
+            post(create_covenant).get(list_covenants),
+        )
+        .route(
+            "/facilities/{id}/covenants-test",
+            post(create_covenant_test).get(list_covenants),
+        )
         .route("/facilities/{id}/collateral", post(create_collateral))
         .route("/refinancings", post(create_refinancing))
-
         // ----- Equity -----
-        .route("/share-classes", post(create_share_class).get(list_share_classes))
+        .route(
+            "/share-classes",
+            post(create_share_class).get(list_share_classes),
+        )
         .route("/share-classes/{id}", get(get_share_class))
-        .route("/shareholders", post(create_shareholder).get(list_shareholders))
-        .route("/share-transactions", post(create_share_transaction).get(list_share_transactions))
+        .route(
+            "/shareholders",
+            post(create_shareholder)
+                .get(list_shareholders)
+                .get(get_shareholding),
+        )
+        .route(
+            "/share-transactions",
+            post(create_share_transaction).get(list_share_transactions),
+        )
         .route("/dividends", post(create_dividend).get(list_dividends))
-
         // ----- Equity accounts / retained earnings -----
-        .route("/equity-accounts", post(create_equity_account).get(list_equity_accounts))
-        .route("/equity-movements", post(create_equity_movement).get(list_equity_movements))
-
+        .route(
+            "/equity-accounts",
+            post(create_equity_account).get(list_equity_accounts),
+        )
+        .route(
+            "/equity-movements",
+            post(create_equity_movement).get(list_equity_movements),
+        )
         // ----- Structure & allocation -----
         .route("/structure-snapshots", post(create_structure_snapshot))
         .route("/structure/latest", get(get_latest_structure))
-        .route("/allocations", post(create_allocation).get(list_allocations))
-
+        .route(
+            "/allocations",
+            post(create_allocation).get(list_allocations),
+        )
         // ----- Projects -----
         .route("/projects", post(create_project).get(list_projects))
         .route("/projects/{id}", get(get_project).put(update_project))
         .route("/projects/{id}/funding", post(add_project_funding))
-
         // ----- Liquidity -----
         .route("/cash-forecasts", post(create_cash_forecast))
         .route("/cash-forecasts/{id}", get(get_cash_forecast))
-        .route("/cash-forecasts/{id}/lines", post(add_forecast_line).get(list_forecast_lines))
-
+        .route(
+            "/cash-forecasts/{id}/lines",
+            post(add_forecast_line).get(list_forecast_lines),
+        )
         // ----- Analytics -----
         .route("/metrics", post(record_metric).get(list_metrics))
         .route("/wacc", post(upsert_wacc))
@@ -126,17 +174,18 @@ pub struct ListMetricsQuery {
 #[derive(Debug, Deserialize)]
 pub struct AddLenderPayload {
     pub lender_id: Uuid,
-    pub commitment_amount: rust_decimal::Decimal,
-    pub participation_pct: Option<rust_decimal::Decimal>,
+    pub commitment_amount: BigDecimal,
+    pub participation_pct: Option<BigDecimal>,
     pub is_agent: Option<bool>,
 }
 
+#[allow(unused)]
 #[derive(Debug, Deserialize)]
 pub struct RecordCovenantTestPayload {
     pub test_date: chrono::NaiveDate,
-    pub actual_value: Option<rust_decimal::Decimal>,
+    pub actual_value: Option<BigDecimal>,
     pub is_compliant: Option<bool>,
-    pub headroom: Option<rust_decimal::Decimal>,
+    pub headroom: Option<BigDecimal>,
     pub notes: Option<String>,
 }
 
@@ -151,7 +200,10 @@ async fn create_instrument(
     let instrument = service()
         .create_instrument(&user.tenant_pool, user.company_id, user.user_id, &payload)
         .await?;
-    Ok(ApiResponse::created(instrument, "Capital instrument created"))
+    Ok(ApiResponse::created(
+        instrument,
+        "Capital instrument created",
+    ))
 }
 
 async fn get_instrument(
@@ -161,7 +213,10 @@ async fn get_instrument(
     let instrument = service()
         .get_instrument(&user.tenant_pool, user.company_id, id)
         .await?;
-    Ok(ApiResponse::success(instrument, "Capital instrument fetched"))
+    Ok(ApiResponse::success(
+        instrument,
+        "Capital instrument fetched",
+    ))
 }
 
 async fn list_instruments(
@@ -187,7 +242,10 @@ async fn update_instrument(
     let instrument = service()
         .update_instrument(&user.tenant_pool, user.company_id, id, &payload)
         .await?;
-    Ok(ApiResponse::success(instrument, "Capital instrument updated"))
+    Ok(ApiResponse::success(
+        instrument,
+        "Capital instrument updated",
+    ))
 }
 
 async fn create_event(
@@ -246,7 +304,10 @@ async fn list_facilities(
     let facilities = service()
         .list_facilities(&user.tenant_pool, user.company_id, q.status.as_deref())
         .await?;
-    Ok(ApiResponse::success(facilities, "Capital facilities fetched"))
+    Ok(ApiResponse::success(
+        facilities,
+        "Capital facilities fetched",
+    ))
 }
 
 async fn update_facility(
@@ -355,7 +416,10 @@ async fn list_repayment_schedules(
     let schedules = service()
         .list_repayment_schedules(&user.tenant_pool, facility_id)
         .await?;
-    Ok(ApiResponse::success(schedules, "Repayment schedules fetched"))
+    Ok(ApiResponse::success(
+        schedules,
+        "Repayment schedules fetched",
+    ))
 }
 
 async fn create_interest_accrual(
@@ -402,6 +466,27 @@ async fn create_covenant(
         .create_covenant(&user.tenant_pool, &payload)
         .await?;
     Ok(ApiResponse::created(covenant, "Covenant created"))
+}
+
+async fn create_covenant_test(
+    Path(_facility_id): Path<Uuid>,
+    Extension(user): Extension<AuthenticatedTenant>,
+    Json(payload): Json<DebtCovenantTest>,
+) -> Result<Response, AppError> {
+    // payload.facility_id = facility_id;
+    let covenant = service()
+        .record_covenant_test(
+            &user.tenant_pool,
+            payload.covenant_id,
+            payload.test_date,
+            payload.actual_value,
+            payload.is_compliant,
+            payload.headroom,
+            payload.notes,
+            payload.tested_by,
+        )
+        .await?;
+    Ok(ApiResponse::created(covenant, "Covenant test created"))
 }
 
 async fn list_covenants(
@@ -486,6 +571,20 @@ async fn list_shareholders(
         .list_shareholders(&user.tenant_pool, user.company_id)
         .await?;
     Ok(ApiResponse::success(items, "Shareholders fetched"))
+}
+
+async fn get_shareholding(
+    Extension(user): Extension<AuthenticatedTenant>,
+    Json(payload): Json<Shareholding>,
+) -> Result<Response, AppError> {
+    let items = service()
+        .get_shareholding(
+            &user.tenant_pool,
+            payload.share_class_id,
+            payload.shareholder_id,
+        )
+        .await?;
+    Ok(ApiResponse::success(items, "Shareholding fetched"))
 }
 
 async fn create_share_transaction(
@@ -588,7 +687,10 @@ async fn create_structure_snapshot(
     let snap = service()
         .create_structure_snapshot(&user.tenant_pool, user.company_id, &payload)
         .await?;
-    Ok(ApiResponse::created(snap, "Capital structure snapshot created"))
+    Ok(ApiResponse::created(
+        snap,
+        "Capital structure snapshot created",
+    ))
 }
 
 async fn get_latest_structure(
@@ -597,7 +699,10 @@ async fn get_latest_structure(
     let snap = service()
         .get_latest_structure(&user.tenant_pool, user.company_id)
         .await?;
-    Ok(ApiResponse::success(snap, "Latest capital structure fetched"))
+    Ok(ApiResponse::success(
+        snap,
+        "Latest capital structure fetched",
+    ))
 }
 
 async fn create_allocation(
@@ -607,7 +712,10 @@ async fn create_allocation(
     let allocation = service()
         .create_allocation(&user.tenant_pool, user.company_id, &payload)
         .await?;
-    Ok(ApiResponse::created(allocation, "Capital allocation recorded"))
+    Ok(ApiResponse::created(
+        allocation,
+        "Capital allocation recorded",
+    ))
 }
 
 async fn list_allocations(

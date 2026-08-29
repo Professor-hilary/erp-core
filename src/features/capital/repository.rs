@@ -1,7 +1,8 @@
 use crate::{interface::api::errors::AppError, models::capital::*};
 
 use async_trait::async_trait;
-use chrono::{DateTime, NaiveDate, Utc};
+use bigdecimal::{BigDecimal, Zero};
+use chrono::NaiveDate;
 use sqlx::{PgPool, Postgres, QueryBuilder, Transaction};
 use uuid::Uuid;
 
@@ -101,8 +102,8 @@ pub trait CapitalRepository: Send + Sync {
         tx: &mut Transaction<'_, Postgres>,
         facility_id: Uuid,
         lender_id: Uuid,
-        commitment_amount: rust_decimal::Decimal,
-        participation_pct: Option<rust_decimal::Decimal>,
+        commitment_amount: sqlx::types::BigDecimal,
+        participation_pct: Option<sqlx::types::BigDecimal>,
         is_agent: bool,
     ) -> Result<FacilityLender, AppError>;
 
@@ -199,10 +200,10 @@ pub trait CapitalRepository: Send + Sync {
         tx: &mut Transaction<'_, Postgres>,
         covenant_id: Uuid,
         test_date: NaiveDate,
-        actual_value: Option<rust_decimal::Decimal>,
+        actual_value: Option<sqlx::types::BigDecimal>,
         is_compliant: Option<bool>,
-        headroom: Option<rust_decimal::Decimal>,
-        notes: Option<&str>,
+        headroom: Option<sqlx::types::BigDecimal>,
+        notes: String,
         tested_by: Uuid,
     ) -> Result<DebtCovenantTest, AppError>;
 
@@ -503,9 +504,9 @@ impl CapitalRepository for PostgresCapitalRepo {
         .bind(&payload.instrument_family)
         .bind(&payload.instrument_type)
         .bind(payload.currency_id)
-        .bind(payload.original_principal)
-        .bind(payload.face_value)
-        .bind(payload.issue_price)
+        .bind(&payload.original_principal)
+        .bind(&payload.face_value)
+        .bind(&payload.issue_price)
         .bind(payload.effective_date)
         .bind(payload.maturity_date)
         .bind(payload.is_perpetual.unwrap_or(false))
@@ -513,8 +514,8 @@ impl CapitalRepository for PostgresCapitalRepo {
         .bind(payload.is_callable.unwrap_or(false))
         .bind(payload.is_putable.unwrap_or(false))
         .bind(payload.is_convertible.unwrap_or(false))
-        .bind(payload.conversion_ratio)
-        .bind(payload.conversion_price)
+        .bind(&payload.conversion_ratio)
+        .bind(&payload.conversion_price)
         .bind(&payload.status)
         .bind(&payload.accounting_treatment)
         .bind(&payload.notes)
@@ -594,7 +595,7 @@ impl CapitalRepository for PostgresCapitalRepo {
         .bind(id)
         .bind(company_id)
         .bind(&payload.name)
-        .bind(payload.outstanding_principal)
+        .bind(&payload.outstanding_principal)
         .bind(&payload.status)
         .bind(payload.maturity_date)
         .bind(&payload.notes)
@@ -631,7 +632,7 @@ impl CapitalRepository for PostgresCapitalRepo {
         .bind(&payload.event_type)
         .bind(payload.event_date)
         .bind(payload.effective_date)
-        .bind(payload.amount)
+        .bind(&payload.amount)
         .bind(payload.currency_id)
         .bind(payload.shares)
         .bind(&payload.description)
@@ -704,19 +705,19 @@ impl CapitalRepository for PostgresCapitalRepo {
         .bind(&payload.facility_type)
         .bind(payload.agent_id)
         .bind(payload.currency_id)
-        .bind(payload.committed_amount)
+        .bind(&payload.committed_amount)
         .bind(&payload.interest_type)
         .bind(&payload.base_rate_index)
-        .bind(payload.margin_bps)
-        .bind(payload.floor_rate)
-        .bind(payload.ceiling_rate)
+        .bind(&payload.margin_bps)
+        .bind(&payload.floor_rate)
+        .bind(&payload.ceiling_rate)
         .bind(&payload.day_count_convention)
         .bind(&payload.payment_frequency)
         .bind(&payload.amortization_type)
         .bind(payload.effective_date)
         .bind(payload.maturity_date)
-        .bind(payload.commitment_fee_bps)
-        .bind(payload.utilization_fee_bps)
+        .bind(&payload.commitment_fee_bps)
+        .bind(&payload.utilization_fee_bps)
         .bind(&payload.prepayment_penalty)
         .bind(payload.collateral_required)
         .bind(payload.is_secured)
@@ -793,9 +794,9 @@ impl CapitalRepository for PostgresCapitalRepo {
         .bind(id)
         .bind(company_id)
         .bind(&payload.facility_name)
-        .bind(payload.available_amount)
-        .bind(payload.drawn_amount)
-        .bind(payload.margin_bps)
+        .bind(&payload.available_amount)
+        .bind(&payload.drawn_amount)
+        .bind(&payload.margin_bps)
         .bind(payload.maturity_date)
         .bind(&payload.status)
         .fetch_optional(&mut **tx)
@@ -810,8 +811,8 @@ impl CapitalRepository for PostgresCapitalRepo {
         tx: &mut Transaction<'_, Postgres>,
         facility_id: Uuid,
         lender_id: Uuid,
-        commitment_amount: rust_decimal::Decimal,
-        participation_pct: Option<rust_decimal::Decimal>,
+        commitment_amount: BigDecimal,
+        participation_pct: Option<BigDecimal>,
         is_agent: bool,
     ) -> Result<FacilityLender, AppError> {
         let row = sqlx::query_as::<_, FacilityLender>(
@@ -878,7 +879,7 @@ impl CapitalRepository for PostgresCapitalRepo {
         .bind(payload.instrument_id)
         .bind(payload.drawdown_date)
         .bind(payload.value_date)
-        .bind(payload.amount)
+        .bind(&payload.amount)
         .bind(payload.currency_id)
         .bind(&payload.reference)
         .bind(&payload.purpose)
@@ -897,7 +898,7 @@ impl CapitalRepository for PostgresCapitalRepo {
             "#,
         )
         .bind(payload.facility_id)
-        .bind(payload.amount)
+        .bind(&payload.amount)
         .execute(&mut **tx)
         .await?;
 
@@ -945,9 +946,9 @@ impl CapitalRepository for PostgresCapitalRepo {
         .bind(payload.instrument_id)
         .bind(payload.sequence_no)
         .bind(payload.due_date)
-        .bind(payload.principal_due)
-        .bind(payload.interest_due)
-        .bind(payload.fee_due.unwrap_or_default())
+        .bind(&payload.principal_due)
+        .bind(&payload.interest_due)
+        .bind(payload.fee_due.clone().unwrap_or_default())
         .bind(&payload.status)
         .fetch_one(&mut **tx)
         .await?;
@@ -995,9 +996,9 @@ impl CapitalRepository for PostgresCapitalRepo {
         .bind(payload.facility_id)
         .bind(payload.schedule_id)
         .bind(payload.repayment_date)
-        .bind(payload.principal_amount)
-        .bind(payload.interest_amount)
-        .bind(payload.fee_amount.unwrap_or_default())
+        .bind(&payload.principal_amount)
+        .bind(&payload.interest_amount)
+        .bind(payload.fee_amount.clone().unwrap_or_default())
         .bind(payload.currency_id)
         .bind(&payload.payment_method)
         .bind(&payload.reference)
@@ -1006,7 +1007,7 @@ impl CapitalRepository for PostgresCapitalRepo {
         .await?;
 
         // Reduce drawn principal
-        if payload.principal_amount > rust_decimal::Decimal::ZERO {
+        if payload.principal_amount > BigDecimal::zero() {
             sqlx::query(
                 r#"
                 UPDATE capital.debt_facilities
@@ -1016,7 +1017,7 @@ impl CapitalRepository for PostgresCapitalRepo {
                 "#,
             )
             .bind(payload.facility_id)
-            .bind(payload.principal_amount)
+            .bind(&payload.principal_amount)
             .execute(&mut **tx)
             .await?;
         }
@@ -1066,10 +1067,10 @@ impl CapitalRepository for PostgresCapitalRepo {
         .bind(payload.instrument_id)
         .bind(payload.period_start)
         .bind(payload.period_end)
-        .bind(payload.principal_base)
-        .bind(payload.annual_rate)
+        .bind(&payload.principal_base)
+        .bind(&payload.annual_rate)
         .bind(payload.day_count)
-        .bind(payload.interest_amount)
+        .bind(&payload.interest_amount)
         .bind(payload.is_paid)
         .bind(payload.journal_entry_id)
         .fetch_one(&mut **tx)
@@ -1114,7 +1115,7 @@ impl CapitalRepository for PostgresCapitalRepo {
         .bind(payload.facility_id)
         .bind(&payload.fee_type)
         .bind(payload.fee_date)
-        .bind(payload.amount)
+        .bind(&payload.amount)
         .bind(payload.currency_id)
         .bind(&payload.description)
         .bind(payload.journal_entry_id)
@@ -1150,8 +1151,8 @@ impl CapitalRepository for PostgresCapitalRepo {
         .bind(&payload.covenant_type)
         .bind(&payload.metric)
         .bind(&payload.operator)
-        .bind(payload.threshold_min)
-        .bind(payload.threshold_max)
+        .bind(&payload.threshold_min)
+        .bind(&payload.threshold_max)
         .bind(&payload.measurement_frequency)
         .bind(&payload.testing_date_rule)
         .bind(payload.effective_date)
@@ -1188,10 +1189,10 @@ impl CapitalRepository for PostgresCapitalRepo {
         tx: &mut Transaction<'_, Postgres>,
         covenant_id: Uuid,
         test_date: NaiveDate,
-        actual_value: Option<rust_decimal::Decimal>,
+        actual_value: Option<BigDecimal>,
         is_compliant: Option<bool>,
-        headroom: Option<rust_decimal::Decimal>,
-        notes: Option<&str>,
+        headroom: Option<BigDecimal>,
+        notes: String,
         tested_by: Uuid,
     ) -> Result<DebtCovenantTest, AppError> {
         let row = sqlx::query_as::<_, DebtCovenantTest>(
@@ -1237,7 +1238,7 @@ impl CapitalRepository for PostgresCapitalRepo {
         .bind(payload.facility_id)
         .bind(&payload.collateral_type)
         .bind(&payload.description)
-        .bind(payload.estimated_value)
+        .bind(&payload.estimated_value)
         .bind(payload.currency_id)
         .bind(payload.valuation_date)
         .bind(&payload.ranking)
@@ -1268,8 +1269,8 @@ impl CapitalRepository for PostgresCapitalRepo {
         .bind(payload.old_facility_id)
         .bind(payload.new_facility_id)
         .bind(payload.refinancing_date)
-        .bind(payload.principal_refinanced)
-        .bind(payload.costs.unwrap_or_default())
+        .bind(&payload.principal_refinanced)
+        .bind(payload.costs.clone().unwrap_or_default())
         .bind(&payload.description)
         .bind(payload.journal_entry_id)
         .fetch_one(&mut **tx)
@@ -1312,16 +1313,16 @@ impl CapitalRepository for PostgresCapitalRepo {
         .bind(&payload.name)
         .bind(&payload.share_type)
         .bind(payload.authorized_shares)
-        .bind(payload.par_value)
+        .bind(&payload.par_value)
         .bind(payload.currency_id)
         .bind(payload.voting_rights)
-        .bind(payload.votes_per_share)
+        .bind(&payload.votes_per_share)
         .bind(payload.dividend_rights)
         .bind(&payload.dividend_preference)
-        .bind(payload.liquidation_preference)
+        .bind(&payload.liquidation_preference)
         .bind(payload.is_callable)
         .bind(payload.is_convertible)
-        .bind(payload.conversion_ratio)
+        .bind(&payload.conversion_ratio)
         .fetch_one(&mut **tx)
         .await?;
 
@@ -1463,10 +1464,10 @@ impl CapitalRepository for PostgresCapitalRepo {
         .bind(payload.from_shareholder_id)
         .bind(payload.to_shareholder_id)
         .bind(payload.shares)
-        .bind(payload.price_per_share)
-        .bind(payload.total_consideration)
+        .bind(&payload.price_per_share)
+        .bind(&payload.total_consideration)
         .bind(payload.currency_id)
-        .bind(payload.premium)
+        .bind(&payload.premium)
         .bind(payload.journal_entry_id)
         .bind(&payload.reference)
         .bind(&payload.notes)
@@ -1600,8 +1601,8 @@ impl CapitalRepository for PostgresCapitalRepo {
         .bind(payload.record_date)
         .bind(payload.ex_dividend_date)
         .bind(payload.payment_date)
-        .bind(payload.dividend_per_share)
-        .bind(payload.total_declared)
+        .bind(&payload.dividend_per_share)
+        .bind(&payload.total_declared)
         .bind(payload.currency_id)
         .bind(&payload.status)
         .fetch_one(&mut **tx)
@@ -1700,7 +1701,7 @@ impl CapitalRepository for PostgresCapitalRepo {
         .bind(payload.equity_account_id)
         .bind(payload.movement_date)
         .bind(&payload.movement_type)
-        .bind(payload.amount)
+        .bind(&payload.amount)
         .bind(&payload.description)
         .bind(payload.related_instrument_id)
         .bind(payload.related_event_id)
@@ -1770,12 +1771,12 @@ impl CapitalRepository for PostgresCapitalRepo {
         )
         .bind(company_id)
         .bind(payload.as_of_date)
-        .bind(payload.total_debt)
-        .bind(payload.total_equity)
-        .bind(payload.total_hybrid)
-        .bind(payload.cash_and_equivalents)
-        .bind(payload.debt_to_equity)
-        .bind(payload.equity_ratio)
+        .bind(&payload.total_debt)
+        .bind(&payload.total_equity)
+        .bind(&payload.total_hybrid)
+        .bind(&payload.cash_and_equivalents)
+        .bind(&payload.debt_to_equity)
+        .bind(&payload.equity_ratio)
         .bind(&payload.notes)
         .fetch_one(&mut **tx)
         .await?;
@@ -1830,10 +1831,10 @@ impl CapitalRepository for PostgresCapitalRepo {
         .bind(payload.capital_source_id)
         .bind(&payload.allocation_type)
         .bind(payload.allocation_target_id)
-        .bind(payload.amount)
+        .bind(&payload.amount)
         .bind(payload.currency_id)
         .bind(payload.allocation_date)
-        .bind(payload.expected_return)
+        .bind(&payload.expected_return)
         .bind(&payload.status)
         .bind(&payload.notes)
         .fetch_one(&mut **tx)
@@ -1894,11 +1895,11 @@ impl CapitalRepository for PostgresCapitalRepo {
         .bind(&payload.project_type)
         .bind(payload.start_date)
         .bind(payload.expected_completion)
-        .bind(payload.approved_budget)
+        .bind(&payload.approved_budget)
         .bind(payload.currency_id)
-        .bind(payload.expected_irr)
-        .bind(payload.expected_npv)
-        .bind(payload.expected_payback_years)
+        .bind(&payload.expected_irr)
+        .bind(&payload.expected_npv)
+        .bind(&payload.expected_payback_years)
         .bind(&payload.risk_rating)
         .bind(&payload.status)
         .bind(payload.owner_id)
@@ -1977,10 +1978,10 @@ impl CapitalRepository for PostgresCapitalRepo {
         .bind(&payload.name)
         .bind(&payload.description)
         .bind(&payload.status)
-        .bind(payload.spent_to_date)
+        .bind(&payload.spent_to_date)
         .bind(payload.actual_completion)
-        .bind(payload.expected_irr)
-        .bind(payload.expected_npv)
+        .bind(&payload.expected_irr)
+        .bind(&payload.expected_npv)
         .fetch_optional(&mut **tx)
         .await?
         .ok_or_else(|| AppError::NotFound("Capital project not found".into()))?;
@@ -2006,8 +2007,8 @@ impl CapitalRepository for PostgresCapitalRepo {
         .bind(payload.project_id)
         .bind(&payload.funding_source_type)
         .bind(payload.funding_source_id)
-        .bind(payload.amount_committed)
-        .bind(payload.amount_drawn)
+        .bind(&payload.amount_committed)
+        .bind(&payload.amount_drawn)
         .bind(payload.currency_id)
         .bind(payload.funding_date)
         .fetch_one(&mut **tx)
@@ -2044,7 +2045,7 @@ impl CapitalRepository for PostgresCapitalRepo {
         .bind(payload.forecast_date)
         .bind(payload.horizon_days)
         .bind(payload.currency_id)
-        .bind(payload.opening_cash)
+        .bind(&payload.opening_cash)
         .bind(&payload.scenario)
         .bind(&payload.status)
         .bind(user_id)
@@ -2074,7 +2075,7 @@ impl CapitalRepository for PostgresCapitalRepo {
         .bind(payload.line_date)
         .bind(&payload.category)
         .bind(&payload.description)
-        .bind(payload.amount)
+        .bind(&payload.amount)
         .bind(payload.is_committed)
         .bind(payload.related_facility_id)
         .bind(payload.related_project_id)
@@ -2145,9 +2146,9 @@ impl CapitalRepository for PostgresCapitalRepo {
         .bind(payload.metric_date)
         .bind(&payload.metric_code)
         .bind(&payload.metric_name)
-        .bind(payload.value)
-        .bind(payload.numerator)
-        .bind(payload.denominator)
+        .bind(&payload.value)
+        .bind(&payload.numerator)
+        .bind(&payload.denominator)
         .bind(payload.currency_id)
         .bind(&payload.period_type)
         .bind(&payload.notes)
@@ -2213,12 +2214,12 @@ impl CapitalRepository for PostgresCapitalRepo {
         )
         .bind(company_id)
         .bind(payload.as_of_date)
-        .bind(payload.cost_of_equity)
-        .bind(payload.cost_of_debt)
-        .bind(payload.tax_rate)
-        .bind(payload.equity_weight)
-        .bind(payload.debt_weight)
-        .bind(payload.wacc)
+        .bind(&payload.cost_of_equity)
+        .bind(&payload.cost_of_debt)
+        .bind(&payload.tax_rate)
+        .bind(&payload.equity_weight)
+        .bind(&payload.debt_weight)
+        .bind(&payload.wacc)
         .bind(&payload.notes)
         .fetch_one(&mut **tx)
         .await?;

@@ -3,8 +3,9 @@ use crate::{
     models::capital::*,
 };
 
+use bigdecimal::BigDecimal;
+use bigdecimal::Zero;
 use chrono::NaiveDate;
-use rust_decimal::Decimal;
 use sqlx::PgPool;
 use uuid::Uuid;
 use validator::Validate;
@@ -31,7 +32,7 @@ impl<R: CapitalRepository> CapitalService<R> {
     ) -> Result<CapitalInstrument, AppError> {
         payload
             .validate()
-            .map_err(|e| AppError::Validation(e.to_string()))?;
+            .map_err(|e| AppError::Unprocessable(e.to_string()))?;
 
         let mut tx = pool.begin().await?;
         let instrument = self
@@ -72,7 +73,7 @@ impl<R: CapitalRepository> CapitalService<R> {
     ) -> Result<CapitalInstrument, AppError> {
         payload
             .validate()
-            .map_err(|e| AppError::Validation(e.to_string()))?;
+            .map_err(|e| AppError::Unprocessable(e.to_string()))?;
 
         let mut tx = pool.begin().await?;
         let instrument = self
@@ -96,7 +97,7 @@ impl<R: CapitalRepository> CapitalService<R> {
     ) -> Result<CapitalEvent, AppError> {
         payload
             .validate()
-            .map_err(|e| AppError::Validation(e.to_string()))?;
+            .map_err(|e| AppError::Unprocessable(e.to_string()))?;
 
         let mut tx = pool.begin().await?;
         let event = self
@@ -131,10 +132,10 @@ impl<R: CapitalRepository> CapitalService<R> {
     ) -> Result<CapitalFacility, AppError> {
         payload
             .validate()
-            .map_err(|e| AppError::Validation(e.to_string()))?;
+            .map_err(|e| AppError::Unprocessable(e.to_string()))?;
 
-        if payload.committed_amount <= Decimal::ZERO {
-            return Err(AppError::Validation(
+        if payload.committed_amount <= BigDecimal::zero() {
+            return Err(AppError::Unprocessable(
                 "committed_amount must be greater than zero".into(),
             ));
         }
@@ -175,7 +176,7 @@ impl<R: CapitalRepository> CapitalService<R> {
     ) -> Result<CapitalFacility, AppError> {
         payload
             .validate()
-            .map_err(|e| AppError::Validation(e.to_string()))?;
+            .map_err(|e| AppError::Unprocessable(e.to_string()))?;
 
         let mut tx = pool.begin().await?;
         let facility = self
@@ -191,12 +192,12 @@ impl<R: CapitalRepository> CapitalService<R> {
         pool: &PgPool,
         facility_id: Uuid,
         lender_id: Uuid,
-        commitment_amount: Decimal,
-        participation_pct: Option<Decimal>,
+        commitment_amount: BigDecimal,
+        participation_pct: Option<BigDecimal>,
         is_agent: bool,
     ) -> Result<FacilityLender, AppError> {
-        if commitment_amount <= Decimal::ZERO {
-            return Err(AppError::Validation(
+        if commitment_amount <= BigDecimal::zero() {
+            return Err(AppError::Unprocessable(
                 "commitment_amount must be greater than zero".into(),
             ));
         }
@@ -238,10 +239,10 @@ impl<R: CapitalRepository> CapitalService<R> {
     ) -> Result<DebtDrawdown, AppError> {
         payload
             .validate()
-            .map_err(|e| AppError::Validation(e.to_string()))?;
+            .map_err(|e| AppError::Unprocessable(e.to_string()))?;
 
-        if payload.amount <= Decimal::ZERO {
-            return Err(AppError::Validation(
+        if payload.amount <= BigDecimal::zero() {
+            return Err(AppError::Unprocessable(
                 "drawdown amount must be greater than zero".into(),
             ));
         }
@@ -253,7 +254,7 @@ impl<R: CapitalRepository> CapitalService<R> {
             .await?;
 
         if payload.amount > facility.available_amount {
-            return Err(AppError::Validation(format!(
+            return Err(AppError::Unprocessable(format!(
                 "Insufficient available amount. Requested {}, available {}",
                 payload.amount, facility.available_amount
             )));
@@ -287,7 +288,7 @@ impl<R: CapitalRepository> CapitalService<R> {
     ) -> Result<DebtRepaymentSchedule, AppError> {
         payload
             .validate()
-            .map_err(|e| AppError::Validation(e.to_string()))?;
+            .map_err(|e| AppError::Unprocessable(e.to_string()))?;
 
         let mut tx = pool.begin().await?;
         let schedule = self
@@ -315,10 +316,12 @@ impl<R: CapitalRepository> CapitalService<R> {
     ) -> Result<DebtRepayment, AppError> {
         payload
             .validate()
-            .map_err(|e| AppError::Validation(e.to_string()))?;
+            .map_err(|e| AppError::Unprocessable(e.to_string()))?;
 
-        if payload.principal_amount < Decimal::ZERO || payload.interest_amount < Decimal::ZERO {
-            return Err(AppError::Validation(
+        if payload.principal_amount < BigDecimal::zero()
+            || payload.interest_amount < BigDecimal::zero()
+        {
+            return Err(AppError::Unprocessable(
                 "principal and interest amounts cannot be negative".into(),
             ));
         }
@@ -351,10 +354,10 @@ impl<R: CapitalRepository> CapitalService<R> {
     ) -> Result<DebtInterestAccrual, AppError> {
         payload
             .validate()
-            .map_err(|e| AppError::Validation(e.to_string()))?;
+            .map_err(|e| AppError::Unprocessable(e.to_string()))?;
 
         if payload.period_end < payload.period_start {
-            return Err(AppError::Validation(
+            return Err(AppError::Unprocessable(
                 "period_end must be on or after period_start".into(),
             ));
         }
@@ -380,7 +383,7 @@ impl<R: CapitalRepository> CapitalService<R> {
     ) -> Result<DebtFee, AppError> {
         payload
             .validate()
-            .map_err(|e| AppError::Validation(e.to_string()))?;
+            .map_err(|e| AppError::Unprocessable(e.to_string()))?;
 
         let mut tx = pool.begin().await?;
         let fee = self.repo.create_debt_fee(&mut tx, payload).await?;
@@ -399,7 +402,7 @@ impl<R: CapitalRepository> CapitalService<R> {
     ) -> Result<DebtCovenant, AppError> {
         payload
             .validate()
-            .map_err(|e| AppError::Validation(e.to_string()))?;
+            .map_err(|e| AppError::Unprocessable(e.to_string()))?;
 
         let mut tx = pool.begin().await?;
         let covenant = self.repo.create_covenant(&mut tx, payload).await?;
@@ -420,10 +423,10 @@ impl<R: CapitalRepository> CapitalService<R> {
         pool: &PgPool,
         covenant_id: Uuid,
         test_date: NaiveDate,
-        actual_value: Option<Decimal>,
+        actual_value: Option<BigDecimal>,
         is_compliant: Option<bool>,
-        headroom: Option<Decimal>,
-        notes: Option<&str>,
+        headroom: Option<BigDecimal>,
+        notes: String,
         tested_by: Uuid,
     ) -> Result<DebtCovenantTest, AppError> {
         let mut tx = pool.begin().await?;
@@ -455,7 +458,7 @@ impl<R: CapitalRepository> CapitalService<R> {
     ) -> Result<DebtCollateral, AppError> {
         payload
             .validate()
-            .map_err(|e| AppError::Validation(e.to_string()))?;
+            .map_err(|e| AppError::Unprocessable(e.to_string()))?;
 
         let mut tx = pool.begin().await?;
         let collateral = self.repo.create_collateral(&mut tx, payload).await?;
@@ -471,7 +474,7 @@ impl<R: CapitalRepository> CapitalService<R> {
     ) -> Result<DebtRefinancing, AppError> {
         payload
             .validate()
-            .map_err(|e| AppError::Validation(e.to_string()))?;
+            .map_err(|e| AppError::Unprocessable(e.to_string()))?;
 
         let mut tx = pool.begin().await?;
         let refinancing = self
@@ -494,7 +497,7 @@ impl<R: CapitalRepository> CapitalService<R> {
     ) -> Result<ShareClass, AppError> {
         payload
             .validate()
-            .map_err(|e| AppError::Validation(e.to_string()))?;
+            .map_err(|e| AppError::Unprocessable(e.to_string()))?;
 
         let mut tx = pool.begin().await?;
         let share_class = self
@@ -530,7 +533,7 @@ impl<R: CapitalRepository> CapitalService<R> {
     ) -> Result<Shareholder, AppError> {
         payload
             .validate()
-            .map_err(|e| AppError::Validation(e.to_string()))?;
+            .map_err(|e| AppError::Unprocessable(e.to_string()))?;
 
         let mut tx = pool.begin().await?;
         let shareholder = self
@@ -573,10 +576,10 @@ impl<R: CapitalRepository> CapitalService<R> {
     ) -> Result<ShareTransaction, AppError> {
         payload
             .validate()
-            .map_err(|e| AppError::Validation(e.to_string()))?;
+            .map_err(|e| AppError::Unprocessable(e.to_string()))?;
 
         if payload.shares <= 0 {
-            return Err(AppError::Validation(
+            return Err(AppError::Unprocessable(
                 "shares must be greater than zero".into(),
             ));
         }
@@ -609,10 +612,10 @@ impl<R: CapitalRepository> CapitalService<R> {
     ) -> Result<Dividend, AppError> {
         payload
             .validate()
-            .map_err(|e| AppError::Validation(e.to_string()))?;
+            .map_err(|e| AppError::Unprocessable(e.to_string()))?;
 
-        if payload.dividend_per_share < Decimal::ZERO {
-            return Err(AppError::Validation(
+        if payload.dividend_per_share < BigDecimal::zero() {
+            return Err(AppError::Unprocessable(
                 "dividend_per_share cannot be negative".into(),
             ));
         }
@@ -649,7 +652,7 @@ impl<R: CapitalRepository> CapitalService<R> {
     ) -> Result<EquityAccount, AppError> {
         payload
             .validate()
-            .map_err(|e| AppError::Validation(e.to_string()))?;
+            .map_err(|e| AppError::Unprocessable(e.to_string()))?;
 
         let mut tx = pool.begin().await?;
         let account = self
@@ -676,7 +679,7 @@ impl<R: CapitalRepository> CapitalService<R> {
     ) -> Result<EquityMovement, AppError> {
         payload
             .validate()
-            .map_err(|e| AppError::Validation(e.to_string()))?;
+            .map_err(|e| AppError::Unprocessable(e.to_string()))?;
 
         let mut tx = pool.begin().await?;
         let movement = self
@@ -712,7 +715,7 @@ impl<R: CapitalRepository> CapitalService<R> {
     ) -> Result<CapitalStructureSnapshot, AppError> {
         payload
             .validate()
-            .map_err(|e| AppError::Validation(e.to_string()))?;
+            .map_err(|e| AppError::Unprocessable(e.to_string()))?;
 
         let mut tx = pool.begin().await?;
         let snapshot = self
@@ -739,10 +742,10 @@ impl<R: CapitalRepository> CapitalService<R> {
     ) -> Result<CapitalAllocation, AppError> {
         payload
             .validate()
-            .map_err(|e| AppError::Validation(e.to_string()))?;
+            .map_err(|e| AppError::Unprocessable(e.to_string()))?;
 
-        if payload.amount <= Decimal::ZERO {
-            return Err(AppError::Validation(
+        if payload.amount <= BigDecimal::zero() {
+            return Err(AppError::Unprocessable(
                 "allocation amount must be greater than zero".into(),
             ));
         }
@@ -776,7 +779,7 @@ impl<R: CapitalRepository> CapitalService<R> {
     ) -> Result<CapitalProject, AppError> {
         payload
             .validate()
-            .map_err(|e| AppError::Validation(e.to_string()))?;
+            .map_err(|e| AppError::Unprocessable(e.to_string()))?;
 
         let mut tx = pool.begin().await?;
         let project = self
@@ -814,7 +817,7 @@ impl<R: CapitalRepository> CapitalService<R> {
     ) -> Result<CapitalProject, AppError> {
         payload
             .validate()
-            .map_err(|e| AppError::Validation(e.to_string()))?;
+            .map_err(|e| AppError::Unprocessable(e.to_string()))?;
 
         let mut tx = pool.begin().await?;
         let project = self
@@ -832,7 +835,7 @@ impl<R: CapitalRepository> CapitalService<R> {
     ) -> Result<ProjectFunding, AppError> {
         payload
             .validate()
-            .map_err(|e| AppError::Validation(e.to_string()))?;
+            .map_err(|e| AppError::Unprocessable(e.to_string()))?;
 
         let mut tx = pool.begin().await?;
         let funding = self.repo.add_project_funding(&mut tx, payload).await?;
@@ -853,7 +856,7 @@ impl<R: CapitalRepository> CapitalService<R> {
     ) -> Result<CashForecast, AppError> {
         payload
             .validate()
-            .map_err(|e| AppError::Validation(e.to_string()))?;
+            .map_err(|e| AppError::Unprocessable(e.to_string()))?;
 
         let mut tx = pool.begin().await?;
         let forecast = self
@@ -872,7 +875,7 @@ impl<R: CapitalRepository> CapitalService<R> {
     ) -> Result<CashForecastLine, AppError> {
         payload
             .validate()
-            .map_err(|e| AppError::Validation(e.to_string()))?;
+            .map_err(|e| AppError::Unprocessable(e.to_string()))?;
 
         let mut tx = pool.begin().await?;
         let line = self
@@ -912,7 +915,7 @@ impl<R: CapitalRepository> CapitalService<R> {
     ) -> Result<CapitalMetric, AppError> {
         payload
             .validate()
-            .map_err(|e| AppError::Validation(e.to_string()))?;
+            .map_err(|e| AppError::Unprocessable(e.to_string()))?;
 
         let mut tx = pool.begin().await?;
         let metric = self
@@ -944,7 +947,7 @@ impl<R: CapitalRepository> CapitalService<R> {
     ) -> Result<WaccComponent, AppError> {
         payload
             .validate()
-            .map_err(|e| AppError::Validation(e.to_string()))?;
+            .map_err(|e| AppError::Unprocessable(e.to_string()))?;
 
         let mut tx = pool.begin().await?;
         let wacc = self.repo.upsert_wacc(&mut tx, company_id, payload).await?;
