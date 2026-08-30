@@ -429,7 +429,7 @@ async fn create_interest_accrual(
 ) -> Result<Response, AppError> {
     payload.facility_id = facility_id;
     let accrual = service()
-        .create_interest_accrual(&user.tenant_pool, &payload)
+        .create_interest_accrual(&user.tenant_pool, &payload, user.user_id)
         .await?;
     Ok(ApiResponse::created(accrual, "Interest accrual recorded"))
 }

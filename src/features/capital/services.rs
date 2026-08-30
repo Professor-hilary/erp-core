@@ -351,6 +351,7 @@ impl<R: CapitalRepository> CapitalService<R> {
         &self,
         pool: &PgPool,
         payload: &CreateInterestAccrual,
+        user_id: Uuid,
     ) -> Result<DebtInterestAccrual, AppError> {
         payload
             .validate()
@@ -363,7 +364,10 @@ impl<R: CapitalRepository> CapitalService<R> {
         }
 
         let mut tx = pool.begin().await?;
-        let accrual = self.repo.create_interest_accrual(&mut tx, payload).await?;
+        let accrual = self
+            .repo
+            .create_interest_accrual(&mut tx, payload, user_id)
+            .await?;
         tx.commit().await?;
         Ok(accrual)
     }

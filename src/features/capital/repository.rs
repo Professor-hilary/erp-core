@@ -2,9 +2,56 @@ use crate::{interface::api::errors::AppError, models::capital::*};
 
 use async_trait::async_trait;
 use bigdecimal::{BigDecimal, Zero};
-use chrono::NaiveDate;
+use chrono::{NaiveDate, Utc};
+use serde_json::{Value, json};
 use sqlx::{PgPool, Postgres, QueryBuilder, Transaction};
 use uuid::Uuid;
+
+/// One GL line
+fn gl_line(account_ref: Uuid, debit: BigDecimal, credit: BigDecimal, memo: &str) -> Value {
+    json!({
+        "account_ref": account_ref,
+        "debit": debit,
+        "credit": credit,
+        "memo": memo
+    })
+}
+
+/// Call your existing accounting.post_transaction
+/// (adjust to however you invoke Postgres functions from Rust)
+async fn post_gl(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    reference: &str,
+    description: &str,
+    user_id: Uuid,
+    txn_date: chrono::NaiveDate,
+    lines: Vec<Value>,
+) -> Result<Uuid, AppError> {
+    // Example using sqlx – adapt to your actual function signature
+    let lines_json = Value::Array(lines);
+
+    let row: (Uuid,) = sqlx::query_as(
+        r#"
+        SELECT accounting.post_transaction(
+            $1,                 -- reference
+            'Capital Posting',  -- description
+            $2,                 -- user_id
+            'capital',          -- module
+            $3,                 -- txn_date
+            $4                  -- lines jsonb
+        )
+        "#,
+    )
+    .bind(reference)
+    .bind(description)
+    .bind(user_id)
+    .bind(txn_date)
+    .bind(lines_json)
+    .fetch_one(&mut **tx)
+    .await?;
+
+    Ok(row.0) // journal_entry_id / txn_serial_id
+}
 
 // ---------------------------------------------------------------------------
 // Repository trait – comprehensive capital domain
@@ -166,6 +213,7 @@ pub trait CapitalRepository: Send + Sync {
         &self,
         tx: &mut Transaction<'_, Postgres>,
         payload: &CreateInterestAccrual,
+        user_id: Uuid,
     ) -> Result<DebtInterestAccrual, AppError>;
 
     async fn list_interest_accruals(
@@ -861,11 +909,11 @@ impl CapitalRepository for PostgresCapitalRepo {
         &self,
         tx: &mut Transaction<'_, Postgres>,
         _company_id: Uuid,
-        _user_id: Uuid,
+        user_id: Uuid,
         payload: &CreateDrawdown,
     ) -> Result<DebtDrawdown, AppError> {
         // Optionally: update facility drawn_amount / available_amount in same tx
-        let drawdown = sqlx::query_as::<_, DebtDrawdown>(
+        let drawdown: DebtDrawdown = sqlx::query_as::<_, DebtDrawdown>(
             r#"
             INSERT INTO capital.debt_drawdowns (
                 facility_id, instrument_id, drawdown_date, value_date,
@@ -900,6 +948,31 @@ impl CapitalRepository for PostgresCapitalRepo {
         .bind(payload.facility_id)
         .bind(&payload.amount)
         .execute(&mut **tx)
+        .await?;
+
+        let lines = vec![
+            gl_line(
+                payload.cash_account_id,
+                payload.amount.clone(), // debit cash
+                BigDecimal::zero(),
+                &format!("Debit drawdown - facility {}", payload.facility_id),
+            ),
+            gl_line(
+                payload.debt_payable_account_id,
+                BigDecimal::zero(),
+                payload.amount.clone(), // credit liability
+                "Debit drawdown - principal",
+            ),
+        ];
+
+        let _journal_id = post_gl(
+            tx,
+            &format!("CAP-DRDN-{}", drawdown.id),
+            &format!("Capital Drawdown {}", drawdown.id),
+            user_id,
+            payload.drawdown_date,
+            lines,
+        )
         .await?;
 
         Ok(drawdown)
@@ -979,7 +1052,7 @@ impl CapitalRepository for PostgresCapitalRepo {
         &self,
         tx: &mut Transaction<'_, Postgres>,
         _company_id: Uuid,
-        _user_id: Uuid,
+        user_id: Uuid,
         payload: &CreateRepayment,
     ) -> Result<DebtRepayment, AppError> {
         let repayment = sqlx::query_as::<_, DebtRepayment>(
@@ -1022,6 +1095,42 @@ impl CapitalRepository for PostgresCapitalRepo {
             .await?;
         }
 
+        let mut lines = vec![gl_line(
+            payload.debt_payable_account_id,
+            payload.principal_amount.clone(), // debit cash
+            BigDecimal::zero(),
+            "Debt Principal Repayment",
+        )];
+
+        if payload.interest_amount.clone() > BigDecimal::zero() {
+            lines.push(gl_line(
+                payload.int_accrd_or_exp_acc_id,
+                payload.interest_amount.clone(), // credit liability
+                BigDecimal::zero(),
+                "Debt Interest Repayment",
+            ));
+        }
+
+        // Get Total Interest and Principal
+        let total: BigDecimal = payload.principal_amount.clone() + payload.interest_amount.clone();
+
+        lines.push(gl_line(
+            payload.int_accrd_or_exp_acc_id.clone(),
+            BigDecimal::zero(),
+            total, // credit liability
+            "Debt Interest Repayment",
+        ));
+
+        let _journal_id = post_gl(
+            tx,
+            &format!("CAP-DEBT-PAY-{}", repayment.facility_id),
+            &format!("Debt  service repayment"),
+            user_id,
+            repayment.repayment_date,
+            lines,
+        )
+        .await?;
+
         Ok(repayment)
     }
 
@@ -1051,8 +1160,9 @@ impl CapitalRepository for PostgresCapitalRepo {
         &self,
         tx: &mut Transaction<'_, Postgres>,
         payload: &CreateInterestAccrual,
+        user_id: Uuid,
     ) -> Result<DebtInterestAccrual, AppError> {
-        let row = sqlx::query_as::<_, DebtInterestAccrual>(
+        let interest = sqlx::query_as::<_, DebtInterestAccrual>(
             r#"
             INSERT INTO capital.debt_interest_accruals (
                 facility_id, instrument_id, period_start, period_end,
@@ -1076,7 +1186,35 @@ impl CapitalRepository for PostgresCapitalRepo {
         .fetch_one(&mut **tx)
         .await?;
 
-        Ok(row)
+        let lines = vec![
+            gl_line(
+                payload.interest_exp_id,
+                payload.interest_amount.clone(), // debit cash
+                BigDecimal::zero(),
+                "Interest accrual",
+            ),
+            gl_line(
+                payload.interest_acc_id,
+                BigDecimal::zero(),
+                payload.interest_amount.clone(), // credit liability
+                "Interest payable",
+            ),
+        ];
+
+        let _journal_id = post_gl(
+            tx,
+            &format!("CAP-INT-ACRR-{}", interest.id),
+            &format!(
+                "Interest accrual {} - {}",
+                payload.period_start, payload.period_end
+            ),
+            user_id,
+            Utc::now().date_naive(),
+            lines,
+        )
+        .await?;
+
+        Ok(interest)
     }
 
     async fn list_interest_accruals(
@@ -1442,10 +1580,10 @@ impl CapitalRepository for PostgresCapitalRepo {
         &self,
         tx: &mut Transaction<'_, Postgres>,
         company_id: Uuid,
-        _user_id: Uuid,
+        user_id: Uuid,
         payload: &CreateShareTransaction,
     ) -> Result<ShareTransaction, AppError> {
-        let row = sqlx::query_as::<_, ShareTransaction>(
+        let share_issuance = sqlx::query_as::<_, ShareTransaction>(
             r#"
             INSERT INTO capital.share_transactions (
                 company_id, share_class_id, transaction_type, transaction_date,
@@ -1547,7 +1685,46 @@ impl CapitalRepository for PostgresCapitalRepo {
             .await?;
         }
 
-        Ok(row)
+        if let Some(total_consideration) = payload.total_consideration.clone() {
+            // Post this transaction
+            let mut lines = vec![
+                gl_line(
+                    payload.cash_account_id,
+                    total_consideration.clone(), // debit cash
+                    BigDecimal::zero(),
+                    &format!("Share issue proceeds"),
+                ),
+                gl_line(
+                    payload.share_capital_account_id,
+                    BigDecimal::zero(),
+                    total_consideration.clone(), // credit liability
+                    "Share capital",
+                ),
+            ];
+
+            if let Some(premium) = share_issuance.premium.clone() {
+                if premium > BigDecimal::zero() {
+                    lines.push(gl_line(
+                        payload.share_premium_account_id,
+                        BigDecimal::zero(),
+                        premium, // credit liability
+                        "Share premium",
+                    ))
+                }
+            }
+
+            let _journal_id = post_gl(
+                tx,
+                &format!("CAP-SHARE-ISS-{}", payload.share_class_id),
+                "Share issuance",
+                user_id,
+                payload.transaction_date,
+                lines,
+            )
+            .await?;
+        }
+
+        Ok(share_issuance)
     }
 
     async fn list_share_transactions(

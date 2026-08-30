@@ -232,6 +232,8 @@ pub struct CreateDrawdown {
     pub reference: Option<String>,
     pub purpose: Option<String>,
     pub status: Option<String>,
+    pub cash_account_id: Uuid,
+    pub debt_payable_account_id: Uuid,
 }
 
 // =============================================================================
@@ -294,6 +296,9 @@ pub struct CreateRepayment {
     pub payment_method: Option<String>,
     pub reference: Option<String>,
     pub journal_entry_id: Option<Uuid>,
+    pub debt_payable_account_id: Uuid,
+    pub int_accrd_or_exp_acc_id: Uuid,
+    pub cash_account_id: Uuid,
 }
 
 // =============================================================================
@@ -328,6 +333,8 @@ pub struct CreateInterestAccrual {
     pub interest_amount: BigDecimal,
     pub is_paid: Option<bool>,
     pub journal_entry_id: Option<Uuid>,
+    pub interest_exp_id: Uuid,
+    pub interest_acc_id: Uuid,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
@@ -593,6 +600,9 @@ pub struct CreateShareTransaction {
     pub currency_id: Option<Uuid>,
     pub premium: Option<BigDecimal>,
     pub journal_entry_id: Option<Uuid>,
+    pub cash_account_id: Uuid,
+    pub share_capital_account_id: Uuid,
+    pub share_premium_account_id: Uuid,
     pub reference: Option<String>,
     pub notes: Option<String>,
 }
