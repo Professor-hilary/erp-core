@@ -636,6 +636,8 @@ pub struct CreateDividend {
     pub dividend_per_share: BigDecimal,
     pub total_declared: Option<BigDecimal>,
     pub currency_id: Option<Uuid>,
+    pub retained_earning_id: Uuid,
+    pub dividend_payable_id: Uuid,
     pub status: Option<String>,
 }
 
@@ -652,6 +654,26 @@ pub struct DividendPayment {
     pub payment_reference: Option<String>,
     pub journal_entry_id: Option<Uuid>,
     pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow, Validate)]
+pub struct CreateDividendPayment {
+    pub dividend_id: Uuid,
+    pub shareholder_id: Uuid,
+    pub shares_held: i64,
+    pub gross_amount: BigDecimal,
+    pub withholding_tax: Option<BigDecimal>,
+    pub payment_date: Option<NaiveDate>,
+    pub payment_reference: Option<String>,
+    pub journal_entry_id: Option<Uuid>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow, Validate)]
+pub struct PayDividendRequest {
+    pub dividend_id: Uuid,
+    pub payment_date: NaiveDate,
+    pub payment_reference_prefix: Option<String>,
+    pub withholding_rate: Option<BigDecimal>,
 }
 
 // =============================================================================

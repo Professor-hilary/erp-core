@@ -1,3 +1,4 @@
+// src/features/capital/handler.rs
 use axum::{
     Extension, Router,
     extract::{Json, Path, Query},
@@ -6,6 +7,7 @@ use axum::{
 };
 use bigdecimal::BigDecimal;
 use serde::Deserialize;
+use serde_json::json;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -87,6 +89,8 @@ pub fn router() -> Router<Arc<AppState>> {
             post(create_share_transaction).get(list_share_transactions),
         )
         .route("/dividends", post(create_dividend).get(list_dividends))
+        .route("/dividends/{id}/pay", post(pay_dividend))
+        .route("/dividends/{id}/payments", get(list_dividend_payments))
         // ----- Equity accounts / retained earnings -----
         .route(
             "/equity-accounts",
@@ -612,7 +616,7 @@ async fn create_dividend(
     Json(payload): Json<CreateDividend>,
 ) -> Result<Response, AppError> {
     let div = service()
-        .create_dividend(&user.tenant_pool, user.company_id, &payload)
+        .create_dividend(&user.tenant_pool, user.company_id, &payload, user.user_id)
         .await?;
     Ok(ApiResponse::created(div, "Dividend created"))
 }
@@ -627,6 +631,39 @@ async fn list_dividends(
     Ok(ApiResponse::success(items, "Dividends fetched"))
 }
 
+async fn pay_dividend(
+    Extension(user): Extension<AuthenticatedTenant>,
+    Json(payload): Json<PayDividendRequest>,
+) -> Result<Response, AppError> {
+    // Resolve GL accounts from company defaults if you have them
+    let (payable, cash) = (None, None); // or load from config
+
+    let (dividend, payments) = service()
+        .pay_dividend(
+            &user.tenant_pool,
+            user.company_id,
+            user.user_id,
+            &payload,
+            payable,
+            cash,
+        )
+        .await?;
+
+    Ok(ApiResponse::success(
+        json!({ "dividend": dividend, "payments": payments }),
+        "Dividend paid",
+    ))
+}
+
+async fn list_dividend_payments(
+    Path(dividend_id): Path<Uuid>,
+    Extension(user): Extension<AuthenticatedTenant>,
+) -> Result<Response, AppError> {
+    let payments = service()
+        .list_dividend_payments(&user.tenant_pool, dividend_id)
+        .await?;
+    Ok(ApiResponse::success(payments, "Dividend payments fetched"))
+}
 // ===========================================================================
 // Equity accounts / movements
 // ===========================================================================

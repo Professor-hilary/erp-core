@@ -1,3 +1,4 @@
+// src/features/capital/repository.rs
 use crate::{interface::api::errors::AppError, models::capital::*};
 
 use async_trait::async_trait;
@@ -8,7 +9,7 @@ use sqlx::{PgPool, Postgres, QueryBuilder, Transaction};
 use uuid::Uuid;
 
 /// One GL line
-fn gl_line(account_ref: Uuid, debit: BigDecimal, credit: BigDecimal, memo: &str) -> Value {
+pub fn gl_line(account_ref: Uuid, debit: BigDecimal, credit: BigDecimal, memo: &str) -> Value {
     json!({
         "account_ref": account_ref,
         "debit": debit,
@@ -19,7 +20,7 @@ fn gl_line(account_ref: Uuid, debit: BigDecimal, credit: BigDecimal, memo: &str)
 
 /// Call your existing accounting.post_transaction
 /// (adjust to however you invoke Postgres functions from Rust)
-async fn post_gl(
+pub async fn post_gl(
     tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
     reference: &str,
     description: &str,
@@ -337,6 +338,7 @@ pub trait CapitalRepository: Send + Sync {
         tx: &mut Transaction<'_, Postgres>,
         company_id: Uuid,
         payload: &CreateDividend,
+        user_id: Uuid,
     ) -> Result<Dividend, AppError>;
 
     async fn list_dividends(
@@ -345,6 +347,35 @@ pub trait CapitalRepository: Send + Sync {
         company_id: Uuid,
         share_class_id: Option<Uuid>,
     ) -> Result<Vec<Dividend>, AppError>;
+
+    async fn create_dividend_payment(
+        &self,
+        tx: &mut Transaction<'_, Postgres>,
+        payload: &CreateDividendPayment,
+    ) -> Result<DividendPayment, AppError>;
+
+    async fn list_dividend_payments(
+        &self,
+        pool: &PgPool,
+        dividend_id: Uuid,
+    ) -> Result<Vec<DividendPayment>, AppError>;
+
+    /// Holdings at (or nearest before) record date for a share class
+    async fn list_shareholdings_for_dividend(
+        &self,
+        pool: &PgPool,
+        company_id: Uuid,
+        share_class_id: Uuid,
+    ) -> Result<Vec<Shareholding>, AppError>;
+
+    async fn mark_dividend_paid(
+        &self,
+        tx: &mut Transaction<'_, Postgres>,
+        company_id: Uuid,
+        dividend_id: Uuid,
+        payment_date: NaiveDate,
+        journal_entry_id: Option<Uuid>,
+    ) -> Result<Dividend, AppError>;
 
     // =========================================================================
     // 11. Equity Accounts & Movements (Retained Earnings etc.)
@@ -1755,6 +1786,7 @@ impl CapitalRepository for PostgresCapitalRepo {
         tx: &mut Transaction<'_, Postgres>,
         company_id: Uuid,
         payload: &CreateDividend,
+        user_id: Uuid,
     ) -> Result<Dividend, AppError> {
         let row = sqlx::query_as::<_, Dividend>(
             r#"
@@ -1785,6 +1817,34 @@ impl CapitalRepository for PostgresCapitalRepo {
         .fetch_one(&mut **tx)
         .await?;
 
+        // Post gl to transaction
+        if let Some(total_declared) = payload.total_declared.clone() {
+            let lines = vec![
+                gl_line(
+                    payload.retained_earning_id,
+                    total_declared.clone(), // debit retained earnings
+                    BigDecimal::zero(),
+                    "Dividend declared",
+                ),
+                gl_line(
+                    payload.dividend_payable_id,
+                    BigDecimal::zero(),
+                    total_declared.clone(), // credit dividends accruied
+                    "Dividend payable",
+                ),
+            ];
+
+            let _journal_id = post_gl(
+                tx,
+                &format!("CAP-DIVD-{}", row.id),
+                "Dividend declaration",
+                user_id,
+                payload.declaration_date,
+                lines,
+            )
+            .await?;
+        }
+
         Ok(row)
     }
 
@@ -1805,6 +1865,127 @@ impl CapitalRepository for PostgresCapitalRepo {
 
         let rows = qb.build_query_as::<Dividend>().fetch_all(pool).await?;
         Ok(rows)
+    }
+
+    async fn create_dividend_payment(
+        &self,
+        tx: &mut Transaction<'_, Postgres>,
+        payload: &CreateDividendPayment,
+    ) -> Result<DividendPayment, AppError> {
+        let withholding = payload
+            .withholding_tax
+            .clone()
+            .unwrap_or(BigDecimal::zero());
+
+        let row = sqlx::query_as::<_, DividendPayment>(
+            r#"
+        INSERT INTO capital.dividend_payments (
+            dividend_id,
+            shareholder_id,
+            shares_held,
+            gross_amount,
+            withholding_tax,
+            payment_date,
+            payment_reference,
+            journal_entry_id
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        RETURNING *
+        "#,
+        )
+        .bind(payload.dividend_id)
+        .bind(payload.shareholder_id)
+        .bind(payload.shares_held)
+        .bind(&payload.gross_amount)
+        .bind(withholding)
+        .bind(payload.payment_date)
+        .bind(&payload.payment_reference)
+        .bind(payload.journal_entry_id)
+        .fetch_one(&mut **tx)
+        .await?;
+
+        Ok(row)
+    }
+
+    async fn list_dividend_payments(
+        &self,
+        pool: &PgPool,
+        dividend_id: Uuid,
+    ) -> Result<Vec<DividendPayment>, AppError> {
+        let rows = sqlx::query_as::<_, DividendPayment>(
+            r#"
+        SELECT *
+        FROM capital.dividend_payments
+        WHERE dividend_id = $1
+        ORDER BY created_at
+        "#,
+        )
+        .bind(dividend_id)
+        .fetch_all(pool)
+        .await?;
+
+        Ok(rows)
+    }
+
+    async fn list_shareholdings_for_dividend(
+        &self,
+        pool: &PgPool,
+        company_id: Uuid,
+        share_class_id: Uuid,
+    ) -> Result<Vec<Shareholding>, AppError> {
+        // Uses the current shareholdings table (maintained by share transactions).
+        // If you need strict record-date reconstruction, replace with a point-in-time
+        // query over share_transactions.
+        let rows = sqlx::query_as::<_, Shareholding>(
+            r#"
+        SELECT *
+        FROM capital.shareholdings
+        WHERE company_id = $1
+          AND share_class_id = $2
+          AND shares_held > 0
+        ORDER BY shares_held DESC
+        "#,
+        )
+        .bind(company_id)
+        .bind(share_class_id)
+        .fetch_all(pool)
+        .await?;
+
+        Ok(rows)
+    }
+
+    async fn mark_dividend_paid(
+        &self,
+        tx: &mut Transaction<'_, Postgres>,
+        company_id: Uuid,
+        dividend_id: Uuid,
+        payment_date: NaiveDate,
+        journal_entry_id: Option<Uuid>,
+    ) -> Result<Dividend, AppError> {
+        let row = sqlx::query_as::<_, Dividend>(
+            r#"
+        UPDATE capital.dividends
+        SET
+            status           = 'paid',
+            payment_date     = COALESCE(payment_date, $3),
+            journal_entry_id = COALESCE($4, journal_entry_id)
+        WHERE id = $1
+          AND company_id = $2
+          AND status IN ('declared', 'record_passed', 'proposed')
+        RETURNING *
+        "#,
+        )
+        .bind(dividend_id)
+        .bind(company_id)
+        .bind(payment_date)
+        .bind(journal_entry_id)
+        .fetch_optional(&mut **tx)
+        .await?
+        .ok_or_else(|| {
+            AppError::NotFound("Dividend not found or not in a payable status".into())
+        })?;
+
+        Ok(row)
     }
 
     // -------------------------------------------------------------------------

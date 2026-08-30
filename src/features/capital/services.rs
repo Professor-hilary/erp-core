@@ -1,10 +1,11 @@
+// src/features/capital/services.rs
 use crate::{
-    features::capital::repository::CapitalRepository, interface::api::errors::AppError,
+    features::capital::repository::{CapitalRepository, gl_line, post_gl},
+    interface::api::errors::AppError,
     models::capital::*,
 };
 
-use bigdecimal::BigDecimal;
-use bigdecimal::Zero;
+use bigdecimal::{BigDecimal, Zero};
 use chrono::NaiveDate;
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -613,6 +614,7 @@ impl<R: CapitalRepository> CapitalService<R> {
         pool: &PgPool,
         company_id: Uuid,
         payload: &CreateDividend,
+        user_id: Uuid,
     ) -> Result<Dividend, AppError> {
         payload
             .validate()
@@ -627,7 +629,7 @@ impl<R: CapitalRepository> CapitalService<R> {
         let mut tx = pool.begin().await?;
         let dividend = self
             .repo
-            .create_dividend(&mut tx, company_id, payload)
+            .create_dividend(&mut tx, company_id, payload, user_id)
             .await?;
         tx.commit().await?;
         Ok(dividend)
@@ -642,6 +644,138 @@ impl<R: CapitalRepository> CapitalService<R> {
         self.repo
             .list_dividends(pool, company_id, share_class_id)
             .await
+    }
+
+    /// Generate payments for all current holders and mark dividend as paid.
+    pub async fn pay_dividend(
+        &self,
+        pool: &PgPool,
+        company_id: Uuid,
+        user_id: Uuid,
+        req: &PayDividendRequest,
+        // optional GL account overrides / defaults
+        dividend_payable_account: Option<Uuid>,
+        cash_account: Option<Uuid>,
+    ) -> Result<(Dividend, Vec<DividendPayment>), AppError> {
+        req.validate()
+            .map_err(|e| AppError::Unprocessable(e.to_string()))?;
+
+        // 1. Load dividend
+        let dividend = self
+            .repo
+            .list_dividends(pool, company_id, None)
+            .await?
+            .into_iter()
+            .find(|d| d.id == req.dividend_id)
+            .ok_or_else(|| AppError::NotFound("Dividend not found".into()))?;
+
+        if dividend.status == "paid" {
+            return Err(AppError::Unprocessable("Dividend is already paid".into()));
+        }
+
+        // 2. Holdings for that share class
+        let holdings = self
+            .repo
+            .list_shareholdings_for_dividend(pool, company_id, dividend.share_class_id)
+            .await?;
+
+        if holdings.is_empty() {
+            return Err(AppError::Unprocessable(
+                "No shareholdings found for this share class".into(),
+            ));
+        }
+
+        let rate = req.withholding_rate.clone().unwrap_or(BigDecimal::zero());
+        let mut tx = pool.begin().await?;
+        let mut payments = Vec::with_capacity(holdings.len());
+        let mut total_net = BigDecimal::zero();
+
+        // 3. One payment row per holder
+        for h in &holdings {
+            let gross = dividend.dividend_per_share.clone() * BigDecimal::from(h.shares_held);
+            let withholding = (gross.clone() * rate.clone()).round(2);
+            let net = gross.clone() - withholding.clone();
+            total_net += net;
+
+            let reference = req
+                .payment_reference_prefix
+                .as_ref()
+                .map(|p| format!("{}-{}", p, h.shareholder_id));
+
+            let payload = CreateDividendPayment {
+                dividend_id: dividend.id,
+                shareholder_id: h.shareholder_id,
+                shares_held: h.shares_held,
+                gross_amount: gross.clone(),
+                withholding_tax: Some(withholding.clone()),
+                payment_date: Some(req.payment_date),
+                payment_reference: reference,
+                journal_entry_id: None,
+            };
+
+            let payment = self.repo.create_dividend_payment(&mut tx, &payload).await?;
+            payments.push(payment);
+        }
+
+        // 4. Optional GL: Dr Dividend Payable, Cr Cash (net)
+        //    (Withholding would credit a tax payable account if you track it)
+        let journal_id =
+            if let (Some(payable), Some(cash)) = (dividend_payable_account, cash_account) {
+                if total_net > BigDecimal::zero() {
+                    let lines = vec![
+                        gl_line(
+                            payable,
+                            total_net.clone(),
+                            BigDecimal::zero(),
+                            "Dividend payable settlement",
+                        ),
+                        gl_line(
+                            cash,
+                            BigDecimal::zero(),
+                            total_net.clone(),
+                            &format!("Dividend payment – {}", dividend.id),
+                        ),
+                    ];
+                    Some(
+                        post_gl(
+                            &mut tx,
+                            &format!("CAP-DIV-PAY-{}", dividend.id),
+                            &format!("Dividend payment"),
+                            user_id,
+                            req.payment_date,
+                            lines,
+                        )
+                        .await?,
+                    )
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+
+        // 5. Mark dividend paid
+        let paid = self
+            .repo
+            .mark_dividend_paid(
+                &mut tx,
+                company_id,
+                dividend.id,
+                req.payment_date,
+                journal_id,
+            )
+            .await?;
+
+        tx.commit().await?;
+        Ok((paid, payments))
+    }
+
+    pub async fn list_dividend_payments(
+        &self,
+        pool: &PgPool,
+        dividend_id: Uuid,
+    ) -> Result<Vec<DividendPayment>, AppError> {
+        self.repo.list_dividend_payments(pool, dividend_id).await
     }
 
     // =========================================================================
