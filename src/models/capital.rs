@@ -14,6 +14,7 @@ use validator::Validate;
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct CapitalInstrument {
     pub id: Uuid,
+    pub serial_id: i64,
     pub company_id: Uuid,
     pub instrument_code: String,
     pub name: String,
@@ -83,6 +84,7 @@ pub struct UpdateCapitalInstrument {
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct CapitalEvent {
     pub id: Uuid,
+    pub serial_id: i64,
     pub company_id: Uuid,
     pub instrument_id: Option<Uuid>,
     pub event_type: String,
@@ -119,6 +121,7 @@ pub struct CreateCapitalEvent {
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct CapitalFacility {
     pub id: Uuid,
+    pub serial_id: i64,
     pub company_id: Uuid,
     pub instrument_id: Option<Uuid>,
     pub facility_code: String,
@@ -193,6 +196,7 @@ pub struct UpdateCapitalFacility {
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct FacilityLender {
     pub id: Uuid,
+    pub serial_id: i64,
     pub facility_id: Uuid,
     pub lender_id: Uuid,
     pub commitment_amount: BigDecimal,
@@ -208,6 +212,7 @@ pub struct FacilityLender {
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct DebtDrawdown {
     pub id: Uuid,
+    pub serial_id: i64,
     pub facility_id: Uuid,
     pub instrument_id: Option<Uuid>,
     pub drawdown_date: NaiveDate,
@@ -243,6 +248,7 @@ pub struct CreateDrawdown {
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct DebtRepaymentSchedule {
     pub id: Uuid,
+    pub serial_id: i64,
     pub facility_id: Uuid,
     pub instrument_id: Option<Uuid>,
     pub sequence_no: i32,
@@ -270,6 +276,7 @@ pub struct CreateRepaymentSchedule {
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct DebtRepayment {
     pub id: Uuid,
+    pub serial_id: i64,
     pub facility_id: Uuid,
     pub schedule_id: Option<Uuid>,
     pub repayment_date: NaiveDate,
@@ -308,6 +315,7 @@ pub struct CreateRepayment {
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct DebtInterestAccrual {
     pub id: Uuid,
+    pub serial_id: i64,
     pub facility_id: Uuid,
     pub instrument_id: Option<Uuid>,
     pub period_start: NaiveDate,
@@ -340,6 +348,7 @@ pub struct CreateInterestAccrual {
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct DebtFee {
     pub id: Uuid,
+    pub serial_id: i64,
     pub facility_id: Uuid,
     pub fee_type: String,
     pub fee_date: NaiveDate,
@@ -368,6 +377,7 @@ pub struct CreateDebtFee {
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct DebtCovenant {
     pub id: Uuid,
+    pub serial_id: i64,
     pub facility_id: Uuid,
     pub covenant_code: String,
     pub covenant_name: String,
@@ -406,6 +416,7 @@ pub struct CreateDebtCovenant {
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct DebtCovenantTest {
     pub id: Uuid,
+    pub serial_id: i64,
     pub covenant_id: Uuid,
     pub test_date: NaiveDate,
     pub actual_value: Option<BigDecimal>,
@@ -423,6 +434,7 @@ pub struct DebtCovenantTest {
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct DebtCollateral {
     pub id: Uuid,
+    pub serial_id: i64,
     pub facility_id: Uuid,
     pub collateral_type: String,
     pub description: Option<String>,
@@ -449,6 +461,7 @@ pub struct CreateDebtCollateral {
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct DebtRefinancing {
     pub id: Uuid,
+    pub serial_id: i64,
     pub company_id: Uuid,
     pub old_facility_id: Uuid,
     pub new_facility_id: Option<Uuid>,
@@ -478,6 +491,7 @@ pub struct CreateDebtRefinancing {
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct ShareClass {
     pub id: Uuid,
+    pub serial_id: i64,
     pub company_id: Uuid,
     pub class_code: String,
     pub name: String,
@@ -528,6 +542,7 @@ pub struct UpdateShareClass {
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct Shareholder {
     pub id: Uuid,
+    pub serial_id: i64,
     pub company_id: Uuid,
     pub party_id: Option<Uuid>,
     pub name: String,
@@ -552,6 +567,7 @@ pub struct CreateShareholder {
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct Shareholding {
     pub id: Uuid,
+    pub serial_id: i64,
     pub company_id: Uuid,
     pub share_class_id: Uuid,
     pub shareholder_id: Uuid,
@@ -570,6 +586,7 @@ pub struct Shareholding {
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct ShareTransaction {
     pub id: Uuid,
+    pub serial_id: i64,
     pub company_id: Uuid,
     pub share_class_id: Uuid,
     pub transaction_type: String,
@@ -610,6 +627,7 @@ pub struct CreateShareTransaction {
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct Dividend {
     pub id: Uuid,
+    pub serial_id: i64,
     pub company_id: Uuid,
     pub share_class_id: Uuid,
     pub dividend_type: String,
@@ -644,6 +662,7 @@ pub struct CreateDividend {
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct DividendPayment {
     pub id: Uuid,
+    pub serial_id: i64,
     pub dividend_id: Uuid,
     pub shareholder_id: Uuid,
     pub shares_held: i64,
@@ -683,6 +702,7 @@ pub struct PayDividendRequest {
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct EquityAccount {
     pub id: Uuid,
+    pub serial_id: i64,
     pub company_id: Uuid,
     pub account_code: String,
     pub account_name: String,
@@ -704,6 +724,7 @@ pub struct CreateEquityAccount {
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct EquityMovement {
     pub id: Uuid,
+    pub serial_id: i64,
     pub company_id: Uuid,
     pub equity_account_id: Uuid,
     pub movement_date: NaiveDate,
@@ -739,6 +760,7 @@ pub struct CreateEquityMovement {
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct CapitalStructureSnapshot {
     pub id: Uuid,
+    pub serial_id: i64,
     pub company_id: Uuid,
     pub as_of_date: NaiveDate,
     pub total_debt: BigDecimal,
@@ -767,6 +789,7 @@ pub struct CreateCapitalStructureSnapshot {
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct CapitalAllocation {
     pub id: Uuid,
+    pub serial_id: i64,
     pub company_id: Uuid,
     pub allocation_code: Option<String>,
     pub capital_source_type: String,
@@ -804,6 +827,7 @@ pub struct CreateCapitalAllocation {
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct CapitalProject {
     pub id: Uuid,
+    pub serial_id: i64,
     pub company_id: Uuid,
     pub project_code: String,
     pub name: String,
@@ -857,6 +881,7 @@ pub struct UpdateCapitalProject {
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct ProjectFunding {
     pub id: Uuid,
+    pub serial_id: i64,
     pub project_id: Uuid,
     pub funding_source_type: String,
     pub funding_source_id: Uuid,
@@ -881,6 +906,7 @@ pub struct CreateProjectFunding {
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct InvestmentPosition {
     pub id: Uuid,
+    pub serial_id: i64,
     pub company_id: Uuid,
     pub position_name: String,
     pub asset_class: Option<String>,
@@ -916,6 +942,7 @@ pub struct CreateInvestmentPosition {
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct CashForecast {
     pub id: Uuid,
+    pub serial_id: i64,
     pub company_id: Uuid,
     pub forecast_name: Option<String>,
     pub forecast_date: NaiveDate,
@@ -943,6 +970,7 @@ pub struct CreateCashForecast {
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct CashForecastLine {
     pub id: Uuid,
+    pub serial_id: i64,
     pub forecast_id: Uuid,
     pub line_date: NaiveDate,
     pub category: String,
@@ -968,6 +996,7 @@ pub struct CreateCashForecastLine {
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct FundingRequirement {
     pub id: Uuid,
+    pub serial_id: i64,
     pub company_id: Uuid,
     pub requirement_date: NaiveDate,
     pub amount_needed: BigDecimal,
@@ -995,6 +1024,7 @@ pub struct CreateFundingRequirement {
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct CapitalMetric {
     pub id: Uuid,
+    pub serial_id: i64,
     pub company_id: Uuid,
     pub metric_date: NaiveDate,
     pub metric_code: String, // ROIC, ROE, DSCR, ICR, EVA, WACC...
@@ -1024,6 +1054,7 @@ pub struct CreateCapitalMetric {
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct WaccComponent {
     pub id: Uuid,
+    pub serial_id: i64,
     pub company_id: Uuid,
     pub as_of_date: NaiveDate,
     pub cost_of_equity: Option<BigDecimal>,

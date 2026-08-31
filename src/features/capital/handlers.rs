@@ -80,10 +80,9 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/share-classes/{id}", get(get_share_class))
         .route(
             "/shareholders",
-            post(create_shareholder)
-                .get(list_shareholders)
-                .get(get_shareholding),
+            post(create_shareholder).get(list_shareholders),
         )
+        .route("/shareholders/{id}", get(get_shareholding))
         .route(
             "/share-transactions",
             post(create_share_transaction).get(list_share_transactions),

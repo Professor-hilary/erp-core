@@ -998,8 +998,8 @@ impl CapitalRepository for PostgresCapitalRepo {
 
         let _journal_id = post_gl(
             tx,
-            &format!("CAP-DRDN-{}", drawdown.id),
-            &format!("Capital Drawdown {}", drawdown.id),
+            &format!("CAP-DRDN-{}", drawdown.serial_id),
+            &format!("Capital Drawdown"),
             user_id,
             payload.drawdown_date,
             lines,
@@ -1154,7 +1154,7 @@ impl CapitalRepository for PostgresCapitalRepo {
 
         let _journal_id = post_gl(
             tx,
-            &format!("CAP-DEBT-PAY-{}", repayment.facility_id),
+            &format!("CAP-DEBT-PAY-{}", repayment.serial_id),
             &format!("Debt  service repayment"),
             user_id,
             repayment.repayment_date,
@@ -1234,7 +1234,7 @@ impl CapitalRepository for PostgresCapitalRepo {
 
         let _journal_id = post_gl(
             tx,
-            &format!("CAP-INT-ACRR-{}", interest.id),
+            &format!("CAP-INT-ACRR-{}", interest.serial_id),
             &format!(
                 "Interest accrual {} - {}",
                 payload.period_start, payload.period_end
@@ -1746,7 +1746,7 @@ impl CapitalRepository for PostgresCapitalRepo {
 
             let _journal_id = post_gl(
                 tx,
-                &format!("CAP-SHARE-ISS-{}", payload.share_class_id),
+                &format!("CAP-SHARE-ISS-{}", share_issuance.serial_id),
                 "Share issuance",
                 user_id,
                 payload.transaction_date,
@@ -1788,7 +1788,7 @@ impl CapitalRepository for PostgresCapitalRepo {
         payload: &CreateDividend,
         user_id: Uuid,
     ) -> Result<Dividend, AppError> {
-        let row = sqlx::query_as::<_, Dividend>(
+        let dividend = sqlx::query_as::<_, Dividend>(
             r#"
             INSERT INTO capital.dividends (
                 company_id, share_class_id, dividend_type,
@@ -1836,7 +1836,7 @@ impl CapitalRepository for PostgresCapitalRepo {
 
             let _journal_id = post_gl(
                 tx,
-                &format!("CAP-DIVD-{}", row.id),
+                &format!("CAP-DIVD-{}", dividend.serial_id),
                 "Dividend declaration",
                 user_id,
                 payload.declaration_date,
@@ -1845,7 +1845,7 @@ impl CapitalRepository for PostgresCapitalRepo {
             .await?;
         }
 
-        Ok(row)
+        Ok(dividend)
     }
 
     async fn list_dividends(
