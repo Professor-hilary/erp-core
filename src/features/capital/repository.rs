@@ -61,7 +61,7 @@ pub async fn post_gl(
 #[async_trait]
 pub trait CapitalRepository: Send + Sync {
     // =========================================================================
-    // 1. Capital Instruments (unified register)
+    // 1. Capital Instruments
     // =========================================================================
     async fn create_instrument(
         &self,
@@ -93,6 +93,35 @@ pub trait CapitalRepository: Send + Sync {
         id: Uuid,
         payload: &UpdateCapitalInstrument,
     ) -> Result<CapitalInstrument, AppError>;
+
+    // =========================================================================
+    // 1. Parties and stakeholders
+    // =========================================================================
+    async fn create_party(
+        &self,
+        tx: &mut Transaction<'_, Postgres>,
+        company_id: Uuid,
+        _user_id: Uuid,
+        payload: &CreateParty,
+    ) -> Result<Party, AppError>;
+
+    async fn get_party(&self, pool: &PgPool, company_id: Uuid, id: Uuid)
+    -> Result<Party, AppError>;
+
+    async fn list_parties(
+        &self,
+        pool: &PgPool,
+        company_id: Uuid,
+        uuid: Uuid,
+    ) -> Result<Vec<Party>, AppError>;
+
+    async fn update_party(
+        &self,
+        tx: &mut Transaction<'_, Postgres>,
+        company_id: Uuid,
+        id: Uuid,
+        payload: &CreateParty,
+    ) -> Result<Party, AppError>;
 
     // =========================================================================
     // 2. Capital Events (audit / lifecycle)
@@ -681,6 +710,113 @@ impl CapitalRepository for PostgresCapitalRepo {
         .fetch_optional(&mut **tx)
         .await?
         .ok_or_else(|| AppError::NotFound("Capital instrument not found".into()))?;
+
+        Ok(row)
+    }
+
+    async fn create_party(
+        &self,
+        tx: &mut Transaction<'_, Postgres>,
+        company_id: Uuid,
+        _user_id: Uuid,
+        payload: &CreateParty,
+    ) -> Result<Party, AppError> {
+        let row = sqlx::query_as::<_, Party>(
+            r#"
+            INSERT INTO capital.capital_instruments (
+                company_id, party_type, legal_name,short_name,
+                registration_number,country_code,is_related_party
+            )
+            VALUES (
+                $1, $2, $3, $4, $5, $6, $COALESCE($7, false),
+            )
+            RETURNING *
+            "#,
+        )
+        .bind(company_id)
+        .bind(&payload.party_type)
+        .bind(&payload.legal_name)
+        .bind(&payload.short_name)
+        .bind(&payload.registration_number)
+        .bind(&payload.country_code)
+        .bind(&payload.is_related_party)
+        .fetch_one(&mut **tx)
+        .await?;
+
+        Ok(row)
+    }
+
+    async fn get_party(
+        &self,
+        pool: &PgPool,
+        company_id: Uuid,
+        id: Uuid,
+    ) -> Result<Party, AppError> {
+        sqlx::query_as::<_, Party>(
+            r#"
+            SELECT * FROM capital.parties
+            WHERE id = $1 AND company_id = $2
+            "#,
+        )
+        .bind(id)
+        .bind(company_id)
+        .fetch_optional(pool)
+        .await?
+        .ok_or_else(|| AppError::NotFound("Party not found".into()))
+    }
+
+    async fn list_parties(
+        &self,
+        pool: &PgPool,
+        company_id: Uuid,
+        uuid: Uuid,
+    ) -> Result<Vec<Party>, AppError> {
+        let rows = sqlx::query_as::<_, Party>(
+            r#"
+            SELECT * FROM capital.parties
+            WHERE company_id = $1 AND id = $2
+            "#,
+        )
+        .bind(company_id)
+        .bind(uuid)
+        .fetch_all(pool)
+        .await?;
+
+        Ok(rows)
+    }
+
+    async fn update_party(
+        &self,
+        tx: &mut Transaction<'_, Postgres>,
+        company_id: Uuid,
+        id: Uuid,
+        payload: &CreateParty,
+    ) -> Result<Party, AppError> {
+        let row = sqlx::query_as::<_, Party>(
+            r#"
+            UPDATE capital.capital_instruments SET
+                party_type          = COALESCE($3, party_type),
+                legal_name          = COALESCE($4, legal_name),
+                short_name          = COALESCE($5, short_name),
+                registration_number = COALESCE($6, registration_number),
+                country_code        = COALESCE($7, country_code),
+                is_related_party    = COALESCE($7, is_related_party),
+                updated_at          = now()
+            WHERE id = $1 AND company_id = $2
+            RETURNING *
+            "#,
+        )
+        .bind(id)
+        .bind(company_id)
+        .bind(&payload.party_type)
+        .bind(&payload.legal_name)
+        .bind(&payload.short_name)
+        .bind(&payload.registration_number)
+        .bind(&payload.country_code)
+        .bind(&payload.is_related_party)
+        .fetch_optional(&mut **tx)
+        .await?
+        .ok_or_else(|| AppError::NotFound("Party not found".into()))?;
 
         Ok(row)
     }
@@ -1449,8 +1585,7 @@ impl CapitalRepository for PostgresCapitalRepo {
     }
 
     // -------------------------------------------------------------------------
-    // Equity – Share Classes & Shareholders (abbreviated for length;
-    // follow the same pattern as above for the remaining methods)
+    // Shareholders
     // -------------------------------------------------------------------------
     async fn create_share_class(
         &self,

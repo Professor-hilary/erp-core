@@ -25,7 +25,7 @@ use crate::{
 
 pub fn router() -> Router<Arc<AppState>> {
     Router::new()
-        // ----- Instruments -----
+        // ----- Instruments & Parties -----
         .route(
             "/instruments",
             post(create_instrument).get(list_instruments),
@@ -38,6 +38,8 @@ pub fn router() -> Router<Arc<AppState>> {
             "/instruments/{id}/events",
             get(list_events_for_instrument).post(create_event),
         )
+        .route("/party", post(create_party).get(list_parties))
+        .route("/party/{id}", get(get_party).put(update_party))
         // ----- Facilities -----
         .route("/facilities", post(create_facility).get(list_facilities))
         .route("/facilities/{id}", get(get_facility).put(update_facility))
@@ -190,6 +192,51 @@ pub struct RecordCovenantTestPayload {
     pub is_compliant: Option<bool>,
     pub headroom: Option<BigDecimal>,
     pub notes: Option<String>,
+}
+
+// ===========================================================================
+// Parties
+// ===========================================================================
+
+async fn create_party(
+    Extension(user): Extension<AuthenticatedTenant>,
+    Json(payload): Json<CreateParty>,
+) -> Result<Response, AppError> {
+    let instrument = service()
+        .create_party(&user.tenant_pool, user.company_id, user.user_id, &payload)
+        .await?;
+    Ok(ApiResponse::created(instrument, "Party created"))
+}
+
+async fn get_party(
+    Path(id): Path<Uuid>,
+    Extension(user): Extension<AuthenticatedTenant>,
+) -> Result<Response, AppError> {
+    let party = service()
+        .get_party(&user.tenant_pool, user.company_id, id)
+        .await?;
+    Ok(ApiResponse::success(party, "Party fetched"))
+}
+
+async fn list_parties(
+    Path(id): Path<Uuid>,
+    Extension(user): Extension<AuthenticatedTenant>,
+) -> Result<Response, AppError> {
+    let items = service()
+        .list_parties(&user.tenant_pool, user.company_id, id)
+        .await?;
+    Ok(ApiResponse::success(items, "Party list fetched"))
+}
+
+async fn update_party(
+    Path(id): Path<Uuid>,
+    Extension(user): Extension<AuthenticatedTenant>,
+    Json(payload): Json<CreateParty>,
+) -> Result<Response, AppError> {
+    let party = service()
+        .update_party(&user.tenant_pool, user.company_id, id, &payload)
+        .await?;
+    Ok(ApiResponse::success(party, "Party updated"))
 }
 
 // ===========================================================================

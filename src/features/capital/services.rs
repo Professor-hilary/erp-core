@@ -21,6 +21,68 @@ impl<R: CapitalRepository> CapitalService<R> {
     }
 
     // =========================================================================
+    // 1. Parties
+    // =========================================================================
+
+    pub async fn create_party(
+        &self,
+        pool: &PgPool,
+        company_id: Uuid,
+        user_id: Uuid,
+        payload: &CreateParty,
+    ) -> Result<Party, AppError> {
+        payload
+            .validate()
+            .map_err(|e| AppError::Unprocessable(e.to_string()))?;
+
+        let mut tx = pool.begin().await?;
+        let party = self
+            .repo
+            .create_party(&mut tx, company_id, user_id, payload)
+            .await?;
+        tx.commit().await?;
+        Ok(party)
+    }
+
+    pub async fn get_party(
+        &self,
+        pool: &PgPool,
+        company_id: Uuid,
+        id: Uuid,
+    ) -> Result<Party, AppError> {
+        self.repo.get_party(pool, company_id, id).await
+    }
+
+    pub async fn list_parties(
+        &self,
+        pool: &PgPool,
+        company_id: Uuid,
+        uuid: Uuid,
+    ) -> Result<Vec<Party>, AppError> {
+        self.repo.list_parties(pool, company_id, uuid).await
+    }
+
+    pub async fn update_party(
+        &self,
+        pool: &PgPool,
+        company_id: Uuid,
+        id: Uuid,
+        payload: &CreateParty,
+    ) -> Result<Party, AppError> {
+        payload
+            .validate()
+            .map_err(|e| AppError::Unprocessable(e.to_string()))?;
+
+        let mut tx = pool.begin().await?;
+        let party = self
+            .repo
+            .update_party(&mut tx, company_id, id, payload)
+            .await?;
+        tx.commit().await?;
+        Ok(party)
+    }
+
+    // =========================================================================
     // 1. Capital Instruments
     // =========================================================================
 
