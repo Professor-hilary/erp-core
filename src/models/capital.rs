@@ -110,6 +110,8 @@ pub struct CreateCapitalEvent {
     pub currency_id: Option<Uuid>,
     pub shares: Option<i64>,
     pub description: Option<String>,
+    pub capital_contrib_acc: Option<Uuid>,
+    pub cash_account: Option<Uuid>,
     pub related_party_id: Option<Uuid>,
     pub journal_entry_id: Option<Uuid>,
 }
