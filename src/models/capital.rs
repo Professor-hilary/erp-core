@@ -556,8 +556,9 @@ pub struct Shareholder {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Validate)]
 pub struct CreateParty {
-    pub party_type: Option<Uuid>,
+    pub party_type: Option<String>,
     pub legal_name: String,
+    pub role: Option<String>,
     pub short_name: String,
     pub registration_number: Option<String>,
     pub country_code: Option<String>,
@@ -569,12 +570,13 @@ pub struct Party {
     pub id: Uuid,
     pub serial_id: i64,
     pub company_id: Uuid,
-    pub party_type: Option<Uuid>,
+    pub party_type: Option<String>,
     pub legal_name: String,
     pub short_name: Option<String>,
     pub registration_number: Option<String>,
+    pub role: Option<String>,
     pub country_code: Option<String>,
-    pub is_related_party: bool,
+    pub is_related_party: Option<bool>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }

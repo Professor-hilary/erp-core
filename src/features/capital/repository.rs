@@ -723,12 +723,12 @@ impl CapitalRepository for PostgresCapitalRepo {
     ) -> Result<Party, AppError> {
         let row = sqlx::query_as::<_, Party>(
             r#"
-            INSERT INTO capital.capital_instruments (
-                company_id, party_type, legal_name,short_name,
-                registration_number,country_code,is_related_party
+            INSERT INTO capital.parties (
+                company_id, party_type, legal_name, role, short_name,
+                registration_number, country_code, is_related_party
             )
             VALUES (
-                $1, $2, $3, $4, $5, $6, $COALESCE($7, false),
+                $1, $2, $3, $4, $5, $6, $7, COALESCE($8, false)
             )
             RETURNING *
             "#,
@@ -736,6 +736,7 @@ impl CapitalRepository for PostgresCapitalRepo {
         .bind(company_id)
         .bind(&payload.party_type)
         .bind(&payload.legal_name)
+        .bind(&payload.role)
         .bind(&payload.short_name)
         .bind(&payload.registration_number)
         .bind(&payload.country_code)
@@ -794,13 +795,14 @@ impl CapitalRepository for PostgresCapitalRepo {
     ) -> Result<Party, AppError> {
         let row = sqlx::query_as::<_, Party>(
             r#"
-            UPDATE capital.capital_instruments SET
+            UPDATE capital.parties SET
                 party_type          = COALESCE($3, party_type),
                 legal_name          = COALESCE($4, legal_name),
                 short_name          = COALESCE($5, short_name),
-                registration_number = COALESCE($6, registration_number),
-                country_code        = COALESCE($7, country_code),
-                is_related_party    = COALESCE($7, is_related_party),
+                role                = COALESCE($6, role),
+                registration_number = COALESCE($7, registration_number),
+                country_code        = COALESCE($8, country_code),
+                is_related_party    = COALESCE($9, is_related_party),
                 updated_at          = now()
             WHERE id = $1 AND company_id = $2
             RETURNING *
@@ -811,6 +813,7 @@ impl CapitalRepository for PostgresCapitalRepo {
         .bind(&payload.party_type)
         .bind(&payload.legal_name)
         .bind(&payload.short_name)
+        .bind(&payload.role)
         .bind(&payload.registration_number)
         .bind(&payload.country_code)
         .bind(&payload.is_related_party)

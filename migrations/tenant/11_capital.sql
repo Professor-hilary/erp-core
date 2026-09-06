@@ -28,6 +28,7 @@ CREATE TABLE capital.parties (
                         'AGENT', 'TRUSTEE', 'RATING_AGENCY', 'OTHER'
                     )),
     legal_name      TEXT NOT NULL,
+    role            TEXT,
     short_name      TEXT,
     registration_number TEXT,
     country_code    CHAR(2),
