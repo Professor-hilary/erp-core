@@ -167,6 +167,49 @@ impl<R: CapitalRepository> CapitalService<R> {
             .repo
             .create_event(&mut tx, company_id, user_id, payload)
             .await?;
+
+        // Post to gl if capital contribution
+        if payload.event_type == "EQUITY_CONTRIBUTION" {
+            let _journal_id = if let (Some(capital), Some(cash), Some(amount), Some(txn_date)) = (
+                &payload.capital_contrib_acc,
+                &payload.cash_account,
+                payload.amount.clone(),
+                &payload.effective_date,
+            ) {
+                if amount > BigDecimal::zero() {
+                    let lines = vec![
+                        gl_line(
+                            *cash,
+                            amount.clone(),
+                            BigDecimal::zero(),
+                            "Cash or bank increament",
+                        ),
+                        gl_line(
+                            *capital,
+                            BigDecimal::zero(),
+                            amount.clone(),
+                            "Capital contribution",
+                        ),
+                    ];
+                    Some(
+                        post_gl(
+                            &mut tx,
+                            &format!("CAP-DIV-PAY-{}", &event.serial_id),
+                            "Capital contribution",
+                            user_id,
+                            *txn_date,
+                            lines,
+                        )
+                        .await?,
+                    )
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+        }
+
         tx.commit().await?;
         Ok(event)
     }
@@ -715,7 +758,6 @@ impl<R: CapitalRepository> CapitalService<R> {
         company_id: Uuid,
         user_id: Uuid,
         req: &PayDividendRequest,
-        // optional GL account overrides / defaults
         dividend_payable_account: Option<Uuid>,
         cash_account: Option<Uuid>,
     ) -> Result<(Dividend, Vec<DividendPayment>), AppError> {
