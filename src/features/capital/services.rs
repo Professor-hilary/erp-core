@@ -163,18 +163,18 @@ impl<R: CapitalRepository> CapitalService<R> {
             .map_err(|e| AppError::Unprocessable(e.to_string()))?;
 
         let mut tx = pool.begin().await?;
-        let event = self
+        let mut event = self
             .repo
             .create_event(&mut tx, company_id, user_id, payload)
             .await?;
 
         // Post to gl if capital contribution
         if payload.event_type == "EQUITY_CONTRIBUTION" {
-            let _journal_id = if let (Some(capital), Some(cash), Some(amount), Some(txn_date)) = (
+            let journal_id = if let (Some(capital), Some(cash), Some(amount), txn_date) = (
                 &payload.capital_contrib_acc,
                 &payload.cash_account,
                 payload.amount.clone(),
-                &payload.effective_date,
+                &payload.event_date,
             ) {
                 if amount > BigDecimal::zero() {
                     let lines = vec![
@@ -194,7 +194,7 @@ impl<R: CapitalRepository> CapitalService<R> {
                     Some(
                         post_gl(
                             &mut tx,
-                            &format!("CAP-DIV-PAY-{}", &event.serial_id),
+                            &format!("CAP-CONTRB-{}", &event.serial_id),
                             "Capital contribution",
                             user_id,
                             *txn_date,
@@ -208,6 +208,11 @@ impl<R: CapitalRepository> CapitalService<R> {
             } else {
                 None
             };
+
+            event = self
+                .repo
+                .update_event_journal_id(&mut tx, event.id, journal_id)
+                .await?;
         }
 
         tx.commit().await?;

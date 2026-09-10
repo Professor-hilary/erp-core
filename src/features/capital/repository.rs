@@ -406,6 +406,13 @@ pub trait CapitalRepository: Send + Sync {
         journal_entry_id: Option<Uuid>,
     ) -> Result<Dividend, AppError>;
 
+    async fn update_event_journal_id(
+        &self,
+        tx: &mut Transaction<'_, Postgres>,
+        uuid: Uuid,
+        journal_entry_id: Option<Uuid>,
+    ) -> Result<CapitalEvent, AppError>;
+
     // =========================================================================
     // 11. Equity Accounts & Movements (Retained Earnings etc.)
     // =========================================================================
@@ -2121,6 +2128,32 @@ impl CapitalRepository for PostgresCapitalRepo {
         .await?
         .ok_or_else(|| {
             AppError::NotFound("Dividend not found or not in a payable status".into())
+        })?;
+
+        Ok(row)
+    }
+
+    async fn update_event_journal_id(
+        &self,
+        tx: &mut Transaction<'_, Postgres>,
+        uuid: Uuid,
+        journal_entry_id: Option<Uuid>,
+    ) -> Result<CapitalEvent, AppError> {
+        let row = sqlx::query_as::<_, CapitalEvent>(
+            r#"
+        UPDATE capital.capital_event
+        SET
+            journal_entry_id = COALESCE($2)
+        WHERE id = $1
+        RETURNING *
+        "#,
+        )
+        .bind(uuid)
+        .bind(journal_entry_id)
+        .fetch_optional(&mut **tx)
+        .await?
+        .ok_or_else(|| {
+            AppError::NotFound("Capital event not found for user".into())
         })?;
 
         Ok(row)
