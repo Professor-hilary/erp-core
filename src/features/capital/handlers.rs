@@ -38,6 +38,7 @@ pub fn router() -> Router<Arc<AppState>> {
             "/instruments/{id}/events",
             get(list_events_for_instrument).post(create_event),
         )
+        .route("/instruments/event", post(create_event_cap_contr))
         .route("/party", post(create_party).get(list_parties))
         .route("/party/{id}", get(get_party).put(update_party))
         // ----- Facilities -----
@@ -298,15 +299,24 @@ async fn update_instrument(
     ))
 }
 
+async fn create_event_cap_contr(
+    Extension(user): Extension<AuthenticatedTenant>,
+    Json(payload): Json<CreateCapitalEvent>,
+) -> Result<Response, AppError> {
+    let event = service()
+        .create_event(&user.tenant_pool, user.company_id, user.user_id, &payload)
+        .await?;
+    Ok(ApiResponse::created(event, "Capital event recorded"))
+}
+
 async fn create_event(
     Path(instrument_id): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
     Json(mut payload): Json<CreateCapitalEvent>,
 ) -> Result<Response, AppError> {
     // Ensure the path instrument is used if not supplied in body
-    if payload.instrument_id.is_none() {
-        payload.instrument_id = Some(instrument_id);
-    }
+    payload.instrument_id = Some(instrument_id);
+
     let event = service()
         .create_event(&user.tenant_pool, user.company_id, user.user_id, &payload)
         .await?;

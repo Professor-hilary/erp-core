@@ -109,30 +109,8 @@ CREATE TABLE accounting.cash_flow_entries (
     created_at timestamptz DEFAULT now()
 );
 
--- drop TABLE accounting.cash_flow_entries;
-
--------------------------------------------------------------------------------------------
-INSERT INTO accounting.cash_flow_entries (
-    transaction_uuid, transaction_entry_uuid, activity_section, activity_type,
-    direction, direction, amount, description
-) SELECT
-    t.uuid AS transaction_uuid,
-    cf.suggested_section AS activity_section,
-    cf.suggested_activity AS activity_type,
-    cf.direction,
-    ABS(cf.cash_delta) AS amount,
-    COALESCE(t.description, 'Cash movement - ' || t.module) AS description
-FROM accounting.transactions t
-CROSS JOIN LATERAL ()
-
 CREATE INDEX idx_cash_flow_txn ON accounting.cash_flow_entries (transaction_uuid);
 CREATE INDEX idx_cash_flow_section_type ON accounting.cash_flow_entries (activity_section, activity_type);
-
--- SELECT te.transaction_uuid, sum(te.debit - te.credit) AS cash_delta
--- FROM accounting.transaction_entries te
--- JOIN accounting.accounts acc on acc.uuid = te.account_uuid
--- WHERE acc.cash_flow_category = 'cash'
--- GROUP BY te.transaction_uuid;
 
 -----------------------------------------------------------------
 -- transactions: header/journal
@@ -208,6 +186,9 @@ DECLARE
     v_txn_date DATE;
     v_txn_serial_id BIGINT;
     v_total_debits NUMERIC(18,2) := 0;
+    v_section VARCHAR(16);
+    v_activity VARCHAR(32);
+    v_template TEXT;
     v_total_credits NUMERIC(18,2) := 0;
     v_line RECORD;
     v_account_uuid UUID;
@@ -215,6 +196,7 @@ DECLARE
     v_ref_text TEXT;
     v_cash_delta NUMERIC(18,2) := 0;
 BEGIN
+    RAISE NOTICE '1st';
     IF p_txn_date IS NULL THEN
         -- Opening balance transactions - default transaction date to period start
         SELECT start_date INTO v_txn_date FROM accounting.financial_period
@@ -233,12 +215,12 @@ BEGIN
     IF v_total_debits <> v_total_credits THEN
         RAISE EXCEPTION 'Unbalanced transaction: debits (%) != credits (%)', v_total_debits, v_total_credits;
     END IF;
-
+    RAISE NOTICE '2nd';
     -- Insert transaction header
     INSERT INTO accounting.transactions(txn_date, reference, description, created_by, module)
     VALUES (p_txn_date, p_reference, p_description, p_created_by, p_module)
     RETURNING uuid, serial_id INTO v_txn_uuid, v_txn_serial_id;
-
+    RAISE NOTICE '3rd';
     -- Insert entries
     FOR v_line IN SELECT * FROM jsonb_to_recordset(p_lines) AS t(account_ref JSONB, debit NUMERIC, credit NUMERIC, memo TEXT)
     LOOP
@@ -287,7 +269,7 @@ BEGIN
             v_line.memo
         );
     END LOOP;
-
+    RAISE NOTICE '4th';
     --------------------------------------------------------------------------------------------------------
     -- === Auto Cash Flow from Module ===
     IF p_cash_flow_section IS NULL AND p_cash_flow_activity IS NULL THEN
@@ -300,14 +282,17 @@ BEGIN
         IF v_section IS NOT NULL THEN
             INSERT INTO accounting.cash_flow_entries (
                 transaction_uuid, transaction_entry_uuid, activity_section, activity_type,
-                direction, amount, description
+                direction, amount, description, txn_date
             )
             SELECT
                 v_txn_uuid, te.uuid, v_section, v_activity,
                 CASE WHEN (te.debit - te.credit) > 0 THEN 'inflow' ELSE 'outflow' END,
                 ABS(te.debit - te.credit),
-                COALESCE(p_cash_flow_description,
-                         format(v_template || ' - %s', COALESCE(p_reference, 'N/A')))
+                COALESCE(
+                    p_cash_flow_description, format(
+                        v_template || ' - %s', COALESCE(p_reference, 'N/A')
+                    )
+                ), v_txn_date
             FROM accounting.transaction_entries te
             JOIN accounting.accounts a ON a.uuid = te.account_uuid
             WHERE te.transaction_uuid = v_txn_uuid
@@ -326,16 +311,18 @@ BEGIN
 
         IF v_cash_delta <> 0 THEN
             INSERT INTO accounting.cash_flow_entries(
-                transaction_uuid, activity_section, activity_type, direction, amount, description
+                transaction_uuid, activity_section, activity_type, direction, amount,
+                description, txn_date
             ) VALUES (
                 v_txn_uuid, p_cash_flow_section, p_cash_flow_activity,
                 CASE WHEN v_cash_delta > 0 THEN 'inflow' ELSE 'outflow' END,
-                ABS(v_cash_delta), COALESCE(p_cash_flow_description, p_description)
+                ABS(v_cash_delta), COALESCE(p_cash_flow_description, p_description),
+                v_txn_date
             );
         END IF;
     END IF;
     --------------------------------------------------------------------------------------------------------
-
+    RAISE NOTICE '5th';
     RETURN v_txn_serial_id;
 END;
 $$;
@@ -492,55 +479,7 @@ CREATE OR REPLACE TRIGGER trg_account_path_maintain BEFORE INSERT OR UPDATE OF
 --    'invoice',
 --    '2025-04-01',
 --    '[
---        {"account_ref": "110100", "debit": 1000.00, "credit": 0, "memo": "Sales"},
---        {"account_ref": 42,       "debit": 0,      "credit": 1000.00, "memo": "AR"}
+--        {"account_ref": "110100", "debit": 1000, "credit": 0, "memo": "Sales"},
+--        {"account_ref": "210100", "debit": 0,    "credit": 1000, "memo": "AR"}
 --    ]'::jsonb
 --);
-
--- Backfill cash_flow_entries from existing data
--- INSERT INTO accounting.cash_flow_entries (
---     transaction_uuid,
---     transaction_entry_uuid,
---     activity_section,
---     activity_type,
---     direction,
---     amount,
---     description,
---     txn_date
--- )
--- SELECT
---     t.uuid,
---     te.uuid,
---     cfm.activity_section,
---     cfm.activity_type,
---     CASE WHEN (te.debit - te.credit) > 0 THEN 'inflow' ELSE 'outflow' END,
---     ABS(te.debit - te.credit),
---     COALESCE(t.description, 'Cash movement - ' || t.module),
---     t.txn_date
--- FROM accounting.transactions t
--- JOIN accounting.transaction_entries te ON te.transaction_uuid = t.uuid
--- JOIN accounting.accounts a ON a.uuid = te.account_uuid
--- left join ACCOUNTING.cash_flow_mapping cfm on cfm."module" = t."module" and cfm.is_active = true
--- WHERE a.cash_flow_category = 'cash'
---   AND (te.debit - te.credit) <> 0
---   AND NOT EXISTS (
---         SELECT 1
---         FROM accounting.cash_flow_entries cfe
---         WHERE cfe.transaction_uuid = t.uuid
---           AND cfe.transaction_entry_uuid = te.uuid
---   );
-
--- select
---     regexp_split_to_table(
---         regexp_replace(
---             pg_get_constraintdef(oid),
---             '.*ARRAY\[(.*)\].*', '\1', 'i'
---         ),
---         ','
---     ) AS allowed_value
--- from pg_constraint
--- where conname = 'cash_flow_entries_activity_type_check';
-
--- INSERT INTO accounting.cash_flow_mapping
---     (module, activity_section, activity_type, default_description_template)
--- VALUES ('fixed_asset', 'investing', ' fixed_asset_purchase', 'Asset financing');

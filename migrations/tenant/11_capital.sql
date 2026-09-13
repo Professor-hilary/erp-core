@@ -127,7 +127,7 @@ CREATE TABLE capital.capital_events (
                         )),
     event_date          DATE NOT NULL,
     effective_date      DATE,
-    amount              NUMERIC(24,6),
+    amount              NUMERIC(24,2),
     currency_id         UUID REFERENCES capital.currencies(id),
     shares              BIGINT,
     description         TEXT,

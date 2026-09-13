@@ -34,12 +34,12 @@ pub async fn post_gl(
     let row: (Uuid,) = sqlx::query_as(
         r#"
         SELECT accounting.post_transaction(
-            $1,                 -- reference
-            'Capital Posting',  -- description
-            $2,                 -- user_id
-            'capital',          -- module
-            $3,                 -- txn_date
-            $4                  -- lines jsonb
+            $1,             -- reference
+            $2,             -- description
+            $3,             -- user_id
+            'capital',      -- module
+            $4,             -- txn_date
+            $5              -- lines jsonb
         )
         "#,
     )
@@ -866,6 +866,39 @@ impl CapitalRepository for PostgresCapitalRepo {
         .bind(user_id)
         .fetch_one(&mut **tx)
         .await?;
+
+        // Post if this is capital contribution
+        if &payload.event_type == "EQUITY_CONTRIBUTION"
+            && let Some(amount) = payload.amount.clone()
+            && let Some(cash_account) = payload.cash_account.clone()
+            && let Some(capital_contrib_acc) = payload.capital_contrib_acc.clone()
+        {
+            // Post this transaction
+            let lines = vec![
+                gl_line(
+                    cash_account,
+                    amount.clone(), // debit cash
+                    BigDecimal::zero(),
+                    "Cash from capital contribution",
+                ),
+                gl_line(
+                    capital_contrib_acc,
+                    BigDecimal::zero(),
+                    amount.clone(), // credit liability
+                    "Capital contribution",
+                ),
+            ];
+
+            let _journal_id = post_gl(
+                tx,
+                &format!("CAP-CONTR-{}", row.serial_id),
+                "Share issuance",
+                user_id,
+                payload.event_date,
+                lines,
+            )
+            .await?;
+        }
 
         Ok(row)
     }
@@ -2141,7 +2174,7 @@ impl CapitalRepository for PostgresCapitalRepo {
     ) -> Result<CapitalEvent, AppError> {
         let row = sqlx::query_as::<_, CapitalEvent>(
             r#"
-        UPDATE capital.capital_event
+        UPDATE capital.capital_events
         SET
             journal_entry_id = COALESCE($2)
         WHERE id = $1
@@ -2152,9 +2185,7 @@ impl CapitalRepository for PostgresCapitalRepo {
         .bind(journal_entry_id)
         .fetch_optional(&mut **tx)
         .await?
-        .ok_or_else(|| {
-            AppError::NotFound("Capital event not found for user".into())
-        })?;
+        .ok_or_else(|| AppError::NotFound("Capital event not found for user".into()))?;
 
         Ok(row)
     }
