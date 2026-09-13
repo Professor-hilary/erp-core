@@ -102,13 +102,13 @@ impl IntoResponse for AppError {
                                 StatusCode::BAD_REQUEST
                             }
                             // Common Postgres constraint / data errors
-                            Some("23505") => StatusCode::CONFLICT,          // unique_violation
-                            Some("23503") => StatusCode::BAD_REQUEST,       // foreign_key_violation
-                            Some("23502") => StatusCode::BAD_REQUEST,       // not_null_violation
-                            Some("22P02") => StatusCode::BAD_REQUEST,       // invalid_text_representation
-                            Some("22001") => StatusCode::BAD_REQUEST,       // string_data_right_truncation
-                            Some("22003") => StatusCode::BAD_REQUEST,       // numeric_value_out_of_range
-                            Some("P0001") => StatusCode::BAD_REQUEST,       // raise_exception (generic)
+                            Some("23505") => StatusCode::CONFLICT, // unique_violation
+                            Some("23503") => StatusCode::BAD_REQUEST, // foreign_key_violation
+                            Some("23502") => StatusCode::BAD_REQUEST, // not_null_violation
+                            Some("22P02") => StatusCode::BAD_REQUEST, // invalid_text_representation
+                            Some("22001") => StatusCode::BAD_REQUEST, // string_data_right_truncation
+                            Some("22002") => StatusCode::BAD_REQUEST, // raise_exception (generic)
+                            Some("22003") => StatusCode::BAD_REQUEST, // numeric_value_out_of_range
                             _ => StatusCode::INTERNAL_SERVER_ERROR,
                         };
                         (status, msg)
@@ -227,4 +227,4 @@ fn capitalize(s: &str) -> String {
         None => String::new(),
         Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
     }
-                           }
+}
