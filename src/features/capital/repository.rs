@@ -867,39 +867,6 @@ impl CapitalRepository for PostgresCapitalRepo {
         .fetch_one(&mut **tx)
         .await?;
 
-        // Post if this is capital contribution
-        if &payload.event_type == "EQUITY_CONTRIBUTION"
-            && let Some(amount) = payload.amount.clone()
-            && let Some(cash_account) = payload.cash_account.clone()
-            && let Some(capital_contrib_acc) = payload.capital_contrib_acc.clone()
-        {
-            // Post this transaction
-            let lines = vec![
-                gl_line(
-                    cash_account,
-                    amount.clone(), // debit cash
-                    BigDecimal::zero(),
-                    "Cash from capital contribution",
-                ),
-                gl_line(
-                    capital_contrib_acc,
-                    BigDecimal::zero(),
-                    amount.clone(), // credit liability
-                    "Capital contribution",
-                ),
-            ];
-
-            let _journal_id = post_gl(
-                tx,
-                &format!("CAP-CONTR-{}", row.serial_id),
-                "Share issuance",
-                user_id,
-                payload.event_date,
-                lines,
-            )
-            .await?;
-        }
-
         Ok(row)
     }
 

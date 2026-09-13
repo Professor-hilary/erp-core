@@ -194,7 +194,7 @@ impl<R: CapitalRepository> CapitalService<R> {
                     Some(
                         post_gl(
                             &mut tx,
-                            &format!("CAP-CONTRB-{}", &event.serial_id),
+                            &format!("CAP-CONTRIB-{}", &event.serial_id),
                             "Capital contribution",
                             user_id,
                             *txn_date,
