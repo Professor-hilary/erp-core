@@ -54,18 +54,64 @@ impl IntoResponse for AppError {
                 Json(json!({"status":500, "error":"Internal Server Error","message":message,})),
             )
                 .into_response(),
-            AppError::Database(error) => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({
-                    "status":500,
-                    "error":"Database error",
-                    "message":capitalize(match &error {
-                        sqlx::Error::Database(db_err) => db_err.message(),
-                        _ => "Unexpected database error",
-                    },
-                )})),
-            )
-                .into_response(),
+            AppError::Database(error) => {
+                let (status, message) = match &error {
+                    sqlx::Error::Database(db_err) => {
+                        // Prefer the Postgres message; fall back to a coded message
+                        let msg = db_err.message().to_string();
+                        // Optionally map known ERRCODEs to nicer HTTP statuses
+                        let status = match db_err.code().as_deref() {
+                            Some("P0001") | Some("P0002") | Some("P0003") => {
+                                StatusCode::BAD_REQUEST
+                            }
+                            _ => StatusCode::INTERNAL_SERVER_ERROR,
+                        };
+                        (status, msg)
+                    }
+                    Error::Configuration(error) => todo!(),
+                    Error::InvalidArgument(_) => todo!(),
+                    Error::Database(database_error) => todo!(),
+                    Error::Io(error) => todo!(),
+                    Error::Tls(error) => todo!(),
+                    Error::Protocol(_) => todo!(),
+                    Error::RowNotFound => todo!(),
+                    Error::TypeNotFound { type_name } => todo!(),
+                    Error::ColumnIndexOutOfBounds { index, len } => todo!(),
+                    Error::ColumnNotFound(_) => todo!(),
+                    Error::ColumnDecode { index, source } => todo!(),
+                    Error::Encode(error) => todo!(),
+                    Error::Decode(error) => todo!(),
+                    Error::AnyDriverError(error) => todo!(),
+                    Error::PoolTimedOut => todo!(),
+                    Error::PoolClosed => todo!(),
+                    Error::WorkerCrashed => todo!(),
+                    Error::Migrate(migrate_error) => todo!(),
+                    Error::InvalidSavePointStatement => todo!(),
+                    Error::BeginFailed => todo!(),
+                    _ => todo!(),
+                };
+                (
+                    status,
+                    Json(json!({
+                        "status":500,
+                        "error":"Database error",
+                        "message":capitalize(&message),
+                    })),
+                )
+                    .into_response()
+            }
+            // (
+            //     StatusCode::INTERNAL_SERVER_ERROR,
+            //     Json(json!({
+            //         "status":500,
+            //         "error":"Database error",
+            //         "message":capitalize(match &error {
+            //             sqlx::Error::Database(db_err) => db_err.message(),
+            //             _ => "Unexpected database error",
+            //         },
+            //     )})),
+            // )
+            //     .into_response(),
             AppError::Unprocessable(message) => (
                 StatusCode::UNPROCESSABLE_ENTITY,
                 Json(json!({"status":422, "error":"Bad data","message":message,})),

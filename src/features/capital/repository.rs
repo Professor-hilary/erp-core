@@ -27,11 +27,11 @@ pub async fn post_gl(
     user_id: Uuid,
     txn_date: chrono::NaiveDate,
     lines: Vec<Value>,
-) -> Result<Uuid, AppError> {
+) -> Result<i64, AppError> {
     // Example using sqlx – adapt to your actual function signature
     let lines_json = Value::Array(lines);
 
-    let row: (Uuid,) = sqlx::query_as(
+    let row: (i64,) = sqlx::query_as(
         r#"
         SELECT accounting.post_transaction(
             $1,             -- reference
@@ -403,14 +403,14 @@ pub trait CapitalRepository: Send + Sync {
         company_id: Uuid,
         dividend_id: Uuid,
         payment_date: NaiveDate,
-        journal_entry_id: Option<Uuid>,
+        journal_entry_id: Option<i64>,
     ) -> Result<Dividend, AppError>;
 
     async fn update_event_journal_id(
         &self,
         tx: &mut Transaction<'_, Postgres>,
         uuid: Uuid,
-        journal_entry_id: Option<Uuid>,
+        journal_entry_id: Option<i64>,
     ) -> Result<CapitalEvent, AppError>;
 
     // =========================================================================
@@ -2138,7 +2138,7 @@ impl CapitalRepository for PostgresCapitalRepo {
         company_id: Uuid,
         dividend_id: Uuid,
         payment_date: NaiveDate,
-        journal_entry_id: Option<Uuid>,
+        journal_entry_id: Option<i64>,
     ) -> Result<Dividend, AppError> {
         let row = sqlx::query_as::<_, Dividend>(
             r#"
@@ -2170,7 +2170,7 @@ impl CapitalRepository for PostgresCapitalRepo {
         &self,
         tx: &mut Transaction<'_, Postgres>,
         uuid: Uuid,
-        journal_entry_id: Option<Uuid>,
+        journal_entry_id: Option<i64>,
     ) -> Result<CapitalEvent, AppError> {
         let row = sqlx::query_as::<_, CapitalEvent>(
             r#"

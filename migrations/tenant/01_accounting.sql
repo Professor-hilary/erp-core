@@ -196,11 +196,10 @@ DECLARE
     v_ref_text TEXT;
     v_cash_delta NUMERIC(18,2) := 0;
 BEGIN
-    RAISE NOTICE '1st';
     IF p_txn_date IS NULL THEN
         -- Opening balance transactions - default transaction date to period start
-        SELECT start_date INTO v_txn_date FROM accounting.financial_period
-            ORDER BY start_date DESC LIMIT 1;
+        SELECT start_date INTO v_txn_date FROM accounting.financial_periods
+        ORDER BY start_date DESC LIMIT 1;
     ELSE
         -- Other transactions, adjustments, journals, etc
         v_txn_date := p_txn_date;
@@ -215,12 +214,12 @@ BEGIN
     IF v_total_debits <> v_total_credits THEN
         RAISE EXCEPTION 'Unbalanced transaction: debits (%) != credits (%)', v_total_debits, v_total_credits;
     END IF;
-    RAISE NOTICE '2nd';
+
     -- Insert transaction header
     INSERT INTO accounting.transactions(txn_date, reference, description, created_by, module)
-    VALUES (p_txn_date, p_reference, p_description, p_created_by, p_module)
+    VALUES (v_txn_date, p_reference, p_description, p_created_by, p_module)
     RETURNING uuid, serial_id INTO v_txn_uuid, v_txn_serial_id;
-    RAISE NOTICE '3rd';
+
     -- Insert entries
     FOR v_line IN SELECT * FROM jsonb_to_recordset(p_lines) AS t(account_ref JSONB, debit NUMERIC, credit NUMERIC, memo TEXT)
     LOOP
@@ -269,7 +268,7 @@ BEGIN
             v_line.memo
         );
     END LOOP;
-    RAISE NOTICE '4th';
+
     --------------------------------------------------------------------------------------------------------
     -- === Auto Cash Flow from Module ===
     IF p_cash_flow_section IS NULL AND p_cash_flow_activity IS NULL THEN
@@ -322,7 +321,7 @@ BEGIN
         END IF;
     END IF;
     --------------------------------------------------------------------------------------------------------
-    RAISE NOTICE '5th';
+
     RETURN v_txn_serial_id;
 END;
 $$;
