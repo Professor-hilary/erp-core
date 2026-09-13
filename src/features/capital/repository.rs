@@ -94,6 +94,38 @@ pub trait CapitalRepository: Send + Sync {
         payload: &UpdateCapitalInstrument,
     ) -> Result<CapitalInstrument, AppError>;
 
+// =========================================================================
+    // Orchestrated financing actions (preferred write path)
+    // =========================================================================
+
+    /// Issue shares – single SQL function does instruments, events,
+    /// share_transactions, shareholdings, class counters, and GL.
+    async fn issue_shares(
+        &self,
+        tx: &mut Transaction<'_, Postgres>,
+        company_id: Uuid,
+        user_id: Uuid,
+        payload: &IssueSharesRequest,
+    ) -> Result<IssueSharesResult, AppError>;
+
+    /// Debt drawdown / borrow
+    async fn borrow(
+        &self,
+        tx: &mut Transaction<'_, Postgres>,
+        company_id: Uuid,
+        user_id: Uuid,
+        payload: &BorrowRequest,
+    ) -> Result<BorrowResult, AppError>;
+
+    /// Equity contribution (no formal instrument)
+    async fn record_equity_contribution(
+        &self,
+        tx: &mut Transaction<'_, Postgres>,
+        company_id: Uuid,
+        user_id: Uuid,
+        payload: &EquityContributionRequest,
+    ) -> Result<EquityContributionResult, AppError>;
+
     // =========================================================================
     // 1. Parties and stakeholders
     // =========================================================================
@@ -586,6 +618,140 @@ impl CapitalRepository for PostgresCapitalRepo {
     // -------------------------------------------------------------------------
     // Instruments
     // -------------------------------------------------------------------------
+async fn issue_shares(
+        &self,
+        tx: &mut Transaction<'_, Postgres>,
+        company_id: Uuid,
+        user_id: Uuid,
+        payload: &IssueSharesRequest,
+    ) -> Result<IssueSharesResult, AppError> {
+        let row = sqlx::query_as::<_, IssueSharesResult>(
+            r#"
+            SELECT * FROM capital.issue_shares(
+                $1,  -- company_id
+                $2,  -- user_id
+                $3,  -- share_class_id
+                $4,  -- shareholder_id
+                $5,  -- shares
+                $6,  -- price_per_share
+                $7,  -- issue_date
+                $8,  -- currency_id
+                $9,  -- instrument_code
+                $10, -- instrument_name
+                $11, -- par_value
+                $12, -- cash_account_code
+                $13, -- share_capital_code
+                $14, -- share_premium_code
+                $15, -- reference
+                $16  -- notes
+            )
+            "#,
+        )
+        .bind(company_id)
+        .bind(user_id)
+        .bind(payload.share_class_id)
+        .bind(payload.shareholder_id)
+        .bind(payload.shares)
+        .bind(&payload.price_per_share)
+        .bind(payload.issue_date)
+        .bind(payload.currency_id)
+        .bind(&payload.instrument_code)
+        .bind(&payload.instrument_name)
+        .bind(&payload.par_value)
+        .bind(&payload.cash_account_code)
+        .bind(&payload.share_capital_code)
+        .bind(&payload.share_premium_code)
+        .bind(&payload.reference)
+        .bind(&payload.notes)
+        .fetch_one(&mut **tx)
+        .await
+        .map_err(AppError::Database)?;
+
+        Ok(row)
+    }
+
+    async fn borrow(
+        &self,
+        tx: &mut Transaction<'_, Postgres>,
+        company_id: Uuid,
+        user_id: Uuid,
+        payload: &BorrowRequest,
+    ) -> Result<BorrowResult, AppError> {
+        let row = sqlx::query_as::<_, BorrowResult>(
+            r#"
+            SELECT * FROM capital.borrow(
+                $1,  -- company_id
+                $2,  -- user_id
+                $3,  -- facility_id
+                $4,  -- amount
+                $5,  -- drawdown_date
+                $6,  -- value_date
+                $7,  -- currency_id
+                $8,  -- cash_account_code
+                $9,  -- loan_liability_code
+                $10, -- reference
+                $11  -- purpose
+            )
+            "#,
+        )
+        .bind(company_id)
+        .bind(user_id)
+        .bind(payload.facility_id)
+        .bind(&payload.amount)
+        .bind(payload.drawdown_date)
+        .bind(payload.value_date)
+        .bind(payload.currency_id)
+        .bind(&payload.cash_account_code)
+        .bind(&payload.loan_liability_code)
+        .bind(&payload.reference)
+        .bind(&payload.purpose)
+        .fetch_one(&mut **tx)
+        .await
+        .map_err(AppError::Database)?;
+
+        Ok(row)
+    }
+
+    async fn record_equity_contribution(
+        &self,
+        tx: &mut Transaction<'_, Postgres>,
+        company_id: Uuid,
+        user_id: Uuid,
+        payload: &EquityContributionRequest,
+    ) -> Result<EquityContributionResult, AppError> {
+        let row = sqlx::query_as::<_, EquityContributionResult>(
+            r#"
+            SELECT * FROM capital.record_equity_contribution(
+                $1,  -- company_id
+                $2,  -- user_id
+                $3,  -- party_id
+                $4,  -- amount
+                $5,  -- contribution_date
+                $6,  -- currency_id
+                $7,  -- cash_account_code
+                $8,  -- equity_account_code
+                $9,  -- description
+                $10  -- reference
+            )
+            "#,
+        )
+        .bind(company_id)
+        .bind(user_id)
+        .bind(payload.party_id)
+        .bind(&payload.amount)
+        .bind(payload.contribution_date)
+        .bind(payload.currency_id)
+        .bind(&payload.cash_account_code)
+        .bind(&payload.equity_account_code)
+        .bind(&payload.description)
+        .bind(&payload.reference)
+        .fetch_one(&mut **tx)
+        .await
+        .map_err(AppError::Database)?;
+
+        Ok(row)
+    }
+
     async fn create_instrument(
         &self,
         tx: &mut Transaction<'_, Postgres>,
