@@ -841,6 +841,383 @@ GROUP BY ea.company_id, ea.id, ea.account_name;
 -- =============================================
 -- 11. HELPER FUNCTIONS (examples)
 -- =============================================
+CREATE OR REPLACE FUNCTION capital.issue_shares(
+    p_company_id          UUID,
+    p_user_id             UUID,
+    p_share_class_id      UUID,          -- existing class, or NULL → create
+    p_shareholder_id      UUID,
+    p_shares              BIGINT,
+    p_price_per_share     NUMERIC(24,8),
+    p_issue_date          DATE,
+    p_currency_id         UUID,
+    p_instrument_code     TEXT DEFAULT NULL,   -- only needed when creating new instrument
+    p_instrument_name     TEXT DEFAULT NULL,
+    p_par_value           NUMERIC(20,8) DEFAULT NULL,
+    p_cash_account_code   TEXT,                -- for the GL side
+    p_share_capital_code  TEXT,
+    p_share_premium_code  TEXT DEFAULT NULL,   -- optional
+    p_reference           TEXT DEFAULT NULL,
+    p_notes               TEXT DEFAULT NULL
+) RETURNS TABLE (
+    instrument_id   UUID,
+    event_id        UUID,
+    transaction_id  BIGINT,          -- share_transactions.serial_id
+    journal_serial  BIGINT           -- accounting.transactions.serial_id
+)
+LANGUAGE plpgsql
+AS $function$
+DECLARE
+    v_class             capital.share_classes%ROWTYPE;
+    v_instrument_id     UUID;
+    v_event_id          UUID;
+    v_tx_id             BIGINT;
+    v_journal_serial    BIGINT;
+    v_total             NUMERIC(24,6);
+    v_premium           NUMERIC(24,6);
+    v_par_total         NUMERIC(24,6);
+    v_lines             JSONB;
+BEGIN
+    -- 1. Lock & load (or create) the share class
+    IF p_share_class_id IS NOT NULL THEN
+        SELECT * INTO v_class
+        FROM capital.share_classes
+        WHERE id = p_share_class_id AND company_id = p_company_id
+        FOR UPDATE;
+        IF NOT FOUND THEN
+            RAISE EXCEPTION 'Share class not found' USING ERRCODE = 'P0002';
+        END IF;
+    ELSE
+        -- create a new class + matching equity instrument in one go
+        -- (omitted for brevity – same pattern)
+        RAISE EXCEPTION 'Creating new class not implemented in this sketch';
+    END IF;
+
+    v_total     := p_shares * p_price_per_share;
+    v_par_total := p_shares * COALESCE(p_par_value, v_class.par_value, 0);
+    v_premium   := v_total - v_par_total;
+
+    -- 2. Ensure / update the capital instrument
+    --    (one instrument per share class is the usual 1:1)
+    SELECT id INTO v_instrument_id
+    FROM capital.capital_instruments
+    WHERE company_id = p_company_id
+      AND instrument_type IN ('COMMON_EQUITY','PREFERRED_EQUITY')
+      AND instrument_code = v_class.class_code;
+
+    IF v_instrument_id IS NULL THEN
+        INSERT INTO capital.capital_instruments (
+            company_id, instrument_code, name,
+            instrument_family, instrument_type,
+            currency_id, original_principal, outstanding_principal,
+            face_value, issue_price, effective_date, status
+        ) VALUES (
+            p_company_id,
+            COALESCE(p_instrument_code, v_class.class_code),
+            COALESCE(p_instrument_name, v_class.name),
+            'EQUITY',
+            CASE v_class.share_type
+                WHEN 'PREFERRED' THEN 'PREFERRED_EQUITY'
+                ELSE 'COMMON_EQUITY'
+            END,
+            p_currency_id,
+            v_total, v_total,
+            v_par_total, p_price_per_share, p_issue_date, 'active'
+        )
+        RETURNING id INTO v_instrument_id;
+    ELSE
+        UPDATE capital.capital_instruments
+        SET outstanding_principal = outstanding_principal + v_total,
+            original_principal    = original_principal    + v_total,
+            updated_at            = now()
+        WHERE id = v_instrument_id;
+    END IF;
+
+    -- 3. Capital event (audit trail)
+    INSERT INTO capital.capital_events (
+        company_id, instrument_id, event_type, event_date,
+        amount, currency_id, shares, description,
+        related_party_id, created_by
+    ) VALUES (
+        p_company_id, v_instrument_id, 'SHARE_ISSUE', p_issue_date,
+        v_total, p_currency_id, p_shares,
+        COALESCE(p_notes, format('Issue of %s shares', p_shares)),
+        p_shareholder_id, p_user_id
+    )
+    RETURNING id INTO v_event_id;
+
+    -- 4. Share transaction (immutable movement)
+    INSERT INTO capital.share_transactions (
+        company_id, share_class_id, transaction_type, transaction_date,
+        to_shareholder_id, shares, price_per_share,
+        total_consideration, currency_id, premium, reference, notes
+    ) VALUES (
+        p_company_id, v_class.id, 'ISSUE', p_issue_date,
+        p_shareholder_id, p_shares, p_price_per_share,
+        v_total, p_currency_id, v_premium, p_reference, p_notes
+    )
+    RETURNING serial_id INTO v_tx_id;
+
+    -- 5. Upsert shareholding
+    INSERT INTO capital.shareholdings (
+        company_id, share_class_id, shareholder_id,
+        shares_held, average_cost, acquisition_date
+    ) VALUES (
+        p_company_id, v_class.id, p_shareholder_id,
+        p_shares, p_price_per_share, p_issue_date
+    )
+    ON CONFLICT (share_class_id, shareholder_id) DO UPDATE
+    SET shares_held = capital.shareholdings.shares_held + EXCLUDED.shares_held,
+        average_cost = (
+            (capital.shareholdings.shares_held * COALESCE(capital.shareholdings.average_cost,0)
+             + EXCLUDED.shares_held * EXCLUDED.average_cost)
+            / NULLIF(capital.shareholdings.shares_held + EXCLUDED.shares_held, 0)
+        ),
+        updated_at = now();
+
+    -- 6. Update class counters
+    UPDATE capital.share_classes
+    SET issued_shares      = issued_shares      + p_shares,
+        outstanding_shares = outstanding_shares + p_shares,
+        updated_at         = now()
+    WHERE id = v_class.id;
+
+    -- 7. GL posting (cash/bank ← share capital + premium)
+    v_lines := jsonb_build_array(
+        jsonb_build_object(
+            'account_ref', p_cash_account_code,
+            'debit', v_total, 'credit', 0,
+            'memo', format('Share issue %s', COALESCE(p_reference, v_tx_id::text))
+        ),
+        jsonb_build_object(
+            'account_ref', p_share_capital_code,
+            'debit', 0, 'credit', v_par_total,
+            'memo', 'Share capital'
+        )
+    );
+    IF v_premium > 0 AND p_share_premium_code IS NOT NULL THEN
+        v_lines := v_lines || jsonb_build_object(
+            'account_ref', p_share_premium_code,
+            'debit', 0, 'credit', v_premium,
+            'memo', 'Share premium'
+        );
+    END IF;
+
+    v_journal_serial := accounting.post_transaction(
+        COALESCE(p_reference, 'SI-' || v_tx_id),
+        'Share issuance',
+        p_user_id,
+        'share_issue',
+        p_issue_date,
+        v_lines
+    );
+
+    -- optional: link the journal back
+    UPDATE capital.capital_events
+    SET journal_entry_id = v_journal_serial
+    WHERE id = v_event_id;
+
+    UPDATE capital.share_transactions
+    SET journal_entry_id = v_journal_serial
+    WHERE serial_id = v_tx_id;
+
+    RETURN QUERY SELECT v_instrument_id, v_event_id, v_tx_id, v_journal_serial;
+END; 
+$$;
+
+CREATE OR REPLACE FUNCTION capital.borrow(
+    p_company_id          UUID,
+    p_user_id             UUID,
+    p_facility_id         UUID,               -- existing facility
+    p_amount              NUMERIC(24,6),
+    p_drawdown_date       DATE,
+    p_value_date          DATE DEFAULT NULL,
+    p_currency_id         UUID,
+    p_cash_account_code   TEXT,               -- bank / cash GL account
+    p_loan_liability_code TEXT,               -- the liability account
+    p_reference           TEXT DEFAULT NULL,
+    p_purpose             TEXT DEFAULT NULL
+) RETURNS TABLE (
+    drawdown_id     UUID,
+    event_id        UUID,
+    journal_serial  BIGINT
+)
+LANGUAGE plpgsql
+AS $function$ 
+DECLARE
+    v_facility      capital.debt_facilities%ROWTYPE;
+    v_instrument_id UUID;
+    v_drawdown_id   UUID;
+    v_event_id      UUID;
+    v_journal       BIGINT;
+    v_lines         JSONB;
+BEGIN
+    -- 1. Lock facility
+    SELECT * INTO v_facility
+    FROM capital.debt_facilities
+    WHERE id = p_facility_id AND company_id = p_company_id
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Facility not found' USING ERRCODE = 'P0002';
+    END IF;
+
+    IF p_amount > v_facility.available_amount THEN
+        RAISE EXCEPTION 'Drawdown % exceeds available %',
+            p_amount, v_facility.available_amount
+            USING ERRCODE = 'P0001';
+    END IF;
+
+    v_instrument_id := v_facility.instrument_id;
+
+    -- 2. Create / update the capital instrument (if the facility is linked)
+    IF v_instrument_id IS NOT NULL THEN
+        UPDATE capital.capital_instruments
+        SET outstanding_principal = outstanding_principal + p_amount,
+            updated_at = now()
+        WHERE id = v_instrument_id;
+    END IF;
+
+    -- 3. Drawdown record
+    INSERT INTO capital.debt_drawdowns (
+        facility_id, instrument_id, drawdown_date, value_date,
+        amount, currency_id, reference, purpose, status
+    ) VALUES (
+        p_facility_id, v_instrument_id,
+        p_drawdown_date, COALESCE(p_value_date, p_drawdown_date),
+        p_amount, p_currency_id, p_reference, p_purpose, 'posted'
+    )
+    RETURNING id INTO v_drawdown_id;
+
+    -- 4. Update facility balances
+    UPDATE capital.debt_facilities
+    SET drawn_amount     = drawn_amount + p_amount,
+        available_amount = available_amount - p_amount,
+        status           = CASE
+                             WHEN available_amount - p_amount <= 0 THEN 'fully_drawn'
+                             ELSE status
+                           END,
+        updated_at       = now()
+    WHERE id = p_facility_id;
+
+    -- 5. Capital event
+    INSERT INTO capital.capital_events (
+        company_id, instrument_id, event_type, event_date,
+        amount, currency_id, description, created_by
+    ) VALUES (
+        p_company_id, v_instrument_id, 'DRAWDOWN', p_drawdown_date,
+        p_amount, p_currency_id,
+        COALESCE(p_purpose, format('Drawdown on facility %s', v_facility.facility_code)),
+        p_user_id
+    )
+    RETURNING id INTO v_event_id;
+
+    -- 6. GL
+    v_lines := jsonb_build_array(
+        jsonb_build_object(
+            'account_ref', p_cash_account_code,
+            'debit', p_amount, 'credit', 0,
+            'memo', format('Loan drawdown %s', COALESCE(p_reference, v_drawdown_id::text))
+        ),
+        jsonb_build_object(
+            'account_ref', p_loan_liability_code,
+            'debit', 0, 'credit', p_amount,
+            'memo', 'Loan liability'
+        )
+    );
+
+    v_journal := accounting.post_transaction(
+        COALESCE(p_reference, 'DD-' || v_drawdown_id),
+        'Debt drawdown',
+        p_user_id,
+        'debt_drawdown',
+        p_drawdown_date,
+        v_lines
+    );
+
+    -- link journal
+    UPDATE capital.debt_drawdowns
+    SET journal_entry_id = v_journal
+    WHERE id = v_drawdown_id;
+
+    UPDATE capital.capital_events
+    SET journal_entry_id = v_journal
+    WHERE id = v_event_id;
+
+    RETURN QUERY SELECT v_drawdown_id, v_event_id, v_journal;
+END; 
+$$;
+
+CREATE OR REPLACE FUNCTION capital.record_equity_contribution(
+    p_company_id          UUID,
+    p_user_id             UUID,
+    p_party_id            UUID,               -- investor / owner / partner
+    p_amount              NUMERIC(24,6),
+    p_contribution_date   DATE,
+    p_currency_id         UUID,
+    p_cash_account_code   TEXT,
+    p_equity_account_code TEXT,               -- capital contribution / additional paid-in capital
+    p_description         TEXT DEFAULT NULL,
+    p_reference           TEXT DEFAULT NULL
+) RETURNS TABLE (
+    event_id       UUID,
+    journal_serial BIGINT
+)
+LANGUAGE plpgsql
+AS $function$ 
+DECLARE
+    v_event_id UUID;
+    v_journal  BIGINT;
+    v_lines    JSONB;
+BEGIN
+    -- 1. Event only (no instrument)
+    INSERT INTO capital.capital_events (
+        company_id, instrument_id, event_type, event_date,
+        amount, currency_id, description,
+        related_party_id, created_by
+    ) VALUES (
+        p_company_id,
+        NULL,                               -- ← explicit: no formal instrument
+        'EQUITY_CONTRIBUTION',
+        p_contribution_date,
+        p_amount, p_currency_id,
+        COALESCE(p_description, 'Equity contribution'),
+        p_party_id, p_user_id
+    )
+    RETURNING id INTO v_event_id;
+
+    -- 2. Optional equity movement (if you keep equity_accounts)
+    -- INSERT INTO capital.equity_movements ... (can be added later)
+
+    -- 3. GL
+    v_lines := jsonb_build_array(
+        jsonb_build_object(
+            'account_ref', p_cash_account_code,
+            'debit', p_amount, 'credit', 0,
+            'memo', COALESCE(p_reference, 'Equity contribution')
+        ),
+        jsonb_build_object(
+            'account_ref', p_equity_account_code,
+            'debit', 0, 'credit', p_amount,
+            'memo', 'Capital contribution'
+        )
+    );
+
+    v_journal := accounting.post_transaction(
+        COALESCE(p_reference, 'EC-' || v_event_id),
+        'Equity contribution',
+        p_user_id,
+        'equity_contribution',
+        p_contribution_date,
+        v_lines
+    );
+
+    UPDATE capital.capital_events
+    SET journal_entry_id = v_journal
+    WHERE id = v_event_id;
+
+    RETURN QUERY SELECT v_event_id, v_journal;
+END; 
+$$;
 
 -- Example: recalculate outstanding principal on an instrument
 -- (implementation would live in application or trigger layer)
