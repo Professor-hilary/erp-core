@@ -212,7 +212,8 @@ BEGIN
         v_total_credits := v_total_credits + COALESCE(v_line.credit, 0);
     END LOOP;
     IF v_total_debits <> v_total_credits THEN
-        RAISE EXCEPTION 'Unbalanced transaction: debits (%) != credits (%)', v_total_debits, v_total_credits;
+        RAISE EXCEPTION 'Unbalanced transaction: debits (%) != credits (%)',
+            v_total_debits, v_total_credits, USING ERRCODE = 'P0001';
     END IF;
 
     -- Insert transaction header
@@ -233,7 +234,8 @@ BEGIN
                 v_account_uuid := v_ref_text::UUID;
                 -- Make sure it exists
                 IF NOT EXISTS (SELECT 1 FROM accounting.accounts WHERE uuid = v_account_uuid) THEN
-                    RAISE EXCEPTION 'Account not found for reference: %', v_ref_text;
+                    RAISE EXCEPTION 'Account not found for reference: %',
+                        v_ref_text, USING ERRCODE = 'P0002';
                 END IF;
             EXCEPTION WHEN others THEN
                 -- Not a UUID, treat as code
@@ -241,7 +243,8 @@ BEGIN
                 FROM accounting.accounts
                 WHERE code = v_ref_text;
                 IF v_account_uuid IS NULL THEN
-                    RAISE EXCEPTION 'Account not found for reference: %', v_ref_text;
+                    RAISE EXCEPTION 'Account not found for reference: %',
+                        v_ref_text, USING ERRCODE = 'P0002';
                 END IF;
             END;
         ELSIF jsonb_typeof(v_line.account_ref) = 'number' THEN
@@ -250,10 +253,12 @@ BEGIN
             FROM accounting.accounts
             WHERE serial_id = (v_line.account_ref)::BIGINT;
             IF v_account_uuid IS NULL THEN
-                RAISE EXCEPTION 'Account not found for reference: %', v_line.account_ref;
+                RAISE EXCEPTION 'Account not found for reference: %',
+                    v_line.account_ref, USING ERRCODE = 'P0002';
             END IF;
         ELSE
-            RAISE EXCEPTION 'Invalid account_ref type: must be string (code/uuid) or number (serial_id)';
+            RAISE EXCEPTION 'Invalid account_ref type: must be string (code/uuid) or number (serial_id)',
+                USING ERRCODE = 'P0001';
         END IF;
 
         -- Insert line

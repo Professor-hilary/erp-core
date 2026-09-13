@@ -98,7 +98,7 @@ impl IntoResponse for AppError {
                         let msg = db_err.message().to_string();
                         let status = match db_err.code().as_deref() {
                             // Custom codes you raise from post_transaction etc.
-                            Some("P0001") | Some("P0002") | Some("P0003") | Some("P0004") => {
+                            Some("P0002") | Some("P0003") | Some("P0004") => {
                                 StatusCode::BAD_REQUEST
                             }
                             // Common Postgres constraint / data errors
@@ -107,7 +107,7 @@ impl IntoResponse for AppError {
                             Some("23502") => StatusCode::BAD_REQUEST, // not_null_violation
                             Some("22P02") => StatusCode::BAD_REQUEST, // invalid_text_representation
                             Some("22001") => StatusCode::BAD_REQUEST, // string_data_right_truncation
-                            Some("22002") => StatusCode::BAD_REQUEST, // raise_exception (generic)
+                            Some("P0001") => StatusCode::BAD_REQUEST, // raise_exception (generic)
                             Some("22003") => StatusCode::BAD_REQUEST, // numeric_value_out_of_range
                             _ => StatusCode::INTERNAL_SERVER_ERROR,
                         };

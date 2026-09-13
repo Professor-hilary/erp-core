@@ -94,7 +94,7 @@ CREATE TABLE capital.capital_instruments (
                             'repurchased', 'cancelled', 'defaulted', 'restructured'
                         )),
     accounting_treatment TEXT,                         -- IFRS 9 / ASC 470 etc.
-    journal_entry_id    UUID,                          -- link to GL
+    journal_entry_id    BIGINT,                          -- link to GL
     notes               TEXT,
     created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -132,7 +132,7 @@ CREATE TABLE capital.capital_events (
     shares              BIGINT,
     description         TEXT,
     related_party_id    UUID REFERENCES capital.parties(id),
-    journal_entry_id    UUID,
+    journal_entry_id    BIGINT,
     created_by          UUID,
     created_at          TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -214,7 +214,7 @@ CREATE TABLE capital.debt_drawdowns (
     currency_id         UUID NOT NULL REFERENCES capital.currencies(id),
     reference           TEXT,
     purpose             TEXT,
-    journal_entry_id    UUID,
+    journal_entry_id    BIGINT,
     status              TEXT NOT NULL DEFAULT 'posted' CHECK (status IN (
                             'requested', 'approved', 'posted', 'reversed'
                         )),
@@ -256,7 +256,7 @@ CREATE TABLE capital.debt_repayments (
     currency_id         UUID NOT NULL REFERENCES capital.currencies(id),
     payment_method      TEXT,
     reference           TEXT,
-    journal_entry_id    UUID,
+    journal_entry_id    BIGINT,
     created_at          TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -272,7 +272,7 @@ CREATE TABLE capital.debt_interest_accruals (
     day_count           INTEGER NOT NULL,
     interest_amount     NUMERIC(24,6) NOT NULL,
     is_paid             BOOLEAN NOT NULL DEFAULT false,
-    journal_entry_id    UUID,
+    journal_entry_id    BIGINT,
     created_at          TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -288,7 +288,7 @@ CREATE TABLE capital.debt_fees (
     amount              NUMERIC(24,6) NOT NULL,
     currency_id         UUID NOT NULL REFERENCES capital.currencies(id),
     description         TEXT,
-    journal_entry_id    UUID,
+    journal_entry_id    BIGINT,
     created_at          TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -353,7 +353,7 @@ CREATE TABLE capital.debt_refinancings (
     principal_refinanced NUMERIC(24,6) NOT NULL,
     costs               NUMERIC(24,6) DEFAULT 0,
     description         TEXT,
-    journal_entry_id    UUID,
+    journal_entry_id    BIGINT,
     created_at          TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -439,7 +439,7 @@ CREATE TABLE capital.share_transactions (
     total_consideration NUMERIC(24,6),
     currency_id         UUID REFERENCES capital.currencies(id),
     premium             NUMERIC(24,6),                -- share premium
-    journal_entry_id    UUID,
+    journal_entry_id    BIGINT,
     reference           TEXT,
     notes               TEXT,
     created_at          TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -466,7 +466,7 @@ CREATE TABLE capital.dividends (
     status              TEXT NOT NULL DEFAULT 'proposed' CHECK (status IN (
                             'proposed', 'declared', 'record_passed', 'paid', 'cancelled'
                         )),
-    journal_entry_id    UUID,
+    journal_entry_id    BIGINT,
     created_at          TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -481,7 +481,7 @@ CREATE TABLE capital.dividend_payments (
     net_amount          NUMERIC(24,6) GENERATED ALWAYS AS (gross_amount - withholding_tax) STORED,
     payment_date        DATE,
     payment_reference   TEXT,
-    journal_entry_id    UUID,
+    journal_entry_id    BIGINT,
     created_at          TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -522,7 +522,7 @@ CREATE TABLE capital.equity_movements (
     description         TEXT,
     related_instrument_id UUID REFERENCES capital.capital_instruments(id),
     related_event_id    UUID REFERENCES capital.capital_events(id),
-    journal_entry_id    UUID,
+    journal_entry_id    BIGINT,
     period_year         INTEGER,
     period_month        INTEGER,
     created_at          TIMESTAMPTZ NOT NULL DEFAULT now()

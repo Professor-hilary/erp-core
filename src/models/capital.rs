@@ -36,7 +36,7 @@ pub struct CapitalInstrument {
     pub conversion_price: Option<BigDecimal>,
     pub status: String,
     pub accounting_treatment: Option<String>,
-    pub journal_entry_id: Option<Uuid>,
+    pub journal_entry_id: Option<i64>,
     pub notes: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -95,7 +95,7 @@ pub struct CapitalEvent {
     pub shares: Option<i64>,
     pub description: Option<String>,
     pub related_party_id: Option<Uuid>,
-    pub journal_entry_id: Option<Uuid>,
+    pub journal_entry_id: Option<i64>,
     pub created_by: Option<Uuid>,
     pub created_at: DateTime<Utc>,
 }
@@ -113,7 +113,7 @@ pub struct CreateCapitalEvent {
     pub capital_contrib_acc: Option<Uuid>,
     pub cash_account: Option<Uuid>,
     pub related_party_id: Option<Uuid>,
-    pub journal_entry_id: Option<Uuid>,
+    pub journal_entry_id: Option<i64>,
 }
 
 // =============================================================================
@@ -223,7 +223,7 @@ pub struct DebtDrawdown {
     pub currency_id: Uuid,
     pub reference: Option<String>,
     pub purpose: Option<String>,
-    pub journal_entry_id: Option<Uuid>,
+    pub journal_entry_id: Option<i64>,
     pub status: String,
     pub created_at: DateTime<Utc>,
 }
@@ -289,7 +289,7 @@ pub struct DebtRepayment {
     pub currency_id: Uuid,
     pub payment_method: Option<String>,
     pub reference: Option<String>,
-    pub journal_entry_id: Option<Uuid>,
+    pub journal_entry_id: Option<i64>,
     pub created_at: DateTime<Utc>,
 }
 
@@ -304,7 +304,7 @@ pub struct CreateRepayment {
     pub currency_id: Uuid,
     pub payment_method: Option<String>,
     pub reference: Option<String>,
-    pub journal_entry_id: Option<Uuid>,
+    pub journal_entry_id: Option<i64>,
     pub debt_payable_account_id: Uuid,
     pub int_accrd_or_exp_acc_id: Uuid,
     pub cash_account_id: Uuid,
@@ -327,7 +327,7 @@ pub struct DebtInterestAccrual {
     pub day_count: i32,
     pub interest_amount: BigDecimal,
     pub is_paid: bool,
-    pub journal_entry_id: Option<Uuid>,
+    pub journal_entry_id: Option<i64>,
     pub created_at: DateTime<Utc>,
 }
 
@@ -342,7 +342,7 @@ pub struct CreateInterestAccrual {
     pub day_count: i32,
     pub interest_amount: BigDecimal,
     pub is_paid: Option<bool>,
-    pub journal_entry_id: Option<Uuid>,
+    pub journal_entry_id: Option<i64>,
     pub interest_exp_id: Uuid,
     pub interest_acc_id: Uuid,
 }
@@ -357,7 +357,7 @@ pub struct DebtFee {
     pub amount: BigDecimal,
     pub currency_id: Uuid,
     pub description: Option<String>,
-    pub journal_entry_id: Option<Uuid>,
+    pub journal_entry_id: Option<i64>,
     pub created_at: DateTime<Utc>,
 }
 
@@ -369,7 +369,7 @@ pub struct CreateDebtFee {
     pub amount: BigDecimal,
     pub currency_id: Uuid,
     pub description: Option<String>,
-    pub journal_entry_id: Option<Uuid>,
+    pub journal_entry_id: Option<i64>,
 }
 
 // =============================================================================
@@ -471,7 +471,7 @@ pub struct DebtRefinancing {
     pub principal_refinanced: BigDecimal,
     pub costs: BigDecimal,
     pub description: Option<String>,
-    pub journal_entry_id: Option<Uuid>,
+    pub journal_entry_id: Option<i64>,
     pub created_at: DateTime<Utc>,
 }
 
@@ -483,7 +483,7 @@ pub struct CreateDebtRefinancing {
     pub principal_refinanced: BigDecimal,
     pub costs: Option<BigDecimal>,
     pub description: Option<String>,
-    pub journal_entry_id: Option<Uuid>,
+    pub journal_entry_id: Option<i64>,
 }
 
 // =============================================================================
@@ -627,7 +627,7 @@ pub struct ShareTransaction {
     pub total_consideration: Option<BigDecimal>,
     pub currency_id: Option<Uuid>,
     pub premium: Option<BigDecimal>,
-    pub journal_entry_id: Option<Uuid>,
+    pub journal_entry_id: Option<i64>,
     pub reference: Option<String>,
     pub notes: Option<String>,
     pub created_at: DateTime<Utc>,
@@ -645,7 +645,7 @@ pub struct CreateShareTransaction {
     pub total_consideration: Option<BigDecimal>,
     pub currency_id: Option<Uuid>,
     pub premium: Option<BigDecimal>,
-    pub journal_entry_id: Option<Uuid>,
+    pub journal_entry_id: Option<i64>,
     pub cash_account_id: Uuid,
     pub share_capital_account_id: Uuid,
     pub share_premium_account_id: Uuid,
@@ -668,7 +668,7 @@ pub struct Dividend {
     pub total_declared: Option<BigDecimal>,
     pub currency_id: Option<Uuid>,
     pub status: String,
-    pub journal_entry_id: Option<Uuid>,
+    pub journal_entry_id: Option<i64>,
     pub created_at: DateTime<Utc>,
 }
 
@@ -700,7 +700,7 @@ pub struct DividendPayment {
     pub net_amount: BigDecimal,
     pub payment_date: Option<NaiveDate>,
     pub payment_reference: Option<String>,
-    pub journal_entry_id: Option<Uuid>,
+    pub journal_entry_id: Option<i64>,
     pub created_at: DateTime<Utc>,
 }
 
@@ -713,7 +713,7 @@ pub struct CreateDividendPayment {
     pub withholding_tax: Option<BigDecimal>,
     pub payment_date: Option<NaiveDate>,
     pub payment_reference: Option<String>,
-    pub journal_entry_id: Option<Uuid>,
+    pub journal_entry_id: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow, Validate)]
@@ -762,7 +762,7 @@ pub struct EquityMovement {
     pub description: Option<String>,
     pub related_instrument_id: Option<Uuid>,
     pub related_event_id: Option<Uuid>,
-    pub journal_entry_id: Option<Uuid>,
+    pub journal_entry_id: Option<i64>,
     pub period_year: Option<i32>,
     pub period_month: Option<i32>,
     pub created_at: DateTime<Utc>,
@@ -777,7 +777,7 @@ pub struct CreateEquityMovement {
     pub description: Option<String>,
     pub related_instrument_id: Option<Uuid>,
     pub related_event_id: Option<Uuid>,
-    pub journal_entry_id: Option<Uuid>,
+    pub journal_entry_id: Option<i64>,
     pub period_year: Option<i32>,
     pub period_month: Option<i32>,
 }
