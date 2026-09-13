@@ -11,6 +11,73 @@ use validator::Validate;
 // 1. CAPITAL INSTRUMENTS
 // =============================================================================
 
+/// Issue shares – drives instruments + events + share_* + GL
+#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+pub struct IssueSharesRequest {
+    pub share_class_id: Uuid,
+    pub shareholder_id: Uuid,
+    pub shares: i64,
+    pub price_per_share: BigDecimal,
+    pub issue_date: NaiveDate,
+    pub currency_id: Uuid,
+    /// GL account codes (or UUIDs as text – post_transaction accepts both)
+    pub cash_account_code: String,
+    pub share_capital_code: String,
+    pub share_premium_code: Option<String>,
+    pub instrument_code: Option<String>,
+    pub instrument_name: Option<String>,
+    pub par_value: Option<BigDecimal>,
+    pub reference: Option<String>,
+    pub notes: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct IssueSharesResult {
+    pub instrument_id: Uuid,
+    pub event_id: Uuid,
+    pub transaction_id: i64,   // share_transactions.serial_id
+    pub journal_serial: i64,   // accounting.transactions.serial_id
+}
+
+/// Debt drawdown / borrow
+#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+pub struct BorrowRequest {
+    pub facility_id: Uuid,
+    pub amount: BigDecimal,
+    pub drawdown_date: NaiveDate,
+    pub value_date: Option<NaiveDate>,
+    pub currency_id: Uuid,
+    pub cash_account_code: String,
+    pub loan_liability_code: String,
+    pub reference: Option<String>,
+    pub purpose: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct BorrowResult {
+    pub drawdown_id: Uuid,
+    pub event_id: Uuid,
+    pub journal_serial: i64,
+}
+
+/// Equity contribution – no instrument
+#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+pub struct EquityContributionRequest {
+    pub party_id: Uuid,
+    pub amount: BigDecimal,
+    pub contribution_date: NaiveDate,
+    pub currency_id: Uuid,
+    pub cash_account_code: String,
+    pub equity_account_code: String,
+    pub description: Option<String>,
+    pub reference: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct EquityContributionResult {
+    pub event_id: Uuid,
+    pub journal_serial: i64,
+}
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct CapitalInstrument {
     pub id: Uuid,
