@@ -220,11 +220,11 @@ async fn get_party(
 }
 
 async fn list_parties(
-    Path(id): Path<Uuid>,
+    // Path(id): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
 ) -> Result<Response, AppError> {
     let items = service()
-        .list_parties(&user.tenant_pool, user.company_id, id)
+        .list_parties(&user.tenant_pool, user.company_id)
         .await?;
     Ok(ApiResponse::success(items, "Party list fetched"))
 }

@@ -112,7 +112,6 @@ pub trait CapitalRepository: Send + Sync {
         &self,
         pool: &PgPool,
         company_id: Uuid,
-        uuid: Uuid,
     ) -> Result<Vec<Party>, AppError>;
 
     async fn update_party(
@@ -777,16 +776,14 @@ impl CapitalRepository for PostgresCapitalRepo {
         &self,
         pool: &PgPool,
         company_id: Uuid,
-        uuid: Uuid,
     ) -> Result<Vec<Party>, AppError> {
         let rows = sqlx::query_as::<_, Party>(
             r#"
-            SELECT * FROM capital.parties
-            WHERE company_id = $1 AND id = $2
+            SELECT * FROM capital.parties WHERE company_id = $1
             "#,
         )
         .bind(company_id)
-        .bind(uuid)
+        // .bind(uuid)
         .fetch_all(pool)
         .await?;
 

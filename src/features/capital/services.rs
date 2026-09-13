@@ -57,9 +57,8 @@ impl<R: CapitalRepository> CapitalService<R> {
         &self,
         pool: &PgPool,
         company_id: Uuid,
-        uuid: Uuid,
     ) -> Result<Vec<Party>, AppError> {
-        self.repo.list_parties(pool, company_id, uuid).await
+        self.repo.list_parties(pool, company_id).await
     }
 
     pub async fn update_party(
