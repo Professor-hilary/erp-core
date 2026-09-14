@@ -12,6 +12,26 @@ CREATE SEQUENCE accounting.transactions_serial_id_seq;
 
 CREATE SEQUENCE accounting.transaction_entries_serial_id_seq;
 
+CREATE TABLE accounting.currencies (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    serial_id       bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+    code            CHAR(3) NOT NULL UNIQUE,          -- ISO 4217
+    name            TEXT NOT NULL,
+    decimal_places  SMALLINT NOT NULL DEFAULT 2,
+    is_active       BOOLEAN NOT NULL DEFAULT true
+);
+
+CREATE TABLE accounting.exchange_rates (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    serial_id       bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+    from_currency_id UUID NOT NULL REFERENCES accounting.currencies(id),
+    to_currency_id  UUID NOT NULL REFERENCES accounting.currencies(id),
+    rate_date       DATE NOT NULL,
+    rate            NUMERIC(18,10) NOT NULL,
+    source          TEXT,
+    UNIQUE (from_currency_id, to_currency_id, rate_date)
+);
+
 -----------------------------------------------------------------
 -- accounts: chart of accounts
 -----------------------------------------------------------------

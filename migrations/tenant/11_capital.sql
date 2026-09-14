@@ -10,15 +10,6 @@ CREATE SCHEMA IF NOT EXISTS capital;
 -- 0. SHARED / REFERENCE
 -- =============================================
 
-CREATE TABLE capital.currencies (
-    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    serial_id       bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
-    code            CHAR(3) NOT NULL UNIQUE,          -- ISO 4217
-    name            TEXT NOT NULL,
-    decimal_places  SMALLINT NOT NULL DEFAULT 2,
-    is_active       BOOLEAN NOT NULL DEFAULT true
-);
-
 CREATE TABLE capital.parties (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     serial_id       bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
@@ -35,17 +26,6 @@ CREATE TABLE capital.parties (
     is_related_party BOOLEAN NOT NULL DEFAULT false,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE TABLE capital.exchange_rates (
-    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    serial_id       bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
-    from_currency_id UUID NOT NULL REFERENCES capital.currencies(id),
-    to_currency_id  UUID NOT NULL REFERENCES capital.currencies(id),
-    rate_date       DATE NOT NULL,
-    rate            NUMERIC(18,10) NOT NULL,
-    source          TEXT,
-    UNIQUE (from_currency_id, to_currency_id, rate_date)
 );
 
 -- =============================================
@@ -72,7 +52,7 @@ CREATE TABLE capital.capital_instruments (
                             'CONVERTIBLE_PREFERRED', 'PERPETUAL_BOND', 'WARRANT',
                             'OTHER'
                         )),
-    currency_id         UUID NOT NULL REFERENCES capital.currencies(id),
+    currency_id         UUID NOT NULL REFERENCES accounting.currencies(id),
     original_principal  NUMERIC(24,6) NOT NULL DEFAULT 0,
     outstanding_principal NUMERIC(24,6) NOT NULL DEFAULT 0,
     face_value          NUMERIC(24,6),
@@ -128,7 +108,7 @@ CREATE TABLE capital.capital_events (
     event_date          DATE NOT NULL,
     effective_date      DATE,
     amount              NUMERIC(24,2),
-    currency_id         UUID REFERENCES capital.currencies(id),
+    currency_id         UUID REFERENCES accounting.currencies(id),
     shares              BIGINT,
     description         TEXT,
     related_party_id    UUID REFERENCES capital.parties(id),
@@ -157,7 +137,7 @@ CREATE TABLE capital.debt_facilities (
                                 'SYNDICATED', 'BILATERAL', 'OTHER'
                             )),
     agent_id                UUID REFERENCES capital.parties(id),
-    currency_id             UUID NOT NULL REFERENCES capital.currencies(id),
+    currency_id             UUID NOT NULL REFERENCES accounting.currencies(id),
     committed_amount        NUMERIC(24,6) NOT NULL,
     available_amount        NUMERIC(24,6) NOT NULL,   -- remaining undrawn
     drawn_amount            NUMERIC(24,6) NOT NULL DEFAULT 0,
@@ -211,7 +191,7 @@ CREATE TABLE capital.debt_drawdowns (
     drawdown_date       DATE NOT NULL,
     value_date          DATE,
     amount              NUMERIC(24,6) NOT NULL,
-    currency_id         UUID NOT NULL REFERENCES capital.currencies(id),
+    currency_id         UUID NOT NULL REFERENCES accounting.currencies(id),
     reference           TEXT,
     purpose             TEXT,
     journal_entry_id    BIGINT,
@@ -253,7 +233,7 @@ CREATE TABLE capital.debt_repayments (
     total_amount        NUMERIC(24,6) GENERATED ALWAYS AS (
                             principal_amount + interest_amount + fee_amount
                         ) STORED,
-    currency_id         UUID NOT NULL REFERENCES capital.currencies(id),
+    currency_id         UUID NOT NULL REFERENCES accounting.currencies(id),
     payment_method      TEXT,
     reference           TEXT,
     journal_entry_id    BIGINT,
@@ -286,7 +266,7 @@ CREATE TABLE capital.debt_fees (
                         )),
     fee_date            DATE NOT NULL,
     amount              NUMERIC(24,6) NOT NULL,
-    currency_id         UUID NOT NULL REFERENCES capital.currencies(id),
+    currency_id         UUID NOT NULL REFERENCES accounting.currencies(id),
     description         TEXT,
     journal_entry_id    BIGINT,
     created_at          TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -336,7 +316,7 @@ CREATE TABLE capital.debt_collateral (
     collateral_type     TEXT NOT NULL,                -- real estate, inventory, receivables, shares, etc.
     description         TEXT,
     estimated_value     NUMERIC(24,6),
-    currency_id         UUID REFERENCES capital.currencies(id),
+    currency_id         UUID REFERENCES accounting.currencies(id),
     valuation_date      DATE,
     ranking             TEXT,                         -- first, second lien
     is_perfected        BOOLEAN NOT NULL DEFAULT false,
@@ -375,7 +355,7 @@ CREATE TABLE capital.share_classes (
     issued_shares       BIGINT NOT NULL DEFAULT 0,
     outstanding_shares  BIGINT NOT NULL DEFAULT 0,    -- issued - treasury
     par_value           NUMERIC(20,8),
-    currency_id         UUID REFERENCES capital.currencies(id),
+    currency_id         UUID REFERENCES accounting.currencies(id),
     voting_rights       BOOLEAN NOT NULL DEFAULT true,
     votes_per_share     NUMERIC(10,4) DEFAULT 1,
     dividend_rights     BOOLEAN NOT NULL DEFAULT true,
@@ -437,7 +417,7 @@ CREATE TABLE capital.share_transactions (
     shares              BIGINT NOT NULL,
     price_per_share     NUMERIC(24,8),
     total_consideration NUMERIC(24,6),
-    currency_id         UUID REFERENCES capital.currencies(id),
+    currency_id         UUID REFERENCES accounting.currencies(id),
     premium             NUMERIC(24,6),                -- share premium
     journal_entry_id    BIGINT,
     reference           TEXT,
@@ -462,7 +442,7 @@ CREATE TABLE capital.dividends (
     payment_date        DATE,
     dividend_per_share  NUMERIC(20,8) NOT NULL,
     total_declared      NUMERIC(24,6),
-    currency_id         UUID REFERENCES capital.currencies(id),
+    currency_id         UUID REFERENCES accounting.currencies(id),
     status              TEXT NOT NULL DEFAULT 'proposed' CHECK (status IN (
                             'proposed', 'declared', 'record_passed', 'paid', 'cancelled'
                         )),
@@ -500,7 +480,7 @@ CREATE TABLE capital.equity_accounts (
                             'REVALUATION_RESERVE', 'OTHER_COMPREHENSIVE_INCOME',
                             'TREASURY_SHARES', 'OTHER_RESERVES', 'NON_CONTROLLING_INTEREST'
                         )),
-    currency_id         UUID REFERENCES capital.currencies(id),
+    currency_id         UUID REFERENCES accounting.currencies(id),
     is_distributable    BOOLEAN NOT NULL DEFAULT false,
     created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (company_id, account_code)
@@ -568,7 +548,7 @@ CREATE TABLE capital.capital_allocations (
                         )),
     allocation_target_id UUID,                        -- project / asset / etc.
     amount              NUMERIC(24,6) NOT NULL,
-    currency_id         UUID REFERENCES capital.currencies(id),
+    currency_id         UUID REFERENCES accounting.currencies(id),
     allocation_date     DATE NOT NULL,
     expected_return     NUMERIC(12,6),                -- IRR / ROIC target
     status              TEXT NOT NULL DEFAULT 'allocated',
@@ -596,7 +576,7 @@ CREATE TABLE capital.capital_projects (
     actual_completion       DATE,
     approved_budget         NUMERIC(24,6),
     spent_to_date           NUMERIC(24,6) DEFAULT 0,
-    currency_id             UUID REFERENCES capital.currencies(id),
+    currency_id             UUID REFERENCES accounting.currencies(id),
     expected_irr            NUMERIC(12,6),
     expected_npv            NUMERIC(24,6),
     expected_payback_years  NUMERIC(8,2),
@@ -619,7 +599,7 @@ CREATE TABLE capital.project_funding (
     funding_source_id   UUID NOT NULL,
     amount_committed    NUMERIC(24,6) NOT NULL,
     amount_drawn        NUMERIC(24,6) DEFAULT 0,
-    currency_id         UUID REFERENCES capital.currencies(id),
+    currency_id         UUID REFERENCES accounting.currencies(id),
     funding_date        DATE,
     created_at          TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -637,7 +617,7 @@ CREATE TABLE capital.investment_positions (
     quantity            NUMERIC(24,8),
     cost_basis          NUMERIC(24,6),
     current_value       NUMERIC(24,6),
-    currency_id         UUID REFERENCES capital.currencies(id),
+    currency_id         UUID REFERENCES accounting.currencies(id),
     valuation_date      DATE,
     unrealized_pnl      NUMERIC(24,6),
     status              TEXT NOT NULL DEFAULT 'open',
@@ -656,7 +636,7 @@ CREATE TABLE capital.cash_forecasts (
     forecast_name       TEXT,
     forecast_date       DATE NOT NULL,                -- as-of date of forecast
     horizon_days        INTEGER NOT NULL DEFAULT 90,
-    currency_id         UUID REFERENCES capital.currencies(id),
+    currency_id         UUID REFERENCES accounting.currencies(id),
     opening_cash        NUMERIC(24,6),
     scenario            TEXT DEFAULT 'base' CHECK (scenario IN (
                             'base', 'optimistic', 'pessimistic', 'stress'
@@ -691,7 +671,7 @@ CREATE TABLE capital.funding_requirements (
     company_id          UUID NOT NULL,
     requirement_date    DATE NOT NULL,
     amount_needed       NUMERIC(24,6) NOT NULL,
-    currency_id         UUID REFERENCES capital.currencies(id),
+    currency_id         UUID REFERENCES accounting.currencies(id),
     purpose             TEXT,
     preferred_source    TEXT,                         -- debt / equity / internal
     status              TEXT NOT NULL DEFAULT 'open' CHECK (status IN (
@@ -714,7 +694,7 @@ CREATE TABLE capital.capital_metrics (
     value               NUMERIC(20,8) NOT NULL,
     numerator           NUMERIC(24,6),
     denominator         NUMERIC(24,6),
-    currency_id         UUID REFERENCES capital.currencies(id),
+    currency_id         UUID REFERENCES accounting.currencies(id),
     period_type         TEXT CHECK (period_type IN ('DAILY', 'MTD', 'QTD', 'YTD', 'LTM', 'CUSTOM')),
     notes               TEXT,
     created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -839,7 +819,7 @@ WHERE ea.account_type = 'RETAINED_EARNINGS'
 GROUP BY ea.company_id, ea.id, ea.account_name;
 
 -- =============================================
--- 11. HELPER FUNCTIONS (examples)
+-- 11. HELPER FUNCTIONS
 -- =============================================
 CREATE OR REPLACE FUNCTION capital.issue_shares(
     p_company_id          UUID,
@@ -850,12 +830,12 @@ CREATE OR REPLACE FUNCTION capital.issue_shares(
     p_price_per_share     NUMERIC(24,8),
     p_issue_date          DATE,
     p_currency_id         UUID,
+    p_cash_account_code   UUID,                -- for the GL side
+    p_share_capital_code  UUID,
     p_instrument_code     TEXT DEFAULT NULL,   -- only needed when creating new instrument
     p_instrument_name     TEXT DEFAULT NULL,
     p_par_value           NUMERIC(20,8) DEFAULT NULL,
-    p_cash_account_code   TEXT,                -- for the GL side
-    p_share_capital_code  TEXT,
-    p_share_premium_code  TEXT DEFAULT NULL,   -- optional
+    p_share_premium_code  UUID DEFAULT NULL,   -- optional
     p_reference           TEXT DEFAULT NULL,
     p_notes               TEXT DEFAULT NULL
 ) RETURNS TABLE (
@@ -865,7 +845,7 @@ CREATE OR REPLACE FUNCTION capital.issue_shares(
     journal_serial  BIGINT           -- accounting.transactions.serial_id
 )
 LANGUAGE plpgsql
-AS $function$
+AS $$
 DECLARE
     v_class             capital.share_classes%ROWTYPE;
     v_instrument_id     UUID;
@@ -1021,7 +1001,7 @@ BEGIN
     WHERE serial_id = v_tx_id;
 
     RETURN QUERY SELECT v_instrument_id, v_event_id, v_tx_id, v_journal_serial;
-END; 
+END;
 $$;
 
 CREATE OR REPLACE FUNCTION capital.borrow(
@@ -1030,10 +1010,10 @@ CREATE OR REPLACE FUNCTION capital.borrow(
     p_facility_id         UUID,               -- existing facility
     p_amount              NUMERIC(24,6),
     p_drawdown_date       DATE,
-    p_value_date          DATE DEFAULT NULL,
     p_currency_id         UUID,
-    p_cash_account_code   TEXT,               -- bank / cash GL account
-    p_loan_liability_code TEXT,               -- the liability account
+    p_cash_account_code   UUID,               -- bank / cash GL account
+    p_loan_liability_code UUID,               -- the liability account
+    p_value_date          DATE DEFAULT NULL,
     p_reference           TEXT DEFAULT NULL,
     p_purpose             TEXT DEFAULT NULL
 ) RETURNS TABLE (
@@ -1042,7 +1022,7 @@ CREATE OR REPLACE FUNCTION capital.borrow(
     journal_serial  BIGINT
 )
 LANGUAGE plpgsql
-AS $function$ 
+AS $$
 DECLARE
     v_facility      capital.debt_facilities%ROWTYPE;
     v_instrument_id UUID;
@@ -1144,7 +1124,7 @@ BEGIN
     WHERE id = v_event_id;
 
     RETURN QUERY SELECT v_drawdown_id, v_event_id, v_journal;
-END; 
+END;
 $$;
 
 CREATE OR REPLACE FUNCTION capital.record_equity_contribution(
@@ -1154,8 +1134,8 @@ CREATE OR REPLACE FUNCTION capital.record_equity_contribution(
     p_amount              NUMERIC(24,6),
     p_contribution_date   DATE,
     p_currency_id         UUID,
-    p_cash_account_code   TEXT,
-    p_equity_account_code TEXT,               -- capital contribution / additional paid-in capital
+    p_cash_account_code   UUID,
+    p_equity_account_code UUID,               -- capital contribution / additional paid-in capital
     p_description         TEXT DEFAULT NULL,
     p_reference           TEXT DEFAULT NULL
 ) RETURNS TABLE (
@@ -1163,7 +1143,7 @@ CREATE OR REPLACE FUNCTION capital.record_equity_contribution(
     journal_serial BIGINT
 )
 LANGUAGE plpgsql
-AS $function$ 
+AS $$
 DECLARE
     v_event_id UUID;
     v_journal  BIGINT;
@@ -1216,7 +1196,7 @@ BEGIN
     WHERE id = v_event_id;
 
     RETURN QUERY SELECT v_event_id, v_journal;
-END; 
+END;
 $$;
 
 -- Example: recalculate outstanding principal on an instrument

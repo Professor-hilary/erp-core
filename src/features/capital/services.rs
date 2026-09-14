@@ -233,6 +233,58 @@ impl<R: CapitalRepository> CapitalService<R> {
     // 3. Debt Facilities
     // =========================================================================
 
+    pub async fn create_capital_contribution(
+        &self,
+        pool: &PgPool,
+        company_id: Uuid,
+        user_id: Uuid,
+        payload: &EquityContributionRequest,
+    ) -> Result<EquityContributionResult, AppError> {
+        payload
+            .validate()
+            .map_err(|e| AppError::Unprocessable(e.to_string()))?;
+
+        // if payload.amount < BigDecimal::zero() {
+        //     return Err(AppError::Unprocessable(
+        //         "committed_amount must be greater than zero".into(),
+        //     ));
+        // }
+
+        let mut tx = pool.begin().await?;
+        let debt = self
+            .repo
+            .record_equity_contribution(&mut tx, company_id, user_id, payload)
+            .await?;
+        tx.commit().await?;
+        Ok(debt)
+    }
+
+    pub async fn create_debt(
+        &self,
+        pool: &PgPool,
+        company_id: Uuid,
+        user_id: Uuid,
+        payload: &BorrowRequest,
+    ) -> Result<BorrowResult, AppError> {
+        payload
+            .validate()
+            .map_err(|e| AppError::Unprocessable(e.to_string()))?;
+
+        // if payload.amount < BigDecimal::zero() {
+        //     return Err(AppError::Unprocessable(
+        //         "committed_amount must be greater than zero".into(),
+        //     ));
+        // }
+
+        let mut tx = pool.begin().await?;
+        let debt = self
+            .repo
+            .borrow(&mut tx, company_id, user_id, payload)
+            .await?;
+        tx.commit().await?;
+        Ok(debt)
+    }
+
     pub async fn create_facility(
         &self,
         pool: &PgPool,
@@ -339,7 +391,8 @@ impl<R: CapitalRepository> CapitalService<R> {
     // =========================================================================
     // 4. Drawdowns
     // =========================================================================
-
+    #[deprecated]
+    #[allow(unused)]
     pub async fn create_drawdown(
         &self,
         pool: &PgPool,
@@ -686,26 +739,52 @@ impl<R: CapitalRepository> CapitalService<R> {
         pool: &PgPool,
         company_id: Uuid,
         user_id: Uuid,
-        payload: &CreateShareTransaction,
-    ) -> Result<ShareTransaction, AppError> {
+        payload: &IssueSharesRequest,
+    ) -> Result<IssueSharesResult, AppError> {
         payload
             .validate()
             .map_err(|e| AppError::Unprocessable(e.to_string()))?;
 
-        if payload.shares <= 0 {
-            return Err(AppError::Unprocessable(
-                "shares must be greater than zero".into(),
-            ));
-        }
+        // if payload.shares <= 0 {
+        //     return Err(AppError::Unprocessable(
+        //         "shares must be greater than zero".into(),
+        //     ));
+        // }
 
         let mut tx = pool.begin().await?;
         let tx_row = self
             .repo
-            .create_share_transaction(&mut tx, company_id, user_id, payload)
+            .issue_shares(&mut tx, company_id, user_id, payload)
             .await?;
         tx.commit().await?;
         Ok(tx_row)
     }
+
+    // pub async fn create_share_transaction(
+    //     &self,
+    //     pool: &PgPool,
+    //     company_id: Uuid,
+    //     user_id: Uuid,
+    //     payload: &CreateShareTransaction,
+    // ) -> Result<ShareTransaction, AppError> {
+    //     payload
+    //         .validate()
+    //         .map_err(|e| AppError::Unprocessable(e.to_string()))?;
+
+    //     if payload.shares <= 0 {
+    //         return Err(AppError::Unprocessable(
+    //             "shares must be greater than zero".into(),
+    //         ));
+    //     }
+
+    //     let mut tx = pool.begin().await?;
+    //     let tx_row = self
+    //         .repo
+    //         .create_share_transaction(&mut tx, company_id, user_id, payload)
+    //         .await?;
+    //     tx.commit().await?;
+    //     Ok(tx_row)
+    // }
 
     pub async fn list_share_transactions(
         &self,

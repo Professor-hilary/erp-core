@@ -27,6 +27,10 @@ pub fn router() -> Router<Arc<AppState>> {
     Router::new()
         // ----- Instruments & Parties -----
         .route(
+            "/capitalcontr",
+            post(create_equity_contribution).get(list_instruments),
+        )
+        .route(
             "/instruments",
             post(create_instrument).get(list_instruments),
         )
@@ -50,7 +54,7 @@ pub fn router() -> Router<Arc<AppState>> {
         )
         .route(
             "/facilities/{id}/drawdowns",
-            post(create_drawdown).get(list_drawdowns),
+            post(borrow).get(list_drawdowns),
         )
         .route(
             "/facilities/{id}/repayments",
@@ -413,17 +417,29 @@ async fn list_facility_lenders(
 // Drawdowns / Repayments / Schedules / Accruals / Fees / Covenants / Collateral
 // ===========================================================================
 
-async fn create_drawdown(
+async fn borrow(
     Path(facility_id): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
-    Json(mut payload): Json<CreateDrawdown>,
+    Json(mut payload): Json<BorrowRequest>,
 ) -> Result<Response, AppError> {
     payload.facility_id = facility_id;
     let drawdown = service()
-        .create_drawdown(&user.tenant_pool, user.company_id, user.user_id, &payload)
+        .create_debt(&user.tenant_pool, user.company_id, user.user_id, &payload)
         .await?;
     Ok(ApiResponse::created(drawdown, "Debt drawdown created"))
 }
+
+// async fn create_drawdown(
+//     Path(facility_id): Path<Uuid>,
+//     Extension(user): Extension<AuthenticatedTenant>,
+//     Json(mut payload): Json<CreateDrawdown>,
+// ) -> Result<Response, AppError> {
+//     payload.facility_id = facility_id;
+//     let drawdown = service()
+//         .create_drawdown(&user.tenant_pool, user.company_id, user.user_id, &payload)
+//         .await?;
+//     Ok(ApiResponse::created(drawdown, "Debt drawdown created"))
+// }
 
 async fn list_drawdowns(
     Path(facility_id): Path<Uuid>,
@@ -585,6 +601,16 @@ async fn create_refinancing(
 // Equity
 // ===========================================================================
 
+async fn create_equity_contribution(
+    Extension(user): Extension<AuthenticatedTenant>,
+    Json(payload): Json<EquityContributionRequest>,
+) -> Result<Response, AppError> {
+    let sc = service()
+        .create_capital_contribution(&user.tenant_pool, user.company_id, user.user_id, &payload)
+        .await?;
+    Ok(ApiResponse::created(sc, "Capital contribution created"))
+}
+
 async fn create_share_class(
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<CreateShareClass>,
@@ -649,7 +675,7 @@ async fn get_shareholding(
 
 async fn create_share_transaction(
     Extension(user): Extension<AuthenticatedTenant>,
-    Json(payload): Json<CreateShareTransaction>,
+    Json(payload): Json<IssueSharesRequest>,
 ) -> Result<Response, AppError> {
     let tx = service()
         .create_share_transaction(&user.tenant_pool, user.company_id, user.user_id, &payload)

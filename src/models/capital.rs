@@ -21,9 +21,9 @@ pub struct IssueSharesRequest {
     pub issue_date: NaiveDate,
     pub currency_id: Uuid,
     /// GL account codes (or UUIDs as text – post_transaction accepts both)
-    pub cash_account_code: String,
-    pub share_capital_code: String,
-    pub share_premium_code: Option<String>,
+    pub cash_account_code: Uuid,
+    pub share_capital_code: Uuid,
+    pub share_premium_code: Option<Uuid>,
     pub instrument_code: Option<String>,
     pub instrument_name: Option<String>,
     pub par_value: Option<BigDecimal>,
@@ -35,8 +35,8 @@ pub struct IssueSharesRequest {
 pub struct IssueSharesResult {
     pub instrument_id: Uuid,
     pub event_id: Uuid,
-    pub transaction_id: i64,   // share_transactions.serial_id
-    pub journal_serial: i64,   // accounting.transactions.serial_id
+    pub transaction_id: i64, // share_transactions.serial_id
+    pub journal_serial: i64, // accounting.transactions.serial_id
 }
 
 /// Debt drawdown / borrow
@@ -47,8 +47,8 @@ pub struct BorrowRequest {
     pub drawdown_date: NaiveDate,
     pub value_date: Option<NaiveDate>,
     pub currency_id: Uuid,
-    pub cash_account_code: String,
-    pub loan_liability_code: String,
+    pub cash_account_code: Uuid,
+    pub loan_liability_code: Uuid,
     pub reference: Option<String>,
     pub purpose: Option<String>,
 }
@@ -1173,4 +1173,66 @@ pub struct CreateWaccComponent {
     pub debt_weight: Option<BigDecimal>,
     pub wacc: Option<BigDecimal>,
     pub notes: Option<String>,
+}
+
+// =============================================================================
+// 15. CURRENCIES
+// =============================================================================
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct Currency {
+    pub id: Uuid,
+    pub serial_id: i64,
+    pub code: String,
+    pub name: String,
+    pub decimal_places: i8, // ROIC, ROE, DSCR, ICR, EVA, WACC...
+    pub is_active: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+pub struct CreateCurrency {
+    pub serial_id: i64,
+    pub code: String,
+    pub name: String,
+    pub decimal_places: i8, // ROIC, ROE, DSCR, ICR, EVA, WACC...
+    pub is_active: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct Currency {
+    pub id: Uuid,
+    pub serial_id: i64,
+    pub code: String,          // ISO 4217, e.g. "UGX", "USD"
+    pub name: String,
+    pub decimal_places: i16,
+    pub is_active: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+pub struct CreateCurrency {
+    #[validate(length(equal = 3))]
+    pub code: String,
+    pub name: String,
+    pub decimal_places: Option<i16>,
+    pub is_active: Option<bool>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct ExchangeRate {
+    pub id: Uuid,
+    pub serial_id: i64,
+    pub from_currency_id: Uuid,
+    pub to_currency_id: Uuid,
+    pub rate_date: NaiveDate,
+    pub rate: BigDecimal,
+    pub source: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+pub struct UpsertExchangeRate {
+    pub from_currency_id: Uuid,
+    pub to_currency_id: Uuid,
+    pub rate_date: NaiveDate,
+    pub rate: BigDecimal,
+    pub source: Option<String>,
 }

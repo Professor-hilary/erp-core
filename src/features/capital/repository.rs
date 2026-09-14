@@ -94,10 +94,6 @@ pub trait CapitalRepository: Send + Sync {
         payload: &UpdateCapitalInstrument,
     ) -> Result<CapitalInstrument, AppError>;
 
-// =========================================================================
-    // Orchestrated financing actions (preferred write path)
-    // =========================================================================
-
     /// Issue shares – single SQL function does instruments, events,
     /// share_transactions, shareholdings, class counters, and GL.
     async fn issue_shares(
@@ -127,7 +123,7 @@ pub trait CapitalRepository: Send + Sync {
     ) -> Result<EquityContributionResult, AppError>;
 
     // =========================================================================
-    // 1. Parties and stakeholders
+    // 2. Parties and stakeholders
     // =========================================================================
     async fn create_party(
         &self,
@@ -140,11 +136,7 @@ pub trait CapitalRepository: Send + Sync {
     async fn get_party(&self, pool: &PgPool, company_id: Uuid, id: Uuid)
     -> Result<Party, AppError>;
 
-    async fn list_parties(
-        &self,
-        pool: &PgPool,
-        company_id: Uuid,
-    ) -> Result<Vec<Party>, AppError>;
+    async fn list_parties(&self, pool: &PgPool, company_id: Uuid) -> Result<Vec<Party>, AppError>;
 
     async fn update_party(
         &self,
@@ -155,7 +147,7 @@ pub trait CapitalRepository: Send + Sync {
     ) -> Result<Party, AppError>;
 
     // =========================================================================
-    // 2. Capital Events (audit / lifecycle)
+    // 3. Capital Events (audit / lifecycle)
     // =========================================================================
     async fn create_event(
         &self,
@@ -173,7 +165,7 @@ pub trait CapitalRepository: Send + Sync {
     ) -> Result<Vec<CapitalEvent>, AppError>;
 
     // =========================================================================
-    // 3. Debt Facilities
+    // 4. Debt Facilities
     // =========================================================================
     async fn create_facility(
         &self,
@@ -222,7 +214,7 @@ pub trait CapitalRepository: Send + Sync {
     ) -> Result<Vec<FacilityLender>, AppError>;
 
     // =========================================================================
-    // 4. Drawdowns
+    // 5. Drawdowns
     // =========================================================================
     async fn create_drawdown(
         &self,
@@ -239,7 +231,7 @@ pub trait CapitalRepository: Send + Sync {
     ) -> Result<Vec<DebtDrawdown>, AppError>;
 
     // =========================================================================
-    // 5. Repayment Schedules & Repayments
+    // 6. Repayment Schedules & Repayments
     // =========================================================================
     async fn create_repayment_schedule(
         &self,
@@ -268,7 +260,7 @@ pub trait CapitalRepository: Send + Sync {
     ) -> Result<Vec<DebtRepayment>, AppError>;
 
     // =========================================================================
-    // 6. Interest Accruals & Fees
+    // 7. Interest Accruals & Fees
     // =========================================================================
     async fn create_interest_accrual(
         &self,
@@ -290,7 +282,7 @@ pub trait CapitalRepository: Send + Sync {
     ) -> Result<DebtFee, AppError>;
 
     // =========================================================================
-    // 7. Covenants
+    // 8. Covenants
     // =========================================================================
     async fn create_covenant(
         &self,
@@ -317,7 +309,7 @@ pub trait CapitalRepository: Send + Sync {
     ) -> Result<DebtCovenantTest, AppError>;
 
     // =========================================================================
-    // 8. Collateral & Refinancing
+    // 9. Collateral & Refinancing
     // =========================================================================
     async fn create_collateral(
         &self,
@@ -333,7 +325,7 @@ pub trait CapitalRepository: Send + Sync {
     ) -> Result<DebtRefinancing, AppError>;
 
     // =========================================================================
-    // 9. Equity – Share Classes & Shareholders
+    // 10. Equity – Share Classes & Shareholders
     // =========================================================================
     async fn create_share_class(
         &self,
@@ -376,15 +368,15 @@ pub trait CapitalRepository: Send + Sync {
     ) -> Result<Option<Shareholding>, AppError>;
 
     // =========================================================================
-    // 10. Share Transactions & Dividends
+    // 11. Share Transactions & Dividends
     // =========================================================================
-    async fn create_share_transaction(
-        &self,
-        tx: &mut Transaction<'_, Postgres>,
-        company_id: Uuid,
-        user_id: Uuid,
-        payload: &CreateShareTransaction,
-    ) -> Result<ShareTransaction, AppError>;
+    // async fn create_share_transaction(
+    //     &self,
+    //     tx: &mut Transaction<'_, Postgres>,
+    //     company_id: Uuid,
+    //     user_id: Uuid,
+    //     payload: &CreateShareTransaction,
+    // ) -> Result<ShareTransaction, AppError>;
 
     async fn list_share_transactions(
         &self,
@@ -445,7 +437,7 @@ pub trait CapitalRepository: Send + Sync {
     ) -> Result<CapitalEvent, AppError>;
 
     // =========================================================================
-    // 11. Equity Accounts & Movements (Retained Earnings etc.)
+    // 12. Equity Accounts & Movements (Retained Earnings etc.)
     // =========================================================================
     async fn create_equity_account(
         &self,
@@ -477,7 +469,7 @@ pub trait CapitalRepository: Send + Sync {
     ) -> Result<Vec<EquityMovement>, AppError>;
 
     // =========================================================================
-    // 12. Capital Structure & Allocations
+    // 13. Capital Structure & Allocations
     // =========================================================================
     async fn create_structure_snapshot(
         &self,
@@ -506,7 +498,7 @@ pub trait CapitalRepository: Send + Sync {
     ) -> Result<Vec<CapitalAllocation>, AppError>;
 
     // =========================================================================
-    // 13. Projects & Deployment
+    // 14. Projects & Deployment
     // =========================================================================
     async fn create_project(
         &self,
@@ -544,7 +536,7 @@ pub trait CapitalRepository: Send + Sync {
     ) -> Result<ProjectFunding, AppError>;
 
     // =========================================================================
-    // 14. Liquidity / Cash Forecasts
+    // 15. Liquidity / Cash Forecasts
     // =========================================================================
     async fn create_cash_forecast(
         &self,
@@ -575,7 +567,7 @@ pub trait CapitalRepository: Send + Sync {
     ) -> Result<Vec<CashForecastLine>, AppError>;
 
     // =========================================================================
-    // 15. Analytics
+    // 16. Analytics
     // =========================================================================
     async fn record_metric(
         &self,
@@ -599,6 +591,36 @@ pub trait CapitalRepository: Send + Sync {
         company_id: Uuid,
         payload: &CreateWaccComponent,
     ) -> Result<WaccComponent, AppError>;
+
+    // =========================================================================
+    // 17. Currency
+    // =========================================================================
+    async fn create_currency(
+        &self,
+        tx: &mut Transaction<'_, Postgres>,
+
+        user_id: Uuid,
+        payload: &CreateCurrency,
+    ) -> Result<Currency, AppError>;
+
+    async fn update_currency(
+        &self,
+        tx: &mut Transaction<'_, Postgres>,
+
+        payload: &CreateCurrency,
+    ) -> Result<Currency, AppError>;
+
+    async fn get_currency(
+        &self,
+        pool: &PgPool,
+        id: Uuid,
+    ) -> Result<CashForecast, AppError>;
+
+    async fn list_currencies(
+        &self,
+        pool: &PgPool,
+        forecast_id: Uuid,
+    ) -> Result<Vec<CashForecastLine>, AppError>;
 }
 
 // ---------------------------------------------------------------------------
@@ -618,7 +640,7 @@ impl CapitalRepository for PostgresCapitalRepo {
     // -------------------------------------------------------------------------
     // Instruments
     // -------------------------------------------------------------------------
-async fn issue_shares(
+    async fn issue_shares(
         &self,
         tx: &mut Transaction<'_, Postgres>,
         company_id: Uuid,
@@ -655,11 +677,11 @@ async fn issue_shares(
         .bind(&payload.price_per_share)
         .bind(payload.issue_date)
         .bind(payload.currency_id)
+        .bind(&payload.cash_account_code)
+        .bind(&payload.share_capital_code)
         .bind(&payload.instrument_code)
         .bind(&payload.instrument_name)
         .bind(&payload.par_value)
-        .bind(&payload.cash_account_code)
-        .bind(&payload.share_capital_code)
         .bind(&payload.share_premium_code)
         .bind(&payload.reference)
         .bind(&payload.notes)
@@ -699,10 +721,10 @@ async fn issue_shares(
         .bind(payload.facility_id)
         .bind(&payload.amount)
         .bind(payload.drawdown_date)
-        .bind(payload.value_date)
         .bind(payload.currency_id)
         .bind(&payload.cash_account_code)
         .bind(&payload.loan_liability_code)
+        .bind(payload.value_date)
         .bind(&payload.reference)
         .bind(&payload.purpose)
         .fetch_one(&mut **tx)
@@ -938,11 +960,7 @@ async fn issue_shares(
         .ok_or_else(|| AppError::NotFound("Party not found".into()))
     }
 
-    async fn list_parties(
-        &self,
-        pool: &PgPool,
-        company_id: Uuid,
-    ) -> Result<Vec<Party>, AppError> {
+    async fn list_parties(&self, pool: &PgPool, company_id: Uuid) -> Result<Vec<Party>, AppError> {
         let rows = sqlx::query_as::<_, Party>(
             r#"
             SELECT * FROM capital.parties WHERE company_id = $1
@@ -1915,156 +1933,156 @@ async fn issue_shares(
     // -------------------------------------------------------------------------
     // Share Transactions & Dividends
     // -------------------------------------------------------------------------
-    async fn create_share_transaction(
-        &self,
-        tx: &mut Transaction<'_, Postgres>,
-        company_id: Uuid,
-        user_id: Uuid,
-        payload: &CreateShareTransaction,
-    ) -> Result<ShareTransaction, AppError> {
-        let share_issuance = sqlx::query_as::<_, ShareTransaction>(
-            r#"
-            INSERT INTO capital.share_transactions (
-                company_id, share_class_id, transaction_type, transaction_date,
-                from_shareholder_id, to_shareholder_id, shares,
-                price_per_share, total_consideration, currency_id,
-                premium, journal_entry_id, reference, notes
-            )
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
-            RETURNING *
-            "#,
-        )
-        .bind(company_id)
-        .bind(payload.share_class_id)
-        .bind(&payload.transaction_type)
-        .bind(payload.transaction_date)
-        .bind(payload.from_shareholder_id)
-        .bind(payload.to_shareholder_id)
-        .bind(payload.shares)
-        .bind(&payload.price_per_share)
-        .bind(&payload.total_consideration)
-        .bind(payload.currency_id)
-        .bind(&payload.premium)
-        .bind(payload.journal_entry_id)
-        .bind(&payload.reference)
-        .bind(&payload.notes)
-        .fetch_one(&mut **tx)
-        .await?;
+    // async fn create_share_transaction(
+    //     &self,
+    //     tx: &mut Transaction<'_, Postgres>,
+    //     company_id: Uuid,
+    //     user_id: Uuid,
+    //     payload: &CreateShareTransaction,
+    // ) -> Result<ShareTransaction, AppError> {
+    //     let share_issuance = sqlx::query_as::<_, ShareTransaction>(
+    //         r#"
+    //         INSERT INTO capital.share_transactions (
+    //             company_id, share_class_id, transaction_type, transaction_date,
+    //             from_shareholder_id, to_shareholder_id, shares,
+    //             price_per_share, total_consideration, currency_id,
+    //             premium, journal_entry_id, reference, notes
+    //         )
+    //         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+    //         RETURNING *
+    //         "#,
+    //     )
+    //     .bind(company_id)
+    //     .bind(payload.share_class_id)
+    //     .bind(&payload.transaction_type)
+    //     .bind(payload.transaction_date)
+    //     .bind(payload.from_shareholder_id)
+    //     .bind(payload.to_shareholder_id)
+    //     .bind(payload.shares)
+    //     .bind(&payload.price_per_share)
+    //     .bind(&payload.total_consideration)
+    //     .bind(payload.currency_id)
+    //     .bind(&payload.premium)
+    //     .bind(payload.journal_entry_id)
+    //     .bind(&payload.reference)
+    //     .bind(&payload.notes)
+    //     .fetch_one(&mut **tx)
+    //     .await?;
 
-        // Keep share_class issued / outstanding in sync (simplified)
-        match payload.transaction_type.as_str() {
-            "ISSUE" | "BONUS_ISSUE" | "CONVERSION" | "EXERCISE" => {
-                sqlx::query(
-                    r#"
-                    UPDATE capital.share_classes
-                    SET issued_shares      = issued_shares + $2,
-                        outstanding_shares = outstanding_shares + $2,
-                        updated_at         = now()
-                    WHERE id = $1
-                    "#,
-                )
-                .bind(payload.share_class_id)
-                .bind(payload.shares)
-                .execute(&mut **tx)
-                .await?;
-            }
-            "BUYBACK" | "CANCELLATION" | "FORFEITURE" => {
-                sqlx::query(
-                    r#"
-                    UPDATE capital.share_classes
-                    SET outstanding_shares = GREATEST(outstanding_shares - $2, 0),
-                        updated_at         = now()
-                    WHERE id = $1
-                    "#,
-                )
-                .bind(payload.share_class_id)
-                .bind(payload.shares)
-                .execute(&mut **tx)
-                .await?;
-            }
-            _ => {}
-        }
+    //     // Keep share_class issued / outstanding in sync (simplified)
+    //     match payload.transaction_type.as_str() {
+    //         "ISSUE" | "BONUS_ISSUE" | "CONVERSION" | "EXERCISE" => {
+    //             sqlx::query(
+    //                 r#"
+    //                 UPDATE capital.share_classes
+    //                 SET issued_shares      = issued_shares + $2,
+    //                     outstanding_shares = outstanding_shares + $2,
+    //                     updated_at         = now()
+    //                 WHERE id = $1
+    //                 "#,
+    //             )
+    //             .bind(payload.share_class_id)
+    //             .bind(payload.shares)
+    //             .execute(&mut **tx)
+    //             .await?;
+    //         }
+    //         "BUYBACK" | "CANCELLATION" | "FORFEITURE" => {
+    //             sqlx::query(
+    //                 r#"
+    //                 UPDATE capital.share_classes
+    //                 SET outstanding_shares = GREATEST(outstanding_shares - $2, 0),
+    //                     updated_at         = now()
+    //                 WHERE id = $1
+    //                 "#,
+    //             )
+    //             .bind(payload.share_class_id)
+    //             .bind(payload.shares)
+    //             .execute(&mut **tx)
+    //             .await?;
+    //         }
+    //         _ => {}
+    //     }
 
-        // Upsert shareholding for the recipient (if any)
-        if let Some(to_id) = payload.to_shareholder_id {
-            sqlx::query(
-                r#"
-                INSERT INTO capital.shareholdings (
-                    company_id, share_class_id, shareholder_id, shares_held
-                )
-                VALUES ($1, $2, $3, $4)
-                ON CONFLICT (share_class_id, shareholder_id)
-                DO UPDATE SET
-                    shares_held = capital.shareholdings.shares_held + EXCLUDED.shares_held,
-                    updated_at  = now()
-                "#,
-            )
-            .bind(company_id)
-            .bind(payload.share_class_id)
-            .bind(to_id)
-            .bind(payload.shares)
-            .execute(&mut **tx)
-            .await?;
-        }
+    //     // Upsert shareholding for the recipient (if any)
+    //     if let Some(to_id) = payload.to_shareholder_id {
+    //         sqlx::query(
+    //             r#"
+    //             INSERT INTO capital.shareholdings (
+    //                 company_id, share_class_id, shareholder_id, shares_held
+    //             )
+    //             VALUES ($1, $2, $3, $4)
+    //             ON CONFLICT (share_class_id, shareholder_id)
+    //             DO UPDATE SET
+    //                 shares_held = capital.shareholdings.shares_held + EXCLUDED.shares_held,
+    //                 updated_at  = now()
+    //             "#,
+    //         )
+    //         .bind(company_id)
+    //         .bind(payload.share_class_id)
+    //         .bind(to_id)
+    //         .bind(payload.shares)
+    //         .execute(&mut **tx)
+    //         .await?;
+    //     }
 
-        // Reduce holding for the seller (if any)
-        if let Some(from_id) = payload.from_shareholder_id {
-            sqlx::query(
-                r#"
-                UPDATE capital.shareholdings
-                SET shares_held = GREATEST(shares_held - $3, 0),
-                    updated_at  = now()
-                WHERE share_class_id = $1 AND shareholder_id = $2
-                "#,
-            )
-            .bind(payload.share_class_id)
-            .bind(from_id)
-            .bind(payload.shares)
-            .execute(&mut **tx)
-            .await?;
-        }
+    //     // Reduce holding for the seller (if any)
+    //     if let Some(from_id) = payload.from_shareholder_id {
+    //         sqlx::query(
+    //             r#"
+    //             UPDATE capital.shareholdings
+    //             SET shares_held = GREATEST(shares_held - $3, 0),
+    //                 updated_at  = now()
+    //             WHERE share_class_id = $1 AND shareholder_id = $2
+    //             "#,
+    //         )
+    //         .bind(payload.share_class_id)
+    //         .bind(from_id)
+    //         .bind(payload.shares)
+    //         .execute(&mut **tx)
+    //         .await?;
+    //     }
 
-        if let Some(total_consideration) = payload.total_consideration.clone() {
-            // Post this transaction
-            let mut lines = vec![
-                gl_line(
-                    payload.cash_account_id,
-                    total_consideration.clone(), // debit cash
-                    BigDecimal::zero(),
-                    &format!("Share issue proceeds"),
-                ),
-                gl_line(
-                    payload.share_capital_account_id,
-                    BigDecimal::zero(),
-                    total_consideration.clone(), // credit liability
-                    "Share capital",
-                ),
-            ];
+    //     if let Some(total_consideration) = payload.total_consideration.clone() {
+    //         // Post this transaction
+    //         let mut lines = vec![
+    //             gl_line(
+    //                 payload.cash_account_id,
+    //                 total_consideration.clone(), // debit cash
+    //                 BigDecimal::zero(),
+    //                 &format!("Share issue proceeds"),
+    //             ),
+    //             gl_line(
+    //                 payload.share_capital_account_id,
+    //                 BigDecimal::zero(),
+    //                 total_consideration.clone(), // credit liability
+    //                 "Share capital",
+    //             ),
+    //         ];
 
-            if let Some(premium) = share_issuance.premium.clone() {
-                if premium > BigDecimal::zero() {
-                    lines.push(gl_line(
-                        payload.share_premium_account_id,
-                        BigDecimal::zero(),
-                        premium, // credit liability
-                        "Share premium",
-                    ))
-                }
-            }
+    //         if let Some(premium) = share_issuance.premium.clone() {
+    //             if premium > BigDecimal::zero() {
+    //                 lines.push(gl_line(
+    //                     payload.share_premium_account_id,
+    //                     BigDecimal::zero(),
+    //                     premium, // credit liability
+    //                     "Share premium",
+    //                 ))
+    //             }
+    //         }
 
-            let _journal_id = post_gl(
-                tx,
-                &format!("CAP-SHARE-ISS-{}", share_issuance.serial_id),
-                "Share issuance",
-                user_id,
-                payload.transaction_date,
-                lines,
-            )
-            .await?;
-        }
+    //         let _journal_id = post_gl(
+    //             tx,
+    //             &format!("CAP-SHARE-ISS-{}", share_issuance.serial_id),
+    //             "Share issuance",
+    //             user_id,
+    //             payload.transaction_date,
+    //             lines,
+    //         )
+    //         .await?;
+    //     }
 
-        Ok(share_issuance)
-    }
+    //     Ok(share_issuance)
+    // }
 
     async fn list_share_transactions(
         &self,
@@ -2916,4 +2934,34 @@ async fn issue_shares(
 
         Ok(row)
     }
+
+        async fn create_currency(
+        &self,
+        tx: &mut Transaction<'_, Postgres>,
+
+        user_id: Uuid,
+        payload: &CreateCurrency,
+    ) -> Result<Currency, AppError>{
+
+    }
+
+    async fn update_currency(
+        &self,
+        tx: &mut Transaction<'_, Postgres>,
+
+        payload: &CreateCurrency,
+    ) -> Result<Currency, AppError>{}
+
+    async fn get_currency(
+        &self,
+        pool: &PgPool,
+        id: Uuid,
+    ) -> Result<CashForecast, AppError>{}
+
+    async fn list_currencies(
+        &self,
+        pool: &PgPool,
+        forecast_id: Uuid,
+    ) -> Result<Vec<CashForecastLine>, AppError>{}
+
 }
