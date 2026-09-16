@@ -3,13 +3,12 @@ use std::sync::Arc;
 // src/features/accounts/repositories.rs
 use crate::{
     interface::api::errors::AppError,
-    models::{
-        account::{Account, CreateAccount},
-        dto::FinancialPeriodDto,
-    },
+    models::{account::*, dto::FinancialPeriodDto},
     state::AppState,
 };
+// use async_trait::async_trait;
 use async_trait::async_trait;
+use bigdecimal::BigDecimal;
 use chrono::NaiveDate;
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -38,13 +37,7 @@ pub trait AccountRepository: Send + Sync {
     ) -> Result<Option<Account>, AppError>;
     // find_by_user() is useful later
     async fn find_by_user(&self, pool: &PgPool, user_id: Uuid) -> Result<Vec<Account>, AppError>;
-    // #[allow(unused)]
-    // async fn update_balance(
-    //     &self,
-    //     pool: &PgPool,
-    //     id: sqlx::types::Uuid,
-    //     delta: BigDecimal,
-    // ) -> Result<(), AppError>;
+
     async fn update_account_info(
         &self,
         pool: &PgPool,
@@ -72,6 +65,51 @@ pub trait AccountRepository: Send + Sync {
         pool: &PgPool,
         company_id: Uuid,
     ) -> Result<(), AppError>;
+
+    async fn create_currency(
+        &self,
+        pool: &PgPool,
+        payload: &CreateCurrency,
+    ) -> Result<Currency, AppError>;
+
+    async fn list_currencies(
+        &self,
+        pool: &PgPool,
+        active_only: bool,
+    ) -> Result<Vec<Currency>, AppError>;
+
+    async fn get_currency_by_id(&self, pool: &PgPool, id: Uuid) -> Result<Currency, AppError>;
+
+    async fn get_currency_by_code(&self, pool: &PgPool, code: &str) -> Result<Currency, AppError>;
+
+    async fn update_currency(
+        &self,
+        pool: &PgPool,
+        id: Uuid,
+        payload: &UpdateCurrency,
+    ) -> Result<Currency, AppError>;
+
+    async fn upsert_exchange_rate(
+        &self,
+        pool: &PgPool,
+        payload: &UpsertExchangeRate,
+    ) -> Result<ExchangeRate, AppError>;
+
+    async fn list_exchange_rates(
+        &self,
+        pool: &PgPool,
+        from_currency_id: Option<Uuid>,
+        to_currency_id: Option<Uuid>,
+    ) -> Result<Vec<ExchangeRate>, AppError>;
+
+    /// Rate on or before `on` (nearest previous).
+    async fn get_rate(
+        &self,
+        pool: &PgPool,
+        from_currency_id: Uuid,
+        to_currency_id: Uuid,
+        on: NaiveDate,
+    ) -> Result<BigDecimal, AppError>;
 }
 
 // Concrete impls
@@ -155,20 +193,6 @@ impl AccountRepository for PostgresAccountRepo {
         Ok(accounts)
     }
 
-    // async fn update_balance(
-    //     &self,
-    //     pool: &PgPool,
-    //     id: sqlx::types::Uuid,
-    //     delta: BigDecimal,
-    // ) -> Result<(), AppError> {
-    //     sqlx::query("UPDATE accounting.accounts SET balance = balance + $1 WHERE serial_id = $2")
-    //         .bind(delta)
-    //         .bind(id)
-    //         .execute(pool)
-    //         .await?;
-    //     Ok(())
-    // }
-
     async fn update_account_info(
         &self,
         pool: &PgPool,
@@ -236,15 +260,10 @@ impl AccountRepository for PostgresAccountRepo {
     }
 
     async fn list_periods(&self, pool: &PgPool) -> Result<Vec<FinancialPeriodDto>, AppError> {
-        let periods: Vec<FinancialPeriodDto> = sqlx::query_as::<_, FinancialPeriodDto>(
+        let periods = sqlx::query_as::<_, FinancialPeriodDto>(
             r#"
                 SELECT
-                    uuid,
-                    start_date,
-                    end_date,
-                    name,
-                    is_open,
-                    is_locked
+                    uuid, start_date, end_date, name, is_open, is_locked
                 FROM accounting.financial_periods
                 ORDER BY start_date DESC
             "#,
@@ -285,86 +304,7 @@ impl AccountRepository for PostgresAccountRepo {
 
         Ok(())
     }
-}
 
-use crate::{
-    interface::api::errors::AppError,
-    models::currency::{
-        CreateCurrency, Currency, ExchangeRate, UpdateCurrency, UpsertExchangeRate,
-    },
-};
-use async_trait::async_trait;
-use bigdecimal::BigDecimal;
-use chrono::NaiveDate;
-use sqlx::PgPool;
-use uuid::Uuid;
-
-#[async_trait]
-pub trait CurrencyRepository: Send + Sync {
-    async fn create_currency(
-        &self,
-        pool: &PgPool,
-        payload: &CreateCurrency,
-    ) -> Result<Currency, AppError>;
-
-    async fn list_currencies(
-        &self,
-        pool: &PgPool,
-        active_only: bool,
-    ) -> Result<Vec<Currency>, AppError>;
-
-    async fn get_currency_by_id(
-        &self,
-        pool: &PgPool,
-        id: Uuid,
-    ) -> Result<Currency, AppError>;
-
-    async fn get_currency_by_code(
-        &self,
-        pool: &PgPool,
-        code: &str,
-    ) -> Result<Currency, AppError>;
-
-    async fn update_currency(
-        &self,
-        pool: &PgPool,
-        id: Uuid,
-        payload: &UpdateCurrency,
-    ) -> Result<Currency, AppError>;
-
-    async fn upsert_exchange_rate(
-        &self,
-        pool: &PgPool,
-        payload: &UpsertExchangeRate,
-    ) -> Result<ExchangeRate, AppError>;
-
-    async fn list_exchange_rates(
-        &self,
-        pool: &PgPool,
-        from_currency_id: Option<Uuid>,
-        to_currency_id: Option<Uuid>,
-    ) -> Result<Vec<ExchangeRate>, AppError>;
-
-    /// Rate on or before `on` (nearest previous).
-    async fn get_rate(
-        &self,
-        pool: &PgPool,
-        from_currency_id: Uuid,
-        to_currency_id: Uuid,
-        on: NaiveDate,
-    ) -> Result<BigDecimal, AppError>;
-}
-
-pub struct PostgresCurrencyRepo;
-
-impl PostgresCurrencyRepo {
-    pub fn new() -> Self {
-        Self
-    }
-}
-
-#[async_trait]
-impl CurrencyRepository for PostgresCurrencyRepo {
     async fn create_currency(
         &self,
         pool: &PgPool,
@@ -418,34 +358,22 @@ impl CurrencyRepository for PostgresCurrencyRepo {
         Ok(rows)
     }
 
-    async fn get_currency_by_id(
-        &self,
-        pool: &PgPool,
-        id: Uuid,
-    ) -> Result<Currency, AppError> {
-        sqlx::query_as::<_, Currency>(
-            r#"SELECT * FROM capital.currencies WHERE id = $1"#,
-        )
-        .bind(id)
-        .fetch_optional(pool)
-        .await
-        .map_err(AppError::Database)?
-        .ok_or_else(|| AppError::NotFound("Currency not found".into()))
+    async fn get_currency_by_id(&self, pool: &PgPool, id: Uuid) -> Result<Currency, AppError> {
+        sqlx::query_as::<_, Currency>(r#"SELECT * FROM capital.currencies WHERE id = $1"#)
+            .bind(id)
+            .fetch_optional(pool)
+            .await
+            .map_err(AppError::Database)?
+            .ok_or_else(|| AppError::NotFound("Currency not found".into()))
     }
 
-    async fn get_currency_by_code(
-        &self,
-        pool: &PgPool,
-        code: &str,
-    ) -> Result<Currency, AppError> {
-        sqlx::query_as::<_, Currency>(
-            r#"SELECT * FROM capital.currencies WHERE code = UPPER($1)"#,
-        )
-        .bind(code.trim())
-        .fetch_optional(pool)
-        .await
-        .map_err(AppError::Database)?
-        .ok_or_else(|| AppError::NotFound(format!("Currency code not found: {code}")))
+    async fn get_currency_by_code(&self, pool: &PgPool, code: &str) -> Result<Currency, AppError> {
+        sqlx::query_as::<_, Currency>(r#"SELECT * FROM capital.currencies WHERE code = UPPER($1)"#)
+            .bind(code.trim())
+            .fetch_optional(pool)
+            .await
+            .map_err(AppError::Database)?
+            .ok_or_else(|| AppError::NotFound(format!("Currency code not found: {code}")))
     }
 
     async fn update_currency(
@@ -567,9 +495,7 @@ impl CurrencyRepository for PostgresCurrencyRepo {
         .map_err(AppError::Database)?;
 
         rate.map(|r| r.0).ok_or_else(|| {
-            AppError::NotFound(format!(
-                "No exchange rate found for pair on or before {on}"
-            ))
+            AppError::NotFound(format!("No exchange rate found for pair on or before {on}"))
         })
     }
 }

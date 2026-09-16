@@ -595,32 +595,32 @@ pub trait CapitalRepository: Send + Sync {
     // =========================================================================
     // 17. Currency
     // =========================================================================
-    async fn create_currency(
-        &self,
-        tx: &mut Transaction<'_, Postgres>,
+    // async fn create_currency(
+    //     &self,
+    //     tx: &mut Transaction<'_, Postgres>,
 
-        user_id: Uuid,
-        payload: &CreateCurrency,
-    ) -> Result<Currency, AppError>;
+    //     user_id: Uuid,
+    //     payload: &CreateCurrency,
+    // ) -> Result<Currency, AppError>;
 
-    async fn update_currency(
-        &self,
-        tx: &mut Transaction<'_, Postgres>,
+    // async fn update_currency(
+    //     &self,
+    //     tx: &mut Transaction<'_, Postgres>,
 
-        payload: &CreateCurrency,
-    ) -> Result<Currency, AppError>;
+    //     payload: &CreateCurrency,
+    // ) -> Result<Currency, AppError>;
 
-    async fn get_currency(
-        &self,
-        pool: &PgPool,
-        id: Uuid,
-    ) -> Result<CashForecast, AppError>;
+    // async fn get_currency(
+    //     &self,
+    //     pool: &PgPool,
+    //     id: Uuid,
+    // ) -> Result<CashForecast, AppError>;
 
-    async fn list_currencies(
-        &self,
-        pool: &PgPool,
-        forecast_id: Uuid,
-    ) -> Result<Vec<CashForecastLine>, AppError>;
+    // async fn list_currencies(
+    //     &self,
+    //     pool: &PgPool,
+    //     forecast_id: Uuid,
+    // ) -> Result<Vec<CashForecastLine>, AppError>;
 }
 
 // ---------------------------------------------------------------------------
@@ -2934,34 +2934,4 @@ impl CapitalRepository for PostgresCapitalRepo {
 
         Ok(row)
     }
-
-        async fn create_currency(
-        &self,
-        tx: &mut Transaction<'_, Postgres>,
-
-        user_id: Uuid,
-        payload: &CreateCurrency,
-    ) -> Result<Currency, AppError>{
-
-    }
-
-    async fn update_currency(
-        &self,
-        tx: &mut Transaction<'_, Postgres>,
-
-        payload: &CreateCurrency,
-    ) -> Result<Currency, AppError>{}
-
-    async fn get_currency(
-        &self,
-        pool: &PgPool,
-        id: Uuid,
-    ) -> Result<CashForecast, AppError>{}
-
-    async fn list_currencies(
-        &self,
-        pool: &PgPool,
-        forecast_id: Uuid,
-    ) -> Result<Vec<CashForecastLine>, AppError>{}
-
 }

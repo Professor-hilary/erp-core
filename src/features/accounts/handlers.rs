@@ -1,22 +1,26 @@
 // src/features/accounts/handlers.rs
 use crate::{
-    features::accounts::{repository::PostgresAccountRepo, services::AccountingService},
+    features::accounts::{
+        repository::{AccountRepository, PostgresAccountRepo},
+        services::AccountingService,
+    },
     interface::api::{errors::AppError, json_errors::AppJson, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,
-    models::{
-        account::{Account, CreateAccount},
-        dto::FinancialPeriodDto,
-    },
+    models::{account::*, dto::FinancialPeriodDto},
     state::AppState,
 };
+use axum::extract::Query;
 use axum::{
     Extension, Router,
     extract::{Path, State},
     response::Response,
     routing::{delete, get, patch, post},
 };
+use chrono::NaiveDate;
+use serde::Deserialize;
 use std::sync::Arc;
 use uuid::Uuid;
+use validator::Validate;
 
 pub fn router() -> Router<Arc<AppState>> {
     Router::new()
@@ -28,6 +32,20 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/delete/{id}", delete(delete_account))
         .route("/period/close/{id}", patch(close_period))
         .route("/period/list", get(get_financial_periods))
+        .route("/currencies", post(create_currency).get(list_currencies))
+        .route("/currencies/{id}", get(get_currency).patch(update_currency))
+        .route("/currencies/code/{code}", get(get_currency_by_code))
+        .route(
+            "/exchange-rates",
+            post(upsert_exchange_rate).get(list_exchange_rates),
+        )
+        .route("/exchange-rates/rate", get(get_rate))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ListCurrenciesQuery {
+    #[serde(default)]
+    pub active_only: bool,
 }
 
 async fn create_account(
@@ -134,37 +152,6 @@ async fn close_period(
     ))
 }
 
-use crate::{
-    features::currency::repository::{CurrencyRepository, PostgresCurrencyRepo},
-    interface::api::{errors::AppError, json_errors::AppJson, responses::ApiResponse},
-    middleware::auth::AuthenticatedTenant,
-    models::currency::{CreateCurrency, UpdateCurrency, UpsertExchangeRate},
-    state::AppState,
-};
-use axum::{
-    Extension, Router,
-    extract::{Path, Query, State},
-    response::Response,
-    routing::{get, patch, post},
-};
-use chrono::NaiveDate;
-use serde::Deserialize;
-use std::sync::Arc;
-use uuid::Uuid;
-use validator::Validate;
-
-pub fn router() -> Router<Arc<AppState>> {
-    Router::new()
-        .route("/currencies", post(create_currency).get(list_currencies))
-        .route("/currencies/{id}", get(get_currency).patch(update_currency))
-        .route("/currencies/code/{code}", get(get_currency_by_code))
-        .route(
-            "/exchange-rates",
-            post(upsert_exchange_rate).get(list_exchange_rates),
-        )
-        .route("/exchange-rates/rate", get(get_rate))
-}
-
 async fn create_currency(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
@@ -174,17 +161,9 @@ async fn create_currency(
         .validate()
         .map_err(|e| AppError::BadRequest(e.to_string()))?;
 
-    let repo = PostgresCurrencyRepo::new();
-    let currency = repo
-        .create_currency(&user.tenant_pool, &payload)
-        .await?;
+    let repo = PostgresAccountRepo::new();
+    let currency = repo.create_currency(&user.tenant_pool, &payload).await?;
     Ok(ApiResponse::created(currency, "Currency created"))
-}
-
-#[derive(Debug, Deserialize)]
-pub struct ListCurrenciesQuery {
-    #[serde(default)]
-    pub active_only: bool,
 }
 
 async fn list_currencies(
@@ -192,7 +171,7 @@ async fn list_currencies(
     Extension(user): Extension<AuthenticatedTenant>,
     Query(q): Query<ListCurrenciesQuery>,
 ) -> Result<Response, AppError> {
-    let repo = PostgresCurrencyRepo::new();
+    let repo = PostgresAccountRepo::new();
     let rows = repo
         .list_currencies(&user.tenant_pool, q.active_only)
         .await?;
@@ -204,7 +183,7 @@ async fn get_currency(
     Extension(user): Extension<AuthenticatedTenant>,
     Path(id): Path<Uuid>,
 ) -> Result<Response, AppError> {
-    let repo = PostgresCurrencyRepo::new();
+    let repo = PostgresAccountRepo::new();
     let currency = repo.get_currency_by_id(&user.tenant_pool, id).await?;
     Ok(ApiResponse::success(currency, "Currency fetched"))
 }
@@ -214,10 +193,8 @@ async fn get_currency_by_code(
     Extension(user): Extension<AuthenticatedTenant>,
     Path(code): Path<String>,
 ) -> Result<Response, AppError> {
-    let repo = PostgresCurrencyRepo::new();
-    let currency = repo
-        .get_currency_by_code(&user.tenant_pool, &code)
-        .await?;
+    let repo = PostgresAccountRepo::new();
+    let currency = repo.get_currency_by_code(&user.tenant_pool, &code).await?;
     Ok(ApiResponse::success(currency, "Currency fetched"))
 }
 
@@ -231,7 +208,7 @@ async fn update_currency(
         .validate()
         .map_err(|e| AppError::BadRequest(e.to_string()))?;
 
-    let repo = PostgresCurrencyRepo::new();
+    let repo = PostgresAccountRepo::new();
     let currency = repo
         .update_currency(&user.tenant_pool, id, &payload)
         .await?;
@@ -247,7 +224,7 @@ async fn upsert_exchange_rate(
         .validate()
         .map_err(|e| AppError::BadRequest(e.to_string()))?;
 
-    let repo = PostgresCurrencyRepo::new();
+    let repo = PostgresAccountRepo::new();
     let rate = repo
         .upsert_exchange_rate(&user.tenant_pool, &payload)
         .await?;
@@ -265,13 +242,9 @@ async fn list_exchange_rates(
     Extension(user): Extension<AuthenticatedTenant>,
     Query(q): Query<ListRatesQuery>,
 ) -> Result<Response, AppError> {
-    let repo = PostgresCurrencyRepo::new();
+    let repo = PostgresAccountRepo::new();
     let rows = repo
-        .list_exchange_rates(
-            &user.tenant_pool,
-            q.from_currency_id,
-            q.to_currency_id,
-        )
+        .list_exchange_rates(&user.tenant_pool, q.from_currency_id, q.to_currency_id)
         .await?;
     Ok(ApiResponse::success(rows, "Exchange rates fetched"))
 }
@@ -288,7 +261,7 @@ async fn get_rate(
     Extension(user): Extension<AuthenticatedTenant>,
     Query(q): Query<GetRateQuery>,
 ) -> Result<Response, AppError> {
-    let repo = PostgresCurrencyRepo::new();
+    let repo = PostgresAccountRepo::new();
     let rate = repo
         .get_rate(
             &user.tenant_pool,

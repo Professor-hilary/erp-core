@@ -1179,60 +1179,21 @@ pub struct CreateWaccComponent {
 // 15. CURRENCIES
 // =============================================================================
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
-pub struct Currency {
-    pub id: Uuid,
-    pub serial_id: i64,
-    pub code: String,
-    pub name: String,
-    pub decimal_places: i8, // ROIC, ROE, DSCR, ICR, EVA, WACC...
-    pub is_active: bool,
-}
+// #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+// pub struct Currency {
+//     pub id: Uuid,
+//     pub serial_id: i64,
+//     pub code: String,
+//     pub name: String,
+//     pub decimal_places: i8, // ROIC, ROE, DSCR, ICR, EVA, WACC...
+//     pub is_active: bool,
+// }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
-pub struct CreateCurrency {
-    pub serial_id: i64,
-    pub code: String,
-    pub name: String,
-    pub decimal_places: i8, // ROIC, ROE, DSCR, ICR, EVA, WACC...
-    pub is_active: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
-pub struct Currency {
-    pub id: Uuid,
-    pub serial_id: i64,
-    pub code: String,          // ISO 4217, e.g. "UGX", "USD"
-    pub name: String,
-    pub decimal_places: i16,
-    pub is_active: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
-pub struct CreateCurrency {
-    #[validate(length(equal = 3))]
-    pub code: String,
-    pub name: String,
-    pub decimal_places: Option<i16>,
-    pub is_active: Option<bool>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
-pub struct ExchangeRate {
-    pub id: Uuid,
-    pub serial_id: i64,
-    pub from_currency_id: Uuid,
-    pub to_currency_id: Uuid,
-    pub rate_date: NaiveDate,
-    pub rate: BigDecimal,
-    pub source: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
-pub struct UpsertExchangeRate {
-    pub from_currency_id: Uuid,
-    pub to_currency_id: Uuid,
-    pub rate_date: NaiveDate,
-    pub rate: BigDecimal,
-    pub source: Option<String>,
-}
+// #[derive(Debug, Clone, Serialize, Deserialize, Validate)]
+// pub struct CreateCurrency {
+//     pub serial_id: i64,
+//     pub code: String,
+//     pub name: String,
+//     pub decimal_places: i8, // ROIC, ROE, DSCR, ICR, EVA, WACC...
+//     pub is_active: bool,
+// }
