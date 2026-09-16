@@ -312,7 +312,7 @@ impl AccountRepository for PostgresAccountRepo {
     ) -> Result<Currency, AppError> {
         let row = sqlx::query_as::<_, Currency>(
             r#"
-            INSERT INTO capital.currencies (code, name, decimal_places, is_active)
+            INSERT INTO accounting.currencies (code, name, decimal_places, is_active)
             VALUES (UPPER($1), $2, COALESCE($3, 2), COALESCE($4, true))
             RETURNING *
             "#,
@@ -336,7 +336,7 @@ impl AccountRepository for PostgresAccountRepo {
         let rows = if active_only {
             sqlx::query_as::<_, Currency>(
                 r#"
-                SELECT * FROM capital.currencies
+                SELECT * FROM accounting.currencies
                 WHERE is_active = true
                 ORDER BY code
                 "#,
@@ -346,7 +346,7 @@ impl AccountRepository for PostgresAccountRepo {
         } else {
             sqlx::query_as::<_, Currency>(
                 r#"
-                SELECT * FROM capital.currencies
+                SELECT * FROM accounting.currencies
                 ORDER BY code
                 "#,
             )
@@ -359,7 +359,7 @@ impl AccountRepository for PostgresAccountRepo {
     }
 
     async fn get_currency_by_id(&self, pool: &PgPool, id: Uuid) -> Result<Currency, AppError> {
-        sqlx::query_as::<_, Currency>(r#"SELECT * FROM capital.currencies WHERE id = $1"#)
+        sqlx::query_as::<_, Currency>(r#"SELECT * FROM accounting.currencies WHERE id = $1"#)
             .bind(id)
             .fetch_optional(pool)
             .await
@@ -368,7 +368,7 @@ impl AccountRepository for PostgresAccountRepo {
     }
 
     async fn get_currency_by_code(&self, pool: &PgPool, code: &str) -> Result<Currency, AppError> {
-        sqlx::query_as::<_, Currency>(r#"SELECT * FROM capital.currencies WHERE code = UPPER($1)"#)
+        sqlx::query_as::<_, Currency>(r#"SELECT * FROM accounting.currencies WHERE code = UPPER($1)"#)
             .bind(code.trim())
             .fetch_optional(pool)
             .await
@@ -384,7 +384,7 @@ impl AccountRepository for PostgresAccountRepo {
     ) -> Result<Currency, AppError> {
         let row = sqlx::query_as::<_, Currency>(
             r#"
-            UPDATE capital.currencies
+            UPDATE accounting.currencies
             SET
                 name           = COALESCE($2, name),
                 decimal_places = COALESCE($3, decimal_places),
@@ -418,7 +418,7 @@ impl AccountRepository for PostgresAccountRepo {
 
         let row = sqlx::query_as::<_, ExchangeRate>(
             r#"
-            INSERT INTO capital.exchange_rates (
+            INSERT INTO accounting.exchange_rates (
                 from_currency_id, to_currency_id, rate_date, rate, source
             )
             VALUES ($1, $2, $3, $4, $5)
@@ -450,7 +450,7 @@ impl AccountRepository for PostgresAccountRepo {
         let rows = sqlx::query_as::<_, ExchangeRate>(
             r#"
             SELECT *
-            FROM capital.exchange_rates
+            FROM accounting.exchange_rates
             WHERE ($1::uuid IS NULL OR from_currency_id = $1)
               AND ($2::uuid IS NULL OR to_currency_id = $2)
             ORDER BY rate_date DESC
@@ -479,7 +479,7 @@ impl AccountRepository for PostgresAccountRepo {
         let rate: Option<(BigDecimal,)> = sqlx::query_as(
             r#"
             SELECT rate
-            FROM capital.exchange_rates
+            FROM accounting.exchange_rates
             WHERE from_currency_id = $1
               AND to_currency_id   = $2
               AND rate_date       <= $3
