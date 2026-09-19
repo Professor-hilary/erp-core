@@ -277,18 +277,18 @@ pub struct CreateOverheadRateDto {
 }
 
 // Bill Of Material DTOs
-#[derive(Debug, Clone, FromRow, Serialize)]
-pub struct BomLine {
-    pub uuid: Uuid,
-    pub bom_header_uuid: Uuid,
-    pub line_number: i16,
-    pub component_item_uuid: Uuid,
-    pub quantity_per: BigDecimal,
-    pub uom: String,
-    pub scrap_factor: BigDecimal,
-    pub notes: Option<String>,
-    pub created_at: DateTime<Utc>,
-}
+// #[derive(Debug, Clone, FromRow, Serialize)]
+// pub struct BomLine {
+//     pub uuid: Uuid,
+//     pub bom_header_uuid: Uuid,
+//     pub line_number: i16,
+//     pub component_item_uuid: Uuid,
+//     pub quantity_per: BigDecimal,
+//     pub uom: String,
+//     pub scrap_factor: BigDecimal,
+//     pub notes: Option<String>,
+//     pub created_at: DateTime<Utc>,
+// }
 
 #[derive(Debug, Deserialize)]
 pub struct CreateBomHeaderDto {
@@ -300,6 +300,39 @@ pub struct CreateBomHeaderDto {
     pub is_active: Option<bool>,
 }
 
+// #[derive(Debug, Deserialize)]
+// pub struct CreateBomLineDto {
+//     pub line_number: i16,
+//     pub component_item_uuid: Uuid,
+//     pub quantity_per: BigDecimal,
+//     pub uom: Option<String>,
+//     pub scrap_factor: Option<BigDecimal>,
+//     pub notes: Option<String>,
+// }
+
+#[derive(Debug, Serialize)]
+pub struct BomWithLines {
+    pub header: BomHeader,
+    pub lines: Vec<BomLine>,
+}
+
+// --- BomLine (add fields) ---
+#[derive(Debug, Clone, FromRow, Serialize)]
+pub struct BomLine {
+    pub uuid: Uuid,
+    pub bom_header_uuid: Uuid,
+    pub line_number: i16,
+    pub component_item_uuid: Uuid,
+    pub quantity_per: BigDecimal,
+    pub uom: String,
+    pub scrap_factor: BigDecimal,
+    pub notes: Option<String>,
+    pub child_bom_uuid: Option<Uuid>,   // NEW
+    pub is_phantom: bool,               // NEW
+    pub created_at: DateTime<Utc>,
+}
+
+// --- CreateBomLineDto ---
 #[derive(Debug, Deserialize)]
 pub struct CreateBomLineDto {
     pub line_number: i16,
@@ -308,10 +341,17 @@ pub struct CreateBomLineDto {
     pub uom: Option<String>,
     pub scrap_factor: Option<BigDecimal>,
     pub notes: Option<String>,
+    pub child_bom_uuid: Option<Uuid>,   // NEW – pin a specific sub-BOM revision
+    pub is_phantom: Option<bool>,       // NEW
 }
 
-#[derive(Debug, Serialize)]
-pub struct BomWithLines {
-    pub header: BomHeader,
-    pub lines: Vec<BomLine>,
-}
+// Optional: useful for an explode endpoint later
+// #[derive(Debug, Clone, FromRow, Serialize)]
+// pub struct ExplodedBomLine {
+//     pub level: i32,
+//     pub component_item_uuid: Uuid,
+//     pub quantity_required: BigDecimal,
+//     pub is_leaf: bool,
+//     pub is_phantom: bool,
+//     pub source_bom_uuid: Uuid,
+// }

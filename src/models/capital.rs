@@ -1174,26 +1174,3 @@ pub struct CreateWaccComponent {
     pub wacc: Option<BigDecimal>,
     pub notes: Option<String>,
 }
-
-// =============================================================================
-// 15. CURRENCIES
-// =============================================================================
-
-// #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
-// pub struct Currency {
-//     pub id: Uuid,
-//     pub serial_id: i64,
-//     pub code: String,
-//     pub name: String,
-//     pub decimal_places: i8, // ROIC, ROE, DSCR, ICR, EVA, WACC...
-//     pub is_active: bool,
-// }
-
-// #[derive(Debug, Clone, Serialize, Deserialize, Validate)]
-// pub struct CreateCurrency {
-//     pub serial_id: i64,
-//     pub code: String,
-//     pub name: String,
-//     pub decimal_places: i8, // ROIC, ROE, DSCR, ICR, EVA, WACC...
-//     pub is_active: bool,
-// }

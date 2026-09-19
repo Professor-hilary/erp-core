@@ -1,4 +1,4 @@
-// src/features/accounts/repositories.rs
+// src/features/manufacturing/repositories.rs
 use crate::{interface::api::errors::AppError, models::manufacturing::*};
 use bigdecimal::{BigDecimal, One};
 use chrono::prelude::NaiveDate;
@@ -14,6 +14,83 @@ impl ManufacturingRepo {
     }
 
     // ============================ Production Order ============================
+    // pub async fn create_production_order(
+    //     &self,
+    //     dto: CreateProductionOrderDto,
+    // ) -> Result<ProductionOrder, AppError> {
+    //     let row: PgRow = sqlx::query(
+    //         r#"
+    //         INSERT INTO manufacturing.production_orders(
+    //             order_number, product_item_uuid, quantity_ordered, start_date,
+    //             expected_completion_date, status
+    //         ) VALUES ($1, $2, $3, $4, $5, 'Planned')
+    //         RETURNING *
+    //         "#,
+    //     )
+    //     .bind(&dto.order_number)
+    //     .bind(dto.product_item_uuid)
+    //     .bind(dto.quantity_ordered)
+    //     .bind(dto.start_date)
+    //     .bind(dto.expected_completion_date)
+    //     .fetch_one(&self.pool)
+    //     .await?;
+
+    //     // Update cost tracker to record material cost
+    //     let order: ProductionOrder = ProductionOrder {
+    //         uuid: row.get("uuid"),
+    //         serial_id: row.get("serial_id"),
+    //         order_number: row.get("order_number"),
+    //         product_item_uuid: row.get("product_item_uuid"),
+    //         quantity_ordered: row.get("quantity_ordered"),
+    //         quantity_completed: row.get("quantity_completed"),
+    //         status: row.get("status"),
+    //         start_date: row.get("start_date"),
+    //         expected_completion_date: row.get("expected_completion_date"),
+    //         actual_completion_date: row.get("actual_completion_date"),
+    //         created_at: row.get("created_at"),
+    //         updated_at: row.get("updated_at"),
+    //     };
+
+    //     // Update production order materials table using BOM
+    //     sqlx::query(
+    //         /*r#"
+    //         INSERT INTO manufacturing.production_order_materials(
+    //             production_order_uuid, bom_line_uuid, component_item_uuid, required_qty
+    //         )
+    //         SELECT
+    //             p.uuid, bl.uuid, bl.component_item_uuid, bl.quantity_per * p.quantity_ordered
+    //         FROM manufacturing.production_orders p
+    //         JOIN manufacturing.bom_headers bh
+    //           ON bh.product_item_uuid = p.product_item_uuid
+    //          AND bh.is_default = true
+    //         JOIN manufacturing.bom_lines bl
+    //           ON bl.bom_header_uuid = bh.uuid
+    //         WHERE p.uuid = $1
+    //         "#,*/
+    //         r#"
+    //         INSERT INTO manufacturing.production_order_materials (
+    // 							production_order_uuid, bom_line_uuid, component_item_uuid, required_qty
+    // 					)
+    // 					SELECT
+    // 							p.uuid,
+    // 							e.source_bom_uuid,          -- or the original leaf line if you keep it
+    // 							e.component_item_uuid,
+    // 							e.quantity_required
+    // 					FROM manufacturing.production_orders p
+    // 					JOIN manufacturing.bom_headers bh
+    // 						ON bh.product_item_uuid = p.product_item_uuid AND bh.is_default
+    // 					JOIN manufacturing.explode_bom(bh.uuid, p.quantity_ordered) e
+    // 						ON e.is_leaf = true
+    // 					WHERE p.uuid = $1;
+    //         "#,
+    //     )
+    //     .bind(order.uuid)
+    //     .execute(&self.pool)
+    //     .await?;
+
+    //     Ok(order)
+    // }
+
     pub async fn create_production_order(
         &self,
         dto: CreateProductionOrderDto,
@@ -29,14 +106,13 @@ impl ManufacturingRepo {
         )
         .bind(&dto.order_number)
         .bind(dto.product_item_uuid)
-        .bind(dto.quantity_ordered)
+        .bind(&dto.quantity_ordered)
         .bind(dto.start_date)
         .bind(dto.expected_completion_date)
         .fetch_one(&self.pool)
         .await?;
 
-        // Update cost tracker to record material cost
-        let order: ProductionOrder = ProductionOrder {
+        let order = ProductionOrder {
             uuid: row.get("uuid"),
             serial_id: row.get("serial_id"),
             order_number: row.get("order_number"),
@@ -51,21 +127,26 @@ impl ManufacturingRepo {
             updated_at: row.get("updated_at"),
         };
 
-        // Update production order materials table using BOM
+        // Multi-level: explode default BOM to leaves and aggregate quantities
         sqlx::query(
             r#"
             INSERT INTO manufacturing.production_order_materials(
                 production_order_uuid, bom_line_uuid, component_item_uuid, required_qty
             )
             SELECT
-                p.uuid, bl.uuid, bl.component_item_uuid, bl.quantity_per * p.quantity_ordered
+                p.uuid,
+                NULL,                          -- no single top-level line after explosion
+                e.component_item_uuid,
+                SUM(e.quantity_required)
             FROM manufacturing.production_orders p
             JOIN manufacturing.bom_headers bh
               ON bh.product_item_uuid = p.product_item_uuid
+             AND bh.is_active
              AND bh.is_default = true
-            JOIN manufacturing.bom_lines bl
-              ON bl.bom_header_uuid = bh.uuid
+            CROSS JOIN LATERAL manufacturing.explode_bom(bh.uuid, p.quantity_ordered) e
             WHERE p.uuid = $1
+              AND e.is_leaf = true
+            GROUP BY p.uuid, e.component_item_uuid
             "#,
         )
         .bind(order.uuid)
@@ -73,6 +154,86 @@ impl ManufacturingRepo {
         .await?;
 
         Ok(order)
+    }
+
+    pub async fn add_line(
+        &self,
+        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+        header_uuid: Uuid,
+        dto: &CreateBomLineDto,
+    ) -> Result<BomLine, AppError> {
+        // Reject cycles before insert
+        let cycle: bool = sqlx::query_scalar(
+            r#"
+            SELECT EXISTS (
+                SELECT 1
+                FROM manufacturing.explode_bom(
+                    COALESCE($1, (
+                        SELECT uuid FROM manufacturing.bom_headers
+                        WHERE product_item_uuid = $2 AND is_active
+                        ORDER BY is_default DESC, created_at DESC
+                        LIMIT 1
+                    )),
+                    1
+                ) e
+                WHERE e.component_item_uuid = (
+                    SELECT product_item_uuid FROM manufacturing.bom_headers WHERE uuid = $3
+                )
+            )
+            "#,
+        )
+        .bind(dto.child_bom_uuid)
+        .bind(dto.component_item_uuid)
+        .bind(header_uuid)
+        .fetch_one(&mut **tx)
+        .await
+        .unwrap_or(false);
+
+        if cycle {
+            return Err(AppError::BadRequest(
+                "Circular BOM: component eventually contains this product".into(),
+            ));
+        }
+
+        let row: PgRow = sqlx::query(
+            r#"
+            INSERT INTO manufacturing.bom_lines (
+                bom_header_uuid, line_number, component_item_uuid,
+                quantity_per, uom, scrap_factor, notes,
+                child_bom_uuid, is_phantom
+            ) VALUES (
+                $1, $2, $3, $4,
+                COALESCE($5, 'pcs'), COALESCE($6, 1.0000), $7,
+                $8, COALESCE($9, false)
+            )
+            RETURNING *
+            "#,
+        )
+        .bind(header_uuid)
+        .bind(dto.line_number)
+        .bind(dto.component_item_uuid)
+        .bind(dto.quantity_per.clone())
+        .bind(dto.uom.as_deref())
+        .bind(dto.scrap_factor.clone().unwrap_or(BigDecimal::one()))
+        .bind(dto.notes.as_deref())
+        .bind(dto.child_bom_uuid)
+        .bind(dto.is_phantom.unwrap_or(false))
+        .fetch_one(&mut **tx)
+        .await?;
+
+        Ok(BomLine {
+            uuid: row.get("uuid"),
+            bom_header_uuid: row.get("bom_header_uuid"),
+            line_number: row.get("line_number"),
+            component_item_uuid: row.get("component_item_uuid"),
+            quantity_per: row.get("quantity_per"),
+            uom: row.get("uom"),
+            scrap_factor: row.get("scrap_factor"),
+            notes: row.get("notes"),
+            child_bom_uuid: row.get("child_bom_uuid"),
+            is_phantom: row.get("is_phantom"),
+            created_at: row.get("created_at"),
+        })
     }
 
     pub async fn create_work_center(&self, dto: WorkCenterDto) -> Result<WorkCenter, AppError> {
@@ -353,6 +514,26 @@ impl ManufacturingRepo {
         })
     }
 
+    // pub async fn explode_bom(
+    //     &self,
+    //     bom_uuid: Uuid,
+    //     qty: BigDecimal,
+    // ) -> Result<Vec<ExplodedBomLine>, AppError> {
+    //     let rows = sqlx::query_as::<_, ExplodedBomLine>(
+    //         r#"
+    //         SELECT level, component_item_uuid, quantity_required,
+    //                is_leaf, is_phantom, source_bom_uuid
+    //         FROM manufacturing.explode_bom($1, $2)
+    //         ORDER BY level, component_item_uuid
+    //         "#,
+    //     )
+    //     .bind(bom_uuid)
+    //     .bind(qty)
+    //     .fetch_all(&self.pool)
+    //     .await?;
+    //     Ok(rows)
+    // }
+
     // ============================ Labor Application ============================
     pub async fn apply_direct_labor(
         &self,
@@ -526,43 +707,43 @@ impl ManufacturingRepo {
         })
     }
 
-    pub async fn add_line(
-        &self,
-        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
-        header_uuid: Uuid,
-        dto: &CreateBomLineDto,
-    ) -> Result<BomLine, AppError> {
-        let row: PgRow = sqlx::query(
-            r#"
-            INSERT INTO manufacturing.bom_lines (
-                bom_header_uuid, line_number, component_item_uuid,
-                quantity_per, uom, scrap_factor, notes
-            ) VALUES ($1, $2, $3, $4, COALESCE($5, 'pcs'), COALESCE($6, 1.0000), $7)
-            RETURNING *
-            "#,
-        )
-        .bind(header_uuid)
-        .bind(dto.line_number)
-        .bind(dto.component_item_uuid)
-        .bind(dto.quantity_per.clone())
-        .bind(dto.uom.as_deref())
-        .bind(dto.scrap_factor.clone().unwrap_or(BigDecimal::one()))
-        .bind(dto.notes.as_deref())
-        .fetch_one(&mut **tx)
-        .await?;
+    // pub async fn add_line(
+    //     &self,
+    //     tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    //     header_uuid: Uuid,
+    //     dto: &CreateBomLineDto,
+    // ) -> Result<BomLine, AppError> {
+    //     let row: PgRow = sqlx::query(
+    //         r#"
+    //         INSERT INTO manufacturing.bom_lines (
+    //             bom_header_uuid, line_number, component_item_uuid,
+    //             quantity_per, uom, scrap_factor, notes
+    //         ) VALUES ($1, $2, $3, $4, COALESCE($5, 'pcs'), COALESCE($6, 1.0000), $7)
+    //         RETURNING *
+    //         "#,
+    //     )
+    //     .bind(header_uuid)
+    //     .bind(dto.line_number)
+    //     .bind(dto.component_item_uuid)
+    //     .bind(dto.quantity_per.clone())
+    //     .bind(dto.uom.as_deref())
+    //     .bind(dto.scrap_factor.clone().unwrap_or(BigDecimal::one()))
+    //     .bind(dto.notes.as_deref())
+    //     .fetch_one(&mut **tx)
+    //     .await?;
 
-        Ok(BomLine {
-            uuid: row.get("uuid"),
-            bom_header_uuid: row.get("bom_header_uuid"),
-            line_number: row.get("line_number"),
-            component_item_uuid: row.get("component_item_uuid"),
-            quantity_per: row.get("quantity_per"),
-            uom: row.get("uom"),
-            scrap_factor: row.get("scrap_factor"),
-            notes: row.get("notes"),
-            created_at: row.get("created_at"),
-        })
-    }
+    //     Ok(BomLine {
+    //         uuid: row.get("uuid"),
+    //         bom_header_uuid: row.get("bom_header_uuid"),
+    //         line_number: row.get("line_number"),
+    //         component_item_uuid: row.get("component_item_uuid"),
+    //         quantity_per: row.get("quantity_per"),
+    //         uom: row.get("uom"),
+    //         scrap_factor: row.get("scrap_factor"),
+    //         notes: row.get("notes"),
+    //         created_at: row.get("created_at"),
+    //     })
+    // }
 
     pub async fn get_full_bom(&self, bom_uuid: Uuid) -> Result<Option<BomWithLines>, AppError> {
         let header_opt: Option<BomHeader> = sqlx::query_as::<_, BomHeader>(

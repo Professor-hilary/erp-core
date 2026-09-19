@@ -49,7 +49,7 @@ CREATE TABLE manufacturing.production_order_materials (
     uuid uuid DEFAULT uuidv7 () PRIMARY KEY,
     production_order_uuid  uuid NOT NULL REFERENCES manufacturing.production_orders(uuid)
         ON DELETE CASCADE,
-    bom_line_uuid uuid NOT NULL REFERENCES manufacturing.bom_lines(uuid),
+    bom_line_uuid uuid REFERENCES manufacturing.bom_lines(uuid),
     component_item_uuid uuid NOT NULL REFERENCES inventory.items(uuid),
     required_qty numeric(18,6) NOT NULL,
     issued_qty numeric(18,6) DEFAULT 0,
@@ -57,7 +57,7 @@ CREATE TABLE manufacturing.production_order_materials (
         status IN ('Pending', 'PartiallyIssued', 'FullyIssued')
     ),
     created_at timestamptz DEFAULT now(),
-    UNIQUE(production_order_uuid, bom_line_uuid)
+    UNIQUE(production_order_uuid, component_item_uuid)
 );
 
 -- helper log table (recommended for audit trail)
@@ -97,6 +97,8 @@ CREATE TABLE IF NOT EXISTS manufacturing.bom_lines (
     bom_header_uuid uuid NOT NULL REFERENCES manufacturing.bom_headers (uuid) ON DELETE CASCADE,
     line_number smallint NOT NULL,
     component_item_uuid uuid NOT NULL REFERENCES inventory.items (uuid) ON DELETE RESTRICT,
+    child_bom_uuid uuid NOT NULL REFERENCES manufacturing.bom_headers (uuid) ON DELETE RESTRICT,
+    is_phantom boolean NOT NULL DEFAULT false,
     quantity_per numeric(18, 6) NOT NULL CHECK (quantity_per > 0),
     uom text DEFAULT 'pcs',
     scrap_factor numeric(5, 4) DEFAULT 1.0000, -- 1.05 = 5% expected scrap
@@ -262,16 +264,17 @@ BEGIN
     FROM manufacturing.bom_headers bh
     WHERE bh.product_item_uuid = p_item_uuid
       AND bh.is_active
-    ORDER BY bh.is_default DESC, bh.created_at DESC
+    ORDER BY bh.is_default DESC, bh.effective_date DESC
     LIMIT 1;
 
     --===================== MATERIAL STANDARD COST =======================
     IF v_bom_uuid IS NOT NULL THEN
-        SELECT COALESCE(SUM(bl.quantity_per * i.standard_cost), 0)
-        INTO v_material_cost
-        FROM manufacturing.bom_lines bl
-        JOIN inventory.items i ON i.uuid = bl.component_item_uuid
-        WHERE bl.bom_header_uuid = v_bom_uuid;
+        -- Material part becomes:
+				SELECT COALESCE(SUM(e.quantity_required * i.standard_cost), 0)
+				INTO v_material_cost
+				FROM manufacturing.explode_bom(v_bom_uuid, 1) e
+				JOIN inventory.items i ON i.uuid = e.component_item_uuid
+				WHERE e.is_leaf = true;          -- only purchased / non-BOM leaves
     END IF;
 
     --======================= LABOR STANDARD COST ========================
@@ -525,6 +528,7 @@ DECLARE
 
     v_wip_account_uuid   uuid;
     v_labor_account_uuid uuid;
+    v_base_quantity 		 numeric;
 
     v_txn_serial         bigint;
     v_application        manufacturing.cost_applications%ROWTYPE;
@@ -540,13 +544,21 @@ BEGIN
     -- Get routing (latest active)
     SELECT r.uuid INTO v_routing_uuid
     FROM manufacturing.routings r
-    WHERE r.product_uuid = v_order.product_uuid
+    WHERE r.product_item_uuid = v_order.product_item_uuid
       AND r.status = 'active'
     ORDER BY r.effective_date DESC
     LIMIT 1;
+    
+    -- Get base quantity for time computation (latest active)
+    SELECT r.base_quantity INTO v_base_quantity
+    FROM manufacturing.routings r
+    WHERE r.uuid = v_routing_uuid
+      AND r.status = 'active'
+    LIMIT 1;
 
     IF v_routing_uuid IS NULL THEN
-        RAISE EXCEPTION 'No active routing found for product %', v_order.product_uuid;
+        RAISE EXCEPTION 'No active routing found for product %', 
+        	v_order.product_item_uuid;
     END IF;
 
     -- Loop operations
@@ -560,8 +572,8 @@ BEGIN
     LOOP
         -- Time in hours
         v_time_hours :=
-            (rec.setup_time_minutes +
-            (rec.run_time_minutes * v_order.quantity)) / 60.0;
+            (/*rec.setup_time_minutes +*/
+            (rec.run_time_minutes * (v_order.quantity / v_base_quantity))) / 60.0;
 
         v_total_hours := v_total_hours + v_time_hours;
 
@@ -980,6 +992,81 @@ BEGIN
         overhead_variance = v_oh_var
         updated_at = now()
     WHERE uuid = p_order_uuid;
+END;
+$$;
+
+-- ====================================================================================
+-- Explode multilayer bom
+-- ====================================================================================
+CREATE OR REPLACE FUNCTION manufacturing.explode_bom(
+    p_bom_uuid   uuid,
+    p_qty        numeric DEFAULT 1,
+    p_path       uuid[]  DEFAULT ARRAY[]::uuid[]
+)
+RETURNS TABLE (
+    level               int,
+    component_item_uuid uuid,
+    quantity_required   numeric,
+    is_leaf             boolean,
+    is_phantom          boolean,
+    source_bom_uuid     uuid,
+    path                uuid[]
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    IF p_bom_uuid = ANY(p_path) THEN
+        RAISE EXCEPTION 'Circular BOM detected: %', p_path || p_bom_uuid;
+    END IF;
+
+    RETURN QUERY
+    WITH RECURSIVE bom_tree AS (
+        -- direct lines
+        SELECT
+            1 AS level,
+            bl.component_item_uuid,
+            (bl.quantity_per * bl.scrap_factor * p_qty)::numeric AS quantity_required,
+            bl.is_phantom,
+            COALESCE(bl.child_bom_uuid, child_bh.uuid) AS child_bom,
+            bl.bom_header_uuid AS source_bom_uuid,
+            p_path || p_bom_uuid AS path
+        FROM manufacturing.bom_lines bl
+        LEFT JOIN manufacturing.bom_headers child_bh
+               ON child_bh.product_item_uuid = bl.component_item_uuid
+              AND child_bh.is_active
+              AND (child_bh.is_default OR bl.child_bom_uuid IS NOT NULL)
+        WHERE bl.bom_header_uuid = p_bom_uuid
+
+        UNION ALL
+
+        -- recurse into manufactured components that have a BOM
+        SELECT
+            bt.level + 1,
+            bl2.component_item_uuid,
+            (bl2.quantity_per * bl2.scrap_factor * bt.quantity_required)::numeric,
+            bl2.is_phantom,
+            COALESCE(bl2.child_bom_uuid, child_bh2.uuid),
+            bl2.bom_header_uuid,
+            bt.path || bt.child_bom
+        FROM bom_tree bt
+        JOIN manufacturing.bom_lines bl2
+          ON bl2.bom_header_uuid = bt.child_bom
+        LEFT JOIN manufacturing.bom_headers child_bh2
+               ON child_bh2.product_item_uuid = bl2.component_item_uuid
+              AND child_bh2.is_active
+              AND (child_bh2.is_default OR bl2.child_bom_uuid IS NOT NULL)
+        WHERE bt.child_bom IS NOT NULL
+          AND NOT (bt.child_bom = ANY(bt.path))   -- cycle guard
+    )
+    SELECT
+        level,
+        component_item_uuid,
+        quantity_required,
+        (child_bom IS NULL) AS is_leaf,
+        is_phantom,
+        source_bom_uuid,
+        path
+    FROM bom_tree;
 END;
 $$;
 

@@ -140,7 +140,7 @@ impl AccountRepository for PostgresAccountRepo {
         let account = sqlx::query_as::<_, Account>(
             "INSERT INTO accounting.accounts (
                 name, category, code, parent_code, normal_balance, is_contra, cash_flow_category
-            ) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *",
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *",
         )
         .bind(&acc.name)
         .bind(acc.category.to_lowercase())
@@ -368,12 +368,14 @@ impl AccountRepository for PostgresAccountRepo {
     }
 
     async fn get_currency_by_code(&self, pool: &PgPool, code: &str) -> Result<Currency, AppError> {
-        sqlx::query_as::<_, Currency>(r#"SELECT * FROM accounting.currencies WHERE code = UPPER($1)"#)
-            .bind(code.trim())
-            .fetch_optional(pool)
-            .await
-            .map_err(AppError::Database)?
-            .ok_or_else(|| AppError::NotFound(format!("Currency code not found: {code}")))
+        sqlx::query_as::<_, Currency>(
+            r#"SELECT * FROM accounting.currencies WHERE code = UPPER($1)"#,
+        )
+        .bind(code.trim())
+        .fetch_optional(pool)
+        .await
+        .map_err(AppError::Database)?
+        .ok_or_else(|| AppError::NotFound(format!("Currency code not found: {code}")))
     }
 
     async fn update_currency(

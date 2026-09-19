@@ -141,6 +141,17 @@ impl ManufacturingService {
             .bind(header_dto.product_item_uuid)
             .execute(&mut *tx)
             .await?;
+            
+        // keep item.bom_uuid in sync when this is the default BOM
+        if header_dto.is_default.unwrap_or(false) {
+            sqlx::query(
+                "UPDATE inventory.items SET bom_uuid = $1 WHERE uuid = $2",
+            )
+            .bind(header.uuid)
+            .bind(header_dto.product_item_uuid)
+            .execute(&mut *tx)
+            .await?;
+        }
 
         tx.commit().await?;
 

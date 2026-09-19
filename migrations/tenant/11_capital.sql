@@ -11,7 +11,7 @@ CREATE SCHEMA IF NOT EXISTS capital;
 -- =============================================
 
 CREATE TABLE capital.parties (
-    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id              UUID PRIMARY KEY DEFAULT uuidv7(),
     serial_id       bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
     company_id      UUID,                             -- null = external party
     party_type      TEXT NOT NULL CHECK (party_type IN (
@@ -33,7 +33,7 @@ CREATE TABLE capital.parties (
 -- =============================================
 
 CREATE TABLE capital.capital_instruments (
-    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id                  UUID PRIMARY KEY DEFAULT uuidv7(),
     serial_id       bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
     company_id          UUID NOT NULL,
     instrument_code     TEXT NOT NULL,                 -- internal identifier
@@ -90,7 +90,7 @@ CREATE INDEX idx_capital_instruments_status ON capital.capital_instruments(statu
 -- =============================================
 
 CREATE TABLE capital.capital_events (
-    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id                  UUID PRIMARY KEY DEFAULT uuidv7(),
     serial_id           bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
     company_id          UUID NOT NULL,
     instrument_id       UUID REFERENCES capital.capital_instruments(id),
@@ -125,7 +125,7 @@ CREATE INDEX idx_capital_events_date ON capital.capital_events(event_date);
 -- =============================================
 
 CREATE TABLE capital.debt_facilities (
-    id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id                      UUID PRIMARY KEY DEFAULT uuidv7(),
     serial_id               bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
     company_id              UUID NOT NULL,
     instrument_id           UUID REFERENCES capital.capital_instruments(id), -- optional link
@@ -173,7 +173,7 @@ CREATE TABLE capital.debt_facilities (
 );
 
 CREATE TABLE capital.debt_facility_lenders (
-    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id                  UUID PRIMARY KEY DEFAULT uuidv7(),
     serial_id           bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
     facility_id         UUID NOT NULL REFERENCES capital.debt_facilities(id) ON DELETE CASCADE,
     lender_id           UUID NOT NULL REFERENCES capital.parties(id),
@@ -184,7 +184,7 @@ CREATE TABLE capital.debt_facility_lenders (
 );
 
 CREATE TABLE capital.debt_drawdowns (
-    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id                  UUID PRIMARY KEY DEFAULT uuidv7(),
     serial_id           bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
     facility_id         UUID NOT NULL REFERENCES capital.debt_facilities(id),
     instrument_id       UUID REFERENCES capital.capital_instruments(id),
@@ -202,7 +202,7 @@ CREATE TABLE capital.debt_drawdowns (
 );
 
 CREATE TABLE capital.debt_repayment_schedules (
-    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id                  UUID PRIMARY KEY DEFAULT uuidv7(),
     serial_id           bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
     facility_id         UUID NOT NULL REFERENCES capital.debt_facilities(id),
     instrument_id       UUID REFERENCES capital.capital_instruments(id),
@@ -222,7 +222,7 @@ CREATE TABLE capital.debt_repayment_schedules (
 );
 
 CREATE TABLE capital.debt_repayments (
-    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id                  UUID PRIMARY KEY DEFAULT uuidv7(),
     serial_id           bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
     facility_id         UUID NOT NULL REFERENCES capital.debt_facilities(id),
     schedule_id         UUID REFERENCES capital.debt_repayment_schedules(id),
@@ -241,7 +241,7 @@ CREATE TABLE capital.debt_repayments (
 );
 
 CREATE TABLE capital.debt_interest_accruals (
-    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id                  UUID PRIMARY KEY DEFAULT uuidv7(),
     serial_id           bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
     facility_id         UUID NOT NULL REFERENCES capital.debt_facilities(id),
     instrument_id       UUID REFERENCES capital.capital_instruments(id),
@@ -257,7 +257,7 @@ CREATE TABLE capital.debt_interest_accruals (
 );
 
 CREATE TABLE capital.debt_fees (
-    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id                  UUID PRIMARY KEY DEFAULT uuidv7(),
     serial_id           bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
     facility_id         UUID NOT NULL REFERENCES capital.debt_facilities(id),
     fee_type            TEXT NOT NULL CHECK (fee_type IN (
@@ -273,7 +273,7 @@ CREATE TABLE capital.debt_fees (
 );
 
 CREATE TABLE capital.debt_covenants (
-    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id                  UUID PRIMARY KEY DEFAULT uuidv7(),
     serial_id           bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
     facility_id         UUID NOT NULL REFERENCES capital.debt_facilities(id),
     covenant_code       TEXT NOT NULL,
@@ -297,7 +297,7 @@ CREATE TABLE capital.debt_covenants (
 );
 
 CREATE TABLE capital.debt_covenant_tests (
-    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id                  UUID PRIMARY KEY DEFAULT uuidv7(),
     serial_id           bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
     covenant_id         UUID NOT NULL REFERENCES capital.debt_covenants(id),
     test_date           DATE NOT NULL,
@@ -310,7 +310,7 @@ CREATE TABLE capital.debt_covenant_tests (
 );
 
 CREATE TABLE capital.debt_collateral (
-    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id                  UUID PRIMARY KEY DEFAULT uuidv7(),
     serial_id           bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
     facility_id         UUID NOT NULL REFERENCES capital.debt_facilities(id),
     collateral_type     TEXT NOT NULL,                -- real estate, inventory, receivables, shares, etc.
@@ -324,7 +324,7 @@ CREATE TABLE capital.debt_collateral (
 );
 
 CREATE TABLE capital.debt_refinancings (
-    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id                  UUID PRIMARY KEY DEFAULT uuidv7(),
     serial_id           bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
     company_id          UUID NOT NULL,
     old_facility_id     UUID NOT NULL REFERENCES capital.debt_facilities(id),
@@ -342,7 +342,7 @@ CREATE TABLE capital.debt_refinancings (
 -- =============================================
 
 CREATE TABLE capital.share_classes (
-    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id                  UUID PRIMARY KEY DEFAULT uuidv7(),
     serial_id           bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
     company_id          UUID NOT NULL,
     class_code          TEXT NOT NULL,
@@ -370,7 +370,7 @@ CREATE TABLE capital.share_classes (
 );
 
 CREATE TABLE capital.shareholders (
-    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id                  UUID PRIMARY KEY DEFAULT uuidv7(),
     serial_id           bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
     company_id          UUID NOT NULL,
     party_id            UUID REFERENCES capital.parties(id),
@@ -387,7 +387,7 @@ CREATE TABLE capital.shareholders (
 );
 
 CREATE TABLE capital.shareholdings (
-    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id                  UUID PRIMARY KEY DEFAULT uuidv7(),
     serial_id           bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
     company_id          UUID NOT NULL,
     share_class_id      UUID NOT NULL REFERENCES capital.share_classes(id),
@@ -402,7 +402,7 @@ CREATE TABLE capital.shareholdings (
 );
 
 CREATE TABLE capital.share_transactions (
-    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id                  UUID PRIMARY KEY DEFAULT uuidv7(),
     serial_id           bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
     company_id          UUID NOT NULL,
     share_class_id      UUID NOT NULL REFERENCES capital.share_classes(id),
@@ -429,7 +429,7 @@ CREATE INDEX idx_share_tx_class ON capital.share_transactions(share_class_id);
 CREATE INDEX idx_share_tx_date ON capital.share_transactions(transaction_date);
 
 CREATE TABLE capital.dividends (
-    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id                  UUID PRIMARY KEY DEFAULT uuidv7(),
     serial_id           bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
     company_id          UUID NOT NULL,
     share_class_id      UUID NOT NULL REFERENCES capital.share_classes(id),
@@ -451,7 +451,7 @@ CREATE TABLE capital.dividends (
 );
 
 CREATE TABLE capital.dividend_payments (
-    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id                  UUID PRIMARY KEY DEFAULT uuidv7(),
     serial_id           bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
     dividend_id         UUID NOT NULL REFERENCES capital.dividends(id),
     shareholder_id      UUID NOT NULL REFERENCES capital.shareholders(id),
@@ -470,7 +470,7 @@ CREATE TABLE capital.dividend_payments (
 -- =============================================
 
 CREATE TABLE capital.equity_accounts (
-    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id                  UUID PRIMARY KEY DEFAULT uuidv7(),
     serial_id           bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
     company_id          UUID NOT NULL,
     account_code        TEXT NOT NULL,
@@ -487,7 +487,7 @@ CREATE TABLE capital.equity_accounts (
 );
 
 CREATE TABLE capital.equity_movements (
-    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id                  UUID PRIMARY KEY DEFAULT uuidv7(),
     serial_id           bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
     company_id          UUID NOT NULL,
     equity_account_id   UUID NOT NULL REFERENCES capital.equity_accounts(id),
@@ -516,7 +516,7 @@ CREATE INDEX idx_equity_movements_date ON capital.equity_movements(movement_date
 -- =============================================
 
 CREATE TABLE capital.capital_structure_snapshots (
-    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id                  UUID PRIMARY KEY DEFAULT uuidv7(),
     serial_id           bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
     company_id          UUID NOT NULL,
     as_of_date          DATE NOT NULL,
@@ -533,7 +533,7 @@ CREATE TABLE capital.capital_structure_snapshots (
 );
 
 CREATE TABLE capital.capital_allocations (
-    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id                  UUID PRIMARY KEY DEFAULT uuidv7(),
     serial_id           bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
     company_id          UUID NOT NULL,
     allocation_code     TEXT,
@@ -561,7 +561,7 @@ CREATE TABLE capital.capital_allocations (
 -- =============================================
 
 CREATE TABLE capital.capital_projects (
-    id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id                      UUID PRIMARY KEY DEFAULT uuidv7(),
     serial_id               bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
     company_id              UUID NOT NULL,
     project_code            TEXT NOT NULL,
@@ -592,7 +592,7 @@ CREATE TABLE capital.capital_projects (
 );
 
 CREATE TABLE capital.project_funding (
-    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id                  UUID PRIMARY KEY DEFAULT uuidv7(),
     serial_id           bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
     project_id          UUID NOT NULL REFERENCES capital.capital_projects(id),
     funding_source_type TEXT NOT NULL,                -- mirrors capital_allocations
@@ -605,7 +605,7 @@ CREATE TABLE capital.project_funding (
 );
 
 CREATE TABLE capital.investment_positions (
-    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id                  UUID PRIMARY KEY DEFAULT uuidv7(),
     serial_id           bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
     company_id          UUID NOT NULL,
     position_name       TEXT NOT NULL,
@@ -630,7 +630,7 @@ CREATE TABLE capital.investment_positions (
 -- =============================================
 
 CREATE TABLE capital.cash_forecasts (
-    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id                  UUID PRIMARY KEY DEFAULT uuidv7(),
     serial_id           bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
     company_id          UUID NOT NULL,
     forecast_name       TEXT,
@@ -648,7 +648,7 @@ CREATE TABLE capital.cash_forecasts (
 );
 
 CREATE TABLE capital.cash_forecast_lines (
-    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id                  UUID PRIMARY KEY DEFAULT uuidv7(),
     serial_id           bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
     line_date           DATE NOT NULL,
     category            TEXT NOT NULL CHECK (category IN (
@@ -666,7 +666,7 @@ CREATE TABLE capital.cash_forecast_lines (
 );
 
 CREATE TABLE capital.funding_requirements (
-    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id                  UUID PRIMARY KEY DEFAULT uuidv7(),
     serial_id           bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
     company_id          UUID NOT NULL,
     requirement_date    DATE NOT NULL,
@@ -685,7 +685,7 @@ CREATE TABLE capital.funding_requirements (
 -- =============================================
 
 CREATE TABLE capital.capital_metrics (
-    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id                  UUID PRIMARY KEY DEFAULT uuidv7(),
     serial_id           bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
     company_id          UUID NOT NULL,
     metric_date         DATE NOT NULL,
@@ -702,7 +702,7 @@ CREATE TABLE capital.capital_metrics (
 );
 
 CREATE TABLE capital.wacc_components (
-    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id                  UUID PRIMARY KEY DEFAULT uuidv7(),
     serial_id           bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
     company_id          UUID NOT NULL,
     as_of_date          DATE NOT NULL,
@@ -716,6 +716,31 @@ CREATE TABLE capital.wacc_components (
     created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (company_id, as_of_date)
 );
+
+CREATE TABLE capital.project_costs (
+    id              UUID PRIMARY KEY DEFAULT uuidv7() NOT NULL,
+    serial_id       BIGINT GENERATED ALWAYS AS IDENTITY NOT NULL,
+    company_id      UUID NOT NULL,
+    project_id      UUID NOT NULL REFERENCES capital.capital_projects(id),
+    cost_date       DATE NOT NULL,
+    cost_category   TEXT NOT NULL CHECK (cost_category IN (
+        'EQUIPMENT', 'MATERIAL', 'LABOUR', 'CONTRACTOR', 'OVERHEAD', 'OTHER',
+        'PERMITS', 'PROFESSIONAL_FEES', 'INTEREST_CAPITALIZED'
+    )),
+    description     TEXT,
+    amount          NUMERIC(24, 6) NOT NULL CHECK (amount > 0),
+    currency_id     UUID REFERENCES accounting.currencies(id),
+    is_capitalized  BOOLEAN NOT NULL DEFAULT true,
+    vendor_id       UUID,       -- procurement/party
+    fixed_asset_id  UUID,       -- when equipment is capitalized
+    journal_entry_id BIGINT,    -- GL serial from post_transaction
+    funding_id      UUID REFERENCES capital.project_funding(id),
+    reference       TEXT,
+    created_id      UUID,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_project_costs_project ON capital.project_costs(project_id, cost_date);
 
 -- =============================================
 -- 10. VIEWS (Key Analytics)
@@ -850,6 +875,7 @@ DECLARE
     v_class             capital.share_classes%ROWTYPE;
     v_instrument_id     UUID;
     v_event_id          UUID;
+    v_related_party_id	UUID;
     v_tx_id             BIGINT;
     v_journal_serial    BIGINT;
     v_total             NUMERIC(24,6);
@@ -913,6 +939,9 @@ BEGIN
     END IF;
 
     -- 3. Capital event (audit trail)
+    SELECT party_id into v_related_party_id FROM capital.shareholders
+      WHERE id = p_shareholder_id AND company_id = p_company_id;
+
     INSERT INTO capital.capital_events (
         company_id, instrument_id, event_type, event_date,
         amount, currency_id, shares, description,
@@ -921,7 +950,7 @@ BEGIN
         p_company_id, v_instrument_id, 'SHARE_ISSUE', p_issue_date,
         v_total, p_currency_id, p_shares,
         COALESCE(p_notes, format('Issue of %s shares', p_shares)),
-        p_shareholder_id, p_user_id
+        v_related_party_id, p_user_id
     )
     RETURNING id INTO v_event_id;
 
