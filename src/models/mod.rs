@@ -7,6 +7,7 @@ pub mod dto;
 pub mod employee;
 pub mod fixed_assets;
 pub mod inventory;
+pub mod investment;
 pub mod manufacturing;
 pub mod payrun;
 pub mod reports;

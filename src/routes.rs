@@ -9,9 +9,13 @@ use axum::{
 };
 
 use crate::{
-    AppState, features::{
-        accounts, capital, company, fixedassets, inventory, manufacturing, payroll, procurement, reports, sales, transactions, workforce,
-    }, interface::api::errors::AppError, middleware::{auth::AuthenticatedUser, layer::auth_middleware},
+    AppState,
+    features::{
+        accounts, capital, company, fixedassets, inventory, investment, manufacturing, payroll, procurement,
+        reports, sales, transactions, workforce,
+    },
+    interface::api::errors::AppError,
+    middleware::{auth::AuthenticatedUser, layer::auth_middleware},
 };
 
 use std::{sync::Arc, time::Duration};
@@ -22,7 +26,7 @@ pub fn create_router(state: Arc<AppState>) -> Router {
     let company_routes: Router<Arc<AppState>> = company::handlers::router().layer(
         middleware::from_fn_with_state(state.clone(), auth_middleware),
     );
-     let capital_routes: Router<Arc<AppState>> = capital::handlers::router().layer(
+    let capital_routes: Router<Arc<AppState>> = capital::handlers::router().layer(
         middleware::from_fn_with_state(state.clone(), auth_middleware),
     );
     let vendor_routes: Router<Arc<AppState>> = procurement::handlers::router().layer(
@@ -56,6 +60,11 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         middleware::from_fn_with_state(state.clone(), auth_middleware),
     );
 
+    let investment_routes: Router<Arc<AppState>> = investment::handlers::router().layer(middleware::from_fn_with_state(
+        state.clone(),
+        auth_middleware,
+    ));
+
     Router::new()
         // CHECK THAT SERVER IS UP AND RUNING
         .route(
@@ -76,6 +85,7 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .nest("/api/procurement", vendor_routes)
         .nest("/api/workforce", employee_routes)
         .nest("/api/manufacturing", manufacturing_routes)
+        .nest("/api/investment", investment_routes)
         .nest("/api/fixedassets", fixedassets_routes)
         // CORS & global state
         .layer(Extension(state.clone()))

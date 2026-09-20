@@ -12,3 +12,4 @@ pub mod reports;
 pub mod sales;
 pub mod transactions;
 pub mod workforce;
+pub mod investment;
