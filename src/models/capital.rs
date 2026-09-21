@@ -42,7 +42,7 @@ pub struct IssueSharesResult {
 /// Debt drawdown / borrow
 #[derive(Debug, Clone, Serialize, Deserialize, Validate)]
 pub struct BorrowRequest {
-    pub facility_id: Uuid,
+    pub facility_id: Option<Uuid>,
     pub amount: BigDecimal,
     pub drawdown_date: NaiveDate,
     pub value_date: Option<NaiveDate>,
@@ -188,7 +188,7 @@ pub struct CreateCapitalEvent {
 // =============================================================================
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
-pub struct CapitalFacility {
+pub struct DebtFacility {
     pub id: Uuid,
     pub serial_id: i64,
     pub company_id: Uuid,
@@ -223,7 +223,7 @@ pub struct CapitalFacility {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Validate)]
-pub struct CreateCapitalFacility {
+pub struct CreateDebtFacility {
     pub instrument_id: Option<Uuid>,
     #[validate(length(min = 1, max = 64))]
     pub facility_code: String,
@@ -253,7 +253,7 @@ pub struct CreateCapitalFacility {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Validate)]
-pub struct UpdateCapitalFacility {
+pub struct UpdateDebtFacility {
     pub facility_name: Option<String>,
     pub available_amount: Option<BigDecimal>,
     pub drawn_amount: Option<BigDecimal>,

@@ -1,8 +1,9 @@
 -- =====================================================================
--- INVESTMENT APPRAISAL SUBMODULE (capital)
+-- INVESTMENT APPRAISAL SUBMODULE (investment)
 -- =====================================================================
+CREATE SCHEMA IF NOT EXISTS investment;
 
-CREATE TABLE capital.investment_programs (
+CREATE TABLE investment.investment_programs (
     id              UUID PRIMARY KEY DEFAULT uuidv7(),
     serial_id       BIGINT GENERATED ALWAYS AS IDENTITY NOT NULL,
     company_id      UUID NOT NULL,
@@ -19,7 +20,7 @@ CREATE TABLE capital.investment_programs (
     UNIQUE (company_id, program_code)
 );
 
-CREATE TABLE capital.investment_cases (
+CREATE TABLE investment.investment_cases (
     id                  UUID PRIMARY KEY DEFAULT uuidv7(),
     serial_id           BIGINT GENERATED ALWAYS AS IDENTITY NOT NULL,
     company_id          UUID NOT NULL,
@@ -32,7 +33,7 @@ CREATE TABLE capital.investment_cases (
                             'REPLACEMENT', 'EXPANSION', 'NEW_PRODUCT',
                             'REGULATORY', 'INFRASTRUCTURE', 'OTHER'
                         )),
-    program_id          UUID REFERENCES capital.investment_programs(id),
+    program_id          UUID REFERENCES investment.investment_programs(id),
     strategic_score     NUMERIC(5,2),          -- 0–100 or 1–5 scaled
     strategic_notes     TEXT,
     risk_rating         TEXT CHECK (risk_rating IN ('LOW','MEDIUM','HIGH','CRITICAL')),
@@ -73,13 +74,13 @@ CREATE TABLE capital.investment_cases (
     UNIQUE (company_id, case_code)
 );
 
-CREATE INDEX idx_inv_cases_company_stage ON capital.investment_cases(company_id, stage);
-CREATE INDEX idx_inv_cases_program ON capital.investment_cases(program_id);
+CREATE INDEX idx_inv_cases_company_stage ON investment.investment_cases(company_id, stage);
+CREATE INDEX idx_inv_cases_program ON investment.investment_cases(program_id);
 
 -- Scenarios: Base / Best / Worst (extensible)
-CREATE TABLE capital.investment_scenarios (
+CREATE TABLE investment.investment_scenarios (
     id              UUID PRIMARY KEY DEFAULT uuidv7(),
-    case_id         UUID NOT NULL REFERENCES capital.investment_cases(id) ON DELETE CASCADE,
+    case_id         UUID NOT NULL REFERENCES investment.investment_cases(id) ON DELETE CASCADE,
     scenario_code   TEXT NOT NULL CHECK (scenario_code IN ('BASE','BEST','WORST','CUSTOM')),
     name            TEXT NOT NULL,
     probability     NUMERIC(8,6) CHECK (probability IS NULL OR (probability >= 0 AND probability <= 1)),
@@ -90,10 +91,10 @@ CREATE TABLE capital.investment_scenarios (
 );
 
 -- Cash-flow builder lines (driver-level, not only totals)
-CREATE TABLE capital.investment_cashflow_lines (
+CREATE TABLE investment.investment_cashflow_lines (
     id              UUID PRIMARY KEY DEFAULT uuidv7(),
     serial_id       BIGINT GENERATED ALWAYS AS IDENTITY NOT NULL,
-    scenario_id     UUID NOT NULL REFERENCES capital.investment_scenarios(id) ON DELETE CASCADE,
+    scenario_id     UUID NOT NULL REFERENCES investment.investment_scenarios(id) ON DELETE CASCADE,
     period_no       INTEGER NOT NULL CHECK (period_no >= 0),  -- 0 = initial
     period_date     DATE,                                     -- optional calendar anchor
     line_type       TEXT NOT NULL CHECK (line_type IN (
@@ -105,13 +106,13 @@ CREATE TABLE capital.investment_cashflow_lines (
     is_cash         BOOLEAN NOT NULL DEFAULT true,  -- false for depreciation (ARR only)
     tax_deductible  BOOLEAN NOT NULL DEFAULT false,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
-    UNIQUE (scenario_id, period_no, line_type, COALESCE(description, ''))
+    UNIQUE (scenario_id, period_no, line_type, description)
 );
 
 -- Depreciation assumptions for modelling (not FA books)
-CREATE TABLE capital.investment_dep_assumptions (
+CREATE TABLE investment.investment_dep_assumptions (
     id                  UUID PRIMARY KEY DEFAULT uuidv7(),
-    scenario_id         UUID NOT NULL REFERENCES capital.investment_scenarios(id) ON DELETE CASCADE,
+    scenario_id         UUID NOT NULL REFERENCES investment.investment_scenarios(id) ON DELETE CASCADE,
     asset_label         TEXT NOT NULL,              -- e.g. "CNC"
     cost                NUMERIC(24,6) NOT NULL,
     method              TEXT NOT NULL CHECK (method IN ('STRAIGHT_LINE','REDUCING_BALANCE')),
@@ -124,9 +125,9 @@ CREATE TABLE capital.investment_dep_assumptions (
 );
 
 -- Stored metric results per scenario (audit + speed)
-CREATE TABLE capital.investment_metrics (
+CREATE TABLE investment.investment_metrics (
     id                  UUID PRIMARY KEY DEFAULT uuidv7(),
-    scenario_id         UUID NOT NULL REFERENCES capital.investment_scenarios(id) ON DELETE CASCADE,
+    scenario_id         UUID NOT NULL REFERENCES investment.investment_scenarios(id) ON DELETE CASCADE,
     discount_rate       NUMERIC(12,8) NOT NULL,
     npv                 NUMERIC(24,6),
     irr                 NUMERIC(12,8),
@@ -143,19 +144,19 @@ CREATE TABLE capital.investment_metrics (
     UNIQUE (scenario_id, calculated_at)  -- or keep one row + history table
 );
 
-CREATE TABLE capital.investment_sensitivity_runs (
+CREATE TABLE investment.investment_sensitivity_runs (
     id              UUID PRIMARY KEY DEFAULT uuidv7(),
-    case_id         UUID NOT NULL REFERENCES capital.investment_cases(id) ON DELETE CASCADE,
-    scenario_id     UUID REFERENCES capital.investment_scenarios(id),
+    case_id         UUID NOT NULL REFERENCES investment.investment_cases(id) ON DELETE CASCADE,
+    scenario_id     UUID REFERENCES investment.investment_scenarios(id),
     name            TEXT,
     created_by      UUID,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- Tornado inputs: one variable shocked at a time
-CREATE TABLE capital.investment_sensitivity_results (
+CREATE TABLE investment.investment_sensitivity_results (
     id              UUID PRIMARY KEY DEFAULT uuidv7(),
-    run_id          UUID NOT NULL REFERENCES capital.investment_sensitivity_runs(id) ON DELETE CASCADE,
+    run_id          UUID NOT NULL REFERENCES investment.investment_sensitivity_runs(id) ON DELETE CASCADE,
     variable_name   TEXT NOT NULL,           -- e.g. CAPEX, REVENUE, OPEX, WACC
     shock_pct       NUMERIC(8,4) NOT NULL,   -- e.g. 0.20 = +20%
     npv_result      NUMERIC(24,6),
@@ -164,10 +165,10 @@ CREATE TABLE capital.investment_sensitivity_results (
     delta_npv       NUMERIC(24,6)
 );
 
-CREATE TABLE capital.investment_monte_carlo_runs (
+CREATE TABLE investment.investment_monte_carlo_runs (
     id              UUID PRIMARY KEY DEFAULT uuidv7(),
-    case_id         UUID NOT NULL REFERENCES capital.investment_cases(id) ON DELETE CASCADE,
-    scenario_id     UUID REFERENCES capital.investment_scenarios(id),
+    case_id         UUID NOT NULL REFERENCES investment.investment_cases(id) ON DELETE CASCADE,
+    scenario_id     UUID REFERENCES investment.investment_scenarios(id),
     iterations      INTEGER NOT NULL CHECK (iterations > 0),
     npv_mean        NUMERIC(24,6),
     npv_p5          NUMERIC(24,6),
@@ -179,9 +180,9 @@ CREATE TABLE capital.investment_monte_carlo_runs (
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE capital.investment_risks (
+CREATE TABLE investment.investment_risks (
     id              UUID PRIMARY KEY DEFAULT uuidv7(),
-    case_id         UUID NOT NULL REFERENCES capital.investment_cases(id) ON DELETE CASCADE,
+    case_id         UUID NOT NULL REFERENCES investment.investment_cases(id) ON DELETE CASCADE,
     risk_code       TEXT,
     title           TEXT NOT NULL,
     category        TEXT,                    -- MARKET, TECH, REGULATORY, OPS, FINANCIAL
@@ -196,9 +197,9 @@ CREATE TABLE capital.investment_risks (
 );
 
 -- Phased budget (annual / quarterly) — can mirror budget-control module later
-CREATE TABLE capital.investment_budget_phases (
+CREATE TABLE investment.investment_budget_phases (
     id              UUID PRIMARY KEY DEFAULT uuidv7(),
-    case_id         UUID NOT NULL REFERENCES capital.investment_cases(id) ON DELETE CASCADE,
+    case_id         UUID NOT NULL REFERENCES investment.investment_cases(id) ON DELETE CASCADE,
     phase_no        INTEGER NOT NULL,
     fiscal_year     INTEGER,
     period_label    TEXT,                    -- FY2026-Q1
@@ -208,9 +209,9 @@ CREATE TABLE capital.investment_budget_phases (
     UNIQUE (case_id, phase_no)
 );
 
-CREATE TABLE capital.investment_funding_plan (
+CREATE TABLE investment.investment_funding_plan (
     id              UUID PRIMARY KEY DEFAULT uuidv7(),
-    case_id         UUID NOT NULL REFERENCES capital.investment_cases(id) ON DELETE CASCADE,
+    case_id         UUID NOT NULL REFERENCES investment.investment_cases(id) ON DELETE CASCADE,
     source_type     TEXT NOT NULL CHECK (source_type IN (
                         'EQUITY', 'LOAN', 'GRANT', 'INTERNAL', 'OTHER'
                     )),
@@ -225,7 +226,7 @@ CREATE TABLE capital.investment_funding_plan (
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE capital.investment_authority_rules (
+CREATE TABLE investment.investment_authority_rules (
     id              UUID PRIMARY KEY DEFAULT uuidv7(),
     company_id      UUID NOT NULL,
     min_amount      NUMERIC(24,6) NOT NULL DEFAULT 0,
@@ -236,9 +237,9 @@ CREATE TABLE capital.investment_authority_rules (
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE capital.investment_approvals (
+CREATE TABLE investment.investment_approvals (
     id              UUID PRIMARY KEY DEFAULT uuidv7(),
-    case_id         UUID NOT NULL REFERENCES capital.investment_cases(id) ON DELETE CASCADE,
+    case_id         UUID NOT NULL REFERENCES investment.investment_cases(id) ON DELETE CASCADE,
     stage           TEXT NOT NULL,
     actor_id        UUID NOT NULL,
     action          TEXT NOT NULL CHECK (action IN (
@@ -250,9 +251,9 @@ CREATE TABLE capital.investment_approvals (
 );
 
 -- Assumption / cashflow change audit
-CREATE TABLE capital.investment_change_log (
+CREATE TABLE investment.investment_change_log (
     id              UUID PRIMARY KEY DEFAULT uuidv7(),
-    case_id         UUID NOT NULL REFERENCES capital.investment_cases(id) ON DELETE CASCADE,
+    case_id         UUID NOT NULL REFERENCES investment.investment_cases(id) ON DELETE CASCADE,
     entity_type     TEXT NOT NULL,           -- CASE, CASHFLOW_LINE, SCENARIO, RISK
     entity_id       UUID,
     field_name      TEXT,
@@ -262,9 +263,9 @@ CREATE TABLE capital.investment_change_log (
     changed_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE capital.investment_documents (
+CREATE TABLE investment.investment_documents (
     id              UUID PRIMARY KEY DEFAULT uuidv7(),
-    case_id         UUID NOT NULL REFERENCES capital.investment_cases(id) ON DELETE CASCADE,
+    case_id         UUID NOT NULL REFERENCES investment.investment_cases(id) ON DELETE CASCADE,
     doc_type        TEXT NOT NULL,           -- FEASIBILITY, CONTRACT, BOARD_PACK, OTHER
     file_name       TEXT NOT NULL,
     storage_key     TEXT NOT NULL,           -- S3/path
@@ -272,14 +273,14 @@ CREATE TABLE capital.investment_documents (
     uploaded_at     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE OR REPLACE FUNCTION capital.required_approval_role(
+CREATE OR REPLACE FUNCTION investment.required_approval_role(
     p_company_id UUID,
     p_amount NUMERIC,
     p_currency_id UUID
 ) RETURNS TEXT
 LANGUAGE sql STABLE AS $$
     SELECT role_required
-    FROM capital.investment_authority_rules
+    FROM investment.investment_authority_rules
     WHERE company_id = p_company_id
       AND (currency_id IS NULL OR currency_id = p_currency_id)
       AND p_amount >= min_amount
@@ -289,9 +290,9 @@ LANGUAGE sql STABLE AS $$
 $$;
 
 -- Snapshot actuals vs plan (periodic)
-CREATE TABLE capital.investment_execution_snapshots (
+CREATE TABLE investment.investment_execution_snapshots (
     id              UUID PRIMARY KEY DEFAULT uuidv7(),
-    case_id         UUID NOT NULL REFERENCES capital.investment_cases(id) ON DELETE CASCADE,
+    case_id         UUID NOT NULL REFERENCES investment.investment_cases(id) ON DELETE CASCADE,
     as_of_date      DATE NOT NULL,
     budget_total    NUMERIC(24,6),
     committed       NUMERIC(24,6),          -- POs etc. if available
@@ -307,9 +308,9 @@ CREATE TABLE capital.investment_execution_snapshots (
 );
 
 -- Capex → FA link when asset goes live
-CREATE TABLE capital.investment_asset_links (
+CREATE TABLE investment.investment_asset_links (
     id              UUID PRIMARY KEY DEFAULT uuidv7(),
-    case_id         UUID NOT NULL REFERENCES capital.investment_cases(id) ON DELETE CASCADE,
+    case_id         UUID NOT NULL REFERENCES investment.investment_cases(id) ON DELETE CASCADE,
     project_id      UUID REFERENCES capital.capital_projects(id),
     fixed_asset_id  UUID NOT NULL,          -- fixedassets.fixed_assets.asset_id
     capitalized_amount NUMERIC(24,6),
@@ -317,9 +318,9 @@ CREATE TABLE capital.investment_asset_links (
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE capital.investment_post_audits (
+CREATE TABLE investment.investment_post_audits (
     id              UUID PRIMARY KEY DEFAULT uuidv7(),
-    case_id         UUID NOT NULL REFERENCES capital.investment_cases(id) ON DELETE CASCADE,
+    case_id         UUID NOT NULL REFERENCES investment.investment_cases(id) ON DELETE CASCADE,
     audit_date      DATE NOT NULL,
     promised_npv    NUMERIC(24,6),
     promised_irr    NUMERIC(12,8),
@@ -334,16 +335,16 @@ CREATE TABLE capital.investment_post_audits (
 );
 
 -- Aggregate net cash by period for a scenario
-CREATE OR REPLACE FUNCTION capital.scenario_cashflow_array(p_scenario_id UUID)
-RETURNS NUMERIC[]
-LANGUAGE sql STABLE AS $$
-    SELECT COALESCE(array_agg(net_cash ORDER BY period_no), ARRAY[]::NUMERIC[])
-    FROM capital.v_scenario_period_cashflows
-    WHERE scenario_id = p_scenario_id;
-$$;
+-- CREATE OR REPLACE FUNCTION investment.scenario_cashflow_array(p_scenario_id UUID)
+-- RETURNS NUMERIC[]
+-- LANGUAGE sql STABLE AS $$
+--     SELECT COALESCE(array_agg(net_cash ORDER BY period_no), ARRAY[]::NUMERIC[])
+--     FROM investment.v_scenario_period_cashflows
+--     WHERE scenario_id = p_scenario_id;
+-- $$;
 
 -- NPV: CF[0] + CF[1]/(1+r) + ...
-CREATE OR REPLACE FUNCTION capital.calc_npv(p_rate NUMERIC, p_cfs NUMERIC[])
+CREATE OR REPLACE FUNCTION investment.calc_npv(p_rate NUMERIC, p_cfs NUMERIC[])
 RETURNS NUMERIC
 LANGUAGE plpgsql IMMUTABLE AS $$
 DECLARE
@@ -361,7 +362,7 @@ END;
 $$;
 
 -- Payback (undiscounted): first T where cumulative >= 0
-CREATE OR REPLACE FUNCTION capital.calc_payback(p_cfs NUMERIC[])
+CREATE OR REPLACE FUNCTION investment.calc_payback(p_cfs NUMERIC[])
 RETURNS NUMERIC
 LANGUAGE plpgsql IMMUTABLE AS $$
 DECLARE
@@ -388,7 +389,7 @@ END;
 $$;
 
 -- Profitability index = PV inflows / PV outflows (simplified: (NPV + |CF0|) / |CF0|)
-CREATE OR REPLACE FUNCTION capital.calc_pi(p_rate NUMERIC, p_cfs NUMERIC[])
+CREATE OR REPLACE FUNCTION investment.calc_pi(p_rate NUMERIC, p_cfs NUMERIC[])
 RETURNS NUMERIC
 LANGUAGE plpgsql IMMUTABLE AS $$
 DECLARE
@@ -398,33 +399,33 @@ BEGIN
     IF p_cfs IS NULL OR array_length(p_cfs, 1) IS NULL OR p_cfs[1] = 0 THEN
         RETURN NULL;
     END IF;
-    v_npv := capital.calc_npv(p_rate, p_cfs);
+    v_npv := investment.calc_npv(p_rate, p_cfs);
     v_init := ABS(p_cfs[1]);
     RETURN ROUND((v_npv + v_init) / v_init, 6);
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION capital.recalculate_scenario_metrics(
+CREATE OR REPLACE FUNCTION investment.recalculate_scenario_metrics(
     p_scenario_id UUID,
     p_discount_rate NUMERIC,
     p_user_id UUID DEFAULT NULL
-) RETURNS capital.investment_metrics
+) RETURNS investment.investment_metrics
 LANGUAGE plpgsql AS $$
 DECLARE
     v_cfs NUMERIC[];
     v_npv NUMERIC;
     v_payback NUMERIC;
     v_pi NUMERIC;
-    v_row capital.investment_metrics%ROWTYPE;
+    v_row investment.investment_metrics%ROWTYPE;
     v_case_id UUID;
 BEGIN
-    SELECT case_id INTO v_case_id FROM capital.investment_scenarios WHERE id = p_scenario_id;
-    v_cfs := capital.scenario_cashflow_array(p_scenario_id);
-    v_npv := capital.calc_npv(p_discount_rate, v_cfs);
-    v_payback := capital.calc_payback(v_cfs);
-    v_pi := capital.calc_pi(p_discount_rate, v_cfs);
+    SELECT case_id INTO v_case_id FROM investment.investment_scenarios WHERE id = p_scenario_id;
+    v_cfs := investment.scenario_cashflow_array(p_scenario_id);
+    v_npv := investment.calc_npv(p_discount_rate, v_cfs);
+    v_payback := investment.calc_payback(v_cfs);
+    v_pi := investment.calc_pi(p_discount_rate, v_cfs);
 
-    INSERT INTO capital.investment_metrics (
+    INSERT INTO investment.investment_metrics (
         scenario_id, discount_rate, npv, payback_years, profitability_index,
         calculated_at, calculated_by
     ) VALUES (
@@ -433,13 +434,13 @@ BEGIN
     RETURNING * INTO v_row;
 
     -- refresh case cache if this is primary BASE scenario
-    UPDATE capital.investment_cases c
+    UPDATE investment.investment_cases c
     SET npv = v_npv,
         payback_years = v_payback,
         profitability_index = v_pi,
         metrics_calculated_at = now(),
         updated_at = now()
-    FROM capital.investment_scenarios s
+    FROM investment.investment_scenarios s
     WHERE s.id = p_scenario_id
       AND s.case_id = c.id
       AND s.is_primary = true;
@@ -448,36 +449,36 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION capital.advance_investment_case(
+CREATE OR REPLACE FUNCTION investment.advance_investment_case(
     p_case_id UUID,
     p_to_stage TEXT,
     p_actor_id UUID,
     p_comment TEXT DEFAULT NULL
-) RETURNS capital.investment_cases
+) RETURNS investment.investment_cases
 LANGUAGE plpgsql AS $$
 DECLARE
-    v_case capital.investment_cases%ROWTYPE;
+    v_case investment.investment_cases%ROWTYPE;
     v_project_id UUID;
     v_budget NUMERIC;
 BEGIN
-    SELECT * INTO v_case FROM capital.investment_cases WHERE id = p_case_id FOR UPDATE;
+    SELECT * INTO v_case FROM investment.investment_cases WHERE id = p_case_id FOR UPDATE;
     IF NOT FOUND THEN
         RAISE EXCEPTION 'Case not found' USING ERRCODE = 'P0002';
     END IF;
 
-    INSERT INTO capital.investment_approvals (case_id, stage, actor_id, action, comment)
+    INSERT INTO investment.investment_approvals (case_id, stage, actor_id, action, comment)
     VALUES (p_case_id, p_to_stage, p_actor_id, 'APPROVE', p_comment);
 
     -- On entering BUDGETING/EXECUTION from APPROVAL: ensure capital project exists
     IF p_to_stage IN ('BUDGETING', 'EXECUTION') AND v_case.project_id IS NULL THEN
         SELECT COALESCE(SUM(amount), 0) INTO v_budget
-        FROM capital.investment_budget_phases WHERE case_id = p_case_id;
+        FROM investment.investment_budget_phases WHERE case_id = p_case_id;
 
         IF v_budget = 0 THEN
             -- fallback: sum CAPEX from primary scenario
             SELECT COALESCE(SUM(l.amount), 0) INTO v_budget
-            FROM capital.investment_scenarios s
-            JOIN capital.investment_cashflow_lines l ON l.scenario_id = s.id
+            FROM investment.investment_scenarios s
+            JOIN investment.investment_cashflow_lines l ON l.scenario_id = s.id
             WHERE s.case_id = p_case_id AND s.is_primary AND l.line_type = 'CAPEX';
             v_budget := ABS(v_budget);
         END IF;
@@ -505,7 +506,7 @@ BEGIN
         v_case.project_id := v_project_id;
     END IF;
 
-    UPDATE capital.investment_cases
+    UPDATE investment.investment_cases
     SET stage = p_to_stage,
         stage_changed_at = now(),
         project_id = COALESCE(v_project_id, project_id),
@@ -517,7 +518,7 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE VIEW capital.v_portfolio_board AS
+CREATE OR REPLACE VIEW investment.v_portfolio_board AS
 SELECT
     c.company_id,
     p.program_code,
@@ -538,7 +539,7 @@ SELECT
     CASE WHEN pr.approved_budget > 0
          THEN ROUND(pr.spent_to_date / pr.approved_budget, 4)
          ELSE NULL END AS budget_burn_pct
-FROM capital.investment_cases c
-LEFT JOIN capital.investment_programs p ON p.id = c.program_id
+FROM investment.investment_cases c
+LEFT JOIN investment.investment_programs p ON p.id = c.program_id
 LEFT JOIN capital.capital_projects pr ON pr.id = c.project_id
 WHERE c.stage NOT IN ('REJECTED', 'CANCELLED');

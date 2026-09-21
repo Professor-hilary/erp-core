@@ -511,9 +511,9 @@ CREATE TABLE capital.equity_movements (
 CREATE INDEX idx_equity_movements_account ON capital.equity_movements(equity_account_id);
 CREATE INDEX idx_equity_movements_date ON capital.equity_movements(movement_date);
 
--- =============================================
--- 6. CAPITAL STRUCTURE & ALLOCATION
--- =============================================
+-- ======================================================================
+-- 6. CAPITAL STRUCTURE & ALLOCATION, DEPLOYMENT / PROJECTS / INVESTMENTS
+-- ======================================================================
 
 CREATE TABLE capital.capital_structure_snapshots (
     id                  UUID PRIMARY KEY DEFAULT uuidv7(),
@@ -543,8 +543,8 @@ CREATE TABLE capital.capital_allocations (
                         )),
     capital_source_id   UUID NOT NULL,                -- polymorphic reference
     allocation_type     TEXT NOT NULL CHECK (allocation_type IN (
-                            'PROJECT', 'ASSET', 'WORKING_CAPITAL', 'ACQUISITION',
-                            'REFINANCING', 'DIVIDEND', 'SHARE_BUYBACK', 'OTHER'
+                            'PROJECT', 'ASSET', 'WORKING_CAPITAL', 'ACQUISITION', 'DIVIDEND',
+                            'REFINANCING', 'SHARE_BUYBACK', 'INVESTMENT', 'OTHER'
                         )),
     allocation_target_id UUID,                        -- project / asset / etc.
     amount              NUMERIC(24,6) NOT NULL,
@@ -555,10 +555,6 @@ CREATE TABLE capital.capital_allocations (
     notes               TEXT,
     created_at          TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-
--- =============================================
--- 7. DEPLOYMENT / PROJECTS / INVESTMENTS
--- =============================================
 
 CREATE TABLE capital.capital_projects (
     id                      UUID PRIMARY KEY DEFAULT uuidv7(),
@@ -625,8 +621,33 @@ CREATE TABLE capital.investment_positions (
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+CREATE TABLE capital.project_costs (
+    id              UUID PRIMARY KEY DEFAULT uuidv7() NOT NULL,
+    serial_id       BIGINT GENERATED ALWAYS AS IDENTITY NOT NULL,
+    company_id      UUID NOT NULL,
+    project_id      UUID NOT NULL REFERENCES capital.capital_projects(id),
+    cost_date       DATE NOT NULL,
+    cost_category   TEXT NOT NULL CHECK (cost_category IN (
+        'EQUIPMENT', 'MATERIAL', 'LABOUR', 'CONTRACTOR', 'OVERHEAD', 'OTHER',
+        'PERMITS', 'PROFESSIONAL_FEES', 'INTEREST_CAPITALIZED'
+    )),
+    description     TEXT,
+    amount          NUMERIC(24, 6) NOT NULL CHECK (amount > 0),
+    currency_id     UUID REFERENCES accounting.currencies(id),
+    is_capitalized  BOOLEAN NOT NULL DEFAULT true,
+    vendor_id       UUID,       -- procurement/party
+    fixed_asset_id  UUID,       -- when equipment is capitalized
+    journal_entry_id BIGINT,    -- GL serial from post_transaction
+    funding_id      UUID REFERENCES capital.project_funding(id),
+    reference       TEXT,
+    created_id      UUID,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_project_costs_project ON capital.project_costs(project_id, cost_date);
+
 -- =============================================
--- 8. LIQUIDITY & CASH FORECASTING
+-- 7. LIQUIDITY & CASH FORECASTING
 -- =============================================
 
 CREATE TABLE capital.cash_forecasts (
@@ -681,7 +702,7 @@ CREATE TABLE capital.funding_requirements (
 );
 
 -- =============================================
--- 9. ANALYTICS / PERFORMANCE METRICS
+-- 8. ANALYTICS / PERFORMANCE METRICS
 -- =============================================
 
 CREATE TABLE capital.capital_metrics (
@@ -717,33 +738,8 @@ CREATE TABLE capital.wacc_components (
     UNIQUE (company_id, as_of_date)
 );
 
-CREATE TABLE capital.project_costs (
-    id              UUID PRIMARY KEY DEFAULT uuidv7() NOT NULL,
-    serial_id       BIGINT GENERATED ALWAYS AS IDENTITY NOT NULL,
-    company_id      UUID NOT NULL,
-    project_id      UUID NOT NULL REFERENCES capital.capital_projects(id),
-    cost_date       DATE NOT NULL,
-    cost_category   TEXT NOT NULL CHECK (cost_category IN (
-        'EQUIPMENT', 'MATERIAL', 'LABOUR', 'CONTRACTOR', 'OVERHEAD', 'OTHER',
-        'PERMITS', 'PROFESSIONAL_FEES', 'INTEREST_CAPITALIZED'
-    )),
-    description     TEXT,
-    amount          NUMERIC(24, 6) NOT NULL CHECK (amount > 0),
-    currency_id     UUID REFERENCES accounting.currencies(id),
-    is_capitalized  BOOLEAN NOT NULL DEFAULT true,
-    vendor_id       UUID,       -- procurement/party
-    fixed_asset_id  UUID,       -- when equipment is capitalized
-    journal_entry_id BIGINT,    -- GL serial from post_transaction
-    funding_id      UUID REFERENCES capital.project_funding(id),
-    reference       TEXT,
-    created_id      UUID,
-    created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE INDEX idx_project_costs_project ON capital.project_costs(project_id, cost_date);
-
 -- =============================================
--- 10. VIEWS (Key Analytics)
+-- 9. VIEWS (Key Analytics)
 -- =============================================
 
 -- Current shareholder ownership
@@ -844,7 +840,7 @@ WHERE ea.account_type = 'RETAINED_EARNINGS'
 GROUP BY ea.company_id, ea.id, ea.account_name;
 
 -- =============================================
--- 11. HELPER FUNCTIONS
+-- 10. HELPER FUNCTIONS
 -- =============================================
 CREATE OR REPLACE FUNCTION capital.issue_shares(
     p_company_id          UUID,

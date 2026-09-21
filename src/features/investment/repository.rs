@@ -1,7 +1,4 @@
-use crate::{
-    interface::api::errors::AppError,
-    models::investment::*,
-};
+use crate::{interface::api::errors::AppError, models::investment::*};
 use async_trait::async_trait;
 use bigdecimal::BigDecimal;
 use sqlx::PgPool;
@@ -161,7 +158,7 @@ impl InvestmentRepository for PostgresInvestmentRepo {
     ) -> Result<InvestmentProgram, AppError> {
         sqlx::query_as::<_, InvestmentProgram>(
             r#"
-            INSERT INTO capital.investment_programs (
+            INSERT INTO investment.investment_programs (
                 company_id, program_code, name, description,
                 horizon_start, horizon_end, owner_id
             ) VALUES ($1,$2,$3,$4,$5,$6,$7)
@@ -187,7 +184,7 @@ impl InvestmentRepository for PostgresInvestmentRepo {
     ) -> Result<Vec<InvestmentProgram>, AppError> {
         sqlx::query_as::<_, InvestmentProgram>(
             r#"
-            SELECT * FROM capital.investment_programs
+            SELECT * FROM investment.investment_programs
             WHERE company_id = $1 ORDER BY program_code
             "#,
         )
@@ -206,7 +203,7 @@ impl InvestmentRepository for PostgresInvestmentRepo {
     ) -> Result<InvestmentCase, AppError> {
         sqlx::query_as::<_, InvestmentCase>(
             r#"
-            INSERT INTO capital.investment_cases (
+            INSERT INTO investment.investment_cases (
                 company_id, case_code, title, description, investment_type,
                 program_id, strategic_score, strategic_notes, risk_rating,
                 currency_id, hurdle_rate, initiator_id, stage
@@ -238,7 +235,7 @@ impl InvestmentRepository for PostgresInvestmentRepo {
         id: Uuid,
     ) -> Result<InvestmentCase, AppError> {
         sqlx::query_as::<_, InvestmentCase>(
-            r#"SELECT * FROM capital.investment_cases WHERE id = $1 AND company_id = $2"#,
+            r#"SELECT * FROM investment.investment_cases WHERE id = $1 AND company_id = $2"#,
         )
         .bind(id)
         .bind(company_id)
@@ -256,7 +253,7 @@ impl InvestmentRepository for PostgresInvestmentRepo {
     ) -> Result<Vec<InvestmentCase>, AppError> {
         sqlx::query_as::<_, InvestmentCase>(
             r#"
-            SELECT * FROM capital.investment_cases
+            SELECT * FROM investment.investment_cases
             WHERE company_id = $1
               AND ($2::text IS NULL OR stage = $2)
             ORDER BY created_at DESC
@@ -278,7 +275,7 @@ impl InvestmentRepository for PostgresInvestmentRepo {
     ) -> Result<InvestmentCase, AppError> {
         sqlx::query_as::<_, InvestmentCase>(
             r#"
-            UPDATE capital.investment_cases SET
+            UPDATE investment.investment_cases SET
                 title = COALESCE($3, title),
                 description = COALESCE($4, description),
                 investment_type = COALESCE($5, investment_type),
@@ -318,7 +315,7 @@ impl InvestmentRepository for PostgresInvestmentRepo {
     ) -> Result<InvestmentCase, AppError> {
         // Prefer SQL function if present
         let row = sqlx::query_as::<_, InvestmentCase>(
-            r#"SELECT * FROM capital.advance_investment_case($1, $2, $3, $4)"#,
+            r#"SELECT * FROM investment.advance_investment_case($1, $2, $3, $4)"#,
         )
         .bind(case_id)
         .bind(to_stage)
@@ -333,7 +330,7 @@ impl InvestmentRepository for PostgresInvestmentRepo {
                 // Fallback without SQL function
                 sqlx::query(
                     r#"
-                    INSERT INTO capital.investment_approvals (case_id, stage, actor_id, action, comment)
+                    INSERT INTO investment.investment_approvals (case_id, stage, actor_id, action, comment)
                     VALUES ($1, $2, $3, 'APPROVE', $4)
                     "#,
                 )
@@ -347,7 +344,7 @@ impl InvestmentRepository for PostgresInvestmentRepo {
 
                 sqlx::query_as::<_, InvestmentCase>(
                     r#"
-                    UPDATE capital.investment_cases
+                    UPDATE investment.investment_cases
                     SET stage = $2, stage_changed_at = now(), updated_at = now()
                     WHERE id = $1
                     RETURNING *
@@ -370,7 +367,7 @@ impl InvestmentRepository for PostgresInvestmentRepo {
     ) -> Result<InvestmentScenario, AppError> {
         sqlx::query_as::<_, InvestmentScenario>(
             r#"
-            INSERT INTO capital.investment_scenarios (
+            INSERT INTO investment.investment_scenarios (
                 case_id, scenario_code, name, probability, inflation_rate, is_primary
             ) VALUES ($1,$2,$3,$4,$5,COALESCE($6,false))
             RETURNING *
@@ -393,7 +390,7 @@ impl InvestmentRepository for PostgresInvestmentRepo {
         case_id: Uuid,
     ) -> Result<Vec<InvestmentScenario>, AppError> {
         sqlx::query_as::<_, InvestmentScenario>(
-            r#"SELECT * FROM capital.investment_scenarios WHERE case_id = $1 ORDER BY scenario_code"#,
+            r#"SELECT * FROM investment.investment_scenarios WHERE case_id = $1 ORDER BY scenario_code"#,
         )
         .bind(case_id)
         .fetch_all(pool)
@@ -409,7 +406,7 @@ impl InvestmentRepository for PostgresInvestmentRepo {
     ) -> Result<InvestmentCashflowLine, AppError> {
         sqlx::query_as::<_, InvestmentCashflowLine>(
             r#"
-            INSERT INTO capital.investment_cashflow_lines (
+            INSERT INTO investment.investment_cashflow_lines (
                 scenario_id, period_no, period_date, line_type, description,
                 amount, is_cash, tax_deductible
             ) VALUES ($1,$2,$3,$4,$5,$6,COALESCE($7,true),COALESCE($8,false))
@@ -436,7 +433,7 @@ impl InvestmentRepository for PostgresInvestmentRepo {
     ) -> Result<Vec<InvestmentCashflowLine>, AppError> {
         sqlx::query_as::<_, InvestmentCashflowLine>(
             r#"
-            SELECT * FROM capital.investment_cashflow_lines
+            SELECT * FROM investment.investment_cashflow_lines
             WHERE scenario_id = $1
             ORDER BY period_no, line_type
             "#,
@@ -455,7 +452,7 @@ impl InvestmentRepository for PostgresInvestmentRepo {
         sqlx::query_as::<_, PeriodCashflow>(
             r#"
             SELECT period_no, net_cash
-            FROM capital.v_scenario_period_cashflows
+            FROM investment.v_scenario_period_cashflows
             WHERE scenario_id = $1
             ORDER BY period_no
             "#,
@@ -476,7 +473,7 @@ impl InvestmentRepository for PostgresInvestmentRepo {
     ) -> Result<InvestmentMetrics, AppError> {
         sqlx::query_as::<_, InvestmentMetrics>(
             r#"
-            INSERT INTO capital.investment_metrics (
+            INSERT INTO investment.investment_metrics (
                 scenario_id, discount_rate, npv, irr, mirr,
                 payback_years, discounted_payback, profitability_index,
                 total_capex, calculated_by
@@ -507,7 +504,7 @@ impl InvestmentRepository for PostgresInvestmentRepo {
     ) -> Result<(), AppError> {
         sqlx::query(
             r#"
-            UPDATE capital.investment_cases SET
+            UPDATE investment.investment_cases SET
                 npv = $2, irr = $3, mirr = $4,
                 payback_years = $5, discounted_payback = $6,
                 profitability_index = $7,
@@ -536,7 +533,7 @@ impl InvestmentRepository for PostgresInvestmentRepo {
     ) -> Result<InvestmentRisk, AppError> {
         sqlx::query_as::<_, InvestmentRisk>(
             r#"
-            INSERT INTO capital.investment_risks (
+            INSERT INTO investment.investment_risks (
                 case_id, risk_code, title, category, likelihood, impact, mitigation, owner_id
             ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
             RETURNING *
@@ -561,7 +558,7 @@ impl InvestmentRepository for PostgresInvestmentRepo {
         case_id: Uuid,
     ) -> Result<Vec<InvestmentRisk>, AppError> {
         sqlx::query_as::<_, InvestmentRisk>(
-            r#"SELECT * FROM capital.investment_risks WHERE case_id = $1 ORDER BY created_at"#,
+            r#"SELECT * FROM investment.investment_risks WHERE case_id = $1 ORDER BY created_at"#,
         )
         .bind(case_id)
         .fetch_all(pool)
@@ -580,7 +577,7 @@ impl InvestmentRepository for PostgresInvestmentRepo {
     ) -> Result<InvestmentPostAudit, AppError> {
         let row = sqlx::query_as::<_, InvestmentPostAudit>(
             r#"
-            INSERT INTO capital.investment_post_audits (
+            INSERT INTO investment.investment_post_audits (
                 case_id, audit_date, promised_npv, promised_irr,
                 actual_npv, actual_irr, actual_payback,
                 variance_notes, lessons_learned, performance_link, audited_by
@@ -605,7 +602,7 @@ impl InvestmentRepository for PostgresInvestmentRepo {
 
         sqlx::query(
             r#"
-            UPDATE capital.investment_cases SET
+            UPDATE investment.investment_cases SET
                 actual_npv = $2, actual_irr = $3,
                 audit_completed_at = $4, lessons_learned = $5,
                 stage = 'POST_AUDIT', stage_changed_at = now(), updated_at = now()
@@ -639,8 +636,8 @@ impl InvestmentRepository for PostgresInvestmentRepo {
                 CASE WHEN pr.approved_budget > 0
                      THEN ROUND(pr.spent_to_date / pr.approved_budget, 4)
                      ELSE NULL END AS budget_burn_pct
-            FROM capital.investment_cases c
-            LEFT JOIN capital.investment_programs p ON p.id = c.program_id
+            FROM investment.investment_cases c
+            LEFT JOIN investment.investment_programs p ON p.id = c.program_id
             LEFT JOIN capital.capital_projects pr ON pr.id = c.project_id
             WHERE c.company_id = $1
               AND c.stage NOT IN ('REJECTED','CANCELLED')
@@ -653,4 +650,3 @@ impl InvestmentRepository for PostgresInvestmentRepo {
         .map_err(AppError::Database)
     }
 }
-

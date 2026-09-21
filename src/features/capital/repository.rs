@@ -172,30 +172,30 @@ pub trait CapitalRepository: Send + Sync {
         tx: &mut Transaction<'_, Postgres>,
         company_id: Uuid,
         user_id: Uuid,
-        payload: &CreateCapitalFacility,
-    ) -> Result<CapitalFacility, AppError>;
+        payload: &CreateDebtFacility,
+    ) -> Result<DebtFacility, AppError>;
 
     async fn get_facility(
         &self,
         pool: &PgPool,
         company_id: Uuid,
         id: Uuid,
-    ) -> Result<CapitalFacility, AppError>;
+    ) -> Result<DebtFacility, AppError>;
 
     async fn list_facilities(
         &self,
         pool: &PgPool,
         company_id: Uuid,
         status: Option<&str>,
-    ) -> Result<Vec<CapitalFacility>, AppError>;
+    ) -> Result<Vec<DebtFacility>, AppError>;
 
     async fn update_facility(
         &self,
         tx: &mut Transaction<'_, Postgres>,
         company_id: Uuid,
         id: Uuid,
-        payload: &UpdateCapitalFacility,
-    ) -> Result<CapitalFacility, AppError>;
+        payload: &UpdateDebtFacility,
+    ) -> Result<DebtFacility, AppError>;
 
     async fn add_facility_lender(
         &self,
@@ -1080,9 +1080,9 @@ impl CapitalRepository for PostgresCapitalRepo {
         tx: &mut Transaction<'_, Postgres>,
         company_id: Uuid,
         _user_id: Uuid,
-        payload: &CreateCapitalFacility,
-    ) -> Result<CapitalFacility, AppError> {
-        let facility = sqlx::query_as::<_, CapitalFacility>(
+        payload: &CreateDebtFacility,
+    ) -> Result<DebtFacility, AppError> {
+        let facility = sqlx::query_as::<_, DebtFacility>(
             r#"
             INSERT INTO capital.debt_facilities (
                 company_id, instrument_id, facility_code, facility_name, facility_type,
@@ -1093,11 +1093,8 @@ impl CapitalRepository for PostgresCapitalRepo {
                 prepayment_penalty, collateral_required, is_secured, ranking, status
             )
             VALUES (
-                $1, $2, $3, $4, $5,
-                $6, $7, $8, $8, 0,
-                $9, $10, $11, $12, $13,
-                COALESCE($14, 'ACT/360'), $15, $16,
-                $17, $18, $19, $20,
+                $1, $2, $3, $4, $5, $6, $7, $8, $8, 0, $9, $10, $11, $12, $13,
+                COALESCE($14, 'ACT/360'), $15, $16, $17, $18, $19, $20,
                 $21, COALESCE($22, false), COALESCE($23, false), $24,
                 COALESCE($25, 'active')
             )
@@ -1140,8 +1137,8 @@ impl CapitalRepository for PostgresCapitalRepo {
         pool: &PgPool,
         company_id: Uuid,
         id: Uuid,
-    ) -> Result<CapitalFacility, AppError> {
-        sqlx::query_as::<_, CapitalFacility>(
+    ) -> Result<DebtFacility, AppError> {
+        sqlx::query_as::<_, DebtFacility>(
             r#"
             SELECT * FROM capital.debt_facilities
             WHERE id = $1 AND company_id = $2
@@ -1159,7 +1156,7 @@ impl CapitalRepository for PostgresCapitalRepo {
         pool: &PgPool,
         company_id: Uuid,
         status: Option<&str>,
-    ) -> Result<Vec<CapitalFacility>, AppError> {
+    ) -> Result<Vec<DebtFacility>, AppError> {
         let mut qb = QueryBuilder::new("SELECT * FROM capital.debt_facilities WHERE company_id = ");
         qb.push_bind(company_id);
 
@@ -1170,7 +1167,7 @@ impl CapitalRepository for PostgresCapitalRepo {
         qb.push(" ORDER BY created_at DESC");
 
         let rows = qb
-            .build_query_as::<CapitalFacility>()
+            .build_query_as::<DebtFacility>()
             .fetch_all(pool)
             .await?;
         Ok(rows)
@@ -1181,9 +1178,9 @@ impl CapitalRepository for PostgresCapitalRepo {
         tx: &mut Transaction<'_, Postgres>,
         company_id: Uuid,
         id: Uuid,
-        payload: &UpdateCapitalFacility,
-    ) -> Result<CapitalFacility, AppError> {
-        let row = sqlx::query_as::<_, CapitalFacility>(
+        payload: &UpdateDebtFacility,
+    ) -> Result<DebtFacility, AppError> {
+        let row = sqlx::query_as::<_, DebtFacility>(
             r#"
             UPDATE capital.debt_facilities SET
                 facility_name     = COALESCE($3, facility_name),

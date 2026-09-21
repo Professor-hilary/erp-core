@@ -11,8 +11,8 @@ use axum::{
 use crate::{
     AppState,
     features::{
-        accounts, capital, company, fixedassets, inventory, investment, manufacturing, payroll, procurement,
-        reports, sales, transactions, workforce,
+        accounts, capital, company, fixedassets, inventory, investment, manufacturing, payroll,
+        procurement, reports, sales, transactions, workforce,
     },
     interface::api::errors::AppError,
     middleware::{auth::AuthenticatedUser, layer::auth_middleware},
@@ -60,10 +60,9 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         middleware::from_fn_with_state(state.clone(), auth_middleware),
     );
 
-    let investment_routes: Router<Arc<AppState>> = investment::handlers::router().layer(middleware::from_fn_with_state(
-        state.clone(),
-        auth_middleware,
-    ));
+    let investment_routes: Router<Arc<AppState>> = investment::handlers::router().layer(
+        middleware::from_fn_with_state(state.clone(), auth_middleware),
+    );
 
     Router::new()
         // CHECK THAT SERVER IS UP AND RUNING

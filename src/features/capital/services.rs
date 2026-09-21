@@ -290,8 +290,8 @@ impl<R: CapitalRepository> CapitalService<R> {
         pool: &PgPool,
         company_id: Uuid,
         user_id: Uuid,
-        payload: &CreateCapitalFacility,
-    ) -> Result<CapitalFacility, AppError> {
+        payload: &CreateDebtFacility,
+    ) -> Result<DebtFacility, AppError> {
         payload
             .validate()
             .map_err(|e| AppError::Unprocessable(e.to_string()))?;
@@ -316,7 +316,7 @@ impl<R: CapitalRepository> CapitalService<R> {
         pool: &PgPool,
         company_id: Uuid,
         id: Uuid,
-    ) -> Result<CapitalFacility, AppError> {
+    ) -> Result<DebtFacility, AppError> {
         self.repo.get_facility(pool, company_id, id).await
     }
 
@@ -325,7 +325,7 @@ impl<R: CapitalRepository> CapitalService<R> {
         pool: &PgPool,
         company_id: Uuid,
         status: Option<&str>,
-    ) -> Result<Vec<CapitalFacility>, AppError> {
+    ) -> Result<Vec<DebtFacility>, AppError> {
         self.repo.list_facilities(pool, company_id, status).await
     }
 
@@ -334,8 +334,8 @@ impl<R: CapitalRepository> CapitalService<R> {
         pool: &PgPool,
         company_id: Uuid,
         id: Uuid,
-        payload: &UpdateCapitalFacility,
-    ) -> Result<CapitalFacility, AppError> {
+        payload: &UpdateDebtFacility,
+    ) -> Result<DebtFacility, AppError> {
         payload
             .validate()
             .map_err(|e| AppError::Unprocessable(e.to_string()))?;

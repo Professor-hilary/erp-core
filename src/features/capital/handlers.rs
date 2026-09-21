@@ -25,7 +25,7 @@ use crate::{
 
 pub fn router() -> Router<Arc<AppState>> {
     Router::new()
-        // ----- Instruments & Parties -----
+        // ----- Share & Capital Instruments -----
         .route(
             "/capitalcontr",
             post(create_equity_contribution).get(list_instruments),
@@ -43,9 +43,10 @@ pub fn router() -> Router<Arc<AppState>> {
             get(list_events_for_instrument).post(create_event),
         )
         .route("/instruments/event", post(create_event_cap_contr))
+        // ----- Parties -----
         .route("/party", post(create_party).get(list_parties))
         .route("/party/{id}", get(get_party).put(update_party))
-        // ----- Facilities -----
+        // ----- Debt Facilities -----
         .route("/facilities", post(create_facility).get(list_facilities))
         .route("/facilities/{id}", get(get_facility).put(update_facility))
         .route(
@@ -343,7 +344,7 @@ async fn list_events_for_instrument(
 
 async fn create_facility(
     Extension(user): Extension<AuthenticatedTenant>,
-    Json(payload): Json<CreateCapitalFacility>,
+    Json(payload): Json<CreateDebtFacility>,
 ) -> Result<Response, AppError> {
     let facility = service()
         .create_facility(&user.tenant_pool, user.company_id, user.user_id, &payload)
@@ -377,7 +378,7 @@ async fn list_facilities(
 async fn update_facility(
     Path(id): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
-    Json(payload): Json<UpdateCapitalFacility>,
+    Json(payload): Json<UpdateDebtFacility>,
 ) -> Result<Response, AppError> {
     let facility = service()
         .update_facility(&user.tenant_pool, user.company_id, id, &payload)
@@ -422,7 +423,7 @@ async fn borrow(
     Extension(user): Extension<AuthenticatedTenant>,
     Json(mut payload): Json<BorrowRequest>,
 ) -> Result<Response, AppError> {
-    payload.facility_id = facility_id;
+    payload.facility_id = Some(facility_id);
     let drawdown = service()
         .create_debt(&user.tenant_pool, user.company_id, user.user_id, &payload)
         .await?;
