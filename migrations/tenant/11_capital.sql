@@ -543,8 +543,8 @@ CREATE TABLE capital.capital_allocations (
                         )),
     capital_source_id   UUID NOT NULL,                -- polymorphic reference
     allocation_type     TEXT NOT NULL CHECK (allocation_type IN (
-                            'PROJECT', 'ASSET', 'WORKING_CAPITAL', 'ACQUISITION', 'DIVIDEND',
-                            'REFINANCING', 'SHARE_BUYBACK', 'INVESTMENT', 'OTHER'
+                            'PROJECT', 'ASSET', 'ACQUISITION', 'DIVIDEND', 'REFINANCING',
+                            'SHARE_BUYBACK', 'INVESTMENT', 'OTHER'
                         )),
     allocation_target_id UUID,                        -- project / asset / etc.
     amount              NUMERIC(24,6) NOT NULL,
@@ -565,7 +565,7 @@ CREATE TABLE capital.capital_projects (
     description             TEXT,
     project_type            TEXT CHECK (project_type IN (
                                 'CAPEX', 'ACQUISITION', 'DEVELOPMENT', 'R_AND_D',
-                                'WORKING_CAPITAL', 'REFINANCING', 'OTHER'
+                                'REFINANCING', 'OTHER'
                             )),
     start_date              DATE,
     expected_completion     DATE,
