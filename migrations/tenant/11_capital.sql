@@ -647,98 +647,6 @@ CREATE TABLE capital.project_costs (
 CREATE INDEX idx_project_costs_project ON capital.project_costs(project_id, cost_date);
 
 -- =============================================
--- 7. LIQUIDITY & CASH FORECASTING
--- =============================================
-
-CREATE TABLE capital.cash_forecasts (
-    id                  UUID PRIMARY KEY DEFAULT uuidv7(),
-    serial_id           bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
-    company_id          UUID NOT NULL,
-    forecast_name       TEXT,
-    forecast_date       DATE NOT NULL,                -- as-of date of forecast
-    horizon_days        INTEGER NOT NULL DEFAULT 90,
-    currency_id         UUID REFERENCES accounting.currencies(id),
-    opening_cash        NUMERIC(24,6),
-    scenario            TEXT DEFAULT 'base' CHECK (scenario IN (
-                            'base', 'optimistic', 'pessimistic', 'stress'
-                        )),
-    status              TEXT NOT NULL DEFAULT 'draft',
-    created_by          UUID,
-    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at          TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE TABLE capital.cash_forecast_lines (
-    id                  UUID PRIMARY KEY DEFAULT uuidv7(),
-    serial_id           bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
-    line_date           DATE NOT NULL,
-    category            TEXT NOT NULL CHECK (category IN (
-                            'OPERATING_INFLOW', 'OPERATING_OUTFLOW',
-                            'INVESTING_INFLOW', 'INVESTING_OUTFLOW',
-                            'FINANCING_INFLOW', 'FINANCING_OUTFLOW',
-                            'DEBT_SERVICE', 'DIVIDEND', 'TAX', 'OTHER'
-                        )),
-    description         TEXT,
-    amount              NUMERIC(24,6) NOT NULL,       -- signed: + inflow, - outflow
-    is_committed        BOOLEAN NOT NULL DEFAULT false,
-    related_facility_id UUID REFERENCES capital.debt_facilities(id),
-    related_project_id  UUID REFERENCES capital.capital_projects(id),
-    created_at          TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE TABLE capital.funding_requirements (
-    id                  UUID PRIMARY KEY DEFAULT uuidv7(),
-    serial_id           bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
-    company_id          UUID NOT NULL,
-    requirement_date    DATE NOT NULL,
-    amount_needed       NUMERIC(24,6) NOT NULL,
-    currency_id         UUID REFERENCES accounting.currencies(id),
-    purpose             TEXT,
-    preferred_source    TEXT,                         -- debt / equity / internal
-    status              TEXT NOT NULL DEFAULT 'open' CHECK (status IN (
-                            'open', 'partially_funded', 'funded', 'cancelled'
-                        )),
-    created_at          TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
--- =============================================
--- 8. ANALYTICS / PERFORMANCE METRICS
--- =============================================
-
-CREATE TABLE capital.capital_metrics (
-    id                  UUID PRIMARY KEY DEFAULT uuidv7(),
-    serial_id           bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
-    company_id          UUID NOT NULL,
-    metric_date         DATE NOT NULL,
-    metric_code         TEXT NOT NULL,                -- ROIC, ROE, DSCR, ICR, EVA, WACC, etc.
-    metric_name         TEXT NOT NULL,
-    value               NUMERIC(20,8) NOT NULL,
-    numerator           NUMERIC(24,6),
-    denominator         NUMERIC(24,6),
-    currency_id         UUID REFERENCES accounting.currencies(id),
-    period_type         TEXT CHECK (period_type IN ('DAILY', 'MTD', 'QTD', 'YTD', 'LTM', 'CUSTOM')),
-    notes               TEXT,
-    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
-    UNIQUE (company_id, metric_date, metric_code, period_type)
-);
-
-CREATE TABLE capital.wacc_components (
-    id                  UUID PRIMARY KEY DEFAULT uuidv7(),
-    serial_id           bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
-    company_id          UUID NOT NULL,
-    as_of_date          DATE NOT NULL,
-    cost_of_equity      NUMERIC(12,8),
-    cost_of_debt        NUMERIC(12,8),
-    tax_rate            NUMERIC(8,6),
-    equity_weight       NUMERIC(8,6),
-    debt_weight         NUMERIC(8,6),
-    wacc                NUMERIC(12,8),
-    notes               TEXT,
-    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
-    UNIQUE (company_id, as_of_date)
-);
-
--- =============================================
 -- 9. VIEWS (Key Analytics)
 -- =============================================
 
@@ -1224,9 +1132,6 @@ BEGIN
 END;
 $$;
 
--- Example: recalculate outstanding principal on an instrument
--- (implementation would live in application or trigger layer)
-
 COMMENT ON SCHEMA capital IS
 'Enterprise Capital & Treasury schema supporting Debt, Equity, Hybrids,
 Retained Earnings, Capital Structure, Deployment, Liquidity Forecasting
@@ -1298,8 +1203,7 @@ capital
               │
       ┌───────┼────────┐
       ↓       ↓        ↓
-    ASSETS  PROJECTS  WORKING
-                     CAPITAL
+   ASSETS PROJECTS INVESTMENT
       │       │        │
       └───────┼────────┘
               ↓

@@ -118,16 +118,6 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/projects", post(create_project).get(list_projects))
         .route("/projects/{id}", get(get_project).put(update_project))
         .route("/projects/{id}/funding", post(add_project_funding))
-        // ----- Liquidity -----
-        .route("/cash-forecasts", post(create_cash_forecast))
-        .route("/cash-forecasts/{id}", get(get_cash_forecast))
-        .route(
-            "/cash-forecasts/{id}/lines",
-            post(add_forecast_line).get(list_forecast_lines),
-        )
-        // ----- Analytics -----
-        .route("/metrics", post(record_metric).get(list_metrics))
-        .route("/wacc", post(upsert_wacc))
 }
 
 // ---------------------------------------------------------------------------
@@ -171,13 +161,6 @@ pub struct ListDividendsQuery {
 #[derive(Debug, Deserialize)]
 pub struct ListEquityMovementsQuery {
     pub equity_account_id: Option<Uuid>,
-    pub from: Option<chrono::NaiveDate>,
-    pub to: Option<chrono::NaiveDate>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct ListMetricsQuery {
-    pub metric_code: Option<String>,
     pub from: Option<chrono::NaiveDate>,
     pub to: Option<chrono::NaiveDate>,
 }
@@ -414,9 +397,9 @@ async fn list_facility_lenders(
     Ok(ApiResponse::success(lenders, "Facility lenders fetched"))
 }
 
-// ===========================================================================
+// =============================================================================
 // Drawdowns / Repayments / Schedules / Accruals / Fees / Covenants / Collateral
-// ===========================================================================
+// =============================================================================
 
 async fn borrow(
     Path(facility_id): Path<Uuid>,
@@ -902,89 +885,4 @@ async fn add_project_funding(
         .add_project_funding(&user.tenant_pool, &payload)
         .await?;
     Ok(ApiResponse::created(funding, "Project funding recorded"))
-}
-
-// ===========================================================================
-// Liquidity
-// ===========================================================================
-
-async fn create_cash_forecast(
-    Extension(user): Extension<AuthenticatedTenant>,
-    Json(payload): Json<CreateCashForecast>,
-) -> Result<Response, AppError> {
-    let forecast = service()
-        .create_cash_forecast(&user.tenant_pool, user.company_id, user.user_id, &payload)
-        .await?;
-    Ok(ApiResponse::created(forecast, "Cash forecast created"))
-}
-
-async fn get_cash_forecast(
-    Path(id): Path<Uuid>,
-    Extension(user): Extension<AuthenticatedTenant>,
-) -> Result<Response, AppError> {
-    let forecast = service()
-        .get_cash_forecast(&user.tenant_pool, user.company_id, id)
-        .await?;
-    Ok(ApiResponse::success(forecast, "Cash forecast fetched"))
-}
-
-async fn add_forecast_line(
-    Path(forecast_id): Path<Uuid>,
-    Extension(user): Extension<AuthenticatedTenant>,
-    Json(payload): Json<CreateCashForecastLine>,
-) -> Result<Response, AppError> {
-    let line = service()
-        .add_forecast_line(&user.tenant_pool, forecast_id, &payload)
-        .await?;
-    Ok(ApiResponse::created(line, "Forecast line added"))
-}
-
-async fn list_forecast_lines(
-    Path(forecast_id): Path<Uuid>,
-    Extension(user): Extension<AuthenticatedTenant>,
-) -> Result<Response, AppError> {
-    let lines = service()
-        .list_forecast_lines(&user.tenant_pool, forecast_id)
-        .await?;
-    Ok(ApiResponse::success(lines, "Forecast lines fetched"))
-}
-
-// ===========================================================================
-// Analytics
-// ===========================================================================
-
-async fn record_metric(
-    Extension(user): Extension<AuthenticatedTenant>,
-    Json(payload): Json<CreateCapitalMetric>,
-) -> Result<Response, AppError> {
-    let metric = service()
-        .record_metric(&user.tenant_pool, user.company_id, &payload)
-        .await?;
-    Ok(ApiResponse::created(metric, "Capital metric recorded"))
-}
-
-async fn list_metrics(
-    Query(q): Query<ListMetricsQuery>,
-    Extension(user): Extension<AuthenticatedTenant>,
-) -> Result<Response, AppError> {
-    let items = service()
-        .list_metrics(
-            &user.tenant_pool,
-            user.company_id,
-            q.metric_code.as_deref(),
-            q.from,
-            q.to,
-        )
-        .await?;
-    Ok(ApiResponse::success(items, "Capital metrics fetched"))
-}
-
-async fn upsert_wacc(
-    Extension(user): Extension<AuthenticatedTenant>,
-    Json(payload): Json<CreateWaccComponent>,
-) -> Result<Response, AppError> {
-    let wacc = service()
-        .upsert_wacc(&user.tenant_pool, user.company_id, &payload)
-        .await?;
-    Ok(ApiResponse::success(wacc, "WACC component upserted"))
 }

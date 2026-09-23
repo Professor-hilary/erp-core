@@ -1,4 +1,4 @@
-// src/models/capital/mod.rs  (or split into multiple files)
+// src/models/capital.RS
 
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, NaiveDate, Utc};
@@ -1031,64 +1031,6 @@ pub struct CreateInvestmentPosition {
     pub status: Option<String>,
 }
 
-// =============================================================================
-// 14. LIQUIDITY / CASH FORECASTS
-// =============================================================================
-
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
-pub struct CashForecast {
-    pub id: Uuid,
-    pub serial_id: i64,
-    pub company_id: Uuid,
-    pub forecast_name: Option<String>,
-    pub forecast_date: NaiveDate,
-    pub horizon_days: i32,
-    pub currency_id: Option<Uuid>,
-    pub opening_cash: Option<BigDecimal>,
-    pub scenario: String,
-    pub status: String,
-    pub created_by: Option<Uuid>,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
-pub struct CreateCashForecast {
-    pub forecast_name: Option<String>,
-    pub forecast_date: NaiveDate,
-    pub horizon_days: Option<i32>,
-    pub currency_id: Option<Uuid>,
-    pub opening_cash: Option<BigDecimal>,
-    pub scenario: Option<String>,
-    pub status: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
-pub struct CashForecastLine {
-    pub id: Uuid,
-    pub serial_id: i64,
-    pub forecast_id: Uuid,
-    pub line_date: NaiveDate,
-    pub category: String,
-    pub description: Option<String>,
-    pub amount: BigDecimal, // signed
-    pub is_committed: bool,
-    pub related_facility_id: Option<Uuid>,
-    pub related_project_id: Option<Uuid>,
-    pub created_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
-pub struct CreateCashForecastLine {
-    pub line_date: NaiveDate,
-    pub category: String,
-    pub description: Option<String>,
-    pub amount: BigDecimal,
-    pub is_committed: Option<bool>,
-    pub related_facility_id: Option<Uuid>,
-    pub related_project_id: Option<Uuid>,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct FundingRequirement {
     pub id: Uuid,
@@ -1111,66 +1053,4 @@ pub struct CreateFundingRequirement {
     pub purpose: Option<String>,
     pub preferred_source: Option<String>,
     pub status: Option<String>,
-}
-
-// =============================================================================
-// 15. ANALYTICS
-// =============================================================================
-
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
-pub struct CapitalMetric {
-    pub id: Uuid,
-    pub serial_id: i64,
-    pub company_id: Uuid,
-    pub metric_date: NaiveDate,
-    pub metric_code: String, // ROIC, ROE, DSCR, ICR, EVA, WACC...
-    pub metric_name: String,
-    pub value: BigDecimal,
-    pub numerator: Option<BigDecimal>,
-    pub denominator: Option<BigDecimal>,
-    pub currency_id: Option<Uuid>,
-    pub period_type: Option<String>,
-    pub notes: Option<String>,
-    pub created_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
-pub struct CreateCapitalMetric {
-    pub metric_date: NaiveDate,
-    pub metric_code: String,
-    pub metric_name: String,
-    pub value: BigDecimal,
-    pub numerator: Option<BigDecimal>,
-    pub denominator: Option<BigDecimal>,
-    pub currency_id: Option<Uuid>,
-    pub period_type: Option<String>,
-    pub notes: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
-pub struct WaccComponent {
-    pub id: Uuid,
-    pub serial_id: i64,
-    pub company_id: Uuid,
-    pub as_of_date: NaiveDate,
-    pub cost_of_equity: Option<BigDecimal>,
-    pub cost_of_debt: Option<BigDecimal>,
-    pub tax_rate: Option<BigDecimal>,
-    pub equity_weight: Option<BigDecimal>,
-    pub debt_weight: Option<BigDecimal>,
-    pub wacc: Option<BigDecimal>,
-    pub notes: Option<String>,
-    pub created_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Validate)]
-pub struct CreateWaccComponent {
-    pub as_of_date: NaiveDate,
-    pub cost_of_equity: Option<BigDecimal>,
-    pub cost_of_debt: Option<BigDecimal>,
-    pub tax_rate: Option<BigDecimal>,
-    pub equity_weight: Option<BigDecimal>,
-    pub debt_weight: Option<BigDecimal>,
-    pub wacc: Option<BigDecimal>,
-    pub notes: Option<String>,
 }
