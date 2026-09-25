@@ -9,7 +9,7 @@ services:
       POSTGRES_USER: erp_admin
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-erp_pass_123}
       POSTGRES_DB: chiefalry_master
-    volumnes:
+    volumes:
       - chiefalry_db:/var/lib/postgresql/data
     ports:
       - "5432:5432" # Only for dev; remove for locked-down installs
@@ -25,7 +25,7 @@ services:
       RUST_LOG: info
     command: ["/usr/local/bin/chiefalry", "migrate-and-serve"]
     ports:
-      - "8000:8000"
+      - "8080:8080"
 
   frontend:
     image: chiefalry/frontend:latest
@@ -36,4 +36,4 @@ services:
     ports:
       - "8080:80"
 
-volumnes: chiefalry_db
+volumes: chiefalry_db

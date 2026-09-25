@@ -28,7 +28,7 @@ impl CompanyService {
         state: Arc<AppState>,
         user_id: Uuid,
         req: CreateCompanyDto,
-    ) -> Result<(Company, String), AppError> {
+    ) -> Result<(Company, String, String), AppError> {
         let slug: String = Self::slugify(&req.name);
 
         // Step 1: Start transaction on master DB (for company record + admin assignment)
@@ -133,12 +133,12 @@ impl CompanyService {
         let repo: PostgresUserRepo = PostgresUserRepo::new(state.master_pool.clone());
         let auth_service: AuthService<PostgresUserRepo> = AuthService::new(repo, state.clone());
 
-        let new_token: String = auth_service
-            .generate_token(user_id, Some(company.uuid), Some(tenant_db_name))
+        let (access, refresh) = auth_service
+            .generate_token_pair(user_id, Some(company.uuid), Some(tenant_db_name))
             .map_err(|_| AppError::Internal("Failed to generate new token".into()))?;
 
         // Return both company + new token
-        Ok((company, new_token))
+        Ok((company, access, refresh))
     }
 
     fn slugify(name: &str) -> String {

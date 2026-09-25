@@ -47,13 +47,15 @@ impl ApiResponse {
     }
 
     /// Created with token in meta (used for registration)
-    pub fn created_with_token(
+    pub fn created_with_tokens(
         payload: impl serde::Serialize,
-        token: String,
+        access: String,
+        refresh: String,
         message: &str,
     ) -> Response {
         let meta = json!({
-            "access_token": token,
+            "access_token": access,
+            "refresh_token": refresh,
             "token_type": "Bearer"
         });
         Self::build(
@@ -64,15 +66,31 @@ impl ApiResponse {
         )
     }
 
-    /// Success with token in meta (used for login)
-    pub fn success_with_token(
+    // /// Success with token in meta (used for login)
+    // pub fn success_with_token(
+    //     payload: impl serde::Serialize,
+    //     token: String,
+    //     message: &str,
+    // ) -> Response {
+    //     let meta = json!({
+    //         "access_token": token,
+    //         "token_type": "Bearer"
+    //     });
+    //     Self::build(StatusCode::OK, message, Some(json!(payload)), Some(meta))
+    // }
+
+    /// Success with refresh and access tokens in meta (used for login)
+    pub fn success_with_tokens(
         payload: impl serde::Serialize,
-        token: String,
+        access: String,
+        refresh: String,
         message: &str,
     ) -> Response {
         let meta = json!({
-            "access_token": token,
-            "token_type": "Bearer"
+            "access_token": access,
+            "refresh_token": refresh,
+            "token_type": "Bearer",
+            "expires_in": 1800
         });
         Self::build(StatusCode::OK, message, Some(json!(payload)), Some(meta))
     }

@@ -37,12 +37,12 @@ async fn create_company(
     Extension(user): Extension<AuthenticatedUser>,
     AppJson(payload): AppJson<CreateCompanyDto>,
 ) -> Result<impl IntoResponse, AppError> {
-    let (company, token_str) =
+    let (company, access, refresh) =
         CompanyService::create_company(state.clone(), user.user_id, payload).await?;
 
-    Ok(ApiResponse::created_with_token(
+    Ok(ApiResponse::created_with_tokens(
         company,
-        token_str,
+         access, refresh,
         "Company Created Successfully",
     ))
 }
@@ -120,13 +120,13 @@ async fn switch_company(
         .ok_or(AppError::NotFound("Company not found".into()))?;
 
     let service: AuthService<PostgresUserRepo> = AuthService::new(repo, state.clone());
-    let new_token: String = service
+    let  (access, refresh) = service
         .switch_company(user.user_id, company_id, state)
         .await?;
 
-    Ok(ApiResponse::created_with_token(
+    Ok(ApiResponse::created_with_tokens(
         company,
-        new_token,
+         access, refresh,
         "Company switched successfully",
     ))
 }

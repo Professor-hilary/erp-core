@@ -1,8 +1,5 @@
 use crate::{
-    features::investment::{
-        repository::PostgresInvestmentRepo,
-        services::InvestmentService,
-    },
+    features::investment::{repository::PostgresInvestmentRepo, services::InvestmentService},
     interface::api::{errors::AppError, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,
     models::investment::*,
@@ -69,12 +66,7 @@ async fn create_case(
     Json(payload): Json<CreateInvestmentCase>,
 ) -> Result<Response, AppError> {
     let row = service()
-        .create_case(
-            &user.tenant_pool,
-            user.company_id,
-            user.user_id,
-            &payload,
-        )
+        .create_case(&user.tenant_pool, user.company_id, user.user_id, &payload)
         .await?;
     Ok(ApiResponse::created(row, "Investment case created"))
 }
@@ -150,9 +142,7 @@ async fn list_scenarios(
     let _ = service()
         .get_case(&user.tenant_pool, user.company_id, id)
         .await?;
-    let rows = service()
-        .list_scenarios(&user.tenant_pool, id)
-        .await?;
+    let rows = service().list_scenarios(&user.tenant_pool, id).await?;
     Ok(ApiResponse::success(rows, "Scenarios fetched"))
 }
 

@@ -8,9 +8,12 @@ use crate::{
     },
     state::{AppState, PeriodInfo},
 };
-use bcrypt::{DEFAULT_COST, hash, verify};
+use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
+// use bcrypt::{DEFAULT_COST, hash, verify};
 use chrono::{Duration, Utc};
-use jsonwebtoken::{EncodingKey, Header, encode};
+use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation, decode, encode};
+use password_hash::SaltString;
+use rand_core::OsRng;
 use sqlx::{PgPool, postgres::PgPoolOptions};
 use std::sync::Arc;
 use uuid::Uuid;
@@ -19,6 +22,9 @@ pub struct AuthService<R: UserRepository> {
     repo: R,
     state: Arc<AppState>,
 }
+
+const ACCESS_EXPIRY: Duration = Duration::minutes(30);
+const REFRESH_EXPIRY: Duration = Duration::days(30);
 
 impl<R: UserRepository> AuthService<R> {
     pub fn new(repo: R, state: Arc<AppState>) -> Self {
@@ -30,12 +36,14 @@ impl<R: UserRepository> AuthService<R> {
         &self,
         user: CreateUser,
         _state: Arc<AppState>,
-    ) -> Result<(User, Option<UserCompany>, String), AppError> {
+    ) -> Result<(User, Option<UserCompany>, (String, String)), AppError> {
         if user.email.is_empty() || user.password.is_empty() {
             return Err(AppError::BadRequest("Email and password required".into()));
         }
 
-        let password_hash: String = hash(&user.password, DEFAULT_COST)
+        // let password_hash: String = hash(&user.password, DEFAULT_COST)
+        //     .map_err(|_| AppError::Internal("Failed to hash password".into()))?;
+        let password_hash: String = Self::hash_password(&user.password)
             .map_err(|_| AppError::Internal("Failed to hash password".into()))?;
 
         let created_user: User = self.repo.create(user, &password_hash).await?;
@@ -49,7 +57,7 @@ impl<R: UserRepository> AuthService<R> {
             None => (None, None),
         };
 
-        let token: String = self.generate_token(created_user.uuid, company_id, tenant_db_name)?;
+        let token = self.generate_token_pair(created_user.uuid, company_id, tenant_db_name)?;
 
         Ok((created_user, user_company, token))
     }
@@ -59,14 +67,19 @@ impl<R: UserRepository> AuthService<R> {
         &self,
         user: &LoginUser,
         state: Arc<AppState>,
-    ) -> Result<(User, Option<UserCompany>, String), AppError> {
+    ) -> Result<(User, Option<UserCompany>, (String, String)), AppError> {
         let db_user: User = self
             .repo
             .find_by_email(&user.email)
             .await?
             .ok_or(AppError::Unauthorized("Invalid credentials".into()))?;
 
-        if !verify(&user.password, &db_user.password_hash)
+        // if !verify(&user.password, &db_user.password_hash)
+        //     .map_err(|_| AppError::Unauthorized("Invalid credentials".into()))?
+        // {
+        //     return Err(AppError::Unauthorized("Invalid credentials".into()));
+        // }
+        if !Self::verify_password(&user.password, &db_user.password_hash)
             .map_err(|_| AppError::Unauthorized("Invalid credentials".into()))?
         {
             return Err(AppError::Unauthorized("Invalid credentials".into()));
@@ -105,7 +118,7 @@ impl<R: UserRepository> AuthService<R> {
             None => (None, None),
         };
 
-        let token: String = self.generate_token(db_user.uuid, company_id, tenant_db_name)?;
+        let token = self.generate_token_pair(db_user.uuid, company_id, tenant_db_name)?;
 
         Ok((db_user, user_company, token))
     }
@@ -151,8 +164,8 @@ impl<R: UserRepository> AuthService<R> {
         user_id: Uuid,
         company_id: Uuid,
         _state: Arc<AppState>,
-    ) -> Result<String, AppError> {
-        let tenant_db: Option<String> = self
+    ) -> Result<(String, String), AppError> {
+        let tenant_db = self
             .repo
             .get_company_for_switch(user_id, company_id)
             .await?;
@@ -171,7 +184,31 @@ impl<R: UserRepository> AuthService<R> {
 
         // Lazy Load ensures company database is loaded
         Self::ensure_tenant_pool(&_state, company_id, tenant_url).await?;
-        self.generate_token(user_id, Some(company_id), tenant_db)
+        self.generate_token_pair(user_id, Some(company_id), tenant_db)
+    }
+
+    pub fn generate_token_pair(
+        &self,
+        user_id: Uuid,
+        company_uuid: Option<Uuid>,
+        tenant_db_name: Option<String>,
+    ) -> Result<(String, String), AppError> {
+        let access = self.generate_token(
+            user_id,
+            company_uuid,
+            tenant_db_name.clone(),
+            "access",
+            ACCESS_EXPIRY,
+        )?;
+        let refresh = self.generate_token(
+            user_id,
+            company_uuid,
+            tenant_db_name,
+            "refresh",
+            REFRESH_EXPIRY,
+        )?;
+
+        Ok((access, refresh))
     }
 
     /// Pure function for generating login and signup tokens
@@ -180,23 +217,44 @@ impl<R: UserRepository> AuthService<R> {
         user_id: Uuid,
         company_uuid: Option<Uuid>,
         tenant_db_name: Option<String>,
+        token_type: &str,
+        lifetime: Duration,
     ) -> Result<String, AppError> {
         let claims: JwtClaims = JwtClaims {
             sub: user_id,
             company_id: company_uuid,
             tenant_db: tenant_db_name.clone(),
-            exp: (Utc::now() + Duration::weeks(54)).timestamp() as usize,
+            // exp: (Utc::now() + Duration::days(30)).timestamp() as usize,
+            exp: (Utc::now() + lifetime).timestamp() as usize,
+            token_type: token_type.to_string(),
+            jti: Uuid::new_v4(),
         };
-
-        println!("Company ID in Gen Token: {:?}", claims.company_id);
-        println!("Company db in Gen Token: {:?}", claims.tenant_db);
-
         encode(
             &Header::default(),
             &claims,
             &EncodingKey::from_secret(self.state.jwt_secret.as_ref()),
         )
         .map_err(|_| AppError::Internal("Failed to generate JWT".into()))
+    }
+
+    /// Pure function for generating login and signup tokens
+    pub async fn refresh_tokens(&self, refresh_token: &str) -> Result<(String, String), AppError> {
+        let data = decode::<JwtClaims>(
+            refresh_token,
+            &DecodingKey::from_secret(self.state.jwt_secret.as_ref()),
+            &Validation::default(),
+        )
+        .map_err(|_| AppError::Unauthorized("Invalid refresh token".into()))?;
+
+        if data.claims.token_type != "refresh" {
+            return Err(AppError::Unauthorized("Not a refresh token".into()));
+        }
+
+        self.generate_token_pair(
+            data.claims.sub,
+            data.claims.company_id,
+            data.claims.tenant_db,
+        )
     }
 
     /// # Tenant Pool Loader
@@ -223,5 +281,24 @@ impl<R: UserRepository> AuthService<R> {
 
         println!("⚡ Lazy-loaded tenant pool for company {}", company_id);
         Ok(())
+    }
+
+    // Hashing (register)
+    fn hash_password(password: &str) -> Result<String, AppError> {
+        let salt = SaltString::generate(&mut OsRng);
+        let argon2 = Argon2::default();
+        argon2
+            .hash_password(password.as_bytes(), &salt)
+            .map(|h| h.to_string())
+            .map_err(|_| AppError::Internal("Failed to hash password".into()))
+    }
+
+    // Verifying (login)
+    fn verify_password(password: &str, hash: &str) -> Result<bool, AppError> {
+        let parsed = PasswordHash::new(hash)
+            .map_err(|_| AppError::Unauthorized("Invalid credentials".into()))?;
+        Ok(Argon2::default()
+            .verify_password(password.as_bytes(), &parsed)
+            .is_ok())
     }
 }
