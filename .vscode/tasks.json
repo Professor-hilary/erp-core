@@ -12,7 +12,8 @@
                 "$rustc"
             ],
             "presentation": {
-                "reveal": "always"
+                "reveal": "always",
+                "panel": "shared"
             },
             "group": {
                 "kind": "build",
@@ -20,23 +21,72 @@
             }
         },
         {
-            "label": "Cargo Run",
+            "label": "Cargo Run (info)",
             "command": "cargo",
             "type": "shell",
             "args": [
-                "build"
+                "run"
             ],
+            "options": {
+                "env": {
+                    "RUST_LOG": "info"
+                }
+            },
             "problemMatcher": [
                 "$rustc"
             ],
             "presentation": {
-                "reveal": "always"
+                "reveal": "always",
+                "panel": "dedicated",
+                "focus": true,
+                "clear": true
             },
             "group": {
-                "kind": "build",
+                "kind": "test",
                 "isDefault": true
             },
-            "dependsOn": "Cargo Build"
+        },
+        {
+            "label": "Cargo Run (debug)",
+            "type": "shell",
+            "command": "cargo",
+            "args": [
+                "run"
+            ],
+            "options": {
+                "env": {
+                    "RUST_LOG": "debug"
+                }
+            },
+            "problemMatcher": [
+                "$rustc"
+            ],
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "clear": true
+            }
+        },
+        {
+            "label": "Cargo Run (release)",
+            "type": "shell",
+            "command": "cargo",
+            "args": [
+                "run",
+                "--release"
+            ],
+            "options": {
+                "env": {
+                    "RUST_LOG": "info"
+                }
+            },
+            "problemMatcher": [
+                "$rustc"
+            ],
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+            },
         }
     ]
 }

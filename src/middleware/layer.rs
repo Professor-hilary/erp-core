@@ -63,9 +63,8 @@ pub async fn auth_middleware(
     // =========================================================================================
     // All other routes protected by authenticated tenant
     // =========================================================================================
-    if !(is_company_create || is_switch_company)
-        && let (Some(company_id), Some(_tenant_db)) =
-            (token_data.claims.company_id, token_data.claims.tenant_db)
+
+    if let (Some(company_id), Some(_)) = (token_data.claims.company_id, token_data.claims.tenant_db)
     {
         let pool = get_tenant_pool(&state, company_id)
             .await
@@ -115,6 +114,10 @@ pub async fn auth_middleware(
             current_period_end: period.end_date,
             period_is_locked: period.is_locked,
         });
+    } else if !is_company_create && !is_switch_company {
+        return Err(AppError::Unauthorized(
+            "No company selected. Create or swutch to a company first".into(),
+        ));
     }
 
     Ok(next.run(request).await)
