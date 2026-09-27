@@ -86,12 +86,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     let token_blacklist = match env::var("REDIS_URL") {
         Ok(url) => match TokenBlacklist::connect(&url).await {
-            Ok(bl) => {
-                tracing::info!("Redis token blacklist connected");
-                Some(Arc::new(bl))
-            }
-            Err(e) => {
-                tracing::warn!("Redis unavailable, blacklist disabled: {e:?}");
+            Ok(blacklist) => match blacklist.ping().await {
+                Ok(()) => {
+                    tracing::info!("Redis token blacklist connected");
+                    Some(Arc::new(blacklist))
+                }
+                Err(error) => {
+                    tracing::error!("Redis connected but ping failed: {error:?}");
+                    // None // soft fail but continue
+                    return Err(error.into()) // Return this to terminate program
+                }
+            },
+            Err(error) => {
+                tracing::warn!("Redis unavailable, blacklist disabled: {error:?}");
                 None
             }
         },
@@ -100,8 +107,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             None
         }
     };
-
-    // In AppState { ... jwt_config, token_blacklist, ... }
 
     // --------------------------------------------------
     // Build application state

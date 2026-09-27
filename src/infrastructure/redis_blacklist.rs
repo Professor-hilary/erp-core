@@ -13,6 +13,23 @@ pub struct TokenBlacklist {
 }
 
 impl TokenBlacklist {
+    /// Minimal health check - fails if Redis is unreachable
+    pub async fn ping(&self) -> Result<(), AppError> {
+        let mut conn = self.conn.clone();
+        let pong: String = redis::cmd("PING")
+            .query_async(&mut conn)
+            .await
+            .map_err(|e| AppError::Internal(format!("Redis PING failed: {e}")))?;
+
+        if pong != "PONG" {
+            return Err(AppError::Internal(format!(
+                "Redis PING unexpected reply: {pong}"
+            )));
+        }
+
+        Ok(())
+    }
+
     pub async fn connect(redis_url: &str) -> Result<Self, AppError> {
         let client = redis::Client::open(redis_url)
             .map_err(|e| AppError::Internal(format!("Redis client error: {e}")))?;
@@ -27,8 +44,8 @@ impl TokenBlacklist {
         if ttl_secs == 0 {
             return Ok(());
         }
-        let mut conn = self.conn.clone();
-        conn.set_ex::<_, _, ()>(/*&Self::key(jti)*/format!("{KEY_PREFIX}{jti}"), "1", ttl_secs)
+        let mut conn: ConnectionManager = self.conn.clone();
+        conn.set_ex::<_, _, ()>(format!("{KEY_PREFIX}{jti}"), "1", ttl_secs)
             .await
             .map_err(|e| AppError::Internal(format!("Redis SETEX failed: {e}")))?;
         tracing::debug!(%jti, ttl_secs, "token jti blacklisted");
@@ -38,7 +55,7 @@ impl TokenBlacklist {
     pub async fn is_revoked(&self, jti: Uuid) -> Result<bool, AppError> {
         let mut conn = self.conn.clone();
         let exists: bool = conn
-            .exists(/*&Self::key(jti)*/format!("{KEY_PREFIX}{jti}"))
+            .exists(/*&Self::key(jti)*/ format!("{KEY_PREFIX}{jti}"))
             .await
             .map_err(|e| AppError::Internal(format!("Redis EXISTS failed: {e}")))?;
         Ok(exists)
