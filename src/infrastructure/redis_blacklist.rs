@@ -55,7 +55,7 @@ impl TokenBlacklist {
     pub async fn is_revoked(&self, jti: Uuid) -> Result<bool, AppError> {
         let mut conn = self.conn.clone();
         let exists: bool = conn
-            .exists(/*&Self::key(jti)*/ format!("{KEY_PREFIX}{jti}"))
+            .exists(format!("{KEY_PREFIX}{jti}"))
             .await
             .map_err(|e| AppError::Internal(format!("Redis EXISTS failed: {e}")))?;
         Ok(exists)

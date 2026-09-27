@@ -6,15 +6,15 @@ use crate::{
     state::AppState,
 };
 use axum::{Router, extract::State, response::IntoResponse, routing::post};
+use serde::Deserialize;
 use serde_json::json;
 use std::sync::Arc;
-use serde::Deserialize;
 
 pub fn router() -> Router<Arc<AppState>> {
     Router::new()
         .route("/register", post(register))
         .route("/login", post(login))
-		.route("/logout", post(logout))
+        .route("/logout", post(logout))
         .route("/refresh", post(refresh))
 }
 
@@ -55,7 +55,8 @@ async fn register(
 
     Ok(ApiResponse::created_with_tokens(
         json!({"user":user, "company":user_company}),
-        access, refresh,
+        access,
+        refresh,
         "Registered successfully",
     ))
 }
@@ -71,7 +72,8 @@ async fn login(
 
     Ok(ApiResponse::success_with_tokens(
         json!({"user": user, "company":user_company}),
-        access, refresh,
+        access,
+        refresh,
         "Login successful",
     ))
 }
@@ -92,7 +94,8 @@ async fn refresh(
 
     Ok(ApiResponse::success_with_tokens(
         json!({}),
-        access, refresh,
+        access,
+        refresh,
         "Token refreshed",
     ))
 }

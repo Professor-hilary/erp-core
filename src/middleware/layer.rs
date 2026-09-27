@@ -67,12 +67,12 @@ pub async fn auth_middleware(
 
     if let (Some(company_id), Some(_)) = (token_data.claims.company_id, token_data.claims.tenant_db)
     {
-// Reject revoked tokens (logout / security events)
-if let Some(ref blacklist) = state.token_blacklist {
-    if blacklist.is_revoked(token_data.claims.jti).await? {
-        return Err(AppError::Unauthorized("Token has been revoked".into()));
-    }
-}
+        // Reject revoked tokens (logout / security events)
+        if let Some(ref blacklist) = state.token_blacklist {
+            if blacklist.is_revoked(token_data.claims.jti).await? {
+                return Err(AppError::Unauthorized("Token has been revoked".into()));
+            }
+        }
 
         let pool = get_tenant_pool(&state, company_id)
             .await
