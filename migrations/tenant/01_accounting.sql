@@ -101,37 +101,6 @@ CREATE TABLE accounting.financial_periods (
     CONSTRAINT period_date_unique UNIQUE (start_date, end_date)
 );
 
-CREATE TABLE accounting.cash_flow_entries (
-    uuid UUID DEFAULT uuidv7 () PRIMARY KEY,
-
-    transaction_uuid UUID NOT NULL REFERENCES
-        accounting.transactions(uuid) ON DELETE CASCADE,
-    transaction_entry_uuid UUID NULL REFERENCES
-        accounting.transaction_entries(uuid) ON DELETE SET NULL,
-
-    activity_section VARCHAR(16) NOT NULL CHECK(
-        activity_section IN('operating', 'investing', 'financing')
-    ),
-    activity_type VARCHAR(32) CHECK(
-        activity_type IN(
-            'customer_receipts', 'supplier_payments', 'payroll_payments', 'utilities_paid',
-            'tax_payments', 'rent_paid', 'vat_paid', 'vat_received', 'asset_financing',
-            'asset_sale', 'investment_purchases', 'loan_proceeds', 'loan_repayments',
-            'capital_contributions', 'dividents_paid', 'fixed_asset_purchase', 'cash_purchase',
-            'fixed_asset_sale', 'investment_sale', 'other_cash_movements', 'actual_overheads'
-        )
-    ),
-    direction VARCHAR(8) NOT NULL CHECK(direction IN('inflow', 'outflow')),
-
-    amount NUMERIC(18,2) NOT NULL,
-    description TEXT,
-    txn_date DATE NOT NULL,
-    created_at timestamptz DEFAULT now()
-);
-
-CREATE INDEX idx_cash_flow_txn ON accounting.cash_flow_entries (transaction_uuid);
-CREATE INDEX idx_cash_flow_section_type ON accounting.cash_flow_entries (activity_section, activity_type);
-
 -----------------------------------------------------------------
 -- transactions: header/journal
 -----------------------------------------------------------------
@@ -176,6 +145,37 @@ CREATE INDEX ON accounting.transaction_entries (transaction_uuid);
 CREATE INDEX ON accounting.transaction_entries (created_at);
 
 CREATE INDEX ON accounting.transaction_entries (serial_id);
+
+CREATE TABLE accounting.cash_flow_entries (
+    uuid UUID DEFAULT uuidv7 () PRIMARY KEY,
+
+    transaction_uuid UUID NOT NULL REFERENCES
+        accounting.transactions(uuid) ON DELETE CASCADE,
+    transaction_entry_uuid UUID NULL REFERENCES
+        accounting.transaction_entries(uuid) ON DELETE SET NULL,
+
+    activity_section VARCHAR(16) NOT NULL CHECK(
+        activity_section IN('operating', 'investing', 'financing')
+    ),
+    activity_type VARCHAR(32) CHECK(
+        activity_type IN(
+            'customer_receipts', 'supplier_payments', 'payroll_payments', 'utilities_paid',
+            'tax_payments', 'rent_paid', 'vat_paid', 'vat_received', 'asset_financing',
+            'asset_sale', 'investment_purchases', 'loan_proceeds', 'loan_repayments',
+            'capital_contributions', 'dividents_paid', 'fixed_asset_purchase', 'cash_purchase',
+            'fixed_asset_sale', 'investment_sale', 'other_cash_movements', 'actual_overheads'
+        )
+    ),
+    direction VARCHAR(8) NOT NULL CHECK(direction IN('inflow', 'outflow')),
+
+    amount NUMERIC(18,2) NOT NULL,
+    description TEXT,
+    txn_date DATE NOT NULL,
+    created_at timestamptz DEFAULT now()
+);
+
+CREATE INDEX idx_cash_flow_txn ON accounting.cash_flow_entries (transaction_uuid);
+CREATE INDEX idx_cash_flow_section_type ON accounting.cash_flow_entries (activity_section, activity_type);
 
 CREATE TABLE IF NOT EXISTS accounting.cash_flow_mapping (
     module VARCHAR(64) PRIMARY KEY,
@@ -233,7 +233,7 @@ BEGIN
     END LOOP;
     IF v_total_debits <> v_total_credits THEN
         RAISE EXCEPTION 'Unbalanced transaction: debits (%) != credits (%)',
-            v_total_debits, v_total_credits, USING ERRCODE = 'P0001';
+            v_total_debits, v_total_credits USING ERRCODE = 'P0001';
     END IF;
 
     -- Insert transaction header
@@ -255,7 +255,7 @@ BEGIN
                 -- Make sure it exists
                 IF NOT EXISTS (SELECT 1 FROM accounting.accounts WHERE uuid = v_account_uuid) THEN
                     RAISE EXCEPTION 'Account not found for reference: %',
-                        v_ref_text, USING ERRCODE = 'P0002';
+                        v_ref_text USING ERRCODE = 'P0002';
                 END IF;
             EXCEPTION WHEN others THEN
                 -- Not a UUID, treat as code
@@ -264,7 +264,7 @@ BEGIN
                 WHERE code = v_ref_text;
                 IF v_account_uuid IS NULL THEN
                     RAISE EXCEPTION 'Account not found for reference: %',
-                        v_ref_text, USING ERRCODE = 'P0002';
+                        v_ref_text USING ERRCODE = 'P0002';
                 END IF;
             END;
         ELSIF jsonb_typeof(v_line.account_ref) = 'number' THEN
@@ -274,10 +274,10 @@ BEGIN
             WHERE serial_id = (v_line.account_ref)::BIGINT;
             IF v_account_uuid IS NULL THEN
                 RAISE EXCEPTION 'Account not found for reference: %',
-                    v_line.account_ref, USING ERRCODE = 'P0002';
+                    v_line.account_ref USING ERRCODE = 'P0002';
             END IF;
         ELSE
-            RAISE EXCEPTION 'Invalid account_ref type: must be string (code/uuid) or number (serial_id)',
+            RAISE EXCEPTION 'Invalid account_ref type: must be string (code/uuid) or number (serial_id)'
                 USING ERRCODE = 'P0001';
         END IF;
 

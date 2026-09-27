@@ -44,22 +44,6 @@ CREATE table if not exists manufacturing.production_orders (
     updated_at timestamptz DEFAULT now()
 );
 
--- For tracking material availability for production
-CREATE TABLE manufacturing.production_order_materials (
-    uuid uuid DEFAULT uuidv7 () PRIMARY KEY,
-    production_order_uuid  uuid NOT NULL REFERENCES manufacturing.production_orders(uuid)
-        ON DELETE CASCADE,
-    bom_line_uuid uuid REFERENCES manufacturing.bom_lines(uuid),
-    component_item_uuid uuid NOT NULL REFERENCES inventory.items(uuid),
-    required_qty numeric(18,6) NOT NULL,
-    issued_qty numeric(18,6) DEFAULT 0,
-    status text DEFAULT 'Pending' CHECK (
-        status IN ('Pending', 'PartiallyIssued', 'FullyIssued')
-    ),
-    created_at timestamptz DEFAULT now(),
-    UNIQUE(production_order_uuid, component_item_uuid)
-);
-
 -- helper log table (recommended for audit trail)
 CREATE TABLE IF NOT EXISTS accounting.variance_proration_logs (
     uuid uuid DEFAULT uuidv7 () PRIMARY KEY,
@@ -109,6 +93,22 @@ CREATE TABLE IF NOT EXISTS manufacturing.bom_lines (
         bom_header_uuid,
         component_item_uuid
     ) -- no duplicate components
+);
+
+-- For tracking material availability for production
+CREATE TABLE manufacturing.production_order_materials (
+    uuid uuid DEFAULT uuidv7 () PRIMARY KEY,
+    production_order_uuid  uuid NOT NULL REFERENCES manufacturing.production_orders(uuid)
+        ON DELETE CASCADE,
+    bom_line_uuid uuid REFERENCES manufacturing.bom_lines(uuid),
+    component_item_uuid uuid NOT NULL REFERENCES inventory.items(uuid),
+    required_qty numeric(18,6) NOT NULL,
+    issued_qty numeric(18,6) DEFAULT 0,
+    status text DEFAULT 'Pending' CHECK (
+        status IN ('Pending', 'PartiallyIssued', 'FullyIssued')
+    ),
+    created_at timestamptz DEFAULT now(),
+    UNIQUE(production_order_uuid, component_item_uuid)
 );
 
 -- Optional: index for fast BOM explosion
@@ -548,7 +548,7 @@ BEGIN
       AND r.status = 'active'
     ORDER BY r.effective_date DESC
     LIMIT 1;
-    
+
     -- Get base quantity for time computation (latest active)
     SELECT r.base_quantity INTO v_base_quantity
     FROM manufacturing.routings r
@@ -557,7 +557,7 @@ BEGIN
     LIMIT 1;
 
     IF v_routing_uuid IS NULL THEN
-        RAISE EXCEPTION 'No active routing found for product %', 
+        RAISE EXCEPTION 'No active routing found for product %',
         	v_order.product_item_uuid;
     END IF;
 
@@ -989,7 +989,7 @@ BEGIN
     UPDATE manufacturing.production_orders
     SET material_usage_variance   = v_mat_var,
         labor_efficiency_variance = v_lab_var,
-        overhead_variance = v_oh_var
+        overhead_variance = v_oh_var,
         updated_at = now()
     WHERE uuid = p_order_uuid;
 END;

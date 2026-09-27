@@ -32,9 +32,10 @@ pub async fn auth_middleware(
 
     // APIs that don't need tenant information
     let is_company_create: bool = method == Method::POST
-        && (path.ends_with("/create") && path.contains("/companies") || path == "/companies");
+        && (path == "/create" || path.ends_with("/create") && path.contains("compan"));
 
-    let is_switch_company: bool = method == Method::POST && path.contains("/switch-company");
+    let is_switch_company: bool =
+        method == Method::POST && (path == "/switch-company" || path.ends_with("/switch-company"));
 
     // Middleware only for create company route
     let auth_header: &str = request
