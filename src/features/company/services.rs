@@ -46,8 +46,6 @@ impl CompanyService {
 
         let tenant_db_name: String = format!("tenant_{}", slug);
 
-
-
         // Step 3: Seed Chart of Accounts
         Self::seed_coa(&tenant_pool, &req.industry, &state.coa_seed_path)
             .await
@@ -87,7 +85,7 @@ impl CompanyService {
                 role: db_role,
                 password: db_pass,
                 host: db_host,
-                port: db_port
+                port: db_port,
             },
         )
         .await
@@ -115,7 +113,7 @@ impl CompanyService {
             .await?;
 
         println!(
-            "Created initial finalcial period {} -> {} for company {}",
+            "Created initial financial period {} -> {} for company {}",
             period_dto.start_date, period_end, company.uuid
         );
 
@@ -294,7 +292,7 @@ impl CompanyService {
                 r#"
             INSERT INTO accounting.accounts (
                 code, name, category, parent_code, normal_balance, is_contra, cash_flow_category
-            ) VALUES ($1, $2, $3, $4, $5, $6)
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7)
             ON CONFLICT (code) DO NOTHING
             "#,
             )

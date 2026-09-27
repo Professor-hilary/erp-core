@@ -17,8 +17,8 @@ use tokio::net::TcpListener;
 use tracing_subscriber::{EnvFilter, fmt, prelude::*};
 
 use crate::{
-    infrastructure::database::init_master_db::init_master,
-    state::{AppState, TenantConfig},
+    infrastructure::{database::init_master_db::init_master, redis_blacklist::TokenBlacklist},
+    state::{AppState, JwtConfig, TenantConfig},
 };
 
 #[tokio::main]
@@ -73,6 +73,36 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // JWT secret set inside .env, generated with encryption algorithm
     let jwt_secret: String = env::var("JWT_SECRET").expect("JWT_SECRET must be set");
 
+    let jwt_config = JwtConfig {
+        access_expiry_secs: env::var("JWT_ACCESS_EXPIRY_SECS")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(900),
+        refresh_expiry_secs: env::var("JWT_REFRESH_EXPIRY_SECS")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(60 * 24 * 3600),
+    };
+
+    let token_blacklist = match env::var("REDIS_URL") {
+        Ok(url) => match TokenBlacklist::connect(&url).await {
+            Ok(bl) => {
+                tracing::info!("Redis token blacklist connected");
+                Some(Arc::new(bl))
+            }
+            Err(e) => {
+                tracing::warn!("Redis unavailable, blacklist disabled: {e:?}");
+                None
+            }
+        },
+        Err(_) => {
+            tracing::warn!("REDIS_URL not set — token blacklist disabled");
+            None
+        }
+    };
+
+    // In AppState { ... jwt_config, token_blacklist, ... }
+
     // --------------------------------------------------
     // Build application state
     // --------------------------------------------------
@@ -88,6 +118,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         tenant_config: TenantConfig {
             base_url: "".to_string(),
         },
+        jwt_config,
+        token_blacklist,
     });
 
     // --------------------------------------------------

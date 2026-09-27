@@ -23,12 +23,20 @@ pub struct AuthService<R: UserRepository> {
     state: Arc<AppState>,
 }
 
-const ACCESS_EXPIRY: Duration = Duration::minutes(30);
-const REFRESH_EXPIRY: Duration = Duration::days(30);
+// const ACCESS_EXPIRY: Duration = Duration::minutes(60);
+// const REFRESH_EXPIRY: Duration = Duration::days(100);
 
 impl<R: UserRepository> AuthService<R> {
     pub fn new(repo: R, state: Arc<AppState>) -> Self {
         Self { repo, state }
+    }
+
+    fn access_lifetime(&self) -> Duration {
+        Duration::seconds(self.state.jwt_config.access_expiry_secs)
+    }
+
+    fn refresh_lifetime(&self) -> Duration {
+        Duration::seconds(self.state.jwt_config.refresh_expiry_secs)
     }
 
     /// Sign up user into master database, update tenant pools in state
@@ -123,6 +131,43 @@ impl<R: UserRepository> AuthService<R> {
         Ok((db_user, user_company, token))
     }
 
+    /// Blacklist current access (and optional refresh) jti. Does not touch rotation path.
+    pub async fn logout(
+        &self,
+        access_token: &str,
+        refresh_token: Option<&str>,
+    ) -> Result<(), AppError> {
+        let Some(blacklist) = &self.state.token_blacklist else {
+            return Ok(()); // Redis not configured
+        };
+
+        let now = Utc::now().timestamp() as usize;
+
+        let access_data = decode::<JwtClaims>(
+            access_token,
+            &DecodingKey::from_secret(self.state.jwt_secret.as_ref()),
+            &Validation::default(),
+        )
+        .map_err(|_| AppError::Unauthorized("Invalid access token".into()))?;
+
+        let access_ttl = access_data.claims.exp.saturating_sub(now) as u64;
+        blacklist.revoke(access_data.claims.jti, access_ttl).await?;
+
+        if let Some(rt) = refresh_token {
+            if let Ok(data) = decode::<JwtClaims>(
+                rt,
+                &DecodingKey::from_secret(self.state.jwt_secret.as_ref()),
+                &Validation::default(),
+            ) {
+                if data.claims.token_type == "refresh" {
+                    let ttl = data.claims.exp.saturating_sub(now) as u64;
+                    blacklist.revoke(data.claims.jti, ttl).await?;
+                }
+            }
+        }
+        Ok(())
+    }
+
     pub async fn fetch_current_period(tenant_pool: PgPool) -> Result<PeriodInfo, AppError> {
         #[derive(sqlx::FromRow)]
         struct PeriodRow {
@@ -198,14 +243,16 @@ impl<R: UserRepository> AuthService<R> {
             company_uuid,
             tenant_db_name.clone(),
             "access",
-            ACCESS_EXPIRY,
+            // ACCESS_EXPIRY,
+            Self::access_lifetime(&self),
         )?;
         let refresh = self.generate_token(
             user_id,
             company_uuid,
             tenant_db_name,
             "refresh",
-            REFRESH_EXPIRY,
+            // REFRESH_EXPIRY,
+            Self::refresh_lifetime(&self),
         )?;
 
         Ok((access, refresh))
@@ -224,7 +271,6 @@ impl<R: UserRepository> AuthService<R> {
             sub: user_id,
             company_id: company_uuid,
             tenant_db: tenant_db_name.clone(),
-            // exp: (Utc::now() + Duration::days(30)).timestamp() as usize,
             exp: (Utc::now() + lifetime).timestamp() as usize,
             token_type: token_type.to_string(),
             jti: Uuid::new_v4(),

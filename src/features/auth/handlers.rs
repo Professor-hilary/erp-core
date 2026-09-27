@@ -14,7 +14,34 @@ pub fn router() -> Router<Arc<AppState>> {
     Router::new()
         .route("/register", post(register))
         .route("/login", post(login))
+		.route("/logout", post(logout))
         .route("/refresh", post(refresh))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct LogoutRequest {
+    pub refresh_token: Option<String>,
+}
+
+async fn logout(
+    State(state): State<Arc<AppState>>,
+    // Prefer extracting the access token from Authorization header
+    headers: axum::http::HeaderMap,
+    AppJson(payload): AppJson<LogoutRequest>,
+) -> Result<impl IntoResponse, AppError> {
+    let access = headers
+        .get("authorization")
+        .and_then(|h| h.to_str().ok())
+        .and_then(|h| h.strip_prefix("Bearer "))
+        .ok_or(AppError::Unauthorized("Missing access token".into()))?;
+
+    let repo = PostgresUserRepo::new(state.master_pool.clone());
+    let service = AuthService::new(repo, state.clone());
+    service
+        .logout(access, payload.refresh_token.as_deref())
+        .await?;
+
+    Ok(ApiResponse::success(json!({}), "Logged out"))
 }
 
 /// POST /auth/register
