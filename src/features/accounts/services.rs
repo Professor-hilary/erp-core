@@ -115,9 +115,10 @@ impl<R: AccountRepository> AccountingService<R> {
         tenant_pool: &PgPool,
         period_id: Uuid,
         company_id: Uuid,
+        user_id: Uuid,
     ) -> Result<(), AppError> {
         self.account_repo
-            .close_period(state, period_id, tenant_pool, company_id)
+            .close_period(state, period_id, tenant_pool, company_id, user_id)
             .await
     }
 }

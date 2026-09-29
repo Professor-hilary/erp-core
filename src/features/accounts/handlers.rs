@@ -144,7 +144,13 @@ async fn close_period(
     let repo: PostgresAccountRepo = PostgresAccountRepo::new();
     let service: AccountingService<PostgresAccountRepo> = AccountingService::new(repo);
     service
-        .close_financial_period(state, &user.tenant_pool, period_id, user.company_id)
+        .close_financial_period(
+            state,
+            &user.tenant_pool,
+            period_id,
+            user.company_id,
+            user.user_id,
+        )
         .await?;
     Ok(ApiResponse::success(
         (),

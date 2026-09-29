@@ -5,7 +5,9 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use serde_json::json;
-use sqlx::Error;
+use sqlx::Error::{
+    self, BeginFailed, Configuration, Io, PoolClosed, PoolTimedOut, Protocol, Tls, WorkerCrashed,
+};
 use thiserror::Error as ThisError;
 
 #[derive(ThisError, Debug)]
@@ -117,35 +119,35 @@ impl IntoResponse for AppError {
                     // -------------------------------------------------------
                     // Connection / pool / driver level
                     // -------------------------------------------------------
-                    sqlx::Error::Configuration(e) => (
+                    Configuration(e) => (
                         StatusCode::INTERNAL_SERVER_ERROR,
                         format!("Database configuration error: {e}"),
                     ),
-                    sqlx::Error::Io(e) => (
+                    Io(e) => (
                         StatusCode::INTERNAL_SERVER_ERROR,
                         format!("Database I/O error: {e}"),
                     ),
-                    sqlx::Error::Tls(e) => (
+                    Tls(e) => (
                         StatusCode::INTERNAL_SERVER_ERROR,
                         format!("Database TLS error: {e}"),
                     ),
-                    sqlx::Error::Protocol(msg) => (
+                    Protocol(msg) => (
                         StatusCode::INTERNAL_SERVER_ERROR,
                         format!("Database protocol error: {msg}"),
                     ),
-                    sqlx::Error::PoolTimedOut => (
+                    PoolTimedOut => (
                         StatusCode::SERVICE_UNAVAILABLE,
                         "Database connection pool timed out".into(),
                     ),
-                    sqlx::Error::PoolClosed => (
+                    PoolClosed => (
                         StatusCode::SERVICE_UNAVAILABLE,
                         "Database connection pool is closed".into(),
                     ),
-                    sqlx::Error::WorkerCrashed => (
+                    WorkerCrashed => (
                         StatusCode::INTERNAL_SERVER_ERROR,
                         "Database worker crashed".into(),
                     ),
-                    sqlx::Error::BeginFailed => (
+                    BeginFailed => (
                         StatusCode::INTERNAL_SERVER_ERROR,
                         "Failed to begin database transaction".into(),
                     ),

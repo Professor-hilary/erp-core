@@ -101,6 +101,23 @@ CREATE TABLE accounting.financial_periods (
     CONSTRAINT period_date_unique UNIQUE (start_date, end_date)
 );
 
+----------------------------------------------------------------
+-- Period account balance
+----------------------------------------------------------------
+CREATE TABLE accounting.period_account_balances (
+    period_id       UUID NOT NULL REFERENCES accounting.financial_periods(uuid),
+    account_uuid    UUID NOT NULL REFERENCES accounting.accounts(uuid),
+    debit_total     NUMERIC(18,2) NOT NULL DEFAULT 0,
+    credit_total    NUMERIC(18,2) NOT NULL DEFAULT 0,
+    net_balance     NUMERIC(18,2) NOT NULL DEFAULT 0,  -- debit − credit (or signed by normal balance)
+    category        TEXT NOT NULL,                     -- denormalised for convenience
+    PRIMARY KEY (period_id, account_uuid)
+);
+
+CREATE INDEX ON accounting.period_account_balances (period_id);
+CREATE INDEX ON accounting.period_account_balances (account_uuid);
+
+
 -----------------------------------------------------------------
 -- transactions: header/journal
 -----------------------------------------------------------------

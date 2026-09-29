@@ -125,3 +125,55 @@ CREATE OR REPLACE FUNCTION system.clear_current_user()
 RETURNS void LANGUAGE sql AS $$
     SELECT set_config('app.current_user_id', '', false);
 $$;
+
+
+-- =============================================================================
+-- Open period  →  activity updates current_balance
+-- Close period →  1. Read current balances of all accounts (or just the ones that moved)
+--                2. Write a snapshot row for each account for this period
+--                3. Zero the nominal accounts (income + expense)
+--                4. Lock period, open next period
+CREATE TABLE accounting.period_account_balances (
+    period_id       UUID NOT NULL REFERENCES accounting.financial_periods(uuid),
+    account_uuid    UUID NOT NULL REFERENCES accounting.accounts(uuid),
+    debit_total     NUMERIC(18,2) NOT NULL DEFAULT 0,
+    credit_total    NUMERIC(18,2) NOT NULL DEFAULT 0,
+    net_balance     NUMERIC(18,2) NOT NULL DEFAULT 0,  -- debit − credit (or signed by normal balance)
+    category        TEXT NOT NULL,                     -- denormalised for convenience
+    PRIMARY KEY (period_id, account_uuid)
+);
+
+CREATE INDEX ON accounting.period_account_balances (period_id);
+CREATE INDEX ON accounting.period_account_balances (account_uuid);
+
+-- At close time you simply:
+INSERT INTO accounting.period_account_balances (...)
+SELECT
+    $period_id,
+    a.uuid,
+    COALESCE(SUM(te.debit), 0),
+    COALESCE(SUM(te.credit), 0),
+    COALESCE(SUM(te.debit - te.credit), 0),
+    a.category
+FROM accounting.accounts a
+LEFT JOIN accounting.transaction_entries te ON te.account_uuid = a.uuid
+LEFT JOIN accounting.transactions t ON t.uuid = te.transaction_uuid
+    AND t.posted = true
+    AND t.txn_date BETWEEN $start AND $end
+GROUP BY a.uuid, a.category;
+
+-- What reports look like afterwards March vs April P&L
+SELECT account_uuid, category, net_balance
+FROM accounting.period_account_balances
+WHERE period_id IN ($march_id, $april_id);
+
+-- // src/models/dto.rs
+#[derive(Debug, FromRow, Serialize, Deserialize, Clone)]
+pub struct FinancialPeriodDto {
+    pub uuid: Uuid,
+    pub start_date: NaiveDate,
+    pub end_date: NaiveDate,
+    pub name: Option<String>,
+    pub is_open: bool,
+    pub is_locked: bool,
+}

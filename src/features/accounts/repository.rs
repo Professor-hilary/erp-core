@@ -1,6 +1,6 @@
+// src/features/accounts/repositories.rs
 use std::sync::Arc;
 
-// src/features/accounts/repositories.rs
 use crate::{
     interface::api::errors::AppError,
     models::{account::*, dto::FinancialPeriodDto},
@@ -8,8 +8,9 @@ use crate::{
 };
 // use async_trait::async_trait;
 use async_trait::async_trait;
-use bigdecimal::BigDecimal;
-use chrono::NaiveDate;
+use bigdecimal::{BigDecimal, Zero};
+use chrono::{Months, NaiveDate};
+use serde_json::json;
 use sqlx::PgPool;
 use uuid::Uuid;
 
@@ -61,9 +62,10 @@ pub trait AccountRepository: Send + Sync {
     async fn close_period(
         &self,
         state: Arc<AppState>,
-        uuid: Uuid,
+        period_uuid: Uuid,
         pool: &PgPool,
         company_id: Uuid,
+        user_id: Uuid,
     ) -> Result<(), AppError>;
 
     async fn create_currency(
@@ -274,36 +276,299 @@ impl AccountRepository for PostgresAccountRepo {
         Ok(periods)
     }
 
+    // In src/features/accounts/repository.rs
+    // (inside the `impl AccountRepository for PostgresAccountRepo` block)
+
     async fn close_period(
         &self,
         state: Arc<AppState>,
-        uuid: Uuid,
+        period_uuid: Uuid,
         pool: &PgPool,
         company_id: Uuid,
+        user_id: Uuid,
     ) -> Result<(), AppError> {
+        // ──────────────────────────────────────────────────────────────
+        // 1. Load & validate the period
+        // ──────────────────────────────────────────────────────────────
+        let (start_date, end_date, is_open, is_locked): (
+            chrono::NaiveDate,
+            chrono::NaiveDate,
+            bool,
+            bool,
+        ) = sqlx::query_as(
+            r#"
+        SELECT start_date, end_date, is_open, COALESCE(is_locked, false)
+        FROM accounting.financial_periods
+        WHERE uuid = $1
+        "#,
+        )
+        .bind(period_uuid)
+        .fetch_optional(pool)
+        .await
+        .map_err(AppError::Database)?
+        .ok_or_else(|| AppError::NotFound("Financial period not found".into()))?;
+
+        if !is_open || is_locked {
+            return Err(AppError::BadRequest(
+                "Period is already closed or locked".into(),
+            ));
+        }
+
+        // ──────────────────────────────────────────────────────────────
+        // 2. Snapshot current balances (BEFORE we zero anything)
+        //    - For income/expense  → this period's activity
+        //    - For asset/liability/equity → ending balance (BS)
+        // ──────────────────────────────────────────────────────────────
+        sqlx::query(
+            r#"
+        INSERT INTO accounting.period_account_balances (
+            period_id, account_uuid, debit_total, credit_total, net_balance, category
+        )
+        SELECT
+            $1,
+            a.uuid,
+            CASE WHEN a.current_balance > 0 THEN a.current_balance ELSE 0 END,
+            CASE WHEN a.current_balance < 0 THEN -a.current_balance ELSE 0 END,
+            a.current_balance,
+            a.category
+        FROM accounting.accounts a
+        WHERE a.is_active = true
+          AND a.current_balance <> 0
+        ON CONFLICT (period_id, account_uuid) DO UPDATE SET
+            debit_total  = EXCLUDED.debit_total,
+            credit_total = EXCLUDED.credit_total,
+            net_balance  = EXCLUDED.net_balance,
+            category     = EXCLUDED.category
+        "#,
+        )
+        .bind(period_uuid)
+        .execute(pool)
+        .await
+        .map_err(AppError::Database)?;
+
+        // ──────────────────────────────────────────────────────────────
+        // 3. Load nominal accounts that still have a balance
+        // ──────────────────────────────────────────────────────────────
+        #[derive(sqlx::FromRow)]
+        struct Nominal {
+            uuid: Uuid,
+            code: String,
+            name: String,
+            category: String,
+            current_balance: BigDecimal, // debit − credit (same sign as trigger)
+        }
+
+        let nominals: Vec<Nominal> = sqlx::query_as(
+            r#"
+        SELECT uuid, code, name, category, current_balance
+        FROM accounting.accounts
+        WHERE category IN ('income', 'expense')
+          AND is_active = true
+          AND current_balance <> 0
+        ORDER BY code
+        "#,
+        )
+        .fetch_all(pool)
+        .await
+        .map_err(AppError::Database)?;
+
+        // ──────────────────────────────────────────────────────────────
+        // 4. Resolve equity target (Owner's Equity)
+        // ──────────────────────────────────────────────────────────────
+        let (equity_uuid,): (Uuid,) = sqlx::query_as(
+            r#"
+        SELECT uuid FROM accounting.accounts
+        WHERE code = '310000'
+           OR (category = 'equity' AND name ILIKE '%retained%')
+           OR (category = 'equity' AND name ILIKE '%owner%')
+        ORDER BY CASE WHEN code = '310000' THEN 0 ELSE 1 END
+        LIMIT 1
+        "#,
+        )
+        .fetch_optional(pool)
+        .await
+        .map_err(AppError::Database)?
+        .ok_or_else(|| {
+            AppError::Internal("No Owner's Equity / Retained Earnings account found in COA".into())
+        })?;
+
+        // ──────────────────────────────────────────────────────────────
+        // 5. Build closing journal lines
+        //    current_balance is stored as (debit − credit)
+        //    - positive → net debit  (typical expense)
+        //    - negative → net credit (typical income)
+        // ──────────────────────────────────────────────────────────────
+        let mut lines: Vec<serde_json::Value> = Vec::new();
+        let mut net_income = BigDecimal::zero(); // positive = profit
+
+        for acc in &nominals {
+            let bal = &acc.current_balance;
+            if bal.is_zero() {
+                continue;
+            }
+
+            let amount = bal.abs();
+
+            if bal > &BigDecimal::zero() {
+                // Net debit balance → credit the account to zero it
+                // (expense or unusual income debit balance)
+                lines.push(json!({
+                    "account_ref": acc.uuid.to_string(),
+                    "debit": BigDecimal::zero(),
+                    "credit": amount,
+                    "memo": format!("Close {} ({})", acc.name, acc.code)
+                }));
+                // Debit equity (reduces equity)
+                lines.push(json!({
+                    "account_ref": equity_uuid.to_string(),
+                    "debit": amount,
+                    "credit": BigDecimal::zero(),
+                    "memo": format!("Close {}", acc.code)
+                }));
+                if acc.category == "expense" {
+                    net_income -= amount;
+                } else {
+                    // income with debit balance is unusual; treat as reduction of profit
+                    net_income -= amount;
+                }
+            } else {
+                // Net credit balance → debit the account to zero it
+                // (income)
+                lines.push(json!({
+                    "account_ref": acc.uuid.to_string(),
+                    "debit": amount,
+                    "credit": BigDecimal::zero(),
+                    "memo": format!("Close {} ({})", acc.name, acc.code)
+                }));
+                // Credit equity (increases equity = profit)
+                lines.push(json!({
+                    "account_ref": equity_uuid.to_string(),
+                    "debit": BigDecimal::zero(),
+                    "credit": amount,
+                    "memo": format!("Close {}", acc.code)
+                }));
+                net_income += amount;
+            }
+        }
+
+        // ──────────────────────────────────────────────────────────────
+        // 6. Post the closing journal (if anything to close)
+        // ──────────────────────────────────────────────────────────────
+        if !lines.is_empty() {
+            let _serial: (i64,) = sqlx::query_as(
+                r#"
+            SELECT accounting.post_transaction(
+                $1, $2, $3, $4, $5, $6::jsonb
+            )
+            "#,
+            )
+            .bind(format!("CLOSE-{}", end_date.format("%Y%m%d")))
+            .bind(format!(
+                "Period close {} → {} (net income {})",
+                start_date, end_date, net_income
+            ))
+            .bind(user_id)
+            .bind("closing")
+            .bind(end_date) // dated on the last day of the period
+            .bind(serde_json::to_value(&lines).map_err(|e| {
+                AppError::Internal(format!("Failed to serialise closing lines: {e}"))
+            })?)
+            .fetch_one(pool)
+            .await
+            .map_err(AppError::Database)?;
+        }
+
+        // ──────────────────────────────────────────────────────────────
+        // 7. Lock the period
+        // ──────────────────────────────────────────────────────────────
         let updated = sqlx::query(
             r#"
-                UPDATE accounting.financial_periods SET is_open = false,
-                    is_locked = true, updated_at = NOW()
-                    WHERE uuid = $1 AND is_open = true
-            "#,
+        UPDATE accounting.financial_periods
+        SET is_open   = false,
+            is_locked = true,
+            updated_at = NOW()
+        WHERE uuid = $1 AND is_open = true
+        "#,
         )
-        .bind(uuid)
+        .bind(period_uuid)
         .execute(pool)
-        .await?
+        .await
+        .map_err(AppError::Database)?
         .rows_affected();
 
         if updated == 0 {
             return Err(AppError::NotFound(
-                "Period not found or closed already".into(),
+                "Period not found or already closed".into(),
             ));
         }
 
-        // Invalidate cached period
+        // ──────────────────────────────────────────────────────────────
+        // 8. Open the next period (simple +1 month for now)
+        //    Later: read company.period_type and calculate correctly
+        // ──────────────────────────────────────────────────────────────
+        let next_start = end_date
+            .succ_opt()
+            .ok_or_else(|| AppError::Internal("Invalid period end date".into()))?;
+
+        let next_end = next_start
+            .checked_add_months(Months::new(1))
+            .and_then(|d| d.pred_opt())
+            .unwrap_or(next_start);
+
+        sqlx::query(
+            r#"
+        INSERT INTO accounting.financial_periods (
+            start_date, end_date, is_open, is_locked, name
+        )
+        VALUES ($1, $2, true, false, $3)
+        ON CONFLICT (start_date, end_date) DO NOTHING
+        "#,
+        )
+        .bind(next_start)
+        .bind(next_end)
+        .bind(format!("{} to {}", next_start, next_end))
+        .execute(pool)
+        .await
+        .map_err(AppError::Database)?;
+
+        // ──────────────────────────────────────────────────────────────
+        // 9. Invalidate cache
+        // ──────────────────────────────────────────────────────────────
         state.period_cache.invalidate(&company_id).await;
 
         Ok(())
     }
+
+    // async fn close_period(
+    //     &self,
+    //     state: Arc<AppState>,
+    //     uuid: Uuid,
+    //     pool: &PgPool,
+    //     company_id: Uuid,
+    // ) -> Result<(), AppError> {
+    //     let updated = sqlx::query(
+    //         r#"
+    //             UPDATE accounting.financial_periods SET is_open = false,
+    //                 is_locked = true, updated_at = NOW()
+    //                 WHERE uuid = $1 AND is_open = true
+    //         "#,
+    //     )
+    //     .bind(uuid)
+    //     .execute(pool)
+    //     .await?
+    //     .rows_affected();
+
+    //     if updated == 0 {
+    //         return Err(AppError::NotFound(
+    //             "Period not found or closed already".into(),
+    //         ));
+    //     }
+
+    //     // Invalidate cached period
+    //     state.period_cache.invalidate(&company_id).await;
+
+    //     Ok(())
+    // }
 
     async fn create_currency(
         &self,
