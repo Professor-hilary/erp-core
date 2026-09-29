@@ -1,3 +1,4 @@
+-- Active: 1776364611143@@127.0.0.1@5433@tenant_heather_and_group_int_ltd
 -- Create schema
 CREATE SCHEMA IF NOT EXISTS accounting;
 

@@ -539,37 +539,6 @@ impl AccountRepository for PostgresAccountRepo {
         Ok(())
     }
 
-    // async fn close_period(
-    //     &self,
-    //     state: Arc<AppState>,
-    //     uuid: Uuid,
-    //     pool: &PgPool,
-    //     company_id: Uuid,
-    // ) -> Result<(), AppError> {
-    //     let updated = sqlx::query(
-    //         r#"
-    //             UPDATE accounting.financial_periods SET is_open = false,
-    //                 is_locked = true, updated_at = NOW()
-    //                 WHERE uuid = $1 AND is_open = true
-    //         "#,
-    //     )
-    //     .bind(uuid)
-    //     .execute(pool)
-    //     .await?
-    //     .rows_affected();
-
-    //     if updated == 0 {
-    //         return Err(AppError::NotFound(
-    //             "Period not found or closed already".into(),
-    //         ));
-    //     }
-
-    //     // Invalidate cached period
-    //     state.period_cache.invalidate(&company_id).await;
-
-    //     Ok(())
-    // }
-
     async fn create_currency(
         &self,
         pool: &PgPool,
