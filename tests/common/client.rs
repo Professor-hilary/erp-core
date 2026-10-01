@@ -29,15 +29,15 @@ impl TestClient {
         }
     }
 
-    fn auth(&self) -> String {
-        format!("Bearer {}", self.access)
-    }
+    // fn auth(&self) -> String {
+    //     format!("Bearer {}", self.access)
+    // }
 
     pub async fn post(&self, path: &str, body: Value) -> Result<(StatusCode, Value)> {
         let res = self
             .http
             .post(format!("{BASE}{path}"))
-            .header("Authorization", self.auth())
+            .header("Authorization", format!("Bearer {}", self.access))
             .header("Content-Type", "application/json")
             .json(&body)
             .send()
@@ -51,7 +51,7 @@ impl TestClient {
         let res = self
             .http
             .get(format!("{BASE}{path}"))
-            .header("Authorization", self.auth())
+            .header("Authorization", format!("Bearer {}", self.access))
             .send()
             .await?;
         let status = res.status();
@@ -63,7 +63,7 @@ impl TestClient {
         let res = self
             .http
             .patch(format!("{BASE}{path}"))
-            .header("Authorization", self.auth())
+            .header("Authorization", format!("Bearer {}", self.access))
             .header("Content-Type", "application/json")
             .json(&body)
             .send()

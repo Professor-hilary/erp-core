@@ -276,4 +276,167 @@ impl TestContext {
         }
         Ok(())
     }
+
+    pub async fn seed_workforce(&mut self) -> Result<()> {
+        // Departments
+        for (name, desc) in [
+            ("Production", "Manufacturing floor"),
+            ("Sales", "Order to cash"),
+            ("Finance", "Accounts and payroll"),
+            ("Warehouse", "Inventory and logistics"),
+            ("Administration", "HR and office"),
+        ] {
+            let (_s, v) = self
+                .client
+                .post(
+                    "/api/workforce/create/department",
+                    json!({ "name": name, "description": desc }),
+                )
+                .await?;
+            let _ = v; // store dept ids if your API returns them
+        }
+
+        // Job titles
+        for title in [
+            "Managing Director",
+            "Production Manager",
+            "Sales Executive",
+            "Accountant",
+            "Warehouse Supervisor",
+            "Machine Operator",
+            "Quality Controller",
+            "Driver",
+            "Admin Officer",
+            "Technician",
+        ] {
+            let _ = self
+                .client
+                .post(
+                    "/api/workforce/create/jobtitle",
+                    json!({ "title": title, "description": title }),
+                )
+                .await?;
+        }
+
+        // Employees (≥10 from PEOPLE with role employee)
+        for p in fixtures::PEOPLE.iter().filter(|p| p.role == "employee") {
+            let (status, v) = self
+                .client
+                .post(
+                    "/api/workforce/create/employee",
+                    json!({
+                        "first_name": p.first_name,
+                        "last_name": p.last_name,
+                        "email": p.email,
+                        "phone_number": p.phone,
+                        "hire_date": "2025-01-15",
+                        "employment_type": "full_time",
+                        "salary": "1500000",
+                        "pay_frequency": "monthly",
+                        "status": "active"
+                    }),
+                )
+                .await?;
+            if status.is_success() || status.as_u16() == 201 {
+                if let Ok(id) = extract_uuid(&v, &["data", "uuid"]) {
+                    self.employees.insert(p.key.to_string(), id);
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Capital parties: owners, shareholders, lenders (people + institutions).
+    pub async fn seed_capital_parties(&mut self) -> Result<()> {
+        // Individual parties
+        for p in fixtures::PEOPLE
+            .iter()
+            .filter(|p| matches!(p.role, "owner" | "shareholder" | "lender_contact" | "board"))
+        {
+            let _ = self
+                .client
+                .post(
+                    "/api/capital/party",
+                    json!({
+                        "name": format!("{} {}", p.first_name, p.last_name),
+                        "party_type": p.role,
+                        "email": p.email,
+                        "phone": p.phone,
+                        "is_individual": true
+                    }),
+                )
+                .await?;
+        }
+
+        // Institutional parties (banks, lenders, investors)
+        for inst in fixtures::INSTITUTIONS
+            .iter()
+            .filter(|i| matches!(i.kind, "bank" | "lender" | "investor"))
+        {
+            let _ = self
+                .client
+                .post(
+                    "/api/capital/party",
+                    json!({
+                        "name": inst.name,
+                        "party_type": inst.kind,
+                        "email": inst.email,
+                        "tax_id": inst.tax_id,
+                        "is_individual": false
+                    }),
+                )
+                .await?;
+        }
+        Ok(())
+    }
+
+    /// Vendors (suppliers) + customers from institutions.
+    pub async fn seed_trading_partners(&mut self) -> Result<()> {
+        for inst in fixtures::INSTITUTIONS
+            .iter()
+            .filter(|i| i.kind == "supplier")
+        {
+            let (status, v) = self
+                .client
+                .post(
+                    "/api/procurement/vendors", // adjust path to your real route
+                    json!({
+                        "name": inst.name,
+                        "email": inst.email,
+                        "tax_id": inst.tax_id,
+                        "currency": "UGX"
+                    }),
+                )
+                .await?;
+            if status.is_success() || status.as_u16() == 201 {
+                if let Ok(id) = extract_uuid(&v, &["data", "uuid"]) {
+                    self.vendors.insert(inst.key.to_string(), id);
+                }
+            }
+        }
+
+        for inst in fixtures::INSTITUTIONS
+            .iter()
+            .filter(|i| i.kind == "customer")
+        {
+            let (status, v) = self
+                .client
+                .post(
+                    "/api/sales/customers", // adjust path
+                    json!({
+                        "name": inst.name,
+                        "email": inst.email,
+                        "tax_id": inst.tax_id,
+                        "currency": "UGX"
+                    }),
+                )
+                .await?;
+            if status.is_success() || status.as_u16() == 201 {
+                if let Ok(id) = extract_uuid(&v, &["data", "uuid"]) {
+                    self.customers.insert(inst.key.to_string(), id);
+                }
+            }
+        }
+        Ok(())
+    }
 }
