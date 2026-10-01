@@ -1,3 +1,5 @@
+use crate::common::fixtures;
+
 use anyhow::{Context, Result, bail};
 use bigdecimal::BigDecimal;
 use chrono::NaiveDate;

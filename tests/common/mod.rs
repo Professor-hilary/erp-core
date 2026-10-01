@@ -1,5 +1,5 @@
 pub mod client;
-pub use context;
+pub mod context;
 pub mod fixtures;
 
 pub use client::*;
