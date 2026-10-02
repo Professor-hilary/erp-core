@@ -1,10 +1,12 @@
 mod common;
+use std::error::Error;
+
 use anyhow::Result;
 use common::TestContext;
 
 #[tokio::test]
-async fn period_close() -> Result<()> {
-    let mut ctx = TestContext::bootstrap_sme("manufacturing").await?;
+async fn period_close() -> Result<(), Box<dyn Error + Send + Sync>> {
+    let mut ctx = TestContext::from_saved_state().await?;
     ctx.raise_capital("25_000_000").await?;
     ctx.set_opening_balances().await?;
 
@@ -18,5 +20,6 @@ async fn period_close() -> Result<()> {
     // ctx.close_current_period().await?;
 
     ctx.assert_trial_balance_ok("2025-01-31").await?;
+    let _ = ctx.save_state();
     Ok(())
 }

@@ -1,10 +1,12 @@
 mod common;
+use std::error::Error;
+
 use anyhow::Result;
 use common::TestContext;
 
 #[tokio::test]
-async fn financial_statements_smoke() -> Result<()> {
-    let mut ctx = TestContext::bootstrap_sme("manufacturing").await?;
+async fn financial_statements_smoke() -> Result<(), Box<dyn Error + Send + Sync>> {
+    let mut ctx = TestContext::from_saved_state().await?;
     ctx.raise_capital("25_000_000").await?;
     ctx.set_opening_balances().await?;
 
@@ -22,5 +24,6 @@ async fn financial_statements_smoke() -> Result<()> {
         );
         println!("✓ {path}");
     }
+    let _ = ctx.save_state();
     Ok(())
 }

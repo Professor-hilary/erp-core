@@ -1,21 +1,29 @@
 mod common;
+use std::error::Error;
+
 use anyhow::Result;
-use common::{fixtures, TestContext};
+use common::{TestContext, fixtures};
 
 #[tokio::test]
-async fn seed_all_stakeholders_and_institutions() -> Result<()> {
-    let mut ctx = TestContext::bootstrap_sme("manufacturing").await?;
+async fn seed_all_stakeholders_and_institutions() -> Result<(), Box<dyn Error + Send + Sync>> {
+    let mut ctx: TestContext = TestContext::from_saved_state().await.map_err(|e| e)?;
 
     ctx.seed_workforce().await?;
     ctx.seed_capital_parties().await?;
     ctx.seed_trading_partners().await?;
+    let _ = ctx
+        .save_state()
+        .map_err(|_e| format!("Failed to save company state")); // persist new stakeholder ids
 
     // Soft expectations: we created the fixture set even if some routes 404 until wired
-    println!("✓ people in fixtures: {}", fixtures::PEOPLE.len());
-    println!("✓ institutions in fixtures: {}", fixtures::INSTITUTIONS.len());
-    println!("✓ employees created: {}", ctx.employees.len());
-    println!("✓ vendors created: {}", ctx.vendors.len());
-    println!("✓ customers created: {}", ctx.customers.len());
+    println!(
+        "✓ people in fixtures: {} -  institutions in fixtures={} employees={} customers={} vendors={}",
+        fixtures::PEOPLE.len(),
+        fixtures::INSTITUTIONS.len(),
+        ctx.employees.len(),
+        ctx.customers.len(),
+        ctx.vendors.len(),
+    );
 
     assert!(
         fixtures::PEOPLE.len() >= 25,

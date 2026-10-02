@@ -20,6 +20,7 @@ pub struct Institution {
 /// ≥25 individuals used across the suite
 pub const PEOPLE: &[Person] = &[
     Person { key: "owner_hilary", first_name: "Hilary", last_name: "Okuonzi", email: "hilary.owner@test.local", phone: "+256700000001", role: "owner" },
+    Person { key: "owner_heather", first_name: "Heather", last_name: "Erica", email: "heather.owner@test.local", phone: "+256700000027", role: "owner" },
     Person { key: "owner_sarah", first_name: "Sarah", last_name: "Nambi", email: "sarah.owner@test.local", phone: "+256700000002", role: "owner" },
     Person { key: "sh_james", first_name: "James", last_name: "Okello", email: "james.sh@test.local", phone: "+256700000003", role: "shareholder" },
     Person { key: "sh_grace", first_name: "Grace", last_name: "Achieng", email: "grace.sh@test.local", phone: "+256700000004", role: "shareholder" },
