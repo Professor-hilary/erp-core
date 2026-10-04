@@ -65,7 +65,7 @@ impl TestContext {
             "industry": industry,
             "country": "UG",
             "currency": "UGX",
-            "business_type": "services",
+            "business_type": "manufacturing",
             "period_type": "yearly",
             "period_start": "2025-01-01"
         });
@@ -351,7 +351,7 @@ impl TestContext {
         // Individual parties
         for p in fixtures::PEOPLE
             .iter()
-            .filter(|p| matches!(p.role, "owner" | "shareholder" | "lender_contact" | "board"))
+            .filter(|p: &&fixtures::Person| matches!(p.role, "owner" | "shareholder" | "lender_contact" | "board"))
         {
             let _ = self
                 .client
@@ -399,12 +399,10 @@ impl TestContext {
             let (status, v) = self
                 .client
                 .post(
-                    "/api/procurement/vendors", // adjust path to your real route
+                    "/api/procurement/create/vendor", // adjust path to your real route
                     json!({
                         "name": inst.name,
                         "email": inst.email,
-                        "tax_id": inst.tax_id,
-                        "currency": "UGX"
                     }),
                 )
                 .await?;
@@ -422,12 +420,10 @@ impl TestContext {
             let (status, v) = self
                 .client
                 .post(
-                    "/api/sales/customers", // adjust path
+                    "/api/sales/create/customer", // adjust path
                     json!({
                         "name": inst.name,
                         "email": inst.email,
-                        "tax_id": inst.tax_id,
-                        "currency": "UGX"
                     }),
                 )
                 .await?;

@@ -1,13 +1,11 @@
 mod common;
-use std::error::Error;
-
-use anyhow::Result;
 use common::TestContext;
 
+use crate::common::E2eResult;
+
 #[tokio::test]
-async fn financial_statements_smoke() -> Result<(), Box<dyn Error + Send + Sync>> {
+async fn financial_statements_smoke() -> E2eResult<()>{
     let mut ctx = TestContext::from_saved_state().await?;
-    ctx.raise_capital("25_000_000").await?;
     ctx.set_opening_balances().await?;
 
     for path in [

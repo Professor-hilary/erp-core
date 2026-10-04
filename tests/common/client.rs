@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use reqwest::{Client, StatusCode};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use uuid::Uuid;
 
 pub const BASE: &str = "http://127.0.0.1:8080";
@@ -28,10 +28,6 @@ impl TestClient {
             refresh,
         }
     }
-
-    // fn auth(&self) -> String {
-    //     format!("Bearer {}", self.access)
-    // }
 
     pub async fn post(&self, path: &str, body: Value) -> Result<(StatusCode, Value)> {
         let res = self

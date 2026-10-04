@@ -1,14 +1,12 @@
 mod common;
-use std::error::Error;
-
-use anyhow::Result;
 use common::TestContext;
 
+use crate::common::E2eResult;
+
 #[tokio::test]
-async fn period_close() -> Result<(), Box<dyn Error + Send + Sync>> {
+async fn period_close() -> E2eResult<()> {
     let mut ctx = TestContext::from_saved_state().await?;
-    ctx.raise_capital("25_000_000").await?;
-    ctx.set_opening_balances().await?;
+    // ctx.set_opening_balances().await?;
 
     // small activity so close has nominal balances
     if let (Some(cash), Some(equity)) = (ctx.account_uuid("110200"), ctx.account_uuid("310000")) {

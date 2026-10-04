@@ -29,7 +29,7 @@ impl E2eState {
 
     pub fn save(&self) -> Result<(), Box<dyn Error + Send + Sync>> {
         if let Some(dir) = Self::path().parent() {
-            std::fs::create_dir_all(dir);
+            std::fs::create_dir_all(dir)?;
         }
         let json = serde_json::to_string_pretty(self)?;
         std::fs::write(Self::path(), json)?;

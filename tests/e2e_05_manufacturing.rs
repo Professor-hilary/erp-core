@@ -1,14 +1,12 @@
 mod common;
-use std::error::Error;
-
-use anyhow::Result;
 use common::TestContext;
+
+use crate::common::E2eResult;
 
 #[tokio::test]
 #[ignore = "enable when manufacturing APIs are stable"]
-async fn manufacturing_flow() -> Result<(), Box<dyn Error + Send + Sync>> {
+async fn manufacturing_flow() -> E2eResult<()> {
     let mut ctx = TestContext::from_saved_state().await?;
-    ctx.raise_capital("40_000_000").await?;
     ctx.set_opening_balances().await?;
     ctx.seed_workforce().await?;
 

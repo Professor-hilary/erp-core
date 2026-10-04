@@ -1,16 +1,17 @@
 mod common;
-use std::error::Error;
-
-use anyhow::Result;
-use common::TestContext;
+use common::{E2eResult, TestContext};
 
 #[tokio::test]
-async fn opening_balances() -> Result<(), Box<dyn Error + Send + Sync>> {
+async fn opening_balances() -> E2eResult<()> {
     let mut ctx = TestContext::from_saved_state().await?;
-    ctx.raise_capital("30_000_000").await?;
-    let opening = ctx.set_opening_balances().await?;
-    ctx.assert_trial_balance_ok("2025-01-01").await?;
-    let _ = ctx.save_state();
+    let opening = ctx
+        .set_opening_balances()
+        .await
+        .map_err(|e| e.to_string())?;
+    ctx.save_state()?;
+    ctx.assert_trial_balance_ok("2025-01-01")
+        .await
+        .map_err(|e| e.to_string())?;
     println!("✓ opening {opening}");
     Ok(())
 }
