@@ -2,16 +2,18 @@ use anyhow::{Context, Result};
 use reqwest::{Client, StatusCode};
 use serde_json::{Value, json};
 use uuid::Uuid;
-
+#[allow(dead_code)]
 pub const BASE: &str = "http://127.0.0.1:8080";
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct TestClient {
     pub http: Client,
     pub access: String,
     pub refresh: String,
 }
 
+#[allow(dead_code)]
 impl TestClient {
     pub fn new() -> Self {
         Self {
@@ -70,6 +72,7 @@ impl TestClient {
     }
 }
 
+#[allow(dead_code)]
 pub fn extract_tokens(resp: &Value) -> Result<(String, String)> {
     let meta = resp.get("meta").context("missing meta")?;
     let access = meta["access_token"]
@@ -83,6 +86,7 @@ pub fn extract_tokens(resp: &Value) -> Result<(String, String)> {
     Ok((access, refresh))
 }
 
+#[allow(dead_code)]
 pub fn extract_uuid(v: &Value, path: &[&str]) -> Result<Uuid> {
     let mut cur = v;
     for key in path {

@@ -5,7 +5,7 @@ use crate::common::E2eResult;
 
 #[tokio::test]
 async fn period_close() -> E2eResult<()> {
-    let mut ctx = TestContext::from_saved_state().await?;
+    let ctx = TestContext::from_saved_state().await?;
     // ctx.set_opening_balances().await?;
 
     // small activity so close has nominal balances

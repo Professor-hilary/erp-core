@@ -1,7 +1,8 @@
-use crate::common::fixtures;
+use crate::common::fixtures::{self, Person};
 
 use anyhow::{Context, Result, bail};
 use chrono::NaiveDate;
+use reqwest::{Response, StatusCode};
 use serde_json::{Value, json};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -11,6 +12,7 @@ use super::client::{BASE, TestClient, extract_tokens, extract_uuid};
 /// Shared state for one realistic company lifecycle.
 /// Add fields as new modules come online (employees, items, etc.).
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct TestContext {
     pub client: TestClient,
     pub user_id: Uuid,
@@ -23,11 +25,12 @@ pub struct TestContext {
     pub vendors: HashMap<String, Uuid>,
 }
 
+#[allow(dead_code)]
 impl TestContext {
     // =========================================================================
     // 1. bootstrap_sme
     // =========================================================================
-    /// Register unique user → create company (tenant + COA + first period).
+    /// Register unique user -> create company (tenant + COA + first period).
     pub async fn bootstrap_sme(industry: &str) -> Result<Self> {
         let stamp = chrono::Utc::now().timestamp_millis();
         let email = format!("sme_{stamp}@test.local");
@@ -42,31 +45,32 @@ impl TestContext {
             "first_name": "Test",
             "other_name": "Owner"
         });
-        let reg_res = http
+        let reg_res: Response = http
             .post(format!("{BASE}/api/auth/register"))
             .json(&reg_body)
             .send()
             .await?;
-        let reg_status = reg_res.status();
+        let reg_status: StatusCode = reg_res.status();
         let reg_json: Value = reg_res.json().await?;
         if !reg_status.is_success() && reg_status.as_u16() != 201 {
+            println!("Failed auth");
             bail!("register failed ({reg_status}): {reg_json}");
         }
         let (access, refresh) = extract_tokens(&reg_json)?;
-        let mut client = TestClient::with_tokens(access, refresh);
+        let mut client: TestClient = TestClient::with_tokens(access, refresh);
 
         let user_id = extract_uuid(&reg_json, &["data", "user", "uuid"])
             .or_else(|_| extract_uuid(&reg_json, &["data", "uuid"]))
             .unwrap_or(Uuid::nil());
 
         // Create company
-        let company_body = json!({
+        let company_body: Value = json!({
             "name": company_name,
             "industry": industry,
             "country": "UG",
             "currency": "UGX",
             "business_type": "manufacturing",
-            "period_type": "yearly",
+            "period_type": "Yearly",
             "period_start": "2025-01-01"
         });
         let (status, company_json) = client.post("/api/companies/create", company_body).await?;
@@ -78,8 +82,8 @@ impl TestContext {
         client.access = access;
         client.refresh = refresh;
 
-        let company_id = extract_uuid(&company_json, &["data", "uuid"])?;
-        let accounts = Self::load_account_map(&client).await?;
+        let company_id: Uuid = extract_uuid(&company_json, &["data", "uuid"])?;
+        let accounts: HashMap<String, Uuid> = Self::load_account_map(&client).await?;
 
         Ok(TestContext {
             client,
@@ -174,7 +178,7 @@ impl TestContext {
 
         let open = arr
             .iter()
-            .find(|p| p["is_open"].as_bool() == Some(true))
+            .find(|period| period["is_open"].as_bool() == Some(true))
             .context("no open financial period found")?;
 
         let period_id = open["uuid"]
@@ -204,11 +208,11 @@ impl TestContext {
     // =========================================================================
 
     async fn load_account_map(client: &TestClient) -> Result<HashMap<String, Uuid>> {
-        let (status, v) = client.get("/api/accounts/list").await?;
+        let (status, value) = client.get("/api/accounts/list").await?;
         if !status.is_success() {
-            bail!("list accounts failed ({status}): {v}");
+            bail!("list accounts failed ({status}): {value}");
         }
-        let arr = v["data"]
+        let arr = value["data"]
             .as_array()
             .context("accounts data is not an array")?;
         let mut map = HashMap::new();
@@ -257,13 +261,13 @@ impl TestContext {
             "lines": line_objs
         });
 
-        let (status, v) = self.client.post("/api/transactions/create", body).await?;
+        let (status, value) = self.client.post("/api/transactions/create", body).await?;
         if !status.is_success() && status.as_u16() != 201 {
-            bail!("create journal failed ({status}): {v}");
+            bail!("create journal failed ({status}): {value}");
         }
 
-        extract_uuid(&v, &["data", "header", "uuid"])
-            .or_else(|_| extract_uuid(&v, &["data", "uuid"]))
+        extract_uuid(&value, &["data", "header", "uuid"])
+            .or_else(|_| extract_uuid(&value, &["data", "uuid"]))
     }
 
     pub async fn assert_trial_balance_ok(&self, as_of: &str) -> Result<()> {
@@ -286,14 +290,14 @@ impl TestContext {
             ("Warehouse", "Inventory and logistics"),
             ("Administration", "HR and office"),
         ] {
-            let (_s, v) = self
+            let (_s, value) = self
                 .client
                 .post(
                     "/api/workforce/create/department",
                     json!({ "name": name, "description": desc }),
                 )
                 .await?;
-            let _ = v; // store dept ids if your API returns them
+            let _ = value; // store dept ids if your API returns them
         }
 
         // Job titles
@@ -319,16 +323,16 @@ impl TestContext {
         }
 
         // Employees (≥10 from PEOPLE with role employee)
-        for p in fixtures::PEOPLE.iter().filter(|p| p.role == "employee") {
-            let (status, v) = self
+        for person in fixtures::PEOPLE.iter().filter(|person| person.role == "employee") {
+            let (status, value) = self
                 .client
                 .post(
                     "/api/workforce/create/employee",
                     json!({
-                        "first_name": p.first_name,
-                        "last_name": p.last_name,
-                        "email": p.email,
-                        "phone_number": p.phone,
+                        "first_name": person.first_name,
+                        "last_name": person.last_name,
+                        "email": person.email,
+                        "phone_number": person.phone,
                         "hire_date": "2025-01-15",
                         "employment_type": "full_time",
                         "salary": "1500000",
@@ -338,8 +342,8 @@ impl TestContext {
                 )
                 .await?;
             if status.is_success() || status.as_u16() == 201 {
-                if let Ok(id) = extract_uuid(&v, &["data", "uuid"]) {
-                    self.employees.insert(p.key.to_string(), id);
+                if let Ok(id) = extract_uuid(&value, &["data", "uuid"]) {
+                    self.employees.insert(person.key.to_string(), id);
                 }
             }
         }
@@ -349,19 +353,18 @@ impl TestContext {
     /// Capital parties: owners, shareholders, lenders (people + institutions).
     pub async fn seed_capital_parties(&mut self) -> Result<()> {
         // Individual parties
-        for p in fixtures::PEOPLE
-            .iter()
-            .filter(|p: &&fixtures::Person| matches!(p.role, "owner" | "shareholder" | "lender_contact" | "board"))
-        {
+        for person in fixtures::PEOPLE.iter().filter(|person: &&Person|
+            matches!(person.role, "owner" | "shareholder" | "lender_contact" | "board")
+        ) {
             let _ = self
                 .client
                 .post(
                     "/api/capital/party",
                     json!({
-                        "name": format!("{} {}", p.first_name, p.last_name),
-                        "party_type": p.role,
-                        "email": p.email,
-                        "phone": p.phone,
+                        "name": format!("{} {}", person.first_name, person.last_name),
+                        "party_type": person.role,
+                        "email": person.email,
+                        "phone": person.phone,
                         "is_individual": true
                     }),
                 )
@@ -371,7 +374,7 @@ impl TestContext {
         // Institutional parties (banks, lenders, investors)
         for inst in fixtures::INSTITUTIONS
             .iter()
-            .filter(|i| matches!(i.kind, "bank" | "lender" | "investor"))
+            .filter(|institute| matches!(institute.kind, "bank" | "lender" | "investor"))
         {
             let _ = self
                 .client
@@ -394,9 +397,9 @@ impl TestContext {
     pub async fn seed_trading_partners(&mut self) -> Result<()> {
         for inst in fixtures::INSTITUTIONS
             .iter()
-            .filter(|i| i.kind == "supplier")
+            .filter(|institute| institute.kind == "supplier")
         {
-            let (status, v) = self
+            let (status, value) = self
                 .client
                 .post(
                     "/api/procurement/create/vendor", // adjust path to your real route
@@ -407,7 +410,7 @@ impl TestContext {
                 )
                 .await?;
             if status.is_success() || status.as_u16() == 201 {
-                if let Ok(id) = extract_uuid(&v, &["data", "uuid"]) {
+                if let Ok(id) = extract_uuid(&value, &["data", "uuid"]) {
                     self.vendors.insert(inst.key.to_string(), id);
                 }
             }
@@ -415,9 +418,9 @@ impl TestContext {
 
         for inst in fixtures::INSTITUTIONS
             .iter()
-            .filter(|i| i.kind == "customer")
+            .filter(|institute| institute.kind == "customer")
         {
-            let (status, v) = self
+            let (status, value) = self
                 .client
                 .post(
                     "/api/sales/create/customer", // adjust path
@@ -428,7 +431,7 @@ impl TestContext {
                 )
                 .await?;
             if status.is_success() || status.as_u16() == 201 {
-                if let Ok(id) = extract_uuid(&v, &["data", "uuid"]) {
+                if let Ok(id) = extract_uuid(&value, &["data", "uuid"]) {
                     self.customers.insert(inst.key.to_string(), id);
                 }
             }

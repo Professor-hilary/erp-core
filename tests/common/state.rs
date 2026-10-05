@@ -22,6 +22,7 @@ pub struct E2eState {
     pub vendors: HashMap<String, Uuid>,
 }
 
+#[allow(dead_code)]
 impl E2eState {
     pub fn path() -> PathBuf {
         PathBuf::from(STATE_FILE)
@@ -43,6 +44,7 @@ impl E2eState {
     }
 }
 
+#[allow(dead_code)]
 impl TestContext {
     /// Persist after onboarding (or after any phase that mutes maps)
     pub fn save_state(&self) -> Result<(), Box<dyn Error + Send + Sync>> {

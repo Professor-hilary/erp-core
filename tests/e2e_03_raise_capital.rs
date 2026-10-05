@@ -28,7 +28,7 @@ async fn raise_equity() -> E2eResult<()> {
     assert!(s.is_success(), "get journal: {body}");
 
     // optional: list brief contains this uuid
-    let (s, list) = ctx.client.get("/api/transactions/list/brief").await?;
+    let (s, _list) = ctx.client.get("/api/transactions/list/brief").await?;
     assert!(s.is_success());
     Ok(())
 }

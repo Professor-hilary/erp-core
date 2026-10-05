@@ -24,13 +24,13 @@ async fn seed_all_stakeholders_and_institutions() -> E2eResult<()> {
         "expected employees after seed"
     );
 
-    let (s, v) = ctx.client.get("/api/capital/party").await?;
+    let (s, _v) = ctx.client.get("/api/capital/party").await?;
     assert!(s.is_success());
 
-    let (s, v) = ctx.client.get("/api/procurement/list/vendors").await?;
+    let (s, _v) = ctx.client.get("/api/procurement/list/vendors").await?;
     assert!(s.is_success());
 
-    let (s, v) = ctx.client.get("/api/sales/list/customers").await?;
+    let (s, _v) = ctx.client.get("/api/sales/list/customers").await?;
     assert!(s.is_success());
 
     println!(
