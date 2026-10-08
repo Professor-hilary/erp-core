@@ -3,7 +3,7 @@ use common::{E2eResult, TestContext, fixtures};
 
 #[tokio::test]
 async fn seed_all_stakeholders_and_institutions() -> E2eResult<()> {
-    let mut ctx = TestContext::from_saved_state().await?;
+    let mut ctx: TestContext = TestContext::from_saved_state().await?;
 
     ctx.seed_workforce().await.map_err(|e| e.to_string())?;
     ctx.seed_capital_parties()

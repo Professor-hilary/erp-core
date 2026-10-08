@@ -334,10 +334,9 @@ impl TestContext {
                         "email": person.email,
                         "phone_number": person.phone,
                         "hire_date": "2025-01-15",
-                        "employment_type": "full_time",
+                        "employment_type": "Full-time",   // ← exact match
                         "salary": "1500000",
-                        "pay_frequency": "monthly",
-                        "status": "active"
+                        "pay_frequency": "Monthly"        // ← exact match
                     }),
                 )
                 .await?;
