@@ -69,20 +69,16 @@ class DlibRFStrategy : public RecommendationStrategy {
         // from dlib)
         std::vector<std::pair<std::string, double>> contribs;
         for (const auto& f : feature_order) {
-            contribs.emplace_back(f,
-                                  0.15 + (rand() % 30) / 100.0);  // placeholder
+            contribs.emplace_back(f, 0.15 + (rand() % 30) / 100.0);  // placeholder
         }
 
-        return {action, conf, "dlib RF regression score → mapped action",
-                contribs};
+        return {action, conf, "dlib RF regression score → mapped action", contribs};
     }
 };
 
 // Placeholder for other strategies (expand later)
-class WeightedScoringStrategy : public RecommendationStrategy { /* ... */
-};
-class ControlFlowStrategy : public RecommendationStrategy { /* ... */
-};
+class WeightedScoringStrategy : public RecommendationStrategy { /* ... */ };
+class ControlFlowStrategy : public RecommendationStrategy { /* ... */ };
 // etc.
 
 // Main engine implementation
@@ -126,8 +122,7 @@ class RecommendationEngineImpl : public RecommendationEngine {
 
         // Audit
         json log_entry = {
-            {"timestamp",
-             std::chrono::system_clock::now().time_since_epoch().count()},
+            {"timestamp", std::chrono::system_clock::now().time_since_epoch().count()},
             {"context", context_type},
             {"action", rec.action},
             {"confidence", rec.confidence},

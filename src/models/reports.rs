@@ -5,7 +5,7 @@ use sqlx::FromRow;
 use uuid::Uuid;
 
 #[allow(unused)]
-#[derive(sqlx::FromRow, serde::Serialize)]
+#[derive(FromRow, Serialize)]
 pub struct AgingEntry {
     pub customer_name: String,
     pub current: i64,
@@ -15,7 +15,7 @@ pub struct AgingEntry {
     pub days_120_plus: i64,
 }
 
-#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+#[derive(Debug, Serialize, Deserialize, FromRow)]
 pub struct BalanceSheetCompareRow {
     pub code: String,
     pub name: String,
@@ -27,7 +27,7 @@ pub struct BalanceSheetCompareRow {
     pub delta: BigDecimal,
 }
 
-#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+#[derive(Debug, Serialize, Deserialize, FromRow)]
 pub struct BalanceSheetRow {
     pub code: String,
     pub name: String,
@@ -38,7 +38,7 @@ pub struct BalanceSheetRow {
 }
 
 #[allow(unused)]
-#[derive(Debug, sqlx::FromRow, Clone)]
+#[derive(Debug, FromRow, Clone)]
 pub struct CashFlowRow {
     pub transaction_uuid: Uuid,
     pub transaction_entry_uuid: Option<Uuid>,
@@ -50,12 +50,12 @@ pub struct CashFlowRow {
     pub txn_date: NaiveDate,
 }
 
-#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+#[derive(Debug, Serialize, Deserialize, FromRow)]
 pub struct EquityChangeRow {
     pub code: String,
     pub name: String,
     pub description: String,
-    pub amount: f64,
+    pub amount: Option<BigDecimal>,
 }
 
 #[derive(FromRow, Serialize, Debug)]
@@ -66,8 +66,8 @@ pub struct CashbookRowDto {
     pub account_uuid: Uuid,
     pub account_code: String,
     pub account_name: String,
-    pub debit: sqlx::types::BigDecimal,
-    pub credit: sqlx::types::BigDecimal,
+    pub debit: BigDecimal,
+    pub credit: BigDecimal,
     pub memo: Option<String>,
 }
 
@@ -80,8 +80,8 @@ pub struct ArAgingDto {
     pub invoice_number: String,
     pub issue_date: NaiveDate,
     pub due_date: NaiveDate,
-    pub total_amount: sqlx::types::BigDecimal,
-    pub balance_due: sqlx::types::BigDecimal,
+    pub total_amount: BigDecimal,
+    pub balance_due: BigDecimal,
     pub days_overdue: i64,
     pub aging_bucket: String,
 }
@@ -95,8 +95,8 @@ pub struct ApAgingDto {
     pub bill_number: String,
     pub bill_date: NaiveDate,
     pub due_date: NaiveDate,
-    pub total_amount: sqlx::types::BigDecimal,
-    pub balance_due: sqlx::types::BigDecimal,
+    pub total_amount: BigDecimal,
+    pub balance_due: BigDecimal,
     pub days_overdue: i64,
     pub aging_bucket: String,
 }
@@ -108,11 +108,11 @@ pub struct PayrollSummaryDto {
     pub pay_period_end: NaiveDate,
     pub payment_date: Option<NaiveDate>,
     pub employees_paid: i64,
-    pub total_gross: sqlx::types::BigDecimal,
-    pub total_tax: sqlx::types::BigDecimal,
-    pub total_social_security: sqlx::types::BigDecimal,
-    pub total_other_deductions: sqlx::types::BigDecimal,
-    pub total_net: sqlx::types::BigDecimal,
+    pub total_gross: BigDecimal,
+    pub total_tax: BigDecimal,
+    pub total_social_security: BigDecimal,
+    pub total_other_deductions: BigDecimal,
+    pub total_net: BigDecimal,
     pub status: String,
 }
 
@@ -123,9 +123,9 @@ pub struct InventoryValuationDto {
     pub name: String,
     pub category: Option<String>,
     pub unit: Option<String>,
-    pub quantity_on_hand: sqlx::types::BigDecimal,
-    pub cost_price: sqlx::types::BigDecimal,
-    pub total_value: sqlx::types::BigDecimal,
+    pub quantity_on_hand: BigDecimal,
+    pub cost_price: BigDecimal,
+    pub total_value: BigDecimal,
     pub reorder_level: Option<i64>,
     pub needs_reorder: bool,
 }
@@ -138,16 +138,16 @@ pub struct CustomerStatementDto {
     pub invoice_number: Option<String>,
     pub issue_date: Option<NaiveDate>,
     pub due_date: Option<NaiveDate>,
-    pub total_amount: Option<sqlx::types::BigDecimal>,
-    pub balance_due: Option<sqlx::types::BigDecimal>,
+    pub total_amount: Option<BigDecimal>,
+    pub balance_due: Option<BigDecimal>,
     pub invoice_status: Option<String>,
     pub payment_serial_id: Option<i64>,
     pub payment_number: Option<String>,
-    pub payment_amount: Option<sqlx::types::BigDecimal>,
+    pub payment_amount: Option<BigDecimal>,
     pub payment_date: Option<NaiveDate>,
 }
 
-#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+#[derive(Debug, Serialize, Deserialize, FromRow)]
 pub struct TrialBalanceRow {
     pub code: String,
     pub name: String,
@@ -157,7 +157,7 @@ pub struct TrialBalanceRow {
     pub balance: BigDecimal,
 }
 
-#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+#[derive(Debug, Serialize, Deserialize, FromRow)]
 pub struct SimpleReportRow {
     pub code: String,
     pub name: String,
@@ -165,7 +165,7 @@ pub struct SimpleReportRow {
     pub balance: BigDecimal,
 }
 
-#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+#[derive(Debug, Serialize, Deserialize, FromRow)]
 pub struct IncomeStatementRow {
     pub code: String,
     pub name: String,
@@ -175,7 +175,7 @@ pub struct IncomeStatementRow {
     pub balance: BigDecimal,
 }
 
-#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+#[derive(Debug, Serialize, Deserialize, FromRow)]
 pub struct FlatAccount {
     pub code: String,
     pub name: String,
@@ -186,7 +186,7 @@ pub struct FlatAccount {
     pub balance: BigDecimal,
 }
 
-#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+#[derive(Debug, Serialize, Deserialize, FromRow)]
 pub struct Node {
     pub code: String,
     pub name: String,
@@ -195,29 +195,23 @@ pub struct Node {
     pub children: Vec<Node>,
 }
 
-// #[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
-// pub struct CashFlowRow {
-//     pub cash_flow_category: Option<String>,
-//     pub total: BigDecimal,
-// }
-
-#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+#[derive(Debug, Serialize, Deserialize, FromRow)]
 pub struct CashBalanceRow {
     pub opening_cash: BigDecimal,
 }
 
-#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+#[derive(Debug, Serialize, Deserialize, FromRow)]
 pub struct BalanceDeltaRow {
     pub account_type: String,
     pub delta: BigDecimal,
 }
 
-#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+#[derive(Debug, Serialize, Deserialize, FromRow)]
 pub struct NonCashRow {
     pub total: BigDecimal,
 }
 
-#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+#[derive(Debug, Serialize, Deserialize, FromRow)]
 pub struct NetProfitRow {
     pub net_profit: BigDecimal,
 }

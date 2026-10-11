@@ -1,6 +1,8 @@
 use anyhow::{bail, Result};
-use cxx::let_cxx_string;
+use cxx::{let_cxx_string, UniquePtr};
 use std::collections::HashMap;
+
+use crate::ffi::Recommendation;
 
 #[cxx::bridge]
 mod ffi {
@@ -49,7 +51,7 @@ pub fn get_recommendation(
     let_cxx_string!(njs = &num_json);
     let_cxx_string!(cjs = &cat_json);
 
-    let result = ffi::recommend(&engine, &ctx, &njs, &cjs);
+    let result: UniquePtr<Recommendation> = ffi::recommend(&engine, &ctx, &njs, &cjs);
 
     if result.is_null() {
         bail!("Engine returned null");
@@ -63,7 +65,7 @@ pub fn get_recommendation(
 }
 
 /*
-Usage:
+// Usage:
 use decision_engine_bridge::get_recommendation;
 use std::collections::HashMap;
 

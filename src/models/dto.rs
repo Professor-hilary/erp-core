@@ -31,6 +31,8 @@ pub struct FinancialPeriodDto {
     pub uuid: Uuid,
     pub start_date: NaiveDate,
     pub end_date: NaiveDate,
+    pub name: Option<String>,
+    pub is_open: bool,
     pub is_locked: bool,
 }
 

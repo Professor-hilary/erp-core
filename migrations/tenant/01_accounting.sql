@@ -44,11 +44,7 @@ CREATE TABLE accounting.accounts (
     name TEXT NOT NULL,
     category TEXT NOT NULL CHECK (
         category IN (
-            'asset',
-            'liability',
-            'equity',
-            'expense',
-            'income'
+            'asset', 'liability', 'equity', 'expense', 'income'
         )
     ),
     parent_code TEXT REFERENCES accounting.accounts (code) ON DELETE SET NULL, -- FK uses UUID
