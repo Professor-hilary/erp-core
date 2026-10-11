@@ -320,7 +320,7 @@ pub struct BomWithLines {
 #[derive(Debug, Clone, FromRow, Serialize)]
 pub struct BomLine {
     pub uuid: Uuid,
-    pub bom_header_uuid: Uuid,
+    pub bom_header_uuid: Option<Uuid>,
     pub line_number: i16,
     pub component_item_uuid: Uuid,
     pub quantity_per: BigDecimal,

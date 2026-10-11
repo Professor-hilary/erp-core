@@ -462,6 +462,15 @@
             "is_contra": false,
             "cash_flow_category": "working-capital"
         },
+		{
+            "code": "210900",
+            "name": "Social Security",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital"
+        },
         {
             "code": "220000",
             "name": "Non-Current Liabilities",

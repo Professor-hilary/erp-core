@@ -317,7 +317,7 @@ impl CustomerRepository for PostgresCustomerRepo {
         payload: &PostTurnover,
     ) -> Result<Turnover, AppError> {
         let invoice =
-            sqlx::query_as::<_, Turnover>(r#"SELECT sales.post_turnover($1, $2, $3, $4)"#)
+            sqlx::query_as::<_, Turnover>(r#"SELECT * FROM sales.post_turnover($1, $2, $3, $4, $5, NULL)"#)
                 .bind(&payload.invoice_number)
                 .bind(user_id)
                 .bind(&payload.output_vat_code)
@@ -337,7 +337,7 @@ impl CustomerRepository for PostgresCustomerRepo {
         payload: &PostTurnover,
     ) -> Result<Turnover, AppError> {
         let sale: Turnover = sqlx::query_as::<_, Turnover>(
-            r#"SELECT sales.post_turnover($1, $2, $3, null, $4, $5)"#,
+            r#"SELECT * FROM sales.post_turnover($1, $2, $3, null, $4, $5)"#,
         )
         .bind(&payload.invoice_number)
         .bind(user_id)

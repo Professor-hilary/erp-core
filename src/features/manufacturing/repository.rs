@@ -162,6 +162,22 @@ impl ManufacturingRepo {
         header_uuid: Uuid,
         dto: &CreateBomLineDto,
     ) -> Result<BomLine, AppError> {
+// Only run cycle detection when we have a concrete BOM to explode
+    let has_bom_to_check: bool = dto.child_bom_uuid.is_some()
+        || sqlx::query_scalar::<_, bool>(
+            r#"
+            SELECT EXISTS (
+                SELECT 1 FROM manufacturing.bom_headers
+                WHERE product_item_uuid = $1 AND is_active
+            )
+            "#,
+        )
+        .bind(dto.component_item_uuid)
+        .fetch_one(&mut **tx)
+        .await
+        .unwrap_or(false);
+
+	if has_bom_to_check {
         // Reject cycles before insert
         let cycle: bool = sqlx::query_scalar(
             r#"
@@ -194,6 +210,7 @@ impl ManufacturingRepo {
                 "Circular BOM: component eventually contains this product".into(),
             ));
         }
+	}
 
         let row: PgRow = sqlx::query(
             r#"
