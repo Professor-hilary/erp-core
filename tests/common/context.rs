@@ -323,7 +323,10 @@ impl TestContext {
         }
 
         // Employees (≥10 from PEOPLE with role employee)
-        for person in fixtures::PEOPLE.iter().filter(|person| person.role == "employee") {
+        for person in fixtures::PEOPLE
+            .iter()
+            .filter(|person| person.role == "employee")
+        {
             let (status, value) = self
                 .client
                 .post(
@@ -353,18 +356,26 @@ impl TestContext {
     pub async fn seed_capital_parties(&mut self) -> Result<()> {
         // Individual parties
         for person in fixtures::PEOPLE.iter().filter(|person: &&Person|
-            matches!(person.role, "owner" | "shareholder" | "lender_contact" | "board")
+            matches!(
+                person.role,
+                "owner" | "shareholder" | "lender_contact" | "board"
+            )
         ) {
             let _ = self
                 .client
                 .post(
                     "/api/capital/party",
                     json!({
-                        "name": format!("{} {}", person.first_name, person.last_name),
-                        "party_type": person.role,
-                        "email": person.email,
-                        "phone": person.phone,
-                        "is_individual": true
+                        "legal_name": format!("{} {}", person.first_name, person.last_name),
+                        "short_name": person.first_name,
+                        "party_type": match person.role {
+                            "owner" | "shareholder" | "board" => "SHAREHOLDER",
+                            "lender_contact" => "LENDER",
+                            _ => "OTHER",
+                        },
+                        "role": person.role,
+                        "country_code": "UG",
+                        "is_related_party": matches!(person.role, "owner" | "board"),
                     }),
                 )
                 .await?;
@@ -380,11 +391,16 @@ impl TestContext {
                 .post(
                     "/api/capital/party",
                     json!({
-                        "name": inst.name,
-                        "party_type": inst.kind,
-                        "email": inst.email,
-                        "tax_id": inst.tax_id,
-                        "is_individual": false
+                        "legal_name": inst.name,
+                        "short_name": inst.key,  // or a short form of the name
+                        "party_type": match inst.kind {
+                            "bank" | "lender" => "LENDER",
+                            "investor" => "INVESTOR",
+                            _ => "OTHER",
+                        },
+                        "registration_number": inst.tax_id,
+                        "country_code": "UG",
+                        "is_related_party": false,
                     }),
                 )
                 .await?;
@@ -404,7 +420,10 @@ impl TestContext {
                     "/api/procurement/create/vendor", // adjust path to your real route
                     json!({
                         "name": inst.name,
+                        "code": inst.key,           // e.g. "sup_agri"
                         "email": inst.email,
+                        "phone": null,
+                        "credit_limit": "10000000"
                     }),
                 )
                 .await?;
@@ -425,7 +444,9 @@ impl TestContext {
                     "/api/sales/create/customer", // adjust path
                     json!({
                         "name": inst.name,
+                        "code": inst.key,           // e.g. "cust_freshmart"
                         "email": inst.email,
+                        "credit_limit": "5000000"
                     }),
                 )
                 .await?;
