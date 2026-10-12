@@ -81,7 +81,7 @@ CREATE TABLE IF NOT EXISTS manufacturing.bom_lines (
     bom_header_uuid uuid NOT NULL REFERENCES manufacturing.bom_headers (uuid) ON DELETE CASCADE,
     line_number smallint NOT NULL,
     component_item_uuid uuid NOT NULL REFERENCES inventory.items (uuid) ON DELETE RESTRICT,
-    child_bom_uuid uuid NOT NULL REFERENCES manufacturing.bom_headers (uuid) ON DELETE RESTRICT,
+    child_bom_uuid uuid REFERENCES manufacturing.bom_headers (uuid) ON DELETE RESTRICT,
     is_phantom boolean NOT NULL DEFAULT false,
     quantity_per numeric(18, 6) NOT NULL CHECK (quantity_per > 0),
     uom text DEFAULT 'pcs',
@@ -264,7 +264,7 @@ BEGIN
     FROM manufacturing.bom_headers bh
     WHERE bh.product_item_uuid = p_item_uuid
       AND bh.is_active
-    ORDER BY bh.is_default DESC, bh.effective_date DESC
+    ORDER BY bh.is_default
     LIMIT 1;
 
     --===================== MATERIAL STANDARD COST =======================
