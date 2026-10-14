@@ -1059,14 +1059,14 @@ BEGIN
           AND NOT (bt.child_bom = ANY(bt.path))   -- cycle guard
     )
     SELECT
-        level,
-        component_item_uuid,
-        quantity_required,
-        (child_bom IS NULL) AS is_leaf,
-        is_phantom,
-        source_bom_uuid,
-        path
-    FROM bom_tree;
+        t.level,
+        t.component_item_uuid,
+        t.quantity_required,
+        (t.child_bom IS NULL) AS is_leaf,
+        t.is_phantom,
+        t.source_bom_uuid,
+        t.path
+    FROM bom_tree t;
 END;
 $$;
 

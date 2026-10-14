@@ -30,59 +30,58 @@ async fn manufacturing_flow() -> E2eResult<()> {
         .map_err(|e| e.to_string())?;
     assert!(ok(s), "list inventory: {s} {inv}");
 
-    let (rm_uuid, rm_serial, warehouse_serial) = if let Some(item) =
-        inv["data"].as_array().and_then(|a| a.first())
-    {
-        let uuid = extract_uuid(item, &["uuid"]).map_err(|e| e.to_string())?;
-        let serial = item["serial_id"].as_i64().ok_or("rm serial_id")?;
-        let wh = item["warehouse_serial"].as_i64().unwrap_or(1);
-        println!("✓ reuse RM serial={serial} uuid={uuid}");
-        (uuid, serial, wh)
-    } else {
-        // Bootstrap warehouse + RM if suite was run out of order
-        let (s, body) = ctx
-            .client
-            .post(
-                "/api/inventory/create/warehouse",
-                json!({
-                    "code": "WH-MFG",
-                    "name": "Production Store",
-                    "description": "Manufacturing",
-                    "location": "Kampala"
-                }),
-            )
-            .await
-            .map_err(|e| e.to_string())?;
-        assert!(ok(s), "warehouse: {s} {body}");
-        let wh = body["data"]["serial_id"].as_i64().ok_or("wh serial")?;
+    let (rm_uuid, rm_serial, warehouse_serial) =
+        if let Some(item) = inv["data"].as_array().and_then(|a| a.first()) {
+            let uuid = extract_uuid(item, &["uuid"]).map_err(|e| e.to_string())?;
+            let serial = item["serial_id"].as_i64().ok_or("rm serial_id")?;
+            let wh = item["warehouse_serial"].as_i64().unwrap_or(1);
+            println!("✓ reuse RM serial={serial} uuid={uuid}");
+            (uuid, serial, wh)
+        } else {
+            // Bootstrap warehouse + RM if suite was run out of order
+            let (s, body) = ctx
+                .client
+                .post(
+                    "/api/inventory/create/warehouse",
+                    json!({
+                        "code": "WH-MFG",
+                        "name": "Production Store",
+                        "description": "Manufacturing",
+                        "location": "Kampala"
+                    }),
+                )
+                .await
+                .map_err(|e| e.to_string())?;
+            assert!(ok(s), "warehouse: {s} {body}");
+            let wh = body["data"]["serial_id"].as_i64().ok_or("wh serial")?;
 
-        let inv_code = acct(&ctx, &["110701", "110700"])?;
-        let (s, body) = ctx
-            .client
-            .post(
-                "/api/inventory/create/item",
-                json!({
-                    "sku": "RM-WOOD-1",
-                    "name": "Wood Plank",
-                    "warehouse_serial": wh,
-                    "unit": "pc",
-                    "selling_price": "0",
-                    "standard_cost": "5000",
-                    "track_quantity": true,
-                    "reorder_level": "100",
-                    "asset_account": inv_code,
-                    "cogs_account": "510100",
-                    "income_account": "410100"
-                }),
-            )
-            .await
-            .map_err(|e| e.to_string())?;
-        assert!(ok(s), "create RM: {s} {body}");
-        let uuid = extract_uuid(&body, &["data", "uuid"]).map_err(|e| e.to_string())?;
-        let serial = body["data"]["serial_id"].as_i64().ok_or("rm serial")?;
-        println!("✓ created RM serial={serial}");
-        (uuid, serial, wh)
-    };
+            let inv_code = acct(&ctx, &["110701", "110700"])?;
+            let (s, body) = ctx
+                .client
+                .post(
+                    "/api/inventory/create/item",
+                    json!({
+                        "sku": "RM-WOOD-1",
+                        "name": "Wood Plank",
+                        "warehouse_serial": wh,
+                        "unit": "pc",
+                        "selling_price": "0",
+                        "standard_cost": "5000",
+                        "track_quantity": true,
+                        "reorder_level": "100",
+                        "asset_account": inv_code,
+                        "cogs_account": "510100",
+                        "income_account": "410100"
+                    }),
+                )
+                .await
+                .map_err(|e| e.to_string())?;
+            assert!(ok(s), "create RM: {s} {body}");
+            let uuid = extract_uuid(&body, &["data", "uuid"]).map_err(|e| e.to_string())?;
+            let serial = body["data"]["serial_id"].as_i64().ok_or("rm serial")?;
+            println!("✓ created RM serial={serial}");
+            (uuid, serial, wh)
+        };
     let _ = rm_serial; // available if single-issue path needed later
 
     // ----- Finished goods item -----
@@ -130,7 +129,7 @@ async fn manufacturing_flow() -> E2eResult<()> {
                     "component_item_uuid": rm_uuid,
                     "quantity_per": "5",
                     "uom": "pc",
-                    "scrap_factor": "0"
+                    "scrap_factor": "1.0500"
                 }]
             }),
         )

@@ -1,7 +1,7 @@
 mod common;
 
-use common::{E2eResult, TestContext};
 use common::client::extract_uuid;
+use common::{E2eResult, TestContext};
 use serde_json::json;
 
 fn ok(status: reqwest::StatusCode) -> bool {
@@ -24,7 +24,11 @@ async fn procure_to_pay() -> E2eResult<()> {
         "need at least one vendor — run e2e_02 first"
     );
 
-    let vendor_uuid = *ctx.vendors.values().next().expect("vendor");
+    let vendor_uuid = *ctx
+        .vendors
+        .values()
+        .next()
+        .expect("need a vendor from e2e_02");
 
     // ----- 1. Warehouse -----
     let (s, body) = ctx
@@ -99,7 +103,7 @@ async fn procure_to_pay() -> E2eResult<()> {
     println!("✓ item serial={stock_item_id}");
 
     // ----- 4. Create purchase bill (unposted) -----
-    let qty = "50";
+    let qty = "100";
     let unit_price = "32000";
     let tax_rate = "18"; // %
     let (s, body) = ctx
@@ -174,4 +178,3 @@ async fn procure_to_pay() -> E2eResult<()> {
     println!("✅ procure_to_pay OK for {}", ctx.company_name);
     Ok(())
 }
-

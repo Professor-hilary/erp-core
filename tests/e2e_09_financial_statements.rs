@@ -5,8 +5,7 @@ use crate::common::E2eResult;
 
 #[tokio::test]
 async fn financial_statements_smoke() -> E2eResult<()>{
-    let mut ctx = TestContext::from_saved_state().await?;
-    ctx.set_opening_balances().await?;
+    let ctx = TestContext::from_saved_state().await?;
 
     for path in [
         "/api/reports/trial-balance?as_of=2025-01-31",
