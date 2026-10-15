@@ -10,4 +10,5 @@ cargo test --test e2e_04_opening_balances -- --nocapture
 cargo test --test e2e_09_financial_statements -- --nocapture
 
 # All e2e (ignored ones skip until you remove #[ignore])
-cargo test --tests -- --nocapture
+cargo test --tests -- --nocapture --test-threads=1
+

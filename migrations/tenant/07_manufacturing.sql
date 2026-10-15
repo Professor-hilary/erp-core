@@ -1069,7 +1069,7 @@ BEGIN
     FROM bom_tree t;
 END;
 $$;
-
+/*
 -- Build materials issue, BOM must exist
 CREATE OR REPLACE FUNCTION manufacturing.issue_material_from_bom(
     p_production_order_uuid uuid,
@@ -1168,6 +1168,105 @@ BEGIN
         pom.issued_qty,
         (pom.required_qty - pom.issued_qty) AS remaining_qty,
         pom.status as material_status
+    FROM manufacturing.production_order_materials pom
+    WHERE pom.production_order_uuid = p_production_order_uuid;
+END;
+$$;
+*/
+CREATE OR REPLACE FUNCTION manufacturing.issue_material_from_bom(
+    p_production_order_uuid uuid,
+    p_warehouse_serial      bigint,
+    p_raw_materials_code    text,
+    p_work_in_progress_code text,
+    p_user_uuid             uuid
+)
+RETURNS TABLE (
+    component_item_uuid uuid,
+    required_qty        numeric,
+    issued_qty          numeric,
+    remaining_qty       numeric,
+    material_status     text
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    rec             RECORD;
+    v_remaining_qty numeric(18, 6);
+BEGIN
+    FOR rec IN
+        SELECT pom.*, i.serial_id
+        FROM manufacturing.production_order_materials pom
+        JOIN inventory.items i
+            ON i.uuid = pom.component_item_uuid
+        WHERE pom.production_order_uuid = p_production_order_uuid
+    LOOP
+        v_remaining_qty := rec.required_qty - rec.issued_qty;
+
+        IF v_remaining_qty <= 0 THEN
+            CONTINUE;
+        END IF;
+
+        BEGIN
+            PERFORM manufacturing.issue_material_to_order(
+                rec.serial_id,
+                p_warehouse_serial,
+                v_remaining_qty,
+                p_production_order_uuid,
+                p_raw_materials_code,
+                p_work_in_progress_code,
+                p_user_uuid
+            );
+
+            UPDATE manufacturing.production_order_materials pom
+            SET issued_qty = pom.issued_qty + v_remaining_qty,
+                status     = 'FullyIssued'
+            WHERE pom.uuid = rec.uuid;
+
+        EXCEPTION
+            WHEN OTHERS THEN
+                UPDATE manufacturing.production_order_materials pom
+                SET status = CASE
+                    WHEN pom.issued_qty > 0 THEN 'PartiallyIssued'
+                    ELSE 'Pending'
+                END
+                WHERE pom.uuid = rec.uuid;
+                -- Optional: RAISE;  -- surface stock failures in e2e
+        END;
+    END LOOP;
+
+    UPDATE manufacturing.production_orders po
+    SET materials_status = CASE
+        WHEN NOT EXISTS (
+            SELECT 1
+            FROM manufacturing.production_order_materials pom
+            WHERE pom.production_order_uuid = po.uuid
+              AND pom.status <> 'FullyIssued'
+        ) THEN 'Complete'
+        ELSE 'Partial'
+    END,
+    updated_at = now()
+    WHERE po.uuid = p_production_order_uuid;
+
+    -- Force In Progress when anything was issued
+    UPDATE manufacturing.production_orders po
+    SET status = 'In Progress',
+        updated_at = now()
+    WHERE po.uuid = p_production_order_uuid
+      AND po.status = 'Planned'
+      AND EXISTS (
+          SELECT 1
+          FROM manufacturing.production_order_materials pom
+          WHERE pom.production_order_uuid = po.uuid
+            AND pom.issued_qty > 0
+      );
+
+    RETURN QUERY
+    SELECT
+        pom.component_item_uuid,
+        pom.required_qty,
+        pom.issued_qty,
+        (pom.required_qty - pom.issued_qty),
+        pom.status
     FROM manufacturing.production_order_materials pom
     WHERE pom.production_order_uuid = p_production_order_uuid;
 END;

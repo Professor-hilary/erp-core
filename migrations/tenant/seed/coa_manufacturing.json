@@ -912,6 +912,15 @@
             "is_contra": false,
             "cash_flow_category": "non-cash"
         },
+		{
+            "code": "550400",
+            "name": "Overhead Variance Control",
+            "category": "expense", 
+            "parent_code": "550000",
+            "normal_balance": "dr",
+            "is_contra": false,
+             "cash_flow_category": "non-cash"
+        },
         {
             "code": "600000",
             "name": "Operating Expenses",
