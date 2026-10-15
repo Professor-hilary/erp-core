@@ -168,6 +168,63 @@ async fn procure_to_pay() -> E2eResult<()> {
     assert!(bills >= 1, "expected at least one vendor bill");
     println!("✓ vendor bills n={bills}");
 
+
+	// Cash purchase
+	// Reuse first inventory item (from credit P2P) or fail clearly
+    let (s, inv) = ctx
+        .client
+        .get("/api/inventory/list/inventory")
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "list inventory: {s} {inv}");
+    let stock_item_id = inv["data"]
+        .as_array()
+        .and_then(|a| a.first())
+        .and_then(|i| i["serial_id"].as_i64())
+        .ok_or("need stock item — run procure_to_pay first")?;
+
+    let (s, body) = ctx
+        .client
+        .post(
+            "/api/procurement/create/purchase",
+            json!({
+                "bill_number": format!("CASH-BILL-{}", chrono::Utc::now().timestamp_millis()),
+                "vendor_uuid": vendor_uuid,
+                "bill_date": "2025-01-22",
+                "due_date": "2025-01-22",
+                "reference": "CASH-E2E",
+                "settlement_type": "cash",
+                "payment_status": "paid",
+                "items": [{
+                    "stock_item_id": stock_item_id,
+                    "description": "Cash buy top-up",
+                    "quantity": "10",
+                    "unit_price": "32000",
+                    "tax_rate": "18"
+                }]
+            }),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "create cash bill: {s} {body}");
+    let bill_serial = body["data"]["serial_id"].as_i64().ok_or("bill serial")?;
+
+    let (s, body) = ctx
+        .client
+        .post(
+            "/api/procurement/post/cash/purchase",
+            json!({
+                "bill_serial_id": bill_serial,
+                "vat_tax_account": "110800",
+                "payables_account": "210100",
+                "cash_account": "110100"   // bank/cash — adjust if COA differs
+            }),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "post cash purchase: {s} {body}");
+    println!("✓ cash purchase posted");
+
     // ----- 7. Trial balance still healthy -----
     ctx.assert_trial_balance_ok("2025-01-31")
         .await
