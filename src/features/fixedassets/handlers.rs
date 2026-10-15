@@ -8,6 +8,8 @@ use axum::{
 
 use std::sync::Arc;
 use uuid::Uuid;
+use serde::Deserialize;
+use chrono::NaiveDate;
 
 use crate::{
     features::fixedassets::{
@@ -397,10 +399,15 @@ async fn http_compute_depreciation(
     Ok(ApiResponse::created(asset, "Depreciation computed"))
 }
 
+#[derive(Debug, Deserialize)]
+pub struct RunDepreciationRequest {
+    pub period_date: NaiveDate,
+}
+
 async fn http_run_depreciation(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    AppJson(payload): AppJson<AssetDepreciation>,
+    AppJson(payload): AppJson<RunDepreciationRequest>,
 ) -> Result<Response, AppError> {
     let repo = PostgresFixedAssetRepository::new();
     let service = FixedAssetService::new(repo);

@@ -48,9 +48,9 @@ async fn fixed_asset_lifecycle() -> E2eResult<()> {
                 "is_capitalized": false,
                 "useful_life_years": 5,
                 "residual_value": "500000",
-                "depreciation_method": "STRAIGHT_LINE",
+                "depreciation_method": "Straight_Line",
                 "depreciation_start_date": "2025-01-01",
-                "status": "ACTIVE"
+                "status": "In_Use"
             }),
         )
         .await

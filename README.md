@@ -307,6 +307,8 @@ curl -i http://localhost:8080/api/whatever
 # Get Backend Server Log
   ```python
 RUST_LOG=info cargo run
+or
+RUST_LOG=info,sqlx::query=error,sqlx::pool=warn cargo run
 ```
 
 # Create a transaction (unposted)
