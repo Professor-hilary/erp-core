@@ -181,11 +181,11 @@ async fn manufacturing_flow() -> E2eResult<()> {
     println!("✓ materials issued to WIP");
 
     // ----- 4. Complete production (Dr FG / Cr WIP + variance accounts) -----
-    let fg_acct = acct(&ctx, &["110702", "110701", "110700"])?;
-    let mat_var = acct(&ctx, &["520200", "520100", "510200", "600200"])?;
-    let lab_var = acct(&ctx, &["520300", "520100", "510300"])?;
-    let moh_var = acct(&ctx, &["520400", "520100", "510400"])?;
-    let control = acct(&ctx, &["520000", "520100", "600000"])?;
+    let fg_acct = acct(&ctx, &["110703"])?;
+    let mat_var = acct(&ctx, &["550100"])?;
+    let lab_var = acct(&ctx, &["550200"])?;
+    let moh_var = acct(&ctx, &["550300"])?;
+    let control = acct(&ctx, &["550400"])?;
 
     let (s, body) = ctx
         .client
