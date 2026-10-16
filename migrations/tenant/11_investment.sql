@@ -343,6 +343,28 @@ CREATE TABLE investment.investment_post_audits (
 --     WHERE scenario_id = p_scenario_id;
 -- $$;
 
+-- Net cash per period (cash lines only; dep etc. excluded via is_cash)
+CREATE OR REPLACE VIEW investment.v_scenario_period_cashflows AS
+SELECT
+    scenario_id,
+    period_no,
+    COALESCE(SUM(CASE WHEN is_cash THEN amount ELSE 0 END), 0)::NUMERIC AS net_cash
+FROM investment.investment_cashflow_lines
+GROUP BY scenario_id, period_no;
+
+CREATE OR REPLACE FUNCTION investment.scenario_cashflow_array(p_scenario_id UUID)
+RETURNS NUMERIC[]
+LANGUAGE sql
+STABLE
+AS $$
+    SELECT COALESCE(
+        array_agg(net_cash ORDER BY period_no),
+        ARRAY[]::NUMERIC[]
+    )
+    FROM investment.v_scenario_period_cashflows
+    WHERE scenario_id = p_scenario_id;
+$$;
+
 -- NPV: CF[0] + CF[1]/(1+r) + ...
 CREATE OR REPLACE FUNCTION investment.calc_npv(p_rate NUMERIC, p_cfs NUMERIC[])
 RETURNS NUMERIC

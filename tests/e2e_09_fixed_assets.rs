@@ -11,7 +11,7 @@ fn ok(status: reqwest::StatusCode) -> bool {
 #[tokio::test]
 async fn fixed_asset_lifecycle() -> E2eResult<()> {
     let ctx = TestContext::from_saved_state().await?;
-
+	
     // ----- 1. Asset class -----
     let (s, body) = ctx
         .client

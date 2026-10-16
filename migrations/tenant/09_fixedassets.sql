@@ -570,12 +570,13 @@ BEGIN
       AND fa.user_id = p_user_id;
 
     -- Create opening depreciation record
+	/*
     INSERT INTO fixedassets.asset_depreciation (
         user_id, asset_id, period_date, depreciation_amount,
         accumulated_depreciation, nbv, posted_to_gl
     ) VALUES (
         p_user_id, p_asset_id, p_date, 0, 0, v_final_amount, FALSE
-    );
+    );*/
 
     RETURN QUERY SELECT p_asset_id, v_final_amount, p_breakdown;
 END;

@@ -23,6 +23,7 @@ pub struct TestContext {
     pub employees: HashMap<String, Uuid>,
     pub customers: HashMap<String, Uuid>,
     pub vendors: HashMap<String, Uuid>,
+	pub currencies: HashMap<String, Uuid>,
 }
 
 #[allow(dead_code)]
@@ -95,6 +96,7 @@ impl TestContext {
             employees: HashMap::new(),
             customers: HashMap::new(),
             vendors: HashMap::new(),
+			currencies: HashMap::new(),
         })
     }
 
@@ -458,4 +460,53 @@ impl TestContext {
         }
         Ok(())
     }
+
+/// Functional + common FX currencies (idempotent-ish: skip codes already present).
+pub async fn seed_currencies(&mut self) -> Result<()> {
+    // Load existing
+    let (status, body) = self.client.get("/api/accounts/currencies").await?;
+    if status.is_success() {
+        if let Some(arr) = body["data"].as_array() {
+            for c in arr {
+                let code = c["code"].as_str().unwrap_or("").to_string();
+                if let Ok(id) = extract_uuid(c, &["id"]) {
+                    self.currencies.insert(code, id);
+                }
+            }
+        }
+    }
+
+    for (code, name, decimals) in [
+        ("UGX", "Ugandan Shilling", 0),
+        ("USD", "US Dollar", 2),
+        ("EUR", "Euro", 2),
+        ("KES", "Kenyan Shilling", 2),
+    ] {
+        if self.currencies.contains_key(code) {
+            continue;
+        }
+        let (status, value) = self
+            .client
+            .post(
+                "/api/accounts/currencies",
+                json!({
+                    "code": code,
+                    "name": name,
+                    "decimal_places": decimals,
+                    "is_active": true
+                }),
+            )
+            .await?;
+        if status.is_success() || status.as_u16() == 201 {
+            if let Ok(id) = extract_uuid(&value, &["data", "id"]) {
+                self.currencies.insert(code.to_string(), id);
+            }
+        }
+    }
+    Ok(())
+}
+
+pub fn currency_id(&self, code: &str) -> Option<Uuid> {
+    self.currencies.get(code).copied()
+}
 }

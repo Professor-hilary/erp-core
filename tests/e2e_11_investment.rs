@@ -13,7 +13,7 @@ async fn investment_case_pipeline() -> E2eResult<()> {
     let ctx = TestContext::from_saved_state().await?;
 
     // Currency from COA currencies endpoint (CreateInvestmentCase requires currency_id)
-    let (s, cur) = ctx
+    /*let (s, cur) = ctx
         .client
         .get("/api/accounts/currencies")
         .await
@@ -28,6 +28,10 @@ async fn investment_case_pipeline() -> E2eResult<()> {
                 .ok()
         })
         .ok_or("need a currency uuid")?;
+	*/
+	let currency_id = ctx
+	    .currency_id("UGX")
+    	.ok_or("UGX missing — run e2e_02 seed_currencies")?;
 
     // ----- Program -----
     let (s, body) = ctx
