@@ -85,7 +85,7 @@ async fn manufacturing_flow() -> E2eResult<()> {
     let _ = rm_serial; // available if single-issue path needed later
 
     // ----- Finished goods item -----
-    let inv_code = acct(&ctx, &["110702", "110701", "110700"])?;
+    let inv_code = acct(&ctx, &["110703"])?;
     let (s, body) = ctx
         .client
         .post(
@@ -100,8 +100,8 @@ async fn manufacturing_flow() -> E2eResult<()> {
                 "track_quantity": true,
                 "reorder_level": "5",
                 "asset_account": inv_code,
-                "cogs_account": "510100",
-                "income_account": "410100"
+                "cogs_account": "500000",
+                "income_account": "410000"
             }),
         )
         .await
@@ -110,7 +110,130 @@ async fn manufacturing_flow() -> E2eResult<()> {
     let fg_uuid = extract_uuid(&body, &["data", "uuid"]).map_err(|e| e.to_string())?;
     println!("✓ FG uuid={fg_uuid}");
 
-    // ----- 1. BOM: 1 chair ← 5 wood planks -----
+	// =========================================================================
+    // 1. Work centers (labor rate + allocation base for OH)
+    // =========================================================================
+    let (s, body) = ctx
+        .client
+        .post(
+            "/api/manufacturing/create/routing/workcenter",
+            json!({
+                "code": "WC-ASSY",
+                "name": "Assembly Bench",
+                "labor_rate": "15000",          // UGX per hour
+                "allocation_base": "LABOR_HOURS",
+                "department_code": "Production"
+            }),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "work center assembly: {s} {body}");
+    println!("✓ work center WC-ASSY");
+
+    let (s, body) = ctx
+        .client
+        .post(
+            "/api/manufacturing/create/routing/workcenter",
+            json!({
+                "code": "WC-FINISH",
+                "name": "Finishing Station",
+                "labor_rate": "12000",
+                "allocation_base": "MACHINE_HOURS",
+                "department_code": "Production"
+            }),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "work center finish: {s} {body}");
+    println!("✓ work center WC-FINISH");
+
+    // =========================================================================
+    // 2. Routing header + operations (sequence on work centers)
+    // =========================================================================
+    let (s, body) = ctx
+        .client
+        .post(
+            "/api/manufacturing/create/routing/header",
+            json!({
+                "product_item_uuid": fg_uuid,
+                "routing_code": "RT-CHAIR-v1",
+                "notes": "Standard chair routing",
+                "version": "1",
+                "base_quantity": 1,
+                "effective_date": "2025-01-01",
+                "status": "Active",
+                "is_default": true
+            }),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "routing header: {s} {body}");
+    let routing_uuid = extract_uuid(&body, &["data", "uuid"]).map_err(|e| e.to_string())?;
+    println!("✓ routing {routing_uuid}");
+
+    let (s, body) = ctx
+        .client
+        .post(
+            "/api/manufacturing/create/routing/operation",
+            json!({
+                "routing_uuid": routing_uuid,
+                "sequence": 10,
+                "operation_name": "Assemble frame",
+                "work_center_code": "WC-ASSY",
+                "description": "Join legs and seat",
+                "setup_time_minutes": "15",
+                "run_time_minutes": "30"
+            }),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "op 10: {s} {body}");
+
+    let (s, body) = ctx
+        .client
+        .post(
+            "/api/manufacturing/create/routing/operation",
+            json!({
+                "routing_uuid": routing_uuid,
+                "sequence": 20,
+                "operation_name": "Sand and finish",
+                "work_center_code": "WC-FINISH",
+                "description": "Surface finish",
+                "setup_time_minutes": "10",
+                "run_time_minutes": "20"
+            }),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "op 20: {s} {body}");
+    println!("✓ routing operations 10, 20");
+
+    // =========================================================================
+    // 3. Overhead rate (predetermined OH for the period)
+    // =========================================================================
+    let (s, body) = ctx
+        .client
+        .post(
+            "/api/manufacturing/create/overhead-rate",
+            json!({
+                "period_start": "2025-01-01",
+                "period_end": "2025-12-31",
+                "allocation_base": "LABOR_HOURS",
+                "estimated_overhead": "12000000",  // budgeted MOH
+                "estimated_base": "800",           // budgeted labor hours
+                "department_code": "Production",
+                "is_active": true
+            }),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "overhead rate: {s} {body}");
+    // rate ≈ 15000 UGX per labor hour
+    println!("✓ overhead rate LABOR_HOURS");
+
+	// =========================================================================
+    // 4. BOM: 1 chair ← 5 wood planks
+	// =========================================================================
     let (s, body) = ctx
         .client
         .post(
@@ -141,7 +264,9 @@ async fn manufacturing_flow() -> E2eResult<()> {
         .map_err(|e| e.to_string())?;
     println!("✓ BOM {bom_uuid}");
 
-    // ----- 2. Production order -----
+	// =========================================================================
+    // 5. Production order 
+	// =========================================================================
     let order_no = format!("PO-{}", chrono::Utc::now().timestamp_millis());
     let (s, body) = ctx
         .client
@@ -161,9 +286,15 @@ async fn manufacturing_flow() -> E2eResult<()> {
     let po_uuid = extract_uuid(&body, &["data", "uuid"]).map_err(|e| e.to_string())?;
     println!("✓ production order {order_no} uuid={po_uuid}");
 
-    // ----- 3. Bulk issue materials (BOM explode → Dr WIP / Cr RM) -----
-    let wip = acct(&ctx, &["110703", "110750", "120300", "110700"])?;
-    let raw = acct(&ctx, &["110701", "110700"])?;
+	// =========================================================================
+    // 6. Bulk issue materials (BOM explode → Dr WIP / Cr RM)
+	// =========================================================================
+    let wip = acct(&ctx, &["110702"])?;
+    let raw = acct(&ctx, &["110701"])?;
+	let labor_payable = acct(&ctx, &["210300"])?;
+    let oh_control = acct(&ctx, &["550400"])?;
+    let cash_or_ap = acct(&ctx, &["210100"])?;
+
     let (s, body) = ctx
         .client
         .post(
@@ -180,7 +311,71 @@ async fn manufacturing_flow() -> E2eResult<()> {
     assert!(ok(s), "issue materials: {s} {body}");
     println!("✓ materials issued to WIP");
 
-    // ----- 4. Complete production (Dr FG / Cr WIP + variance accounts) -----
+	// =========================================================================
+    // 7. Apply direct labor (Dr WIP / Cr wages payable)
+    // =========================================================================
+    let (s, body) = ctx
+        .client
+        .post(
+            "/api/manufacturing/apply/direct/labor",
+            json!({
+                "production_order_uuid": po_uuid,
+                "labor_account_code": labor_payable,
+                "wip_account_code": wip,
+                "reference": "DL-ASSY-FINISH-10chairs"
+            }),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "apply direct labor: {s} {body}");
+    println!("✓ direct labor applied");
+
+    // =========================================================================
+    // 8. Apply predetermined overhead (rate × base hours)
+    //    Note: DTO uses production_order as order_number string, not uuid
+    // =========================================================================
+    // 10 chairs × (30+20)/60 h run ≈ 8.3 labor hours; use 10 for clean math
+    let (s, body) = ctx
+        .client
+        .post(
+            "/api/manufacturing/apply/overhead/applied",
+            json!({
+                "production_order": order_no,
+                "base_hours": "10",
+                "wip_account": wip,
+                "overhead_control_account": oh_control,
+                "allocation_base": "LABOR_HOURS"
+            }),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "apply overhead: {s} {body}");
+    println!("✓ applied overhead (predetermined)");
+
+    // =========================================================================
+    // 9. Recognize actual overhead paid (optional — creates under/over applied)
+    // =========================================================================
+    let (s, body) = ctx
+        .client
+        .post(
+            "/api/manufacturing/apply/overhead/actual",
+            json!({
+                "production_order_uuid": po_uuid,
+                "base_amount": "140000",
+                "payable_or_cash": cash_or_ap,
+                "overhead_control_account": oh_control,
+                "allocation_base": "LABOR_HOURS",
+                "reference": "ACT-OH-JAN-UTILITIES"
+            }),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "actual overhead: {s} {body}");
+    println!("✓ actual overhead recognized");
+
+	// =========================================================================
+    // 7. Complete production (Dr FG / Cr WIP + variance accounts)
+	// =========================================================================
     let fg_acct = acct(&ctx, &["110703"])?;
     let mat_var = acct(&ctx, &["550100"])?;
     let lab_var = acct(&ctx, &["550200"])?;
@@ -207,7 +402,9 @@ async fn manufacturing_flow() -> E2eResult<()> {
     assert!(ok(s), "complete production: {s} {body}");
     println!("✓ production completed → FG");
 
-    // ----- 5. Trial balance -----
+	// =========================================================================
+    // 8. Trial balance
+	// =========================================================================
     ctx.assert_trial_balance_ok("2025-01-31")
         .await
         .map_err(|e| e.to_string())?;
