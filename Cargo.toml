@@ -54,6 +54,10 @@ argon2 = "0.5"
 password-hash = "0.5"
 rand_core = { version = "0.6", features = ["std"] }
 redis = { version = "1.7.1", features = ["tokio-comp", "connection-manager"] }
+rsa = { version = "0.9", features = ["sha2"] }
+aes = "0.8"
+sha2 = "0.10"
+base64 = "0.21"
 
 # Observability
 tracing = "0.1"
