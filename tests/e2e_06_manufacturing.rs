@@ -121,7 +121,7 @@ async fn manufacturing_flow() -> E2eResult<()> {
                 "code": "WC-ASSY",
                 "name": "Assembly Bench",
                 "labor_rate": "15000",          // UGX per hour
-                "allocation_base": "LABOR_HOURS",
+                "allocation_base": "DirectLaborHours",
                 "department_code": "Production"
             }),
         )
@@ -138,7 +138,7 @@ async fn manufacturing_flow() -> E2eResult<()> {
                 "code": "WC-FINISH",
                 "name": "Finishing Station",
                 "labor_rate": "12000",
-                "allocation_base": "MACHINE_HOURS",
+                "allocation_base": "MachineHours",
                 "department_code": "Production"
             }),
         )
@@ -218,7 +218,7 @@ async fn manufacturing_flow() -> E2eResult<()> {
             json!({
                 "period_start": "2025-01-01",
                 "period_end": "2025-12-31",
-                "allocation_base": "LABOR_HOURS",
+                "allocation_base": "DirectLaborHours",
                 "estimated_overhead": "12000000",  // budgeted MOH
                 "estimated_base": "800",           // budgeted labor hours
                 "department_code": "Production",
