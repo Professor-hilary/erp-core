@@ -3,7 +3,6 @@ use crate::{
     features::manufacturing::repository::ManufacturingRepo, interface::api::errors::AppError,
     models::manufacturing::*,
 };
-use bigdecimal::BigDecimal;
 use uuid::Uuid;
 
 pub struct ManufacturingService {
@@ -131,26 +130,24 @@ impl ManufacturingService {
         }
 
         // Calculate standard cost
-        let std_cost: BigDecimal = self
+        let std_cost = self
             .repo
             .calculate_standard_cost_for_item(&mut tx, header_dto.product_item_uuid)
             .await?;
 
         sqlx::query("UPDATE inventory.items SET standard_cost = $1 WHERE uuid = $2")
-            .bind(std_cost)
+            .bind(std_cost.proration)
             .bind(header_dto.product_item_uuid)
             .execute(&mut *tx)
             .await?;
-            
+
         // keep item.bom_uuid in sync when this is the default BOM
         if header_dto.is_default.unwrap_or(false) {
-            sqlx::query(
-                "UPDATE inventory.items SET bom_uuid = $1 WHERE uuid = $2",
-            )
-            .bind(header.uuid)
-            .bind(header_dto.product_item_uuid)
-            .execute(&mut *tx)
-            .await?;
+            sqlx::query("UPDATE inventory.items SET bom_uuid = $1 WHERE uuid = $2")
+                .bind(header.uuid)
+                .bind(header_dto.product_item_uuid)
+                .execute(&mut *tx)
+                .await?;
         }
 
         tx.commit().await?;

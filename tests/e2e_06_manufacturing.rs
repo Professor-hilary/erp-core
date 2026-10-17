@@ -110,7 +110,7 @@ async fn manufacturing_flow() -> E2eResult<()> {
     let fg_uuid = extract_uuid(&body, &["data", "uuid"]).map_err(|e| e.to_string())?;
     println!("✓ FG uuid={fg_uuid}");
 
-	// =========================================================================
+    // =========================================================================
     // 1. Work centers (labor rate + allocation base for OH)
     // =========================================================================
     let (s, body) = ctx
@@ -231,9 +231,9 @@ async fn manufacturing_flow() -> E2eResult<()> {
     // rate ≈ 15000 UGX per labor hour
     println!("✓ overhead rate LABOR_HOURS");
 
-	// =========================================================================
+    // =========================================================================
     // 4. BOM: 1 chair ← 5 wood planks
-	// =========================================================================
+    // =========================================================================
     let (s, body) = ctx
         .client
         .post(
@@ -264,9 +264,9 @@ async fn manufacturing_flow() -> E2eResult<()> {
         .map_err(|e| e.to_string())?;
     println!("✓ BOM {bom_uuid}");
 
-	// =========================================================================
-    // 5. Production order 
-	// =========================================================================
+    // =========================================================================
+    // 5. Production order
+    // =========================================================================
     let order_no = format!("PO-{}", chrono::Utc::now().timestamp_millis());
     let (s, body) = ctx
         .client
@@ -286,12 +286,12 @@ async fn manufacturing_flow() -> E2eResult<()> {
     let po_uuid = extract_uuid(&body, &["data", "uuid"]).map_err(|e| e.to_string())?;
     println!("✓ production order {order_no} uuid={po_uuid}");
 
-	// =========================================================================
+    // =========================================================================
     // 6. Bulk issue materials (BOM explode → Dr WIP / Cr RM)
-	// =========================================================================
+    // =========================================================================
     let wip = acct(&ctx, &["110702"])?;
     let raw = acct(&ctx, &["110701"])?;
-	let labor_payable = acct(&ctx, &["210300"])?;
+    let labor_payable = acct(&ctx, &["210300"])?;
     let oh_control = acct(&ctx, &["550400"])?;
     let cash_or_ap = acct(&ctx, &["210100"])?;
 
@@ -311,7 +311,7 @@ async fn manufacturing_flow() -> E2eResult<()> {
     assert!(ok(s), "issue materials: {s} {body}");
     println!("✓ materials issued to WIP");
 
-	// =========================================================================
+    // =========================================================================
     // 7. Apply direct labor (Dr WIP / Cr wages payable)
     // =========================================================================
     let (s, body) = ctx
@@ -373,9 +373,9 @@ async fn manufacturing_flow() -> E2eResult<()> {
     assert!(ok(s), "actual overhead: {s} {body}");
     println!("✓ actual overhead recognized");
 
-	// =========================================================================
+    // =========================================================================
     // 7. Complete production (Dr FG / Cr WIP + variance accounts)
-	// =========================================================================
+    // =========================================================================
     let fg_acct = acct(&ctx, &["110703"])?;
     let mat_var = acct(&ctx, &["550100"])?;
     let lab_var = acct(&ctx, &["550200"])?;
@@ -402,9 +402,9 @@ async fn manufacturing_flow() -> E2eResult<()> {
     assert!(ok(s), "complete production: {s} {body}");
     println!("✓ production completed → FG");
 
-	// =========================================================================
+    // =========================================================================
     // 8. Trial balance
-	// =========================================================================
+    // =========================================================================
     ctx.assert_trial_balance_ok("2025-01-31")
         .await
         .map_err(|e| e.to_string())?;

@@ -168,9 +168,8 @@ async fn procure_to_pay() -> E2eResult<()> {
     assert!(bills >= 1, "expected at least one vendor bill");
     println!("✓ vendor bills n={bills}");
 
-
-	// Cash purchase
-	// Reuse first inventory item (from credit P2P) or fail clearly
+    // Cash purchase
+    // Reuse first inventory item (from credit P2P) or fail clearly
     let (s, inv) = ctx
         .client
         .get("/api/inventory/list/inventory")

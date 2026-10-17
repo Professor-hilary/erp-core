@@ -4,7 +4,7 @@ use common::TestContext;
 use crate::common::E2eResult;
 
 #[tokio::test]
-async fn financial_statements_smoke() -> E2eResult<()>{
+async fn financial_statements_smoke() -> E2eResult<()> {
     let ctx = TestContext::from_saved_state().await?;
 
     for path in [

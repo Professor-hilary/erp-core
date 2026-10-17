@@ -20,7 +20,7 @@ pub struct E2eState {
     pub employees: HashMap<String, Uuid>,
     pub customers: HashMap<String, Uuid>,
     pub vendors: HashMap<String, Uuid>,
-	pub currencies: HashMap<String, Uuid>,
+    pub currencies: HashMap<String, Uuid>,
 }
 
 #[allow(dead_code)]
@@ -60,7 +60,7 @@ impl TestContext {
             employees: self.employees.clone(),
             customers: self.customers.clone(),
             vendors: self.vendors.clone(),
-			currencies: self.currencies.clone(),
+            currencies: self.currencies.clone(),
         }
         .save()
     }
@@ -78,7 +78,7 @@ impl TestContext {
             employees: state.employees,
             customers: state.customers,
             vendors: state.vendors,
-			currencies: state.currencies,
+            currencies: state.currencies,
         })
     }
 }

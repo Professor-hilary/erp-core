@@ -6,7 +6,7 @@ async fn seed_all_stakeholders_and_institutions() -> E2eResult<()> {
     let mut ctx: TestContext = TestContext::from_saved_state().await?;
 
     ctx.seed_workforce().await.map_err(|e| e.to_string())?;
-	ctx.seed_currencies().await.map_err(|e| e.to_string())?;
+    ctx.seed_currencies().await.map_err(|e| e.to_string())?;
     ctx.seed_capital_parties()
         .await
         .map_err(|e| e.to_string())?;
@@ -34,10 +34,7 @@ async fn seed_all_stakeholders_and_institutions() -> E2eResult<()> {
     let (s, _v) = ctx.client.get("/api/sales/list/customers").await?;
     assert!(s.is_success());
 
-	assert!(
-    	ctx.currency_id("UGX").is_some(),
-    	"UGX must be seeded"
-	);
+    assert!(ctx.currency_id("UGX").is_some(), "UGX must be seeded");
 
     println!(
         "✓ {} — employees={} vendors={} customers={} currencies n={}",
@@ -45,7 +42,7 @@ async fn seed_all_stakeholders_and_institutions() -> E2eResult<()> {
         ctx.employees.len(),
         ctx.vendors.len(),
         ctx.customers.len(),
-		ctx.currencies.len()
+        ctx.currencies.len()
     );
     Ok(())
 }
