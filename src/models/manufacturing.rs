@@ -137,6 +137,8 @@ pub struct SingleMaterialIssueDto {
 pub struct CostApplication {
     pub uuid: Uuid,
     pub production_order_uuid: Uuid,
+	#[sqlx(rename = "type")]
+    #[serde(rename = "application_type")]  // keep API name if you want
     pub application_type: String, // "DirectLabor" | "Overhead"
     pub amount: BigDecimal,
     pub applied_at: DateTime<Utc>,

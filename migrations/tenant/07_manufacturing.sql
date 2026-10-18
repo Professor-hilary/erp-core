@@ -411,7 +411,7 @@ BEGIN
     -- Update order if needed (optional)
     UPDATE manufacturing.production_orders
     SET updated_at = now()
-    WHERE uuid = p_production_order;
+   	WHERE uuid = v_order.uuid;
 
     RETURN v_application;
 END;
@@ -561,6 +561,11 @@ BEGIN
         	v_order.product_item_uuid;
     END IF;
 
+	-- Prevent division by zero
+	IF v_base_quantity IS NULL OR v_base_quantity = 0 THEN
+    	v_base_quantity := 1;
+	END IF;
+
     -- Loop operations
     FOR rec IN
         SELECT ro.*, wc.labor_rate
@@ -573,7 +578,7 @@ BEGIN
         -- Time in hours
         v_time_hours :=
             (/*rec.setup_time_minutes +*/
-            (rec.run_time_minutes * (v_order.quantity / v_base_quantity))) / 60.0;
+            (rec.run_time_minutes * (v_order.quantity_ordered / v_base_quantity))) / 60.0;
 
         v_total_hours := v_total_hours + v_time_hours;
 

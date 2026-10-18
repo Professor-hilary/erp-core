@@ -161,7 +161,7 @@ async fn manufacturing_flow() -> E2eResult<()> {
                 "version": "1",
                 "base_quantity": 1,
                 "effective_date": "2025-01-01",
-                "status": "Active",
+                "status": "active",
                 "is_default": true
             }),
         )
@@ -344,7 +344,7 @@ async fn manufacturing_flow() -> E2eResult<()> {
                 "base_hours": "10",
                 "wip_account": wip,
                 "overhead_control_account": oh_control,
-                "allocation_base": "LABOR_HOURS"
+                "allocation_base": "DirectLaborHours"
             }),
         )
         .await
@@ -364,7 +364,7 @@ async fn manufacturing_flow() -> E2eResult<()> {
                 "base_amount": "140000",
                 "payable_or_cash": cash_or_ap,
                 "overhead_control_account": oh_control,
-                "allocation_base": "LABOR_HOURS",
+                "allocation_base": "DirectLaborHours",
                 "reference": "ACT-OH-JAN-UTILITIES"
             }),
         )
