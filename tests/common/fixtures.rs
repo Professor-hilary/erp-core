@@ -66,4 +66,47 @@ pub const INSTITUTIONS: &[Institution] = &[
     Institution { key: "cust_school", name: "Greenfield Secondary School", kind: "customer", email: "admin@greenfield.test", tax_id: "TIN-GSS-013" },
     Institution { key: "cust_hospital", name: "Nakasero Hospital", kind: "customer", email: "stores@nakasero.test", tax_id: "TIN-NH-014" },
     Institution { key: "cust_export", name: "East Africa Export Co", kind: "customer", email: "trade@eaexport.test", tax_id: "TIN-EAE-015" },
+
+	// suppliers
+	Institution { key: "sup_mcu", name: "Nile Embedded Components", kind: "supplier", email: "orders@nile-embed.test", tax_id: "TIN-NEC-006" },	
+	Institution { key: "sup_power", name: "Lake Battery Systems", kind: "supplier", email: "sales@lakebatt.test", tax_id: "TIN-LBS-007" },
+	Institution { key: "sup_mech", name: "Kampala Precision Fab", kind: "supplier", email: "cnc@kpfab.test", tax_id: "TIN-KPF-008" },
+	Institution { key: "sup_logistics", name: "SwiftHaul Logistics", kind: "supplier", email: "ops@swifthaul.test", tax_id: "TIN-SHL-009" },
+	// customers (platform buyers)
+	Institution { key: "cust_factory", name: "Namanve Industrial Park Ops", kind: "customer", email: "automation@namanve.test", tax_id: "TIN-NIP-010" },
+	Institution { key: "cust_warehouse", name: "EastLog Fulfilment Hub", kind: "customer", email: "robotics@eastlog.test", tax_id: "TIN-ELF-011" },
+	Institution { key: "cust_utility", name: "Uganda Grid Services", kind: "customer", email: "inspection@ugs.test", tax_id: "TIN-UGS-012" },
+	Institution { key: "cust_marina", name: "Lake Victoria Marine Services", kind: "customer", email: "rov@lakevictoria.test", tax_id: "TIN-LVM-013" },
+	Institution { key: "cust_farm", name: "Busoga Agri Cooperative", kind: "customer", email: "precision@busoga-agri.test", tax_id: "TIN-BAC-014" },
+	Institution { key: "cust_mine", name: "Karamoja Survey Ltd", kind: "customer", email: "mapping@karamoja-survey.test", tax_id: "TIN-KSL-015" },
 ];
+
+/// Robotics OEM catalog for e2e (CargoMule-first).
+pub struct RmSpec {
+    pub sku: &'static str,
+    pub name: &'static str,
+    pub unit: &'static str,
+    pub standard_cost: &'static str,
+    pub unit_price: &'static str, // purchase price
+    pub qty_buy: &'static str,    // P2P buy qty
+}
+
+/// Leaves purchased in e2e_05
+pub const RMS: &[RmSpec] = &[
+    RmSpec { sku: "MCU-STM32", name: "STM32 MCU", unit: "pc", standard_cost: "45000", unit_price: "45000", qty_buy: "50" },
+    RmSpec { sku: "MCU-ESP32", name: "ESP32 Module", unit: "pc", standard_cost: "28000", unit_price: "28000", qty_buy: "40" },
+    RmSpec { sku: "IMU-9DOF", name: "9-DOF IMU", unit: "pc", standard_cost: "55000", unit_price: "55000", qty_buy: "30" },
+    RmSpec { sku: "ESC-40A", name: "ESC 40A", unit: "pc", standard_cost: "35000", unit_price: "35000", qty_buy: "40" },
+    RmSpec { sku: "MTR-BLDC", name: "BLDC Motor", unit: "pc", standard_cost: "42000", unit_price: "42000", qty_buy: "40" },
+    RmSpec { sku: "BAT-4S5AH", name: "Battery 4S 5Ah", unit: "pc", standard_cost: "180000", unit_price: "180000", qty_buy: "20" },
+    RmSpec { sku: "PCB-CTRL-V1", name: "Control PCB v1", unit: "pc", standard_cost: "25000", unit_price: "25000", qty_buy: "30" },
+    RmSpec { sku: "FRM-GROUND", name: "Ground Robot Chassis", unit: "pc", standard_cost: "220000", unit_price: "220000", qty_buy: "10" },
+    RmSpec { sku: "SENS-US", name: "Ultrasonic Sensor", unit: "pc", standard_cost: "12000", unit_price: "12000", qty_buy: "40" },
+    RmSpec { sku: "CBL-HARN", name: "Wiring Harness", unit: "pc", standard_cost: "15000", unit_price: "15000", qty_buy: "30" },
+    RmSpec { sku: "FST-KIT", name: "Fastener Kit", unit: "kit", standard_cost: "8000", unit_price: "8000", qty_buy: "50" },
+];
+
+pub const FG_CARGO_MULE: &str = "FG-CARGO-MULE";
+pub const SA_CTRL_CORE: &str = "SA-CTRL-CORE";
+pub const SA_PROP_GROUND: &str = "SA-PROP-GROUND";
+

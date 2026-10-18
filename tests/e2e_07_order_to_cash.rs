@@ -31,11 +31,16 @@ async fn order_to_cash() -> E2eResult<()> {
         .map_err(|e| e.to_string())?;
     assert!(ok(s), "list inventory: {s} {items_body}");
 
-    let stock_item_id = items_body["data"]
-        .as_array()
-        .and_then(|arr| arr.first())
-        .and_then(|i| i["serial_id"].as_i64())
-        .unwrap_or(0);
+    //let stock_item_id = items_body["data"]
+    //    .as_array()
+    //    .and_then(|arr| arr.first())
+    //    .and_then(|i| i["serial_id"].as_i64())
+    //    .unwrap_or(0);
+
+	let stock_item_id = items_body["data"].as_array().unwrap().iter()
+	    .find(|i| i["sku"].as_str() == Some(robotics::FG_CARGO_MULE))
+    	.and_then(|i| i["serial_id"].as_i64())
+    	.ok_or("FG-CARGO-MULE missing — run e2e_06")?;
 
     let stock_item_id = if stock_item_id > 0 {
         println!("✓ reuse item serial={stock_item_id}");

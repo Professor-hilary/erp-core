@@ -18,6 +18,16 @@ fn acct(ctx: &TestContext, codes: &[&str]) -> Result<String, String> {
     Ok(codes[0].to_string())
 }
 
+async fn uuid_by_sku(ctx: &TestContext, sku: &str) -> Result<String, String> {
+    let (s, body) = ctx.client.get("/api/inventory/list/inventory").await.map_err(|e| e.to_string())?;
+    assert!(ok(s), "list inv: {s}");
+    body["data"].as_array().unwrap().iter()
+        .find(|i| i["sku"].as_str() == Some(sku))
+        .and_then(|i| i["uuid"].as_str())
+        .map(|u| u.to_string())
+        .ok_or_else(|| format!("sku {sku} not found — run e2e_05"))
+}
+
 #[tokio::test]
 async fn manufacturing_flow() -> E2eResult<()> {
     let ctx = TestContext::from_saved_state().await?;
@@ -30,7 +40,7 @@ async fn manufacturing_flow() -> E2eResult<()> {
         .map_err(|e| e.to_string())?;
     assert!(ok(s), "list inventory: {s} {inv}");
 
-    let (rm_uuid, rm_serial, warehouse_serial) =
+   /* let (rm_uuid, rm_serial, warehouse_serial) =
         if let Some(item) = inv["data"].as_array().and_then(|a| a.first()) {
             let uuid = extract_uuid(item, &["uuid"]).map_err(|e| e.to_string())?;
             let serial = item["serial_id"].as_i64().ok_or("rm serial_id")?;
@@ -83,6 +93,54 @@ async fn manufacturing_flow() -> E2eResult<()> {
             (uuid, serial, wh)
         };
     let _ = rm_serial; // available if single-issue path needed later
+*/
+
+/// Find item uuid + serial + warehouse by sku from list/inventory payload.
+fn find_item<'a>(
+    inv: &'a serde_json::Value,
+    sku: &str,
+) -> Result<(&'a serde_json::Value), String> {
+    inv["data"]
+        .as_array()
+        .ok_or_else(|| "inventory data not an array".into())?
+        .iter()
+        .find(|i| i["sku"].as_str() == Some(sku))
+        .ok_or_else(|| format!("sku {sku} not in inventory — run e2e_05 first"))
+}
+
+// ----- Inventory baseline: RMs from P2P -----
+let (s, inv) = ctx
+    .client
+    .get("/api/inventory/list/inventory")
+    .await
+    .map_err(|e| e.to_string())?;
+assert!(ok(s), "list inventory: {s} {inv}");
+
+// Require the shared catalog (not "first row")
+for rm in RMS {
+    let _ = find_item(&inv, rm.sku)?;
+}
+println!("✓ all {} RM SKUs present", RMS.len());
+
+// Warehouse: from any known RM (same WH-RM from e2e_05)
+let anchor = find_item(&inv, RMS[0].sku)?;
+let warehouse_serial = anchor["warehouse_serial"]
+    .as_i64()
+    .or_else(|| anchor["warehouse_serial_id"].as_i64())
+    .unwrap_or(1);
+
+// UUIDs you need for BOM lines
+let mcues = extract_uuid(find_item(&inv, "MCU-STM32")?, &["uuid"])?;
+let imu = extract_uuid(find_item(&inv, "IMU-9DOF")?, &["uuid"])?;
+let mcust = extract_uuid(find_item(&inv, "MCU-ESP32")?, &["uuid"])?;
+let esc = extract_uuid(find_item(&inv, "ESC-40A")?, &["uuid"])?;
+let mtr = extract_uuid(find_item(&inv, "MTR-BLDC")?, &["uuid"])?;
+let bat = extract_uuid(find_item(&inv, "BAT-4S5AH")?, &["uuid"])?;
+let pcb = extract_uuid(find_item(&inv, "PCB-CTRL-V1")?, &["uuid"])?;
+let frm = extract_uuid(find_item(&inv, "FRM-GROUND")?, &["uuid"])?;
+let sen = extract_uuid(find_item(&inv, "SENS-US")?, &["uuid"])?;
+let cbl = extract_uuid(find_item(&inv, "CBL-HARN")?, &["uuid"])?;
+let fst = extract_uuid(find_item(&inv, "FST-KIT")?, &["uuid"])?;
 
     // ----- Finished goods item -----
     let inv_code = acct(&ctx, &["110703"])?;
@@ -91,8 +149,8 @@ async fn manufacturing_flow() -> E2eResult<()> {
         .post(
             "/api/inventory/create/item",
             json!({
-                "sku": "FG-CHAIR-1",
-                "name": "Wooden Chair",
+                "sku": "FG-CARGO-MULE",
+                "name": "Cargo Mule",
                 "warehouse_serial": warehouse_serial,
                 "unit": "pc",
                 "selling_price": "45000",

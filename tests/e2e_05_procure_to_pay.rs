@@ -74,7 +74,7 @@ async fn procure_to_pay() -> E2eResult<()> {
     } else {
         "110700"
     };
-    let (s, body) = ctx
+/*    let (s, body) = ctx
         .client
         .post(
             "/api/inventory/create/item",
@@ -101,6 +101,30 @@ async fn procure_to_pay() -> E2eResult<()> {
         .as_i64()
         .ok_or("item serial_id missing")?;
     println!("✓ item serial={stock_item_id}");
+*/
+// after WH-RM + categories...
+let mut first_serial = 0i64;
+for rm in robotics::RMS {
+    let (s, body) = ctx.client.post("/api/inventory/create/item", json!({
+        "sku": rm.sku,
+        "name": rm.name,
+        "warehouse_serial": wh_rm,
+        "category_uuid": cat_elec_or_mech, // split by sku prefix if you want
+        "unit": rm.unit,
+        "selling_price": "0",
+        "standard_cost": rm.standard_cost,
+        "track_quantity": true,
+        "reorder_level": "5",
+        "asset_account": inv_code, // 110701
+        "cogs_account": "510100",
+        "income_account": "410000"
+    })).await?;
+    assert!(ok(s), "item {}: {s} {body}", rm.sku);
+    if first_serial == 0 {
+        first_serial = body["data"]["serial_id"].as_i64().unwrap();
+    }
+    println!("✓ RM {} serial={}", rm.sku, body["data"]["serial_id"]);
+}
 
     // ----- 4. Create purchase bill (unposted) -----
     let qty = "100";
