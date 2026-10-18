@@ -41,21 +41,6 @@ impl ManufacturingRepo {
         .fetch_one(&self.pool)
         .await?;
 
-        // let order = ProductionOrder {
-        //     uuid: row.get("uuid"),
-        //     serial_id: row.get("serial_id"),
-        //     order_number: row.get("order_number"),
-        //     product_item_uuid: row.get("product_item_uuid"),
-        //     quantity_ordered: row.get("quantity_ordered"),
-        //     quantity_completed: row.get("quantity_completed"),
-        //     status: row.get("status"),
-        //     start_date: row.get("start_date"),
-        //     expected_completion_date: row.get("expected_completion_date"),
-        //     actual_completion_date: row.get("actual_completion_date"),
-        //     created_at: row.get("created_at"),
-        //     updated_at: row.get("updated_at"),
-        // };
-
         // Multi-level: explode default BOM to leaves and aggregate quantities
         sqlx::query(
             r#"
@@ -167,19 +152,6 @@ impl ManufacturingRepo {
         .fetch_one(&mut **tx)
         .await?;
 
-        // Ok(BomLine {
-        //     uuid: row.get("uuid"),
-        //     bom_header_uuid: row.get("bom_header_uuid"),
-        //     line_number: row.get("line_number"),
-        //     component_item_uuid: row.get("component_item_uuid"),
-        //     quantity_per: row.get("quantity_per"),
-        //     uom: row.get("uom"),
-        //     scrap_factor: row.get("scrap_factor"),
-        //     notes: row.get("notes"),
-        //     child_bom_uuid: row.get("child_bom_uuid"),
-        //     is_phantom: row.get("is_phantom"),
-        //     created_at: row.get("created_at"),
-        // })
         Ok(bom_line)
     }
 
@@ -199,17 +171,6 @@ impl ManufacturingRepo {
         .bind(dto.department_code)
         .fetch_one(&self.pool)
         .await?;
-
-        // Update cost tracker to record material cost
-        // let work_center: WorkCenter = WorkCenter {
-        //     uuid: row.get("uuid"),
-        //     code: row.get("code"),
-        //     name: row.get("name"),
-        //     labor_rate: row.get("labor_rate"),
-        //     allocation_base: row.get("allocation_base"),
-        //     department_code: row.get("department_code"),
-        //     created_at: row.get("created_at"),
-        // };
 
         Ok(work_center)
     }
@@ -235,20 +196,6 @@ impl ManufacturingRepo {
         .fetch_one(&self.pool)
         .await?;
 
-        // Update cost tracker to record material cost
-        // let routing: Routings = Routings {
-        //     uuid: row.get("uuid"),
-        //     product_item_uuid: row.get("product_item_uuid"),
-        //     routing_code: row.get("routing_code"),
-        //     notes: row.get("notes"),
-        //     version: row.get("version"),
-        //     base_quantity: row.get("base_quantity"),
-        //     effective_date: row.get("effective_date"),
-        //     status: row.get("status"),
-        //     is_default: row.get("is_default"),
-        //     created_at: row.get("created_at"),
-        // };
-
         Ok(routing)
     }
 
@@ -268,25 +215,12 @@ impl ManufacturingRepo {
         .bind(&dto.routing_uuid)
         .bind(dto.sequence)
         .bind(dto.operation_name)
-        .bind(dto.work_center_code)
+        .bind(dto.work_center)
         .bind(dto.description)
         .bind(dto.setup_time_minutes)
         .bind(dto.run_time_minutes)
         .fetch_one(&self.pool)
         .await?;
-
-        // Update cost tracker to record material cost
-        // let routing: RoutingOperations = RoutingOperations {
-        //     uuid: row.get("uuid"),
-        //     routing_uuid: row.get("routing_uuid"),
-        //     sequence: row.get("sequence"),
-        //     description: row.get("description"),
-        //     operation_name: row.get("operation_name"),
-        //     work_center_code: row.get("work_center"),
-        //     setup_time_minutes: row.get("setup_time_minutes"),
-        //     run_time_minutes: row.get("run_time_minutes"),
-        //     created_at: row.get("created_at"),
-        // };
 
         Ok(routing)
     }
@@ -423,27 +357,7 @@ impl ManufacturingRepo {
         Ok(cost_application)
     }
 
-    // pub async fn explode_bom(
-    //     &self,
-    //     bom_uuid: Uuid,
-    //     qty: BigDecimal,
-    // ) -> Result<Vec<ExplodedBomLine>, AppError> {
-    //     let rows = sqlx::query_as::<_, ExplodedBomLine>(
-    //         r#"
-    //         SELECT level, component_item_uuid, quantity_required,
-    //                is_leaf, is_phantom, source_bom_uuid
-    //         FROM manufacturing.explode_bom($1, $2)
-    //         ORDER BY level, component_item_uuid
-    //         "#,
-    //     )
-    //     .bind(bom_uuid)
-    //     .bind(qty)
-    //     .fetch_all(&self.pool)
-    //     .await?;
-    //     Ok(rows)
-    // }
-
-    // ============================ Labor Application ============================
+	// =============================== Labor Application ============================
     pub async fn apply_direct_labor(
         &self,
         dto: ApplyDirectLaborDto,
@@ -473,7 +387,7 @@ impl ManufacturingRepo {
         item_uuid: Uuid,
     ) -> Result<Cost, AppError> {
         let standard_cost = sqlx::query_as::<_, Cost>(
-            "SELECT manufacturing.calculate_standard_cost($1) AS standard_cost",
+            "SELECT manufacturing.calculate_standard_cost($1) AS proration",
         )
         .bind(item_uuid)
         .fetch_one(&mut **tx)
@@ -592,45 +506,7 @@ impl ManufacturingRepo {
         Ok(bom_header)
     }
 
-    // pub async fn add_line(
-    //     &self,
-    //     tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
-    //     header_uuid: Uuid,
-    //     dto: &CreateBomLineDto,
-    // ) -> Result<BomLine, AppError> {
-    //     let row: PgRow = sqlx::query_as::<_, >(
-    //         r#"
-    //         INSERT INTO manufacturing.bom_lines (
-    //             bom_header_uuid, line_number, component_item_uuid,
-    //             quantity_per, uom, scrap_factor, notes
-    //         ) VALUES ($1, $2, $3, $4, COALESCE($5, 'pcs'), COALESCE($6, 1.0000), $7)
-    //         RETURNING *
-    //         "#,
-    //     )
-    //     .bind(header_uuid)
-    //     .bind(dto.line_number)
-    //     .bind(dto.component_item_uuid)
-    //     .bind(dto.quantity_per.clone())
-    //     .bind(dto.uom.as_deref())
-    //     .bind(dto.scrap_factor.clone().unwrap_or(BigDecimal::one()))
-    //     .bind(dto.notes.as_deref())
-    //     .fetch_one(&mut **tx)
-    //     .await?;
-
-    //     Ok(BomLine {
-    //         uuid: row.get("uuid"),
-    //         bom_header_uuid: row.get("bom_header_uuid"),
-    //         line_number: row.get("line_number"),
-    //         component_item_uuid: row.get("component_item_uuid"),
-    //         quantity_per: row.get("quantity_per"),
-    //         uom: row.get("uom"),
-    //         scrap_factor: row.get("scrap_factor"),
-    //         notes: row.get("notes"),
-    //         created_at: row.get("created_at"),
-    //     })
-    // }
-
-    pub async fn get_full_bom(&self, bom_uuid: Uuid) -> Result<Option<BomWithLines>, AppError> {
+	pub async fn get_full_bom(&self, bom_uuid: Uuid) -> Result<Option<BomWithLines>, AppError> {
         let header_opt: Option<BomHeader> = sqlx::query_as::<_, BomHeader>(
             "SELECT * FROM manufacturing.bom_headers WHERE uuid = $1",
         )

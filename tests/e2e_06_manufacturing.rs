@@ -179,7 +179,7 @@ async fn manufacturing_flow() -> E2eResult<()> {
                 "routing_uuid": routing_uuid,
                 "sequence": 10,
                 "operation_name": "Assemble frame",
-                "work_center_code": "WC-ASSY",
+                "work_center": "WC-ASSY",
                 "description": "Join legs and seat",
                 "setup_time_minutes": "15",
                 "run_time_minutes": "30"
@@ -197,7 +197,7 @@ async fn manufacturing_flow() -> E2eResult<()> {
                 "routing_uuid": routing_uuid,
                 "sequence": 20,
                 "operation_name": "Sand and finish",
-                "work_center_code": "WC-FINISH",
+                "work_center": "WC-FINISH",
                 "description": "Surface finish",
                 "setup_time_minutes": "10",
                 "run_time_minutes": "20"
