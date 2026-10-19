@@ -3,6 +3,7 @@ mod common;
 use common::client::extract_uuid;
 use common::{E2eResult, TestContext};
 use serde_json::json;
+use common::fixtures::{RmSpec, RMS, FG_CARGO_MULE}; // FG only if needed
 
 fn ok(status: reqwest::StatusCode) -> bool {
     status.is_success() || status.as_u16() == 201
@@ -31,7 +32,7 @@ async fn procure_to_pay() -> E2eResult<()> {
         .expect("need a vendor from e2e_02");
 
     // ----- 1. Warehouse -----
-    let (s, body) = ctx
+    /*let (s, body) = ctx
         .client
         .post(
             "/api/inventory/create/warehouse",
@@ -65,7 +66,50 @@ async fn procure_to_pay() -> E2eResult<()> {
         .map_err(|e| e.to_string())?;
     assert!(ok(s), "create category: {s} {body}");
     let category_uuid = extract_uuid(&body, &["data", "uuid"]).map_err(|e| e.to_string())?;
-    println!("✓ category {category_uuid}");
+    println!("✓ category {category_uuid}");*/
+
+// ----- Warehouse WH-RM -----
+let (s, body) = ctx
+    .client
+    .post(
+        "/api/inventory/create/warehouse",
+        json!({
+            "code": "WH-RM",
+            "name": "Raw Materials Store",
+            "description": "Electronics and mechanical RM",
+            "location": "Kampala"
+        }),
+    )
+    .await
+    .map_err(|e| e.to_string())?;
+assert!(ok(s), "warehouse WH-RM: {s} {body}");
+let wh_rm = body["data"]["serial_id"]
+    .as_i64()
+    .ok_or("warehouse serial_id missing")?;
+println!("✓ warehouse serial={wh_rm}");
+
+// ----- Category (one is enough for v1) -----
+let (s, body) = ctx
+    .client
+    .post(
+        "/api/inventory/create/category",
+        json!({
+            "code": "RAW-ELEC",
+            "name": "Raw – Electronics & Mech",
+            "description": "Robotics RM"
+        }),
+    )
+    .await
+    .map_err(|e| e.to_string())?;
+assert!(ok(s), "category: {s} {body}");
+let cat_rm = extract_uuid(&body, &["data", "uuid"]).map_err(|e| e.to_string())?;
+println!("✓ category {cat_rm}");
+
+let inv_code = if ctx.account_uuid("110701").is_some() {
+    "110701"
+} else {
+    "110700"
+};
 
     // ----- 3. Stock item -----
     // asset_account / cogs / income = COA codes (strings)
@@ -74,36 +118,10 @@ async fn procure_to_pay() -> E2eResult<()> {
     } else {
         "110700"
     };
-/*    let (s, body) = ctx
-        .client
-        .post(
-            "/api/inventory/create/item",
-            json!({
-                "sku": "RM-FLOUR-25KG",
-                "name": "Wheat Flour 25kg",
-                "warehouse_serial": warehouse_serial,
-                "category_uuid": category_uuid,
-                "description": "Bakery flour",
-                "unit": "bag",
-                "selling_price": "45000",
-                "standard_cost": "32000",
-                "track_quantity": true,
-                "reorder_level": "10",
-                "asset_account": inv_code,
-                "cogs_account": "510100",
-                "income_account": "410100"
-            }),
-        )
-        .await
-        .map_err(|e| e.to_string())?;
-    assert!(ok(s), "create item: {s} {body}");
-    let stock_item_id = body["data"]["serial_id"]
-        .as_i64()
-        .ok_or("item serial_id missing")?;
-    println!("✓ item serial={stock_item_id}");
-*/
+
+        
 // after WH-RM + categories...
-let mut first_serial = 0i64;
+/*let mut first_serial = 0i64;
 for rm in robotics::RMS {
     let (s, body) = ctx.client.post("/api/inventory/create/item", json!({
         "sku": rm.sku,
@@ -124,10 +142,51 @@ for rm in robotics::RMS {
         first_serial = body["data"]["serial_id"].as_i64().unwrap();
     }
     println!("✓ RM {} serial={}", rm.sku, body["data"]["serial_id"]);
+}*/
+
+//use common::fixtures::RMS; // or common::robotics::RMS
+
+let mut bill_items = Vec::new();
+
+for rm in RMS {
+    let (s, body) = ctx
+        .client
+        .post(
+            "/api/inventory/create/item",
+            json!({
+                "sku": rm.sku,
+                "name": rm.name,
+                "warehouse_serial": wh_rm,
+                "category_uuid": cat_rm,
+                "unit": rm.unit,
+                "selling_price": "0",
+                "standard_cost": rm.standard_cost,
+                "track_quantity": true,
+                "reorder_level": "5",
+                "asset_account": inv_code,
+                "cogs_account": "510100",
+                "income_account": "410000"
+            }),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "item {}: {s} {body}", rm.sku);
+    let stock_item_id = body["data"]["serial_id"]
+        .as_i64()
+        .ok_or_else(|| format!("serial_id missing for {}", rm.sku))?;
+    println!("✓ RM {} serial={stock_item_id}", rm.sku);
+
+    bill_items.push(json!({
+        "stock_item_id": stock_item_id,
+        "description": rm.name,
+        "quantity": rm.qty_buy,
+        "unit_price": rm.unit_price,
+        "tax_rate": "18"
+    }));
 }
 
     // ----- 4. Create purchase bill (unposted) -----
-    let qty = "100";
+    /*let qty = "100";
     let unit_price = "32000";
     let tax_rate = "18"; // %
     let (s, body) = ctx
@@ -153,7 +212,28 @@ for rm in robotics::RMS {
         )
         .await
         .map_err(|e| e.to_string())?;
-    assert!(ok(s), "create purchase: {s} {body}");
+    assert!(ok(s), "create purchase: {s} {body}");*/
+let vendor_uuid = *ctx.vendors.values().next().expect("vendor");
+
+let (s, body) = ctx
+    .client
+    .post(
+        "/api/procurement/create/purchase",
+        json!({
+            "bill_number": format!("BILL-{}", chrono::Utc::now().timestamp_millis()),
+            "vendor_uuid": vendor_uuid,
+            "bill_date": "2025-01-20",
+            "due_date": "2025-02-20",
+            "reference": "PO-ROBOTICS-RM",
+            "settlement_type": "credit",
+            "payment_status": "unpaid",
+            "items": bill_items
+        }),
+    )
+    .await
+    .map_err(|e| e.to_string())?;
+assert!(ok(s), "create purchase: {s} {body}");
+// post credit
     let bill_serial = body["data"]["serial_id"]
         .as_i64()
         .ok_or("bill serial_id missing")?;

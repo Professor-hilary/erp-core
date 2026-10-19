@@ -3,6 +3,7 @@ mod common;
 use common::client::extract_uuid;
 use common::{E2eResult, TestContext};
 use serde_json::json;
+use common::fixtures::{RmSpec, RMS, FG_CARGO_MULE};
 
 fn ok(status: reqwest::StatusCode) -> bool {
     status.is_success() || status.as_u16() == 201
@@ -38,7 +39,7 @@ async fn order_to_cash() -> E2eResult<()> {
     //    .unwrap_or(0);
 
 	let stock_item_id = items_body["data"].as_array().unwrap().iter()
-	    .find(|i| i["sku"].as_str() == Some(robotics::FG_CARGO_MULE))
+	    .find(|i| i["sku"].as_str() == Some(FG_CARGO_MULE))
     	.and_then(|i| i["serial_id"].as_i64())
     	.ok_or("FG-CARGO-MULE missing — run e2e_06")?;
 
