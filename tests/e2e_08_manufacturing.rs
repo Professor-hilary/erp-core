@@ -141,8 +141,8 @@ println!("✓ FG uuid={fg_uuid}");
             "/api/manufacturing/create/routing/header",
             json!({
                 "product_item_uuid": fg_uuid,
-                "routing_code": "RT-CHAIR-v1",
-                "notes": "Standard chair routing",
+                "routing_code": "RT-CARGO-MULE-v1",
+                "notes": "Cargo Mule routing",
                 "version": "1",
                 "base_quantity": 1,
                 "effective_date": "2025-01-01",

@@ -39,27 +39,60 @@ async fn procure_to_pay() -> E2eResult<()> {
         "110700"
     };
 
-let vendor_uuid = *ctx.vendors.values().next().expect("vendor");
+    // ----- Resolve RM serials from inventory (created in e2e_03) -----
+    let (s, inv) = ctx
+        .client
+        .get("/api/inventory/list/inventory")
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "list inventory: {s} {inv}");
 
-let (s, body) = ctx
-    .client
-    .post(
-        "/api/procurement/create/purchase",
-        json!({
-            "bill_number": format!("BILL-{}", chrono::Utc::now().timestamp_millis()),
-            "vendor_uuid": vendor_uuid,
-            "bill_date": "2025-01-20",
-            "due_date": "2025-02-20",
-            "reference": "PO-ROBOTICS-RM",
-            "settlement_type": "credit",
-            "payment_status": "unpaid",
-            "items": bill_items
-        }),
-    )
-    .await
-    .map_err(|e| e.to_string())?;
-assert!(ok(s), "create purchase: {s} {body}");
-// post credit
+    let rows = inv["data"]
+        .as_array()
+        .ok_or_else(|| String::from("inventory data not an array"))?;
+
+    let mut bill_items = Vec::new();
+    for rm in RMS {
+        let row = rows
+            .iter()
+            .find(|i| i["sku"].as_str() == Some(rm.sku))
+            .ok_or_else(|| format!("sku {} missing — run e2e_03_inventory first", rm.sku))?;
+        let stock_item_id = row["serial_id"]
+            .as_i64()
+            .ok_or_else(|| format!("serial_id missing for {}", rm.sku))?;
+        bill_items.push(json!({
+            "stock_item_id": stock_item_id,
+            "description": rm.name,
+            "quantity": rm.qty_buy,
+            "unit_price": rm.unit_price,
+            "tax_rate": "18"
+        }));
+        println!("✓ bill line {} serial={stock_item_id} qty={}", rm.sku, rm.qty_buy);
+    }
+    assert!(!bill_items.is_empty(), "no RM lines for purchase bill");
+
+    let vendor_uuid = *ctx.vendors.values().next().expect("vendor");
+
+    let (s, body) = ctx
+        .client
+        .post(
+            "/api/procurement/create/purchase",
+            json!({
+                "bill_number": format!("BILL-{}", chrono::Utc::now().timestamp_millis()),
+                "vendor_uuid": vendor_uuid,
+                "bill_date": "2025-01-20",
+                "due_date": "2025-02-20",
+                "reference": "PO-ROBOTICS-RM",
+                "settlement_type": "credit",
+                "payment_status": "unpaid",
+                "items": bill_items
+            }),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "create purchase: {s} {body}");
+
+	// post credit
     let bill_serial = body["data"]["serial_id"]
         .as_i64()
         .ok_or("bill serial_id missing")?;
