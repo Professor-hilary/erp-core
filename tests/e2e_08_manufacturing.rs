@@ -217,7 +217,7 @@ println!("✓ FG uuid={fg_uuid}");
     println!("✓ overhead rate LABOR_HOURS");
 
     // =========================================================================
-    // 4. BOM: 1 chair ← 5 wood planks
+    // 4. BOM: CargoMule from electronics RM leaves (flat; multilevel later)
     // =========================================================================
     let (s, body) = ctx
         .client
@@ -225,20 +225,85 @@ println!("✓ FG uuid={fg_uuid}");
             "/api/manufacturing/create/bom",
             json!({
                 "header": {
-                    "bom_code": "BOM-CHAIR-v1",
+                    "bom_code": "BOM-CARGO-MULE-v1",
                     "product_item_uuid": fg_uuid,
-                    "description": "Standard wooden chair",
+                    "description": "CargoMule site delivery robot",
                     "revision": "1",
                     "is_default": true,
                     "is_active": true
                 },
-                "lines": [{
-                    "line_number": 1,
-                    "component_item_uuid": rm_uuid,
-                    "quantity_per": "5",
-                    "uom": "pc",
-                    "scrap_factor": "1.0500"
-                }]
+                "lines": [
+                    {
+                        "line_number": 1,
+                        "component_item_uuid": mcues,
+                        "quantity_per": "1",
+                        "uom": "pc",
+                        "scrap_factor": "1.0"
+                    },
+                    {
+                        "line_number": 2,
+                        "component_item_uuid": imu,
+                        "quantity_per": "1",
+                        "uom": "pc",
+                        "scrap_factor": "1.0"
+                    },
+                    {
+                        "line_number": 3,
+                        "component_item_uuid": pcb,
+                        "quantity_per": "1",
+                        "uom": "pc",
+                        "scrap_factor": "1.0"
+                    },
+                    {
+                        "line_number": 4,
+                        "component_item_uuid": mtr,
+                        "quantity_per": "2",
+                        "uom": "pc",
+                        "scrap_factor": "1.0"
+                    },
+                    {
+                        "line_number": 5,
+                        "component_item_uuid": esc,
+                        "quantity_per": "2",
+                        "uom": "pc",
+                        "scrap_factor": "1.0"
+                    },
+                    {
+                        "line_number": 6,
+                        "component_item_uuid": frm,
+                        "quantity_per": "1",
+                        "uom": "pc",
+                        "scrap_factor": "1.0"
+                    },
+                    {
+                        "line_number": 7,
+                        "component_item_uuid": bat,
+                        "quantity_per": "1",
+                        "uom": "pc",
+                        "scrap_factor": "1.0"
+                    },
+                    {
+                        "line_number": 8,
+                        "component_item_uuid": sen,
+                        "quantity_per": "2",
+                        "uom": "pc",
+                        "scrap_factor": "1.0"
+                    },
+                    {
+                        "line_number": 9,
+                        "component_item_uuid": cbl,
+                        "quantity_per": "1",
+                        "uom": "pc",
+                        "scrap_factor": "1.0"
+                    },
+                    {
+                        "line_number": 10,
+                        "component_item_uuid": fst,
+                        "quantity_per": "2",
+                        "uom": "pc",
+                        "scrap_factor": "1.0"
+                    }
+                ]
             }),
         )
         .await
