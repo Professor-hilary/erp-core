@@ -14,7 +14,6 @@ async fn procure_to_pay() -> E2eResult<()> {
     let mut ctx = TestContext::from_saved_state().await?;
 
     // Ensure we have cash / equity / AP context from earlier phases
-    // (safe if already posted — just balances the suite story)
     if ctx.vendors.is_empty() {
         ctx.seed_trading_partners()
             .await
