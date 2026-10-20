@@ -70,6 +70,18 @@ impl TestClient {
         let v: Value = res.json().await.unwrap_or(json!({}));
         Ok((status, v))
     }
+
+	pub async fn delete(&self, path: &str) -> Result<(StatusCode, Value)> {
+    let res = self
+        .http
+        .delete(format!("{BASE}{path}"))
+        .header("Authorization", format!("Bearer {}", self.access))
+        .send()
+        .await?;
+    let status = res.status();
+    let v: Value = res.json().await.unwrap_or(json!({}));
+    Ok((status, v))
+}
 }
 
 #[allow(dead_code)]
@@ -96,16 +108,4 @@ pub fn extract_uuid(v: &Value, path: &[&str]) -> Result<Uuid> {
     }
     let s = cur.as_str().context("expected string uuid")?;
     Ok(s.parse()?)
-}
-
-pub async fn delete(&self, path: &str) -> Result<(StatusCode, Value)> {
-    let res = self
-        .http
-        .delete(format!("{BASE}{path}"))
-        .header("Authorization", format!("Bearer {}", self.access))
-        .send()
-        .await?;
-    let status = res.status();
-    let v: Value = res.json().await.unwrap_or(json!({}));
-    Ok((status, v))
 }
