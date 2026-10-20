@@ -81,6 +81,8 @@ pub const INSTITUTIONS: &[Institution] = &[
 	Institution { key: "cust_mine", name: "Karamoja Survey Ltd", kind: "customer", email: "mapping@karamoja-survey.test", tax_id: "TIN-KSL-015" },
 ];
 
+#[allow(dead_code)]
+#[warn(dead_code)]
 /// Robotics OEM catalog for e2e (CargoMule-first).
 pub struct RmSpec {
     pub sku: &'static str,
@@ -91,6 +93,7 @@ pub struct RmSpec {
     pub qty_buy: &'static str,    // P2P buy qty
 }
 
+#[allow(dead_code)]
 /// Leaves purchased in e2e_05
 pub const RMS: &[RmSpec] = &[
     RmSpec { sku: "MCU-STM32", name: "STM32 MCU", unit: "pc", standard_cost: "45000", unit_price: "45000", qty_buy: "50" },
