@@ -1,7 +1,7 @@
 mod common;
 
 use common::client::extract_uuid;
-use common::fixtures::{RmSpec, RMS, FG_CARGO_MULE};
+use common::fixtures::{RMS, FG_CARGO_MULE, SA_CTRL_CORE, SA_PROP_GROUND};
 use common::{E2eResult, TestContext};
 use serde_json::json;
 
@@ -40,74 +40,6 @@ async fn manufacturing_flow() -> E2eResult<()> {
         .await
         .map_err(|e| e.to_string())?;
     assert!(ok(s), "list inventory: {s} {inv}");
-
-   /* let (rm_uuid, rm_serial, warehouse_serial) =
-        if let Some(item) = inv["data"].as_array().and_then(|a| a.first()) {
-            let uuid = extract_uuid(item, &["uuid"]).map_err(|e| e.to_string())?;
-            let serial = item["serial_id"].as_i64().ok_or("rm serial_id")?;
-            let wh = item["warehouse_serial"].as_i64().unwrap_or(1);
-            println!("✓ reuse RM serial={serial} uuid={uuid}");
-            (uuid, serial, wh)
-        } else {
-            // Bootstrap warehouse + RM if suite was run out of order
-            let (s, body) = ctx
-                .client
-                .post(
-                    "/api/inventory/create/warehouse",
-                    json!({
-                        "code": "WH-MFG",
-                        "name": "Production Store",
-                        "description": "Manufacturing",
-                        "location": "Kampala"
-                    }),
-                )
-                .await
-                .map_err(|e| e.to_string())?;
-            assert!(ok(s), "warehouse: {s} {body}");
-            let wh = body["data"]["serial_id"].as_i64().ok_or("wh serial")?;
-
-            let inv_code = acct(&ctx, &["110701", "110700"])?;
-            let (s, body) = ctx
-                .client
-                .post(
-                    "/api/inventory/create/item",
-                    json!({
-                        "sku": "RM-WOOD-1",
-                        "name": "Wood Plank",
-                        "warehouse_serial": wh,
-                        "unit": "pc",
-                        "selling_price": "0",
-                        "standard_cost": "5000",
-                        "track_quantity": true,
-                        "reorder_level": "100",
-                        "asset_account": inv_code,
-                        "cogs_account": "510100",
-                        "income_account": "410100"
-                    }),
-                )
-                .await
-                .map_err(|e| e.to_string())?;
-            assert!(ok(s), "create RM: {s} {body}");
-            let uuid = extract_uuid(&body, &["data", "uuid"]).map_err(|e| e.to_string())?;
-            let serial = body["data"]["serial_id"].as_i64().ok_or("rm serial")?;
-            println!("✓ created RM serial={serial}");
-            (uuid, serial, wh)
-        };
-    let _ = rm_serial; // available if single-issue path needed later
-
-
-// Find item uuid + serial + warehouse by sku from list/inventory payload.
-fn find_item<'a>(
-    inv: &'a serde_json::Value,
-    sku: &str,
-) -> Result<(&'a serde_json::Value), String> {
-    inv["data"]
-        .as_array()
-        .ok_or_else(|| "inventory data not an array".into())?
-        .iter()
-        .find(|i| i["sku"].as_str() == Some(sku))
-        .ok_or_else(|| format!("sku {sku} not in inventory — run e2e_05 first"))
-}*/
 
 fn find_item<'a>(
     inv: &'a serde_json::Value,
@@ -154,33 +86,15 @@ let frm = extract_uuid(find_item(&inv, "FRM-GROUND")?, &["uuid"])?;
 let sen = extract_uuid(find_item(&inv, "SENS-US")?, &["uuid"])?;
 let cbl = extract_uuid(find_item(&inv, "CBL-HARN")?, &["uuid"])?;
 let fst = extract_uuid(find_item(&inv, "FST-KIT")?, &["uuid"])?;
-/*
-    // ----- Finished goods item -----
-    let inv_code = acct(&ctx, &["110703"])?;
-    let (s, body) = ctx
-        .client
-        .post(
-            "/api/inventory/create/item",
-            json!({
-                "sku": "FG-CARGO-MULE",
-                "name": "Cargo Mule",
-                "warehouse_serial": warehouse_serial,
-                "unit": "pc",
-                "selling_price": "45000",
-                "standard_cost": "25000",
-                "track_quantity": true,
-                "reorder_level": "5",
-                "asset_account": inv_code,
-                "cogs_account": "500000",
-                "income_account": "410000"
-            }),
-        )
-        .await
-        .map_err(|e| e.to_string())?;
-    assert!(ok(s), "create FG: {s} {body}");*/
-    let fg_uuid = extract_uuid(&body, &["data", "uuid"]).map_err(|e| e.to_string())?;
-    println!("✓ FG uuid={fg_uuid}");
 
+let sa_ctrl = extract_uuid(find_item(&inv, SA_CTRL_CORE)?, &["uuid"]).map_err(|e| e.to_string())?;
+let sa_prop = extract_uuid(find_item(&inv, SA_PROP_GROUND)?, &["uuid"]).map_err(|e| e.to_string())?;
+    
+// after find_item + RM uuid locals...
+let fg_uuid = extract_uuid(find_item(&inv, FG_CARGO_MULE)?, &["uuid"])
+    .map_err(|e| e.to_string())?;
+println!("✓ FG uuid={fg_uuid}");
+    
     // =========================================================================
     // 1. Work centers (labor rate + allocation base for OH)
     // =========================================================================
