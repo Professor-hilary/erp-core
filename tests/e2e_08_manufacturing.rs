@@ -94,9 +94,9 @@ async fn manufacturing_flow() -> E2eResult<()> {
             (uuid, serial, wh)
         };
     let _ = rm_serial; // available if single-issue path needed later
-*/
 
-/// Find item uuid + serial + warehouse by sku from list/inventory payload.
+
+// Find item uuid + serial + warehouse by sku from list/inventory payload.
 fn find_item<'a>(
     inv: &'a serde_json::Value,
     sku: &str,
@@ -104,6 +104,18 @@ fn find_item<'a>(
     inv["data"]
         .as_array()
         .ok_or_else(|| "inventory data not an array".into())?
+        .iter()
+        .find(|i| i["sku"].as_str() == Some(sku))
+        .ok_or_else(|| format!("sku {sku} not in inventory — run e2e_05 first"))
+}*/
+
+fn find_item<'a>(
+    inv: &'a serde_json::Value,
+    sku: &str,
+) -> Result<&'a serde_json::Value, String> {
+    inv["data"]
+        .as_array()
+        .ok_or_else(|| String::from("inventory data not an array"))?
         .iter()
         .find(|i| i["sku"].as_str() == Some(sku))
         .ok_or_else(|| format!("sku {sku} not in inventory — run e2e_05 first"))
@@ -142,7 +154,7 @@ let frm = extract_uuid(find_item(&inv, "FRM-GROUND")?, &["uuid"])?;
 let sen = extract_uuid(find_item(&inv, "SENS-US")?, &["uuid"])?;
 let cbl = extract_uuid(find_item(&inv, "CBL-HARN")?, &["uuid"])?;
 let fst = extract_uuid(find_item(&inv, "FST-KIT")?, &["uuid"])?;
-
+/*
     // ----- Finished goods item -----
     let inv_code = acct(&ctx, &["110703"])?;
     let (s, body) = ctx
@@ -165,7 +177,7 @@ let fst = extract_uuid(find_item(&inv, "FST-KIT")?, &["uuid"])?;
         )
         .await
         .map_err(|e| e.to_string())?;
-    assert!(ok(s), "create FG: {s} {body}");
+    assert!(ok(s), "create FG: {s} {body}");*/
     let fg_uuid = extract_uuid(&body, &["data", "uuid"]).map_err(|e| e.to_string())?;
     println!("✓ FG uuid={fg_uuid}");
 

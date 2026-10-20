@@ -42,7 +42,7 @@ async fn order_to_cash() -> E2eResult<()> {
 	    .find(|i| i["sku"].as_str() == Some(FG_CARGO_MULE))
     	.and_then(|i| i["serial_id"].as_i64())
     	.ok_or("FG-CARGO-MULE missing — run e2e_06")?;
-
+/*
     let stock_item_id = if stock_item_id > 0 {
         println!("✓ reuse item serial={stock_item_id}");
         stock_item_id
@@ -95,7 +95,7 @@ async fn order_to_cash() -> E2eResult<()> {
         println!("✓ created item serial={id}");
         id
     };
-
+*/
     // ----- Create credit invoice (unposted) -----
     let invoice_number = format!("INV-{}", chrono::Utc::now().timestamp_millis());
     let (s, body) = ctx

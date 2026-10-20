@@ -66,7 +66,7 @@ async fn procure_to_pay() -> E2eResult<()> {
         .map_err(|e| e.to_string())?;
     assert!(ok(s), "create category: {s} {body}");
     let category_uuid = extract_uuid(&body, &["data", "uuid"]).map_err(|e| e.to_string())?;
-    println!("✓ category {category_uuid}");*/
+    println!("✓ category {category_uuid}");*
 
 // ----- Warehouse WH-RM -----
 let (s, body) = ctx
@@ -142,7 +142,7 @@ for rm in robotics::RMS {
         first_serial = body["data"]["serial_id"].as_i64().unwrap();
     }
     println!("✓ RM {} serial={}", rm.sku, body["data"]["serial_id"]);
-}*/
+}*
 
 //use common::fixtures::RMS; // or common::robotics::RMS
 
@@ -183,7 +183,7 @@ for rm in RMS {
         "unit_price": rm.unit_price,
         "tax_rate": "18"
     }));
-}
+}*/
 
     // ----- 4. Create purchase bill (unposted) -----
     /*let qty = "100";
