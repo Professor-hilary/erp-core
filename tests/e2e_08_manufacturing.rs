@@ -1,7 +1,7 @@
 mod common;
 
 use common::client::extract_uuid;
-use common::fixtures::{RMS, FG_CARGO_MULE, SA_CTRL_CORE, SA_PROP_GROUND};
+use common::fixtures::{FG_CARGO_MULE, RMS, SA_CTRL_CORE, SA_PROP_GROUND};
 use common::{E2eResult, TestContext};
 use serde_json::json;
 
@@ -19,29 +19,6 @@ fn acct(ctx: &TestContext, codes: &[&str]) -> Result<String, String> {
     Ok(codes[0].to_string())
 }
 
-#[allow(dead_code)]
-async fn uuid_by_sku(ctx: &TestContext, sku: &str) -> Result<String, String> {
-    let (s, body) = ctx.client.get("/api/inventory/list/inventory").await.map_err(|e| e.to_string())?;
-    assert!(ok(s), "list inv: {s}");
-    body["data"].as_array().unwrap().iter()
-        .find(|i| i["sku"].as_str() == Some(sku))
-        .and_then(|i| i["uuid"].as_str())
-        .map(|u| u.to_string())
-        .ok_or_else(|| format!("sku {sku} not found — run e2e_05"))
-}
-
-#[tokio::test]
-async fn manufacturing_flow() -> E2eResult<()> {
-    let ctx = TestContext::from_saved_state().await?;
-
-    // ----- Inventory baseline: warehouse + raw material -----
-    let (s, inv) = ctx
-        .client
-        .get("/api/inventory/list/inventory")
-        .await
-        .map_err(|e| e.to_string())?;
-    assert!(ok(s), "list inventory: {s} {inv}");
-
 fn find_item<'a>(
     inv: &'a serde_json::Value,
     sku: &str,
@@ -54,48 +31,70 @@ fn find_item<'a>(
         .ok_or_else(|| format!("sku {sku} not in inventory — run e2e_05 first"))
 }
 
-// ----- Inventory baseline: RMs from P2P -----
-let (s, inv) = ctx
-    .client
-    .get("/api/inventory/list/inventory")
-    .await
-    .map_err(|e| e.to_string())?;
-assert!(ok(s), "list inventory: {s} {inv}");
-
-// Require the shared catalog (not "first row")
-for rm in RMS {
-    let _ = find_item(&inv, rm.sku)?;
+#[allow(dead_code)]
+async fn uuid_by_sku(ctx: &TestContext, sku: &str) -> Result<String, String> {
+    let (s, body) = ctx
+        .client
+        .get("/api/inventory/list/inventory")
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "list inv: {s}");
+    body["data"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|i| i["sku"].as_str() == Some(sku))
+        .and_then(|i| i["uuid"].as_str())
+        .map(|u| u.to_string())
+        .ok_or_else(|| format!("sku {sku} not found — run e2e_05"))
 }
-println!("✓ all {} RM SKUs present", RMS.len());
 
-// Warehouse: from any known RM (same WH-RM from e2e_05)
-let anchor = find_item(&inv, RMS[0].sku)?;
-let warehouse_serial = anchor["warehouse_serial"]
-    .as_i64()
-    .or_else(|| anchor["warehouse_serial_id"].as_i64())
-    .unwrap_or(1);
+#[tokio::test]
+async fn manufacturing_flow() -> E2eResult<()> {
+    let ctx = TestContext::from_saved_state().await?;
 
-// UUIDs you need for BOM lines
-let mcues = extract_uuid(find_item(&inv, "MCU-STM32")?, &["uuid"])?;
-let imu = extract_uuid(find_item(&inv, "IMU-9DOF")?, &["uuid"])?;
-let _mcust = extract_uuid(find_item(&inv, "MCU-ESP32")?, &["uuid"])?;
-let esc = extract_uuid(find_item(&inv, "ESC-40A")?, &["uuid"])?;
-let mtr = extract_uuid(find_item(&inv, "MTR-BLDC")?, &["uuid"])?;
-let bat = extract_uuid(find_item(&inv, "BAT-4S5AH")?, &["uuid"])?;
-let pcb = extract_uuid(find_item(&inv, "PCB-CTRL-V1")?, &["uuid"])?;
-let frm = extract_uuid(find_item(&inv, "FRM-GROUND")?, &["uuid"])?;
-let sen = extract_uuid(find_item(&inv, "SENS-US")?, &["uuid"])?;
-let cbl = extract_uuid(find_item(&inv, "CBL-HARN")?, &["uuid"])?;
-let fst = extract_uuid(find_item(&inv, "FST-KIT")?, &["uuid"])?;
+    // ----- Inventory baseline: RMs from P2P + SA/FG shells from e2e_03 -----
+    let (s, inv) = ctx
+        .client
+        .get("/api/inventory/list/inventory")
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "list inventory: {s} {inv}");
 
-let _sa_ctrl = extract_uuid(find_item(&inv, SA_CTRL_CORE)?, &["uuid"]).map_err(|e| e.to_string())?;
-let _sa_prop = extract_uuid(find_item(&inv, SA_PROP_GROUND)?, &["uuid"]).map_err(|e| e.to_string())?;
-    
-// after find_item + RM uuid locals...
-let fg_uuid = extract_uuid(find_item(&inv, FG_CARGO_MULE)?, &["uuid"])
-    .map_err(|e| e.to_string())?;
-println!("✓ FG uuid={fg_uuid}");
-    
+    for rm in RMS {
+        let _ = find_item(&inv, rm.sku)?;
+    }
+    println!("✓ all {} RM SKUs present", RMS.len());
+
+    // Warehouse: from any known RM (same WH-RM from e2e_05)
+    let anchor = find_item(&inv, RMS[0].sku)?;
+    let warehouse_serial = anchor["warehouse_serial"]
+        .as_i64()
+        .or_else(|| anchor["warehouse_serial_id"].as_i64())
+        .unwrap_or(1);
+
+    // Leaf RM UUIDs
+    let mcues = extract_uuid(find_item(&inv, "MCU-STM32")?, &["uuid"])?;
+    let imu = extract_uuid(find_item(&inv, "IMU-9DOF")?, &["uuid"])?;
+    let _mcust = extract_uuid(find_item(&inv, "MCU-ESP32")?, &["uuid"])?;
+    let esc = extract_uuid(find_item(&inv, "ESC-40A")?, &["uuid"])?;
+    let mtr = extract_uuid(find_item(&inv, "MTR-BLDC")?, &["uuid"])?;
+    let bat = extract_uuid(find_item(&inv, "BAT-4S5AH")?, &["uuid"])?;
+    let pcb = extract_uuid(find_item(&inv, "PCB-CTRL-V1")?, &["uuid"])?;
+    let frm = extract_uuid(find_item(&inv, "FRM-GROUND")?, &["uuid"])?;
+    let sen = extract_uuid(find_item(&inv, "SENS-US")?, &["uuid"])?;
+    let cbl = extract_uuid(find_item(&inv, "CBL-HARN")?, &["uuid"])?;
+    let fst = extract_uuid(find_item(&inv, "FST-KIT")?, &["uuid"])?;
+
+    // Subassembly + FG shells (created in e2e_03, qty 0 until this flow)
+    let sa_ctrl = extract_uuid(find_item(&inv, SA_CTRL_CORE)?, &["uuid"])
+        .map_err(|e| e.to_string())?;
+    let sa_prop = extract_uuid(find_item(&inv, SA_PROP_GROUND)?, &["uuid"])
+        .map_err(|e| e.to_string())?;
+    let fg_uuid = extract_uuid(find_item(&inv, FG_CARGO_MULE)?, &["uuid"])
+        .map_err(|e| e.to_string())?;
+    println!("✓ SA-CTRL-CORE={sa_ctrl} SA-PROP-GROUND={sa_prop} FG={fg_uuid}");
+
     // =========================================================================
     // 1. Work centers (labor rate + allocation base for OH)
     // =========================================================================
@@ -134,7 +133,7 @@ println!("✓ FG uuid={fg_uuid}");
     println!("✓ work center WC-FINISH");
 
     // =========================================================================
-    // 2. Routing header + operations (sequence on work centers)
+    // 2. Routing header + operations (sequence on work centers) — FG only
     // =========================================================================
     let (s, body) = ctx
         .client
@@ -143,7 +142,7 @@ println!("✓ FG uuid={fg_uuid}");
             json!({
                 "product_item_uuid": fg_uuid,
                 "routing_code": "RT-CARGO-MULE-v1",
-                "notes": "Cargo Mule routing",
+                "notes": "Cargo Mule final assembly routing",
                 "version": "1",
                 "base_quantity": 1,
                 "effective_date": "2025-01-01",
@@ -164,9 +163,9 @@ println!("✓ FG uuid={fg_uuid}");
             json!({
                 "routing_uuid": routing_uuid,
                 "sequence": 10,
-                "operation_name": "Assemble frame",
+                "operation_name": "Assemble subassemblies onto chassis",
                 "work_center": "WC-ASSY",
-                "description": "Join legs and seat",
+                "description": "Mount control core + propulsion onto frame",
                 "setup_time_minutes": "15",
                 "run_time_minutes": "30"
             }),
@@ -182,9 +181,9 @@ println!("✓ FG uuid={fg_uuid}");
             json!({
                 "routing_uuid": routing_uuid,
                 "sequence": 20,
-                "operation_name": "Sand and finish",
+                "operation_name": "Wire, test and finish",
                 "work_center": "WC-FINISH",
-                "description": "Surface finish",
+                "description": "Harness, sensors, functional test, finish",
                 "setup_time_minutes": "10",
                 "run_time_minutes": "20"
             }),
@@ -218,17 +217,21 @@ println!("✓ FG uuid={fg_uuid}");
     println!("✓ overhead rate LABOR_HOURS");
 
     // =========================================================================
-    // 4. BOM: CargoMule from electronics RM leaves (flat; multilevel later)
+    // 4. Multi-level BOM
+    //    Level 1 (subassemblies) → Level 0 (FG)
+    //    explode_bom + production_order_materials already recurse to leaves.
     // =========================================================================
+
+    // 4a. SA-CTRL-CORE: electronics brain
     let (s, body) = ctx
         .client
         .post(
             "/api/manufacturing/create/bom",
             json!({
                 "header": {
-                    "bom_code": "BOM-CARGO-MULE-v1",
-                    "product_item_uuid": fg_uuid,
-                    "description": "CargoMule site delivery robot",
+                    "bom_code": "BOM-SA-CTRL-CORE-v1",
+                    "product_item_uuid": sa_ctrl,
+                    "description": "Control core subassembly (MCU + IMU + PCB)",
                     "revision": "1",
                     "is_default": true,
                     "is_active": true
@@ -254,51 +257,123 @@ println!("✓ FG uuid={fg_uuid}");
                         "quantity_per": "1",
                         "uom": "pc",
                         "scrap_factor": "1.0"
-                    },
+                    }
+                ]
+            }),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "create BOM SA-CTRL-CORE: {s} {body}");
+    let bom_sa_ctrl = extract_uuid(&body, &["data", "header", "uuid"])
+        .or_else(|_| extract_uuid(&body, &["data", "uuid"]))
+        .map_err(|e| e.to_string())?;
+    println!("✓ BOM SA-CTRL-CORE {bom_sa_ctrl}");
+
+    // 4b. SA-PROP-GROUND: drive train
+    let (s, body) = ctx
+        .client
+        .post(
+            "/api/manufacturing/create/bom",
+            json!({
+                "header": {
+                    "bom_code": "BOM-SA-PROP-GROUND-v1",
+                    "product_item_uuid": sa_prop,
+                    "description": "Ground propulsion subassembly (motors + ESC + chassis)",
+                    "revision": "1",
+                    "is_default": true,
+                    "is_active": true
+                },
+                "lines": [
                     {
-                        "line_number": 4,
+                        "line_number": 1,
                         "component_item_uuid": mtr,
                         "quantity_per": "2",
                         "uom": "pc",
                         "scrap_factor": "1.0"
                     },
                     {
-                        "line_number": 5,
+                        "line_number": 2,
                         "component_item_uuid": esc,
                         "quantity_per": "2",
                         "uom": "pc",
                         "scrap_factor": "1.0"
                     },
                     {
-                        "line_number": 6,
+                        "line_number": 3,
                         "component_item_uuid": frm,
                         "quantity_per": "1",
                         "uom": "pc",
                         "scrap_factor": "1.0"
+                    }
+                ]
+            }),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "create BOM SA-PROP-GROUND: {s} {body}");
+    let bom_sa_prop = extract_uuid(&body, &["data", "header", "uuid"])
+        .or_else(|_| extract_uuid(&body, &["data", "uuid"]))
+        .map_err(|e| e.to_string())?;
+    println!("✓ BOM SA-PROP-GROUND {bom_sa_prop}");
+
+    // 4c. FG-CARGO-MULE: top-level multi-level BOM (SAs + remaining leaves)
+    //     child_bom_uuid pins the exact sub-BOM revisions we just created;
+    //     explode_bom will also find them via product_item_uuid if omitted.
+    let (s, body) = ctx
+        .client
+        .post(
+            "/api/manufacturing/create/bom",
+            json!({
+                "header": {
+                    "bom_code": "BOM-CARGO-MULE-v1",
+                    "product_item_uuid": fg_uuid,
+                    "description": "CargoMule site delivery robot (multi-level)",
+                    "revision": "1",
+                    "is_default": true,
+                    "is_active": true
+                },
+                "lines": [
+                    {
+                        "line_number": 1,
+                        "component_item_uuid": sa_ctrl,
+                        "quantity_per": "1",
+                        "uom": "pc",
+                        "scrap_factor": "1.0",
+                        "child_bom_uuid": bom_sa_ctrl,
+                        "is_phantom": false
                     },
                     {
-                        "line_number": 7,
+                        "line_number": 2,
+                        "component_item_uuid": sa_prop,
+                        "quantity_per": "1",
+                        "uom": "pc",
+                        "scrap_factor": "1.0",
+                        "child_bom_uuid": bom_sa_prop,
+                        "is_phantom": false
+                    },
+                    {
+                        "line_number": 3,
                         "component_item_uuid": bat,
                         "quantity_per": "1",
                         "uom": "pc",
                         "scrap_factor": "1.0"
                     },
                     {
-                        "line_number": 8,
+                        "line_number": 4,
                         "component_item_uuid": sen,
                         "quantity_per": "2",
                         "uom": "pc",
                         "scrap_factor": "1.0"
                     },
                     {
-                        "line_number": 9,
+                        "line_number": 5,
                         "component_item_uuid": cbl,
                         "quantity_per": "1",
                         "uom": "pc",
                         "scrap_factor": "1.0"
                     },
                     {
-                        "line_number": 10,
+                        "line_number": 6,
                         "component_item_uuid": fst,
                         "quantity_per": "2",
                         "uom": "pc",
@@ -309,14 +384,28 @@ println!("✓ FG uuid={fg_uuid}");
         )
         .await
         .map_err(|e| e.to_string())?;
-    assert!(ok(s), "create BOM: {s} {body}");
+    assert!(ok(s), "create BOM FG multi-level: {s} {body}");
     let bom_uuid = extract_uuid(&body, &["data", "header", "uuid"])
         .or_else(|_| extract_uuid(&body, &["data", "uuid"]))
         .map_err(|e| e.to_string())?;
-    println!("✓ BOM {bom_uuid}");
+    println!("✓ BOM FG multi-level {bom_uuid}");
+
+    // Optional: fetch top BOM to confirm structure is stored
+    let (s, body) = ctx
+        .client
+        .get(&format!("/api/manufacturing/get/bom/{bom_uuid}"))
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "get BOM: {s} {body}");
+    let n_lines = body["data"]["lines"]
+        .as_array()
+        .map(|a| a.len())
+        .unwrap_or(0);
+    assert_eq!(n_lines, 6, "expected 6 top-level BOM lines, got {n_lines}");
+    println!("✓ get BOM has {n_lines} top-level lines (2 SA + 4 leaf)");
 
     // =========================================================================
-    // 5. Production order
+    // 5. Production order (material requirements explode to leaves via explode_bom)
     // =========================================================================
     let order_no = format!("PO-{}", chrono::Utc::now().timestamp_millis());
     let (s, body) = ctx
@@ -338,7 +427,7 @@ println!("✓ FG uuid={fg_uuid}");
     println!("✓ production order {order_no} uuid={po_uuid}");
 
     // =========================================================================
-    // 6. Bulk issue materials (BOM explode → Dr WIP / Cr RM)
+    // 6. Bulk issue materials (BOM explode → Dr WIP / Cr RM on leaves only)
     // =========================================================================
     let wip = acct(&ctx, &["110702"])?;
     let raw = acct(&ctx, &["110701"])?;
@@ -360,7 +449,7 @@ println!("✓ FG uuid={fg_uuid}");
         .await
         .map_err(|e| e.to_string())?;
     assert!(ok(s), "issue materials: {s} {body}");
-    println!("✓ materials issued to WIP");
+    println!("✓ materials issued to WIP (multi-level leaves)");
 
     // =========================================================================
     // 7. Apply direct labor (Dr WIP / Cr wages payable)
@@ -373,7 +462,7 @@ println!("✓ FG uuid={fg_uuid}");
                 "production_order_uuid": po_uuid,
                 "labor_account_code": labor_payable,
                 "wip_account_code": wip,
-                "reference": "DL-ASSY-FINISH-10chairs"
+                "reference": "DL-ASSY-FINISH-10-CargoMule"
             }),
         )
         .await
@@ -385,7 +474,7 @@ println!("✓ FG uuid={fg_uuid}");
     // 8. Apply predetermined overhead (rate × base hours)
     //    Note: DTO uses production_order as order_number string, not uuid
     // =========================================================================
-    // 10 chairs × (30+20)/60 h run ≈ 8.3 labor hours; use 10 for clean math
+    // 10 units × (30+20)/60 h run ≈ 8.3 labor hours; use 10 for clean math
     let (s, body) = ctx
         .client
         .post(
@@ -425,7 +514,7 @@ println!("✓ FG uuid={fg_uuid}");
     println!("✓ actual overhead recognized");
 
     // =========================================================================
-    // 7. Complete production (Dr FG / Cr WIP + variance accounts)
+    // 10. Complete production (Dr FG / Cr WIP + variance accounts)
     // =========================================================================
     let fg_acct = acct(&ctx, &["110703"])?;
     let mat_var = acct(&ctx, &["550100"])?;
@@ -454,7 +543,7 @@ println!("✓ FG uuid={fg_uuid}");
     println!("✓ production completed → FG");
 
     // =========================================================================
-    // 8. Trial balance
+    // 11. Trial balance
     // =========================================================================
     ctx.assert_trial_balance_ok("2025-01-31")
         .await
@@ -462,6 +551,7 @@ println!("✓ FG uuid={fg_uuid}");
     println!("✓ trial balance OK after manufacturing");
 
     ctx.save_state().map_err(|e| e.to_string())?;
-    println!("✅ manufacturing_flow OK for {}", ctx.company_name);
+    println!("✅ manufacturing_flow (multi-level BOM) OK for {}", ctx.company_name);
     Ok(())
 }
+

@@ -42,60 +42,7 @@ async fn order_to_cash() -> E2eResult<()> {
 	    .find(|i| i["sku"].as_str() == Some(FG_CARGO_MULE))
     	.and_then(|i| i["serial_id"].as_i64())
     	.ok_or("FG-CARGO-MULE missing — run e2e_06")?;
-/*
-    let stock_item_id = if stock_item_id > 0 {
-        println!("✓ reuse item serial={stock_item_id}");
-        stock_item_id
-    } else {
-        // Minimal warehouse + item (same as e2e_06)
-        let (s, body) = ctx
-            .client
-            .post(
-                "/api/inventory/create/warehouse",
-                json!({
-                    "code": "WH-SALES",
-                    "name": "Sales Staging",
-                    "description": "For O2C",
-                    "location": "Kampala"
-                }),
-            )
-            .await
-            .map_err(|e| e.to_string())?;
-        assert!(ok(s), "warehouse: {s} {body}");
-        let wh = body["data"]["serial_id"].as_i64().ok_or("wh serial")?;
 
-        let inv_code = if ctx.account_uuid("110701").is_some() {
-            "110701"
-        } else {
-            "110700"
-        };
-        let (s, body) = ctx
-            .client
-            .post(
-                "/api/inventory/create/item",
-                json!({
-                    "sku": "FG-BREAD-1",
-                    "name": "White Bread Loaf",
-                    "warehouse_serial": wh,
-                    "description": "Finished goods",
-                    "unit": "loaf",
-                    "selling_price": "5000",
-                    "standard_cost": "2500",
-                    "track_quantity": true,
-                    "reorder_level": "20",
-                    "asset_account": inv_code,
-                    "cogs_account": "510100",
-                    "income_account": "410000"
-                }),
-            )
-            .await
-            .map_err(|e| e.to_string())?;
-        assert!(ok(s), "create item: {s} {body}");
-        let id = body["data"]["serial_id"].as_i64().ok_or("item serial")?;
-        println!("✓ created item serial={id}");
-        id
-    };
-*/
     // ----- Create credit invoice (unposted) -----
     let invoice_number = format!("INV-{}", chrono::Utc::now().timestamp_millis());
     let (s, body) = ctx
