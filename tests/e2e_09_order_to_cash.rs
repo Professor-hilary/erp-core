@@ -3,7 +3,7 @@ mod common;
 use common::client::extract_uuid;
 use common::{E2eResult, TestContext};
 use serde_json::json;
-use common::fixtures::{RmSpec, RMS, FG_CARGO_MULE};
+use common::fixtures::{FG_CARGO_MULE};
 
 fn ok(status: reqwest::StatusCode) -> bool {
     status.is_success() || status.as_u16() == 201

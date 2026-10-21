@@ -81,9 +81,8 @@ pub const INSTITUTIONS: &[Institution] = &[
 	Institution { key: "cust_mine", name: "Karamoja Survey Ltd", kind: "customer", email: "mapping@karamoja-survey.test", tax_id: "TIN-KSL-015" },
 ];
 
-#[allow(dead_code)]
-#[warn(dead_code)]
 /// Robotics OEM catalog for e2e (CargoMule-first).
+#[allow(dead_code)]
 pub struct RmSpec {
     pub sku: &'static str,
     pub name: &'static str,
@@ -93,8 +92,8 @@ pub struct RmSpec {
     pub qty_buy: &'static str,    // P2P buy qty
 }
 
-#[allow(dead_code)]
 /// Leaves purchased in e2e_05
+#[allow(dead_code)]
 pub const RMS: &[RmSpec] = &[
     RmSpec { sku: "MCU-STM32", name: "STM32 MCU", unit: "pc", standard_cost: "45000", unit_price: "45000", qty_buy: "50" },
     RmSpec { sku: "MCU-ESP32", name: "ESP32 Module", unit: "pc", standard_cost: "28000", unit_price: "28000", qty_buy: "40" },
@@ -109,7 +108,10 @@ pub const RMS: &[RmSpec] = &[
     RmSpec { sku: "FST-KIT", name: "Fastener Kit", unit: "kit", standard_cost: "8000", unit_price: "8000", qty_buy: "50" },
 ];
 
+#[allow(dead_code)]
 pub const FG_CARGO_MULE: &str = "FG-CARGO-MULE";
+#[allow(dead_code)]
 pub const SA_CTRL_CORE: &str = "SA-CTRL-CORE";
+#[allow(dead_code)]
 pub const SA_PROP_GROUND: &str = "SA-PROP-GROUND";
 

@@ -5,7 +5,7 @@ mod common;
 
 use common::client::extract_uuid;
 use common::fixtures::{
-    RmSpec, FG_CARGO_MULE, RMS, SA_CTRL_CORE, SA_PROP_GROUND,
+    FG_CARGO_MULE, RMS, SA_CTRL_CORE, SA_PROP_GROUND,
 };
 use common::{E2eResult, TestContext};
 use serde_json::{json, Value};

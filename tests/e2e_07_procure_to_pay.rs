@@ -3,7 +3,7 @@ mod common;
 use common::client::extract_uuid;
 use common::{E2eResult, TestContext};
 use serde_json::json;
-use common::fixtures::{RmSpec, RMS, FG_CARGO_MULE}; // FG only if needed
+use common::fixtures::{RMS}; // FG only if needed
 
 fn ok(status: reqwest::StatusCode) -> bool {
     status.is_success() || status.as_u16() == 201
@@ -33,7 +33,7 @@ async fn procure_to_pay() -> E2eResult<()> {
     // ----- 1. Warehouse -----
 
     // asset_account / cogs / income = COA codes (strings)
-    let inv_code = if ctx.account_uuid("110701").is_some() {
+    let _inv_code = if ctx.account_uuid("110701").is_some() {
         "110701"
     } else {
         "110700"
@@ -71,7 +71,7 @@ async fn procure_to_pay() -> E2eResult<()> {
     }
     assert!(!bill_items.is_empty(), "no RM lines for purchase bill");
 
-    let vendor_uuid = *ctx.vendors.values().next().expect("vendor");
+    // let vendor_uuid = *ctx.vendors.values().next().expect("vendor");
 
     let (s, body) = ctx
         .client

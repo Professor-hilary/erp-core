@@ -19,6 +19,7 @@ fn acct(ctx: &TestContext, codes: &[&str]) -> Result<String, String> {
     Ok(codes[0].to_string())
 }
 
+#[allow(dead_code)]
 async fn uuid_by_sku(ctx: &TestContext, sku: &str) -> Result<String, String> {
     let (s, body) = ctx.client.get("/api/inventory/list/inventory").await.map_err(|e| e.to_string())?;
     assert!(ok(s), "list inv: {s}");
@@ -77,7 +78,7 @@ let warehouse_serial = anchor["warehouse_serial"]
 // UUIDs you need for BOM lines
 let mcues = extract_uuid(find_item(&inv, "MCU-STM32")?, &["uuid"])?;
 let imu = extract_uuid(find_item(&inv, "IMU-9DOF")?, &["uuid"])?;
-let mcust = extract_uuid(find_item(&inv, "MCU-ESP32")?, &["uuid"])?;
+let _mcust = extract_uuid(find_item(&inv, "MCU-ESP32")?, &["uuid"])?;
 let esc = extract_uuid(find_item(&inv, "ESC-40A")?, &["uuid"])?;
 let mtr = extract_uuid(find_item(&inv, "MTR-BLDC")?, &["uuid"])?;
 let bat = extract_uuid(find_item(&inv, "BAT-4S5AH")?, &["uuid"])?;
@@ -87,8 +88,8 @@ let sen = extract_uuid(find_item(&inv, "SENS-US")?, &["uuid"])?;
 let cbl = extract_uuid(find_item(&inv, "CBL-HARN")?, &["uuid"])?;
 let fst = extract_uuid(find_item(&inv, "FST-KIT")?, &["uuid"])?;
 
-let sa_ctrl = extract_uuid(find_item(&inv, SA_CTRL_CORE)?, &["uuid"]).map_err(|e| e.to_string())?;
-let sa_prop = extract_uuid(find_item(&inv, SA_PROP_GROUND)?, &["uuid"]).map_err(|e| e.to_string())?;
+let _sa_ctrl = extract_uuid(find_item(&inv, SA_CTRL_CORE)?, &["uuid"]).map_err(|e| e.to_string())?;
+let _sa_prop = extract_uuid(find_item(&inv, SA_PROP_GROUND)?, &["uuid"]).map_err(|e| e.to_string())?;
     
 // after find_item + RM uuid locals...
 let fg_uuid = extract_uuid(find_item(&inv, FG_CARGO_MULE)?, &["uuid"])
