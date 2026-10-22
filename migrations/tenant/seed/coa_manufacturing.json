@@ -570,6 +570,15 @@
             "is_contra": false,
             "cash_flow_category": "financing"
         },
+		{
+            "code": "310500",
+            "name": "Share Premium",
+            "category": "equity",
+            "parent_code": "310000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "financing"
+        },
         {
             "code": "400000",
             "name": "Revenue",

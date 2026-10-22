@@ -153,7 +153,7 @@ pub struct CapitalWorkInProgress {
 #[derive(Debug, Deserialize)]
 pub struct CreateCWIP {
     pub project_name: String,
-    pub total_accumulated_cost: BigDecimal,
+    pub total_accumulated_cost: Option<BigDecimal>,
     pub start_date: NaiveDate,
     pub expected_completion_date: Option<NaiveDate>,
     pub status: Option<String>,

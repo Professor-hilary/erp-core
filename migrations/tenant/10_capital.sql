@@ -903,16 +903,20 @@ BEGIN
         ),
         jsonb_build_object(
             'account_ref', p_share_capital_code,
-            'debit', 0, 'credit', v_par_total,
+            'debit', 0,
+			-- 'credit', v_par_total,
+			-- instead of only v_par_total when no premium account:
+			'credit', CASE WHEN v_premium > 0 AND p_share_premium_code IS NULL
+               THEN v_total ELSE v_par_total END,
             'memo', 'Share capital'
         )
     );
     IF v_premium > 0 AND p_share_premium_code IS NOT NULL THEN
-        v_lines := v_lines || jsonb_build_object(
+        v_lines := v_lines || jsonb_build_array(jsonb_build_object(
             'account_ref', p_share_premium_code,
             'debit', 0, 'credit', v_premium,
             'memo', 'Share premium'
-        );
+        ));
     END IF;
 
     v_journal_serial := accounting.post_transaction(

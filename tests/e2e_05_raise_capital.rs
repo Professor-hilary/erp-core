@@ -338,7 +338,7 @@ async fn equity_share_issue_lifecycle() -> E2eResult<()> {
     let cash = acct_uuid(&ctx, &["110200", "110100"])?;
     let share_cap = acct_uuid(&ctx, &["310100", "310000"])?;
     // Premium optional — only pass if present
-    let share_prem = ctx.account_uuid("310400"); // reval reserve is a stand-in; omit if wrong
+    let share_prem = ctx.account_uuid("310500"); // reval reserve is a stand-in; omit if wrong
 
     // ----- 1. Ensure / create founder party -----
     let (s, parties) = ctx
@@ -525,6 +525,7 @@ async fn equity_share_issue_lifecycle() -> E2eResult<()> {
                 "currency_id": ugx,
                 "cash_account_code": cash,
                 "share_capital_code": share_cap,
+				"share_premium_code": share_prem,
                 "par_value": "1000",
                 "instrument_code": "EQ-ORD-PEARL-1",
                 "instrument_name": "Pearl Seed Round",
@@ -546,7 +547,7 @@ async fn equity_share_issue_lifecycle() -> E2eResult<()> {
                 "instrument_code": "EQ-SAFE-001",
                 "name": "Seed SAFE placeholder",
                 "instrument_family": "EQUITY",
-                "instrument_type": "COMMON_STOCK",
+                "instrument_type": "COMMON_EQUITY",
                 "currency_id": ugx,
                 "original_principal": "0",
                 "face_value": "0",

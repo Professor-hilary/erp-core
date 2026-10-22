@@ -480,7 +480,7 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
         user_id: Uuid,
     ) -> Result<Vec<AssetClass>, AppError> {
         let asset_classes: Vec<AssetClass> = sqlx::query_as::<_, AssetClass>(
-            "SELECT * FROM asset_classes WHERE user_id = $1 ORDER BY class_name",
+            "SELECT * FROM fixedassets.asset_classes WHERE user_id = $1 ORDER BY class_name",
         )
         .bind(user_id)
         .fetch_all(pool)
@@ -496,7 +496,7 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
         user_id: Uuid,
     ) -> Result<AssetClass, AppError> {
         let asset_class: AssetClass = sqlx::query_as::<_, AssetClass>(
-            "SELECT * FROM asset_classes WHERE class_id = $1 AND user_id = $2",
+            "SELECT * FROM fixedassets.asset_classes WHERE class_id = $1 AND user_id = $2",
         )
         .bind(uuid)
         .bind(user_id)
@@ -516,7 +516,7 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
     ) -> Result<AssetClass, AppError> {
         let asset_class: AssetClass = sqlx::query_as::<_, AssetClass>(
             r#"
-        UPDATE asset_classes
+        UPDATE fixedassets.asset_classes
         SET class_name = $3, category_type = $4, description = $5
         WHERE class_id = $1 AND user_id = $2
         RETURNING *
@@ -540,7 +540,7 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
         user_id: Uuid,
     ) -> Result<(), AppError> {
         let res: PgQueryResult =
-            sqlx::query("DELETE FROM asset_classes WHERE class_id = $1 AND user_id = $2")
+            sqlx::query("DELETE FROM fixedassets.asset_classes WHERE class_id = $1 AND user_id = $2")
                 .bind(uuid)
                 .bind(user_id)
                 .execute(pool)
@@ -820,7 +820,7 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
     ) -> Result<CapitalWorkInProgress, AppError> {
         let cwip: CapitalWorkInProgress = sqlx::query_as::<_, CapitalWorkInProgress>(
             r#"
-        INSERT INTO asset_cwip (user_id, project_name, total_accumulated_cost,
+        INSERT INTO fixedassets.asset_cwip (user_id, project_name, total_accumulated_cost,
             start_date, expected_completion_date, status)
         VALUES ($1, $2, $3, $4, $5, $6)
         RETURNING *
@@ -844,7 +844,7 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
         user_id: Uuid,
     ) -> Result<Vec<CapitalWorkInProgress>, AppError> {
         let cwips: Vec<CapitalWorkInProgress> = sqlx::query_as::<_, CapitalWorkInProgress>(
-            "SELECT * FROM asset_cwip WHERE user_id = $1 ORDER BY start_date DESC",
+            "SELECT * FROM fixedassets.asset_cwip WHERE user_id = $1 ORDER BY start_date DESC",
         )
         .bind(user_id)
         .fetch_all(pool)
@@ -860,7 +860,7 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
         user_id: Uuid,
     ) -> Result<CapitalWorkInProgress, AppError> {
         let cwip: CapitalWorkInProgress = sqlx::query_as::<_, CapitalWorkInProgress>(
-            "SELECT * FROM asset_cwip WHERE cwip_id = $1 AND user_id = $2",
+            "SELECT * FROM fixedassets.asset_cwip WHERE cwip_id = $1 AND user_id = $2",
         )
         .bind(uuid)
         .bind(user_id)
@@ -880,7 +880,7 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
     ) -> Result<CapitalWorkInProgress, AppError> {
         let cwip: CapitalWorkInProgress = sqlx::query_as::<_, CapitalWorkInProgress>(
             r#"
-            UPDATE asset_cwip
+            UPDATE fixedassets.asset_cwip
             SET project_name = $3, total_accumulated_cost = $4,
                 expected_completion_date = $5, status = $6
             WHERE cwip_id = $1 AND user_id = $2
@@ -901,7 +901,7 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
 
     async fn delete_cwip(&self, pool: &PgPool, uuid: Uuid, user_id: Uuid) -> Result<(), AppError> {
         let res: PgQueryResult =
-            sqlx::query("DELETE FROM asset_cwip WHERE cwip_id = $1 AND user_id = $2")
+            sqlx::query("DELETE FROM fixedassets.asset_cwip WHERE cwip_id = $1 AND user_id = $2")
                 .bind(uuid)
                 .bind(user_id)
                 .execute(pool)
@@ -970,7 +970,7 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
         // Run for all active assets
         let deps: Vec<AssetDepreciation> = sqlx::query_as::<_, AssetDepreciation>(
             r#"
-            WITH active_assets AS (
+            WITH fixedassets.active_assets AS (
                 SELECT asset_id FROM fixedassets.fixed_assets
                 WHERE user_id = $1 AND status = 'In_Use' AND is_capitalized
             )
@@ -1036,7 +1036,7 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
     ) -> Result<AssetComponent, AppError> {
         let component = sqlx::query_as::<_, AssetComponent>(
             r#"
-            INSERT INTO asset_components (
+            INSERT INTO fixedassets.asset_components (
                 user_id, asset_id, component_name, cost, useful_life_years, depreciation_start_date
             )
             VALUES ($1, $2, $3, $4, $5, $6)
@@ -1062,7 +1062,7 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
         user_id: Uuid,
     ) -> Result<Vec<AssetComponent>, AppError> {
         let components = sqlx::query_as::<_, AssetComponent>(
-            "SELECT * FROM asset_components WHERE asset_id = $1 AND user_id = $2",
+            "SELECT * FROM fixedassets.asset_components WHERE asset_id = $1 AND user_id = $2",
         )
         .bind(asset_uuid)
         .bind(user_id)
@@ -1079,7 +1079,7 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
         user_id: Uuid,
     ) -> Result<AssetComponent, AppError> {
         let component = sqlx::query_as::<_, AssetComponent>(
-            "SELECT * FROM asset_components WHERE component_id = $1 AND user_id = $2",
+            "SELECT * FROM fixedassets.asset_components WHERE component_id = $1 AND user_id = $2",
         )
         .bind(uuid)
         .bind(user_id)
@@ -1099,7 +1099,7 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
     ) -> Result<AssetComponent, AppError> {
         let component = sqlx::query_as::<_, AssetComponent>(
             r#"
-            UPDATE asset_components
+            UPDATE fixedassets.asset_components
             SET component_name = $3, cost = $4, useful_life_years = $5,
                 depreciation_start_date = $6
             WHERE component_id = $1 AND user_id = $2
@@ -1125,7 +1125,7 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
         user_id: Uuid,
     ) -> Result<(), AppError> {
         let res =
-            sqlx::query("DELETE FROM asset_components WHERE component_id = $1 AND user_id = $2")
+            sqlx::query("DELETE FROM fixedassets.asset_components WHERE component_id = $1 AND user_id = $2")
                 .bind(uuid)
                 .bind(user_id)
                 .execute(pool)
@@ -1151,7 +1151,7 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
         let mut tx: sqlx::Transaction<'_, sqlx::Postgres> = pool.begin().await?;
 
         let transfer: AssetTransaction = sqlx::query_as::<_, AssetTransfer>(r#"
-            INSERT INTO asset_transactions (
+            INSERT INTO fixedassets.asset_transactions (
                 user_id, asset_id, transaction_type, transaction_date, from_location, to_location, reason
             )
             VALUES ($1, $2, 'Transfer', $3, $4, $5, $6)
@@ -1186,7 +1186,7 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
     ) -> Result<Vec<AssetTransfer>, AppError> {
         let history = sqlx::query_as::<_, AssetTransfer>(
             r#"
-        SELECT * FROM asset_transactions
+        SELECT * FROM fixedassets.asset_transactions
         WHERE asset_id = $1 AND user_id = $2 AND transaction_type = 'Transfer'
         ORDER BY transaction_date DESC
         "#,
@@ -1211,7 +1211,7 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
     ) -> Result<AssetMaintenance, AppError> {
         let maintenance = sqlx::query_as::<_, AssetMaintenance>(
             r#"
-        INSERT INTO asset_maintenance (user_id, asset_id, maintenance_type,
+        INSERT INTO fixedassets.asset_maintenance (user_id, asset_id, maintenance_type,
             description, cost, maintenance_date, next_due_date)
         VALUES ($1, $2, $3, $4, $5, $6, $7)
         RETURNING *
@@ -1237,7 +1237,7 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
         user_id: Uuid,
     ) -> Result<Vec<AssetMaintenance>, AppError> {
         let records = sqlx::query_as::<_, AssetMaintenance>(
-        "SELECT * FROM asset_maintenance WHERE asset_id = $1 AND user_id = $2 ORDER BY maintenance_date DESC"
+        "SELECT * FROM fixedassets.asset_maintenance WHERE asset_id = $1 AND user_id = $2 ORDER BY maintenance_date DESC"
     )
     .bind(asset_uuid)
     .bind(user_id)
@@ -1259,7 +1259,7 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
     ) -> Result<AssetMaintenance, AppError> {
         let maintenance = sqlx::query_as::<_, AssetMaintenance>(
             r#"
-        SELECT * FROM asset_maintenance WHERE maintenance_id = $1 AND user_id = $2
+        SELECT * FROM fixedassets.asset_maintenance WHERE maintenance_id = $1 AND user_id = $2
         "#,
         )
         .bind(uuid)
@@ -1280,7 +1280,7 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
     ) -> Result<AssetMaintenance, AppError> {
         let maintenance = sqlx::query_as::<_, AssetMaintenance>(
             r#"
-        UPDATE asset_maintenance
+        UPDATE fixedassets.asset_maintenance
         SET maintenance_type = $3, description = $4, cost = $5,
             maintenance_date = $6, next_due_date = $7
         WHERE maintenance_id = $1 AND user_id = $2
@@ -1307,7 +1307,7 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
         user_id: Uuid,
     ) -> Result<(), AppError> {
         let res =
-            sqlx::query("DELETE FROM asset_maintenance WHERE maintenance_id = $1 AND user_id = $2")
+            sqlx::query("DELETE FROM fixedassets.asset_maintenance WHERE maintenance_id = $1 AND user_id = $2")
                 .bind(uuid)
                 .bind(user_id)
                 .execute(pool)
@@ -1332,7 +1332,7 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
     ) -> Result<AssetInsurance, AppError> {
         let insurance = sqlx::query_as::<_, AssetInsurance>(
             r#"
-        INSERT INTO asset_insurance (
+        INSERT INTO fixedassets.asset_insurance (
             user_id, asset_id, policy_number, insurer, insured_amount,
             start_date, expiry_date, premium
         )
@@ -1362,7 +1362,7 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
     ) -> Result<Vec<AssetInsurance>, AppError> {
         let insurances = sqlx::query_as::<_, AssetInsurance>(
             r#"
-        SELECT * FROM asset_insurance
+        SELECT * FROM fixedassets.asset_insurance
         WHERE asset_id = $1 AND user_id = $2
         ORDER BY expiry_date DESC
         "#,
@@ -1382,7 +1382,7 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
         user_id: Uuid,
     ) -> Result<AssetInsurance, AppError> {
         let insurance = sqlx::query_as::<_, AssetInsurance>(
-            "SELECT * FROM asset_insurance WHERE insurance_id = $1 AND user_id = $2",
+            "SELECT * FROM fixedassets.asset_insurance WHERE insurance_id = $1 AND user_id = $2",
         )
         .bind(uuid)
         .bind(user_id)
@@ -1402,7 +1402,7 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
     ) -> Result<AssetInsurance, AppError> {
         let insurance = sqlx::query_as::<_, AssetInsurance>(
             r#"
-        UPDATE asset_insurance
+        UPDATE fixedassets.asset_insurance
         SET policy_number = $3, insurer = $4, insured_amount = $5,
             start_date = $6, expiry_date = $7, premium = $8
         WHERE insurance_id = $1 AND user_id = $2
@@ -1430,7 +1430,7 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
         user_id: Uuid,
     ) -> Result<(), AppError> {
         let res =
-            sqlx::query("DELETE FROM asset_insurance WHERE insurance_id = $1 AND user_id = $2")
+            sqlx::query("DELETE FROM fixedassets.asset_insurance WHERE insurance_id = $1 AND user_id = $2")
                 .bind(uuid)
                 .bind(user_id)
                 .execute(pool)
@@ -1488,7 +1488,7 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
     ) -> Result<Vec<AssetRevaluation>, AppError> {
         let history = sqlx::query_as::<_, AssetRevaluation>(
             r#"
-        SELECT * FROM asset_transactions
+        SELECT * FROM fixedassets.asset_transactions
         WHERE asset_id = $1
           AND user_id = $2
           AND transaction_type = 'Revaluation'
@@ -1556,7 +1556,7 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
     ) -> Result<Vec<AssetDisposal>, AppError> {
         let disposal: Vec<AssetTransaction> = sqlx::query_as::<_, AssetDisposal>(
             r#"
-            SELECT * FROM asset_transactions
+            SELECT * FROM fixedassets.asset_transactions
             WHERE asset_id = $1
                 AND user_id = $2
                 AND transaction_type = 'Disposal'
@@ -1600,7 +1600,7 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
     ) -> Result<Vec<AssetTransaction>, AppError> {
         let movements = sqlx::query_as::<_, AssetTransaction>(
             r#"
-        SELECT * FROM asset_transactions
+        SELECT * FROM fixedassets.asset_transactions
         WHERE user_id = $1
           AND transaction_date BETWEEN $2 AND $3
         ORDER BY transaction_date DESC
@@ -1648,7 +1648,7 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
     ) -> Result<Vec<AssetDisposal>, AppError> {
         let disposed = sqlx::query_as::<_, AssetDisposal>(
             r#"
-        SELECT * FROM asset_transactions
+        SELECT * FROM fixedassets.asset_transactions
         WHERE user_id = $1
           AND transaction_type = 'Disposal'
           AND transaction_date BETWEEN $2 AND $3
