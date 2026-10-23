@@ -554,7 +554,7 @@ async fn equity_share_issue_lifecycle() -> E2eResult<()> {
                 "issue_price": "0",
                 "effective_date": "2025-01-12",
                 "is_perpetual": true,
-                "status": "ACTIVE",
+                "status": "active",
                 "notes": "Registry-only instrument for SAFE tracking"
             }),
         )

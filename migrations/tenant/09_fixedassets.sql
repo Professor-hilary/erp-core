@@ -57,7 +57,7 @@ CREATE TABLE fixedassets.fixed_assets (
     depreciation_start_date DATE,
 
     status VARCHAR(30) DEFAULT 'In_Use'
-        CHECK (status IN ('In_Use', 'Idle', 'Under_Repair', 'Disposed', 'Impaired')),
+        CHECK (status IN ('In_Use', 'Idle', 'Under_Repair', 'Disposed', 'Impaired', 'Under_Construction')),
 
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -488,7 +488,95 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE PROCEDURE fixedassets.dispose_asset_advanced(
+-- Function: Dispose asset (advanced) → returns asset_transactions row (AssetDisposal)
+CREATE OR REPLACE FUNCTION fixedassets.dispose_asset_advanced(
+    p_user_id       UUID,
+    p_asset_id      UUID,
+    p_disposal_date DATE,
+    p_proceeds      NUMERIC(18,2),
+    p_reason        TEXT DEFAULT NULL,
+    p_disposal_type TEXT DEFAULT 'Sale'
+)
+RETURNS fixedassets.asset_transactions
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_asset     fixedassets.fixed_assets%ROWTYPE;
+    v_nbv       NUMERIC(18,2);
+    v_gain_loss NUMERIC(18,2);
+    v_reason    TEXT;
+    v_row       fixedassets.asset_transactions%ROWTYPE;
+BEGIN
+    -- 1. Lock asset
+    SELECT *
+    INTO v_asset
+    FROM fixedassets.fixed_assets
+    WHERE asset_id = p_asset_id
+      AND user_id = p_user_id
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Asset % not found for user %', p_asset_id, p_user_id
+            USING ERRCODE = 'P0002';
+    END IF;
+
+    IF v_asset.status = 'Disposed' THEN
+        RAISE EXCEPTION 'Asset % is already disposed', v_asset.asset_code;
+    END IF;
+
+    -- 2. NBV = cost − posted accumulated depreciation (fallback: sum of posted period amounts)
+    SELECT COALESCE(
+        (
+            SELECT ad.accumulated_depreciation
+            FROM fixedassets.asset_depreciation ad
+            WHERE ad.asset_id = p_asset_id
+              AND ad.user_id = p_user_id
+              AND ad.posted_to_gl = TRUE
+            ORDER BY ad.period_date DESC
+            LIMIT 1
+        ),
+        (
+            SELECT SUM(ad.depreciation_amount)
+            FROM fixedassets.asset_depreciation ad
+            WHERE ad.asset_id = p_asset_id
+              AND ad.user_id = p_user_id
+              AND ad.posted_to_gl = TRUE
+        ),
+        0
+    )
+    INTO v_nbv;
+
+    v_nbv := v_asset.original_cost - COALESCE(v_nbv, 0);
+    v_gain_loss := p_proceeds - v_nbv;
+
+    v_reason := COALESCE(p_reason, '');
+    IF p_disposal_type IS NOT NULL AND p_disposal_type <> '' THEN
+        v_reason := format('[%s] %s', p_disposal_type, v_reason);
+    END IF;
+
+    -- 3. Disposal transaction (maps to AssetDisposal / AssetTransaction)
+    INSERT INTO fixedassets.asset_transactions (
+        user_id, asset_id, transaction_type, transaction_date, from_location,
+        to_location, amount, proceeds, gain_loss, reason
+    )
+    VALUES (
+        p_user_id, p_asset_id, 'Disposal', p_disposal_date, v_asset.location,   -- optional context
+        NULL, v_nbv /*NBV at disposal*/, p_proceeds, v_gain_loss, NULLIF(trim(v_reason), '')
+    )
+    RETURNING * INTO v_row;
+
+    -- 4. Mark asset disposed
+    UPDATE fixedassets.fixed_assets
+    SET status = 'Disposed',
+        updated_at = NOW()
+    WHERE asset_id = p_asset_id
+      AND user_id = p_user_id;
+
+    RETURN v_row;
+END;
+$$;
+
+/*CREATE OR REPLACE PROCEDURE fixedassets.dispose_asset_advanced(
     p_user_id UUID,
     p_asset_id UUID,
     p_disposal_date DATE,
@@ -525,7 +613,7 @@ BEGIN
     SET status = 'Disposed'
     WHERE asset_id = p_asset_id AND user_id = p_user_id;
 END;
-$$;
+$$;*/
 
 -- Capitalize CWIP / Asset
 CREATE OR REPLACE FUNCTION fixedassets.capitalize_asset(
@@ -569,7 +657,7 @@ BEGIN
     WHERE fa.asset_id = p_asset_id
       AND fa.user_id = p_user_id;
 
-    -- Create opening depreciation record
+    -- No creating opening depreciation record, user depreciates explicitely
 	/*
     INSERT INTO fixedassets.asset_depreciation (
         user_id, asset_id, period_date, depreciation_amount,
@@ -581,38 +669,6 @@ BEGIN
     RETURN QUERY SELECT p_asset_id, v_final_amount, p_breakdown;
 END;
 $$ LANGUAGE plpgsql;
-
--- Procedure: Dispose Asset
-CREATE OR REPLACE PROCEDURE fixedassets.dispose_asset(
-    p_asset_id INTEGER,
-    p_disposal_date DATE,
-    p_proceeds NUMERIC,
-    p_reason TEXT
-)
-LANGUAGE plpgsql AS $$
-DECLARE
-    v_nbv NUMERIC;
-BEGIN
-    -- Calculate current NBV
-    SELECT original_cost - COALESCE(SUM(accumulated_financial_dep), 0)
-    INTO v_nbv
-    FROM fixed_assets fa
-    LEFT JOIN asset_depreciation ad ON fa.asset_id = ad.asset_id
-    WHERE fa.asset_id = p_asset_id;
-
-    INSERT INTO asset_transactions (
-        asset_id, transaction_type, transaction_date,
-        proceeds, gain_loss, reason
-    ) VALUES (
-        p_asset_id, 'Disposal', p_disposal_date,
-        p_proceeds, p_proceeds - v_nbv, p_reason
-    );
-
-    UPDATE fixed_assets
-    SET status = 'Disposed'
-    WHERE asset_id = p_asset_id;
-END;
-$$;
 
 -- =============================================
 -- VIEWS

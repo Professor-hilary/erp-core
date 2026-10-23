@@ -969,14 +969,18 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
     ) -> Result<Vec<AssetDepreciation>, AppError> {
         // Run for all active assets
         let deps: Vec<AssetDepreciation> = sqlx::query_as::<_, AssetDepreciation>(
-            r#"
-            WITH fixedassets.active_assets AS (
-                SELECT asset_id FROM fixedassets.fixed_assets
-                WHERE user_id = $1 AND status = 'In_Use' AND is_capitalized
-            )
-            SELECT * FROM active_assets a
-            CROSS JOIN LATERAL fixedassets.create_depreciation_entry($1, a.asset_id, $2) d
-            "#,
+			r#"
+	        WITH active_assets AS (
+    	        SELECT asset_id
+        	    FROM fixedassets.fixed_assets
+            	WHERE user_id = $1
+	              AND status = 'In_Use'
+    	          AND is_capitalized
+        	)
+	        SELECT d.*
+    	    FROM active_assets a
+        	CROSS JOIN LATERAL fixedassets.create_depreciation_entry($1, a.asset_id, $2) d
+        "#,
         )
         .bind(user_id)
         .bind(period_date)
@@ -1535,13 +1539,14 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
         payload: &CreateAssetDisposal,
     ) -> Result<AssetDisposal, AppError> {
         let disposal: AssetTransaction = sqlx::query_as::<_, AssetDisposal>(
-            r#"SELECT * FROM fixedassets.dispose_asset_advanced($1, $2, $3, $4, $5)"#,
+            r#"SELECT * FROM fixedassets.dispose_asset_advanced($1, $2, $3, $4, $5, $6)"#,
         )
         .bind(user_id)
         .bind(payload.asset_id)
         .bind(payload.disposal_date)
         .bind(&payload.proceeds)
         .bind(&payload.reason)
+		.bind(&payload.disposal_type.as_deref().unwrap_or("Sale")) 
         .fetch_one(pool)
         .await?;
 

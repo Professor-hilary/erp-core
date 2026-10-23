@@ -118,10 +118,11 @@ async fn fixed_asset_lifecycle() -> E2eResult<()> {
             json!({
                 "project_code": format!("CWIP-{}", chrono::Utc::now().timestamp_millis()),
                 "project_name": "Assembly Line Build-out",
+				"total_accumulated_cost": "0",
                 "description": "In-house line for CargoMule",
                 "start_date": "2025-01-05",
                 "budget_amount": "25000000",
-                "status": "Active"
+                "status": "In_Progress"
             }),
         )
         .await
@@ -280,11 +281,11 @@ async fn fixed_asset_lifecycle() -> E2eResult<()> {
         .post(
             "/api/fixedassets/disposal/create",
             json!({
-                "asset_uuid": van_id,
+                "asset_id": van_id,
                 "disposal_date": "2025-01-31",
                 "disposal_type": "Sale",
                 "proceeds": "40000000",
-                "notes": "E2E disposal smoke"
+                "reason": "E2E disposal smoke"
             }),
         )
         .await
