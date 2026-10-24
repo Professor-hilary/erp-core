@@ -40,8 +40,8 @@ async fn monthly_payroll() -> E2eResult<()> {
         .map(|emp| {
             json!({
                 "employee_uuid": emp,
-                "gross_pay": "1500000",
-                "tax_deducted": "150000",       // ~10%
+                "gross_pay": "250000",
+                "tax_deducted": "25000",       // ~10%
                 "social_security": "75000",     // ~5%
                 "other_deductions": "0",
                 "payment_method": "Bank Transfer",

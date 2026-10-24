@@ -59,7 +59,7 @@ async fn order_to_cash() -> E2eResult<()> {
                     "stock_item_id": stock_item_id,
                     "description": "White Bread Loaf",
                     "quantity": "9",
-                    "unit_price": "5000",
+                    "unit_price": "780000",
                     "tax_rate": "18"
                 }]
             }),
