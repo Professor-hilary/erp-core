@@ -1,9 +1,8 @@
 mod common;
 
-use common::client::extract_uuid;
-use common::{E2eResult, TestContext};
+use common::{E2eResult, TestContext, client::extract_uuid, fixtures::RMS};
+ // FG only if needed
 use serde_json::json;
-use common::fixtures::{RMS}; // FG only if needed
 
 fn ok(status: reqwest::StatusCode) -> bool {
     status.is_success() || status.as_u16() == 201
@@ -80,8 +79,8 @@ async fn procure_to_pay() -> E2eResult<()> {
             json!({
                 "bill_number": format!("BILL-{}", chrono::Utc::now().timestamp_millis()),
                 "vendor_uuid": vendor_uuid,
-                "bill_date": "2025-01-20",
-                "due_date": "2025-02-20",
+                "bill_date": "2026-01-20",
+                "due_date": "2026-02-20",
                 "reference": "PO-ROBOTICS-RM",
                 "settlement_type": "credit",
                 "payment_status": "unpaid",
@@ -152,8 +151,8 @@ async fn procure_to_pay() -> E2eResult<()> {
             json!({
                 "bill_number": format!("CASH-BILL-{}", chrono::Utc::now().timestamp_millis()),
                 "vendor_uuid": vendor_uuid,
-                "bill_date": "2025-01-22",
-                "due_date": "2025-01-22",
+                "bill_date": "2026-01-22",
+                "due_date": "2026-01-22",
                 "reference": "CASH-E2E",
                 "settlement_type": "cash",
                 "payment_status": "paid",
@@ -188,7 +187,7 @@ async fn procure_to_pay() -> E2eResult<()> {
     println!("✓ cash purchase posted");
 
     // ----- 7. Trial balance still healthy -----
-    ctx.assert_trial_balance_ok("2025-01-31")
+    ctx.assert_trial_balance_ok("2026-01-31")
         .await
         .map_err(|e| e.to_string())?;
     println!("✓ trial balance OK after procure-to-pay");

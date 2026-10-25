@@ -576,45 +576,6 @@ BEGIN
 END;
 $$;
 
-/*CREATE OR REPLACE PROCEDURE fixedassets.dispose_asset_advanced(
-    p_user_id UUID,
-    p_asset_id UUID,
-    p_disposal_date DATE,
-    p_proceeds NUMERIC(18,2),
-    p_reason TEXT DEFAULT NULL,
-    p_disposal_type TEXT DEFAULT 'Sale'
-)
-LANGUAGE plpgsql AS $$
-DECLARE
-    v_nbv NUMERIC(18,2);
-    v_gain_loss NUMERIC(18,2);
-BEGIN
-    -- Lock row to prevent race conditions
-    PERFORM * FROM fixedassets.fixed_assets
-    WHERE asset_id = p_asset_id AND user_id = p_user_id FOR UPDATE;
-
-    SELECT original_cost - COALESCE(SUM(accumulated_depreciation), 0)
-    INTO v_nbv
-    FROM fixedassets.fixed_assets fa
-    LEFT JOIN fixedassets.asset_depreciation ad ON fa.asset_id = ad.asset_id
-    WHERE fa.asset_id = p_asset_id AND fa.user_id = p_user_id;
-
-    v_gain_loss := p_proceeds - v_nbv;
-
-    INSERT INTO asset_transactions (
-        user_id, asset_id, transaction_type, transaction_date,
-        proceeds, gain_loss, reason
-    ) VALUES (
-        p_user_id, p_asset_id, 'Disposal', p_disposal_date,
-        p_proceeds, v_gain_loss, p_reason
-    );
-
-    UPDATE fixedassets.fixed_assets
-    SET status = 'Disposed'
-    WHERE asset_id = p_asset_id AND user_id = p_user_id;
-END;
-$$;*/
-
 -- Capitalize CWIP / Asset
 CREATE OR REPLACE FUNCTION fixedassets.capitalize_asset(
     p_user_id UUID,

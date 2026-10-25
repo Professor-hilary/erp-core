@@ -9,7 +9,7 @@ async fn opening_balances() -> E2eResult<()> {
         .await
         .map_err(|e| e.to_string())?;
     ctx.save_state()?;
-    ctx.assert_trial_balance_ok("2025-01-01")
+    ctx.assert_trial_balance_ok("2026-01-01")
         .await
         .map_err(|e| e.to_string())?;
     println!("✓ opening {opening}");

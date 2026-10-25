@@ -37,7 +37,11 @@ CREATE table if not exists manufacturing.production_orders (
         )
     ),
     materials_status text DEFAULT 'Pending' CHECK (
-        materials_status IN ('Pending', 'Partial', 'Complete')
+        materials_status IN (
+            'Pending',
+            'Partial',
+            'Complete'
+        )
     ),
     gl_transaction_uuid uuid, -- link to posted entries
     created_at timestamptz DEFAULT now(),
@@ -98,17 +102,23 @@ CREATE TABLE IF NOT EXISTS manufacturing.bom_lines (
 -- For tracking material availability for production
 CREATE TABLE manufacturing.production_order_materials (
     uuid uuid DEFAULT uuidv7 () PRIMARY KEY,
-    production_order_uuid  uuid NOT NULL REFERENCES manufacturing.production_orders(uuid)
-        ON DELETE CASCADE,
-    bom_line_uuid uuid REFERENCES manufacturing.bom_lines(uuid),
-    component_item_uuid uuid NOT NULL REFERENCES inventory.items(uuid),
-    required_qty numeric(18,6) NOT NULL,
-    issued_qty numeric(18,6) DEFAULT 0,
+    production_order_uuid uuid NOT NULL REFERENCES manufacturing.production_orders (uuid) ON DELETE CASCADE,
+    bom_line_uuid uuid REFERENCES manufacturing.bom_lines (uuid),
+    component_item_uuid uuid NOT NULL REFERENCES inventory.items (uuid),
+    required_qty numeric(18, 6) NOT NULL,
+    issued_qty numeric(18, 6) DEFAULT 0,
     status text DEFAULT 'Pending' CHECK (
-        status IN ('Pending', 'PartiallyIssued', 'FullyIssued')
+        status IN (
+            'Pending',
+            'PartiallyIssued',
+            'FullyIssued'
+        )
     ),
     created_at timestamptz DEFAULT now(),
-    UNIQUE(production_order_uuid, component_item_uuid)
+    UNIQUE (
+        production_order_uuid,
+        component_item_uuid
+    )
 );
 
 -- Optional: index for fast BOM explosion
@@ -184,7 +194,9 @@ CREATE TABLE IF NOT EXISTS manufacturing.overhead_rates (
     ) STORED,
     department_code text, -- optional: if multiple production departments
     is_active boolean DEFAULT true,
-    status text CHECK(status IN('Draft', 'Active', 'Archived')) DEFAULT 'Active',
+    status text CHECK (
+        status IN ('Draft', 'Active', 'Archived')
+    ) DEFAULT 'Active',
     created_at timestamptz DEFAULT now(),
     updated_at timestamptz DEFAULT now(),
     CONSTRAINT unique_period_base UNIQUE (
@@ -202,13 +214,16 @@ CREATE TABLE IF NOT EXISTS manufacturing.overhead_actuals (
     reference text
 );
 
-CREATE TABLE IF NOT EXISTS manufacturing.work_centers(
+CREATE TABLE IF NOT EXISTS manufacturing.work_centers (
     uuid UUID PRIMARY KEY DEFAULT uuidv7 (),
     code TEXT NOT NULL UNIQUE,
     name TEXT NOT NULL,
     labor_rate NUMERIC NOT NULL,
-    allocation_base TEXT NOT NULL CHECK(
-        allocation_base IN ('DirectLaborHours', 'MachineHours')
+    allocation_base TEXT NOT NULL CHECK (
+        allocation_base IN (
+            'DirectLaborHours',
+            'MachineHours'
+        )
     ),
     department_code TEXT,
     created_at timestamptz DEFAULT now()
@@ -233,7 +248,7 @@ CREATE TABLE IF NOT EXISTS manufacturing.routing_operations (
     routing_uuid uuid REFERENCES manufacturing.routings (uuid) ON DELETE CASCADE,
     sequence smallint NOT NULL UNIQUE,
     operation_name TEXT NOT NULL,
-    work_center text REFERENCES manufacturing.work_centers(code),
+    work_center text REFERENCES manufacturing.work_centers (code),
     description text,
     setup_time_minutes numeric(12, 2) NOT NULL,
     run_time_minutes numeric(18, 2) NOT NULL,
@@ -270,11 +285,11 @@ BEGIN
     --===================== MATERIAL STANDARD COST =======================
     IF v_bom_uuid IS NOT NULL THEN
         -- Material part becomes:
-				SELECT COALESCE(SUM(e.quantity_required * i.standard_cost), 0)
-				INTO v_material_cost
-				FROM manufacturing.explode_bom(v_bom_uuid, 1) e
-				JOIN inventory.items i ON i.uuid = e.component_item_uuid
-				WHERE e.is_leaf = true;          -- only purchased / non-BOM leaves
+		SELECT COALESCE(SUM(e.quantity_required * i.standard_cost), 0)
+		INTO v_material_cost
+		FROM manufacturing.explode_bom(v_bom_uuid, 1) e
+		JOIN inventory.items i ON i.uuid = e.component_item_uuid
+		WHERE e.is_leaf = true;          -- only purchased / non-BOM leaves
     END IF;
 
     --======================= LABOR STANDARD COST ========================
@@ -290,8 +305,9 @@ BEGIN
     -- Determine direct labor using routing and work station rates
     IF v_routing_uuid IS NOT NULL THEN
         SELECT COALESCE(SUM(
-            ((ro.setup_time_minutes + ro.run_time_minutes) / 60.0)
-            * wc.labor_rate
+            (
+				COALESCE(ro.setup_time_minutes, 0) + COALESCE(ro.run_time_minutes, 0)
+			) / 60.0 * wc.labor_rate
         ), 0)
         INTO v_labor_cost
         FROM manufacturing.routing_operations ro
@@ -576,9 +592,13 @@ BEGIN
         ORDER BY ro.sequence
     LOOP
         -- Time in hours
-        v_time_hours :=
-            (/*rec.setup_time_minutes +*/
-            (rec.run_time_minutes * (v_order.quantity_ordered / v_base_quantity))) / 60.0;
+        /*v_time_hours := (rec.run_time_minutes * (v_order.quantity_ordered / v_base_quantity))) / 60.0;*/
+
+		v_time_hours := (
+        	COALESCE(rec.setup_time_minutes, 0) + (
+				COALESCE(rec.run_time_minutes, 0) * v_order.quantity_ordered / v_base_quantity
+        	)
+		) / 60.0;
 
         v_total_hours := v_total_hours + v_time_hours;
 
@@ -1074,110 +1094,7 @@ BEGIN
     FROM bom_tree t;
 END;
 $$;
-/*
--- Build materials issue, BOM must exist
-CREATE OR REPLACE FUNCTION manufacturing.issue_material_from_bom(
-    p_production_order_uuid uuid,
-    p_warehouse_serial      bigint,
-    p_raw_materials_code    text,
-    p_work_in_progress_code text,
-    p_user_uuid             uuid
-)
-RETURNS TABLE (
-    component_item_uuid uuid,
-    required_qty        numeric,
-    issued_qty          numeric,
-    remaining_qty       numeric,
-    material_status     text
-)
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    rec             RECORD;
-    v_remaining_qty numeric(18, 6);
-    -- v_new_issued    numeric(18, 6);
-BEGIN
-    -- 1. Execute issuing logic
-    FOR rec IN
-        SELECT pom.*, i.serial_id
-        FROM manufacturing.production_order_materials pom
-        JOIN inventory.items i
-            ON i.uuid = pom.component_item_uuid
-        WHERE pom.production_order_uuid = p_production_order_uuid
-    LOOP
-        v_remaining_qty := rec.required_qty - rec.issued_qty;
 
-        -- Skip if already fully issued
-        IF v_remaining_qty <= 0 THEN
-            CONTINUE;
-        END IF;
-
-        -- Try issuing if needed
-        -- IF v_remaining_qty > 0 THEN
-        BEGIN
-            PERFORM manufacturing.issue_material_to_order(
-                rec.serial_id,
-                p_warehouse_serial,
-                v_remaining_qty,
-                p_production_order_uuid,
-                p_raw_materials_code,
-                p_work_in_progress_code,
-                p_user_uuid
-            );
-
-            -- v_new_issued := rec.required_qty;
-
-            -- Update issued qty
-            UPDATE manufacturing.production_order_materials
-            SET issued_qty = issued_qty + v_remaining_qty, status = 'FullyIssued'
-            WHERE uuid = rec.uuid;
-
-        EXCEPTION
-            WHEN OTHERS THEN
-                -- v_new_issued := rec.issued_qty;
-
-                -- Partial or failed issue - skip, continue loop
-                UPDATE manufacturing.production_order_materials
-                SET status = CASE
-                    WHEN issued_qty > 0 THEN 'PartiallyIssued'
-                    ELSE 'Pending'
-                END
-                WHERE uuid = rec.uuid;
-
-                -- CONTINUE;
-            END;
-        END LOOP;
-        -- ELSE
-        --     v_new_issued := rec.issued_qty;
-        -- END IF;
-
-    -- 2. Update overall order material status
-    UPDATE manufacturing.production_orders po
-    SET materials_status = CASE
-        WHEN NOT EXISTS (
-            SELECT 1
-            FROM manufacturing.production_order_materials pom
-            WHERE pom.production_order_uuid = po.uuid
-                AND pom.status != 'FullyIssued'
-        ) THEN 'Complete'
-        ELSE 'Partial'
-    END,
-    updated_at = now()
-    WHERE po.uuid = p_production_order_uuid;
-
-    -- 3. Return full snapshot of production order materials
-    RETURN QUERY
-    SELECT
-        pom.component_item_uuid,
-        pom.required_qty,
-        pom.issued_qty,
-        (pom.required_qty - pom.issued_qty) AS remaining_qty,
-        pom.status as material_status
-    FROM manufacturing.production_order_materials pom
-    WHERE pom.production_order_uuid = p_production_order_uuid;
-END;
-$$;
-*/
 CREATE OR REPLACE FUNCTION manufacturing.issue_material_from_bom(
     p_production_order_uuid uuid,
     p_warehouse_serial      bigint,

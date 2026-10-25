@@ -38,7 +38,7 @@ async fn inventory_master_data() -> E2eResult<()> {
 
     let inv_rm = acct(&ctx, &["110701", "110700"]);
     let inv_fg = acct(&ctx, &["110703", "110701"]);
-    let cogs = acct(&ctx, &["510100", "500000"]);
+    let cogs = acct(&ctx, &["500000"]);
     let income = acct(&ctx, &["410000", "410100"]);
 
     // =========================================================================
@@ -206,7 +206,7 @@ async fn inventory_master_data() -> E2eResult<()> {
     for (sku, name, cost, price, wh) in [
         (SA_CTRL_CORE, "Control core subassembly", "150000", "0", wh_rm),
         (SA_PROP_GROUND, "Ground propulsion subassembly", "200000", "0", wh_rm),
-        (FG_CARGO_MULE, "CargoMule site delivery robot", "2500000", "4500000", wh_fg),
+        (FG_CARGO_MULE, "CargoMule site delivery robot", "0", "1500000", wh_fg),
     ] {
         let cat = if sku.starts_with("FG") { fg_cat } else { sa_cat };
         let (s, body) = ctx
@@ -268,63 +268,6 @@ async fn inventory_master_data() -> E2eResult<()> {
         .map_err(|e| e.to_string())?;
     assert!(ok(s), "get FG item: {s} {body}");
     println!("✓ get item FG-CARGO-MULE");
-
-    // patch FG reorder only (full CreateItem body required by API)
-/*    let (s, body) = ctx
-        .client
-        .patch(
-            &format!("/api/inventory/update/item/{fg_uuid}"),
-            json!({
-                "sku": FG_CARGO_MULE,
-                "name": "CargoMule site delivery robot",
-                "warehouse_serial": wh_fg,
-                "category_uuid": fg_cat,
-                "unit": "pc",
-                "selling_price": "4500000",
-                "standard_cost": "2500000",
-                "track_quantity": true,
-                "reorder_level": "2",
-                "asset_account": inv_fg,
-                "cogs_account": cogs,
-                "income_account": income
-            }),
-        )
-        .await
-        .map_err(|e| e.to_string())?;
-    assert!(ok(s), "update FG: {s} {body}");
-    println!("✓ update item FG");
-
-    // Create → delete disposable item (exercise delete without harming catalog)
-    let (s, body) = ctx
-        .client
-        .post(
-            "/api/inventory/create/item",
-            json!({
-                "sku": "TMP-DELETE-ME",
-                "name": "Temporary scrap SKU",
-                "warehouse_serial": wh_rm,
-                "category_uuid": cat_raw,
-                "unit": "pc",
-                "selling_price": "0",
-                "standard_cost": "1",
-                "track_quantity": true,
-                "reorder_level": "0",
-                "asset_account": inv_rm,
-                "cogs_account": cogs,
-                "income_account": income
-            }),
-        )
-        .await
-        .map_err(|e| e.to_string())?;
-    assert!(ok(s), "temp item: {s} {body}");
-    let tmp_uuid = extract_uuid(&body, &["data", "uuid"]).map_err(|e| e.to_string())?;
-    let (s, body) = ctx
-        .client
-        .delete(&format!("/api/inventory/delete/item/{tmp_uuid}"))
-        .await
-        .map_err(|e| e.to_string())?;
-    assert!(ok(s), "delete temp item: {s} {body}");
-    println!("✓ delete disposable item");*/
 
     ctx.save_state().map_err(|e| e.to_string())?;
     println!("✅ inventory_master_data OK for {}", ctx.company_name);

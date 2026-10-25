@@ -1,8 +1,10 @@
 mod common;
 
-use common::client::extract_uuid;
-use common::fixtures::{FG_CARGO_MULE, RMS, SA_CTRL_CORE, SA_PROP_GROUND};
-use common::{E2eResult, TestContext};
+use common::{
+    E2eResult, TestContext,
+    client::extract_uuid,
+    fixtures::{FG_CARGO_MULE, RMS, SA_CTRL_CORE, SA_PROP_GROUND},
+};
 use serde_json::json;
 
 fn ok(status: reqwest::StatusCode) -> bool {
@@ -19,10 +21,7 @@ fn acct(ctx: &TestContext, codes: &[&str]) -> Result<String, String> {
     Ok(codes[0].to_string())
 }
 
-fn find_item<'a>(
-    inv: &'a serde_json::Value,
-    sku: &str,
-) -> Result<&'a serde_json::Value, String> {
+fn find_item<'a>(inv: &'a serde_json::Value, sku: &str) -> Result<&'a serde_json::Value, String> {
     inv["data"]
         .as_array()
         .ok_or_else(|| String::from("inventory data not an array"))?
@@ -87,12 +86,12 @@ async fn manufacturing_flow() -> E2eResult<()> {
     let fst = extract_uuid(find_item(&inv, "FST-KIT")?, &["uuid"])?;
 
     // Subassembly + FG shells (created in e2e_03, qty 0 until this flow)
-    let sa_ctrl = extract_uuid(find_item(&inv, SA_CTRL_CORE)?, &["uuid"])
-        .map_err(|e| e.to_string())?;
-    let sa_prop = extract_uuid(find_item(&inv, SA_PROP_GROUND)?, &["uuid"])
-        .map_err(|e| e.to_string())?;
-    let fg_uuid = extract_uuid(find_item(&inv, FG_CARGO_MULE)?, &["uuid"])
-        .map_err(|e| e.to_string())?;
+    let sa_ctrl =
+        extract_uuid(find_item(&inv, SA_CTRL_CORE)?, &["uuid"]).map_err(|e| e.to_string())?;
+    let sa_prop =
+        extract_uuid(find_item(&inv, SA_PROP_GROUND)?, &["uuid"]).map_err(|e| e.to_string())?;
+    let fg_uuid =
+        extract_uuid(find_item(&inv, FG_CARGO_MULE)?, &["uuid"]).map_err(|e| e.to_string())?;
     println!("✓ SA-CTRL-CORE={sa_ctrl} SA-PROP-GROUND={sa_prop} FG={fg_uuid}");
 
     // =========================================================================
@@ -145,7 +144,7 @@ async fn manufacturing_flow() -> E2eResult<()> {
                 "notes": "Cargo Mule final assembly routing",
                 "version": "1",
                 "base_quantity": 1,
-                "effective_date": "2025-01-01",
+                "effective_date": "2026-01-01",
                 "status": "active",
                 "is_default": true
             }),
@@ -201,8 +200,8 @@ async fn manufacturing_flow() -> E2eResult<()> {
         .post(
             "/api/manufacturing/create/overhead-rate",
             json!({
-                "period_start": "2025-01-01",
-                "period_end": "2025-12-31",
+                "period_start": "2026-01-01",
+                "period_end": "2026-12-31",
                 "allocation_base": "DirectLaborHours",
                 "estimated_overhead": "12000000",  // budgeted MOH
                 "estimated_base": "800",           // budgeted labor hours
@@ -416,8 +415,8 @@ async fn manufacturing_flow() -> E2eResult<()> {
                 "order_number": order_no,
                 "product_item_uuid": fg_uuid,
                 "quantity_ordered": "10",
-                "start_date": "2025-01-15",
-                "expected_completion_date": "2025-01-25"
+                "start_date": "2026-01-15",
+                "expected_completion_date": "2026-01-25"
             }),
         )
         .await
@@ -545,13 +544,15 @@ async fn manufacturing_flow() -> E2eResult<()> {
     // =========================================================================
     // 11. Trial balance
     // =========================================================================
-    ctx.assert_trial_balance_ok("2025-01-31")
+    ctx.assert_trial_balance_ok("2026-01-31")
         .await
         .map_err(|e| e.to_string())?;
     println!("✓ trial balance OK after manufacturing");
 
     ctx.save_state().map_err(|e| e.to_string())?;
-    println!("✅ manufacturing_flow (multi-level BOM) OK for {}", ctx.company_name);
+    println!(
+        "✅ manufacturing_flow (multi-level BOM) OK for {}",
+        ctx.company_name
+    );
     Ok(())
 }
-

@@ -1,7 +1,6 @@
 mod common;
 
-use common::client::extract_uuid;
-use common::{E2eResult, TestContext};
+use common::{E2eResult, TestContext, client::extract_uuid};
 use serde_json::json;
 
 fn ok(status: reqwest::StatusCode) -> bool {
@@ -28,7 +27,7 @@ async fn raise_equity() -> E2eResult<()> {
         .await
         .map_err(|e| e.to_string())?;
     ctx.save_state()?;
-    ctx.assert_trial_balance_ok("2025-01-31")
+    ctx.assert_trial_balance_ok("2026-01-31")
         .await
         .map_err(|e| e.to_string())?;
 
@@ -102,7 +101,7 @@ async fn debt_facility_lifecycle() -> E2eResult<()> {
                 "day_count_convention": "ACT/365",
                 "payment_frequency": "QUARTERLY",
                 "amortization_type": "AMORTIZING",
-                "effective_date": "2025-01-10",
+                "effective_date": "2026-01-10",
                 "maturity_date": "2028-01-10",
                 "commitment_fee_bps": "50",
                 "collateral_required": true,
@@ -142,10 +141,10 @@ async fn debt_facility_lifecycle() -> E2eResult<()> {
         .post(
             &format!("/api/capital/facilities/{facility_id}/drawdowns"),
             json!({
-				"facility_id": facility_id,
+                "facility_id": facility_id,
                 "amount": "60000000",
-                "drawdown_date": "2025-01-15",
-                "value_date": "2025-01-15",
+                "drawdown_date": "2026-01-15",
+                "value_date": "2026-01-15",
                 "currency_id": ugx,
                 "cash_account_code": cash,
                 "loan_liability_code": loan_liab,
@@ -181,9 +180,9 @@ async fn debt_facility_lifecycle() -> E2eResult<()> {
         .post(
             &format!("/api/capital/facilities/{facility_id}/accruals"),
             json!({
-				"facility_id": facility_id,
-                "period_start": "2025-01-15",
-                "period_end": "2025-01-31",
+                "facility_id": facility_id,
+                "period_start": "2026-01-15",
+                "period_end": "2026-01-31",
                 "principal_base": "60000000",
                 "annual_rate": "0.12",
                 "day_count": 16,
@@ -204,9 +203,9 @@ async fn debt_facility_lifecycle() -> E2eResult<()> {
         .post(
             &format!("/api/capital/facilities/{facility_id}/schedules"),
             json!({
-				"facility_id": facility_id,
+                "facility_id": facility_id,
                 "sequence_no": 1,
-                "due_date": "2025-04-15",
+                "due_date": "2026-04-15",
                 "principal_due": "5000000",
                 "interest_due": interest_amt,
                 "fee_due": "0",
@@ -223,9 +222,9 @@ async fn debt_facility_lifecycle() -> E2eResult<()> {
 
     // ----- 7. Partial repayment (pay the accrued interest + 5m principal early for test) -----
     let mut repay_body = json!({
-		"facility_id": facility_id,
-		"schedule_id": schedule_id,
-        "repayment_date": "2025-01-31",
+        "facility_id": facility_id,
+        "schedule_id": schedule_id,
+        "repayment_date": "2026-01-31",
         "principal_amount": "5000000",
         "interest_amount": interest_amt,
         "fee_amount": "0",
@@ -257,9 +256,9 @@ async fn debt_facility_lifecycle() -> E2eResult<()> {
         .post(
             &format!("/api/capital/facilities/{facility_id}/fees"),
             json!({
-				"facility_id": facility_id,
+                "facility_id": facility_id,
                 "fee_type": "COMMITMENT",
-                "fee_date": "2025-01-10",
+                "fee_date": "2026-01-10",
                 "amount": "125000",   // 0.5% * undrawn 40m / 4 for quarter-ish
                 "currency_id": ugx,
                 "description": "Commitment fee on undrawn"
@@ -279,7 +278,7 @@ async fn debt_facility_lifecycle() -> E2eResult<()> {
         .post(
             &format!("/api/capital/facilities/{facility_id}/covenants"),
             json!({
-				"facility_id": facility_id,
+                "facility_id": facility_id,
                 "covenant_code": "DSCR-MIN",
                 "covenant_name": "Minimum DSCR",
                 "covenant_type": "FINANCIAL",
@@ -287,7 +286,7 @@ async fn debt_facility_lifecycle() -> E2eResult<()> {
                 "operator": ">=",
                 "threshold_min": "1.25",
                 "measurement_frequency": "QUARTERLY",
-                "effective_date": "2025-01-10",
+                "effective_date": "2026-01-10",
                 "status": "ACTIVE"
             }),
         )
@@ -317,7 +316,7 @@ async fn debt_facility_lifecycle() -> E2eResult<()> {
     );
 
     // ----- 10. Trial balance -----
-    ctx.assert_trial_balance_ok("2025-01-31")
+    ctx.assert_trial_balance_ok("2026-01-31")
         .await
         .map_err(|e| e.to_string())?;
     println!("✓ trial balance OK after debt lifecycle");
@@ -485,7 +484,7 @@ async fn equity_share_issue_lifecycle() -> E2eResult<()> {
         "shareholder_id": sh_founder,
         "shares": 50_000,
         "price_per_share": "1000",
-        "issue_date": "2025-01-08",
+        "issue_date": "2026-01-08",
         "currency_id": ugx,
         "cash_account_code": cash,
         "share_capital_code": share_cap,
@@ -521,11 +520,11 @@ async fn equity_share_issue_lifecycle() -> E2eResult<()> {
                 "shareholder_id": sh_investor,
                 "shares": 20_000,
                 "price_per_share": "1500",
-                "issue_date": "2025-01-12",
+                "issue_date": "2026-01-12",
                 "currency_id": ugx,
                 "cash_account_code": cash,
                 "share_capital_code": share_cap,
-				"share_premium_code": share_prem,
+                "share_premium_code": share_prem,
                 "par_value": "1000",
                 "instrument_code": "EQ-ORD-PEARL-1",
                 "instrument_name": "Pearl Seed Round",
@@ -552,7 +551,7 @@ async fn equity_share_issue_lifecycle() -> E2eResult<()> {
                 "original_principal": "0",
                 "face_value": "0",
                 "issue_price": "0",
-                "effective_date": "2025-01-12",
+                "effective_date": "2026-01-12",
                 "is_perpetual": true,
                 "status": "active",
                 "notes": "Registry-only instrument for SAFE tracking"
@@ -577,11 +576,7 @@ async fn equity_share_issue_lifecycle() -> E2eResult<()> {
         "/api/capital/instruments",
         "/api/capital/party",
     ] {
-        let (s, body) = ctx
-            .client
-            .get(path)
-            .await
-            .map_err(|e| e.to_string())?;
+        let (s, body) = ctx.client.get(path).await.map_err(|e| e.to_string())?;
         assert!(ok(s), "{path}: {s} {body}");
         let n = body["data"].as_array().map(|a| a.len()).unwrap_or(0);
         println!("✓ {path} n={n}");
@@ -596,7 +591,7 @@ async fn equity_share_issue_lifecycle() -> E2eResult<()> {
     println!("✓ get share class");
 
     // ----- 8. TB -----
-    ctx.assert_trial_balance_ok("2025-01-31")
+    ctx.assert_trial_balance_ok("2026-01-31")
         .await
         .map_err(|e| e.to_string())?;
     println!("✓ trial balance OK after equity issue");

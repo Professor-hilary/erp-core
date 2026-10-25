@@ -1,7 +1,6 @@
 mod common;
 
-use common::client::extract_uuid;
-use common::{E2eResult, TestContext};
+use common::{E2eResult, TestContext, client::extract_uuid};
 use serde_json::json;
 use uuid::Uuid;
 
@@ -56,10 +55,10 @@ async fn monthly_payroll() -> E2eResult<()> {
         .post(
             "/api/payroll/payrun/create",
             json!({
-                "pay_period_start": "2025-01-01",
-                "pay_period_end": "2025-01-31",
-                "payment_date": "2025-02-05",
-                "notes": "January 2025 monthly payroll",
+                "pay_period_start": "2026-01-01",
+                "pay_period_end": "2026-01-31",
+                "payment_date": "2026-02-05",
+                "notes": "January 2026 monthly payroll",
                 "payslips": payslips
             }),
         )
@@ -138,7 +137,7 @@ async fn monthly_payroll() -> E2eResult<()> {
     println!("✓ payslips n={n_slips}");
 
     // ----- 5. Trial balance -----
-    ctx.assert_trial_balance_ok("2025-01-31")
+    ctx.assert_trial_balance_ok("2026-01-31")
         .await
         .map_err(|e| e.to_string())?;
     println!("✓ trial balance OK after payroll");

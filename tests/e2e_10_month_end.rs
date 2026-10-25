@@ -16,7 +16,7 @@ async fn period_close() -> E2eResult<()> {
     // Uncomment when close_period is deployed:
     // ctx.close_current_period().await?;
 
-    ctx.assert_trial_balance_ok("2025-01-31").await?;
+    ctx.assert_trial_balance_ok("2026-01-31").await?;
     let _ = ctx.save_state();
     Ok(())
 }

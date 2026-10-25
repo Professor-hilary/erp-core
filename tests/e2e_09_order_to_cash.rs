@@ -1,9 +1,7 @@
 mod common;
 
-use common::client::extract_uuid;
-use common::{E2eResult, TestContext};
+use common::{E2eResult, TestContext, client::extract_uuid, fixtures::FG_CARGO_MULE};
 use serde_json::json;
-use common::fixtures::{FG_CARGO_MULE};
 
 fn ok(status: reqwest::StatusCode) -> bool {
     status.is_success() || status.as_u16() == 201
@@ -38,10 +36,13 @@ async fn order_to_cash() -> E2eResult<()> {
     //    .and_then(|i| i["serial_id"].as_i64())
     //    .unwrap_or(0);
 
-	let stock_item_id = items_body["data"].as_array().unwrap().iter()
-	    .find(|i| i["sku"].as_str() == Some(FG_CARGO_MULE))
-    	.and_then(|i| i["serial_id"].as_i64())
-    	.ok_or("FG-CARGO-MULE missing — run e2e_06")?;
+    let stock_item_id = items_body["data"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|i| i["sku"].as_str() == Some(FG_CARGO_MULE))
+        .and_then(|i| i["serial_id"].as_i64())
+        .ok_or("FG-CARGO-MULE missing — run e2e_06")?;
 
     // ----- Create credit invoice (unposted) -----
     let invoice_number = format!("INV-{}", chrono::Utc::now().timestamp_millis());
@@ -52,14 +53,14 @@ async fn order_to_cash() -> E2eResult<()> {
             json!({
                 "invoice_number": invoice_number,
                 "customer_uuid": customer_uuid,
-                "issue_date": "2025-01-25",
-                "due_date": "2025-02-25",
+                "issue_date": "2026-01-25",
+                "due_date": "2026-02-25",
                 "settlement_type": "credit",
                 "items": [{
                     "stock_item_id": stock_item_id,
                     "description": "White Bread Loaf",
                     "quantity": "9",
-                    "unit_price": "780000",
+                    "unit_price": "1150000",
                     "tax_rate": "18"
                 }]
             }),
@@ -101,7 +102,7 @@ async fn order_to_cash() -> E2eResult<()> {
     println!("✓ customer invoices n={n}");
 
     // ----- Trial balance -----
-    ctx.assert_trial_balance_ok("2025-01-31")
+    ctx.assert_trial_balance_ok("2026-01-31")
         .await
         .map_err(|e| e.to_string())?;
     println!("✓ trial balance OK after order-to-cash");

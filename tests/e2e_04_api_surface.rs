@@ -98,7 +98,7 @@ async fn deep_api_surface_manufacturing_company() -> E2eResult<()> {
     {
         let (status, body) = client
             .get(&format!(
-                "/api/transactions/get/ledger/{cash}?from=2025-01-01&to=2025-12-31&posted=true"
+                "/api/transactions/get/ledger/{cash}?from=2026-01-01&to=2026-12-31&posted=true"
             ))
             .await
             .map_err(|error| error.to_string())?;
@@ -177,13 +177,13 @@ async fn deep_api_surface_manufacturing_company() -> E2eResult<()> {
 
     // ----- Core reports (no extra path params) -----
     for path in [
-        "/api/reports/trial-balance?as_of=2025-01-31",
-        "/api/reports/balancesheet/single?as_of=2025-01-31",
-        "/api/reports/income?from=2025-01-01&to=2025-01-31",
-        "/api/reports/cashflow/indirect?from=2025-01-01&to=2025-01-31",
-        "/api/reports/cashflow/direct?from=2025-01-01&to=2025-01-31",
-        "/api/reports/change-of-equity?from=2025-01-01&to=2025-01-31",
-        "/api/reports/balancesheet/compare?from=2025-01-01&to=2025-01-31",
+        "/api/reports/trial-balance?as_of=2026-01-31",
+        "/api/reports/balancesheet/single?as_of=2026-01-31",
+        "/api/reports/income?from=2026-01-01&to=2026-01-31",
+        "/api/reports/cashflow/indirect?from=2026-01-01&to=2026-01-31",
+        "/api/reports/cashflow/direct?from=2026-01-01&to=2026-01-31",
+        "/api/reports/change-of-equity?from=2026-01-01&to=2026-01-31",
+        "/api/reports/balancesheet/compare?from=2026-01-01&to=2026-01-31",
     ] {
         let (status, body) = client.get(path).await.map_err(|error| error.to_string())?;
         assert!(ok(status), "report {path}: {status} {body}");

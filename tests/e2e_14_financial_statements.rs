@@ -8,11 +8,11 @@ async fn financial_statements_smoke() -> E2eResult<()> {
     let ctx = TestContext::from_saved_state().await?;
 
     for path in [
-        "/api/reports/trial-balance?as_of=2025-01-31",
-        "/api/reports/balancesheet/single?as_of=2025-01-31",
-        "/api/reports/income?from=2025-01-01&to=2025-01-31",
-        "/api/reports/cashflow/indirect?from=2025-01-01&to=2025-01-31",
-        "/api/reports/change-of-equity?from=2025-01-01&to=2025-01-31",
+        "/api/reports/trial-balance?as_of=2026-01-31",
+        "/api/reports/balancesheet/single?as_of=2026-01-31",
+        "/api/reports/income?from=2026-01-01&to=2026-01-31",
+        "/api/reports/cashflow/indirect?from=2026-01-01&to=2026-01-31",
+        "/api/reports/change-of-equity?from=2026-01-01&to=2026-01-31",
     ] {
         let (status, body) = ctx.client.get(path).await?;
         assert!(

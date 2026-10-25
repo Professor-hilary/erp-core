@@ -1,7 +1,6 @@
 mod common;
 
-use common::client::extract_uuid;
-use common::{E2eResult, TestContext};
+use common::{E2eResult, TestContext, client::extract_uuid};
 use serde_json::json;
 
 fn ok(status: reqwest::StatusCode) -> bool {
@@ -24,10 +23,10 @@ async fn investment_case_pipeline() -> E2eResult<()> {
             "/api/investment/programs",
             json!({
                 "program_code": format!("PROG-{}", chrono::Utc::now().timestamp_millis() % 100000),
-                "name": "Capacity Expansion 2025",
+                "name": "Capacity Expansion 2026",
                 "description": "E2E program",
-                "horizon_start": "2025-01-01",
-                "horizon_end": "2027-12-31"
+                "horizon_start": "2026-01-01",
+                "horizon_end": "2028-12-31"
             }),
         )
         .await
@@ -133,7 +132,7 @@ async fn investment_case_pipeline() -> E2eResult<()> {
     println!("✓ portfolio board");
 
     // Investment is decisioning, not always GL — still assert TB unbroken
-    ctx.assert_trial_balance_ok("2025-01-31")
+    ctx.assert_trial_balance_ok("2026-01-31")
         .await
         .map_err(|e| e.to_string())?;
 
