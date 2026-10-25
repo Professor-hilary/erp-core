@@ -274,4 +274,3 @@ pub struct PortfolioBoardRow {
     pub spent_to_date: Option<BigDecimal>,
     pub budget_burn_pct: Option<BigDecimal>,
 }
-

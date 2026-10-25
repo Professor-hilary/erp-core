@@ -813,7 +813,10 @@ impl ReportRepository for PostgresReportRepo {
         }
 
         // 6. Net cash flow + opening/closing cash (same as direct)
-        let net_cash_flow: BigDecimal = result.iter().map(|n: &Node| n.total.clone()).sum::<BigDecimal>();
+        let net_cash_flow: BigDecimal = result
+            .iter()
+            .map(|n: &Node| n.total.clone())
+            .sum::<BigDecimal>();
 
         //=================================================================
         // 5. Opening cash

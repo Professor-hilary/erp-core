@@ -316,16 +316,17 @@ impl CustomerRepository for PostgresCustomerRepo {
         user_id: Uuid,
         payload: &PostTurnover,
     ) -> Result<Turnover, AppError> {
-        let invoice =
-            sqlx::query_as::<_, Turnover>(r#"SELECT * FROM sales.post_turnover($1, $2, $3, $4, $5, NULL)"#)
-                .bind(&payload.invoice_number)
-                .bind(user_id)
-                .bind(&payload.output_vat_code)
-                .bind(&payload.receivable_code)
-                .bind(&payload.revenue_code)
-                .fetch_one(pool)
-                .await
-                .map_err(|e| AppError::Internal(e.to_string()))?;
+        let invoice = sqlx::query_as::<_, Turnover>(
+            r#"SELECT * FROM sales.post_turnover($1, $2, $3, $4, $5, NULL)"#,
+        )
+        .bind(&payload.invoice_number)
+        .bind(user_id)
+        .bind(&payload.output_vat_code)
+        .bind(&payload.receivable_code)
+        .bind(&payload.revenue_code)
+        .fetch_one(pool)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
 
         Ok(invoice)
     }

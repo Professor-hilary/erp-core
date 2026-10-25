@@ -12,7 +12,6 @@ pub struct JwtClaims {
     pub exp: usize,
     pub token_type: String,
     pub jti: Uuid,
-
 }
 
 #[allow(dead_code)]

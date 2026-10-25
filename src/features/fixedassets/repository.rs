@@ -539,12 +539,13 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
         uuid: Uuid,
         user_id: Uuid,
     ) -> Result<(), AppError> {
-        let res: PgQueryResult =
-            sqlx::query("DELETE FROM fixedassets.asset_classes WHERE class_id = $1 AND user_id = $2")
-                .bind(uuid)
-                .bind(user_id)
-                .execute(pool)
-                .await?;
+        let res: PgQueryResult = sqlx::query(
+            "DELETE FROM fixedassets.asset_classes WHERE class_id = $1 AND user_id = $2",
+        )
+        .bind(uuid)
+        .bind(user_id)
+        .execute(pool)
+        .await?;
 
         if res.rows_affected() == 0 {
             Err(AppError::NotFound("Asset class not found".into()))
@@ -969,7 +970,7 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
     ) -> Result<Vec<AssetDepreciation>, AppError> {
         // Run for all active assets
         let deps: Vec<AssetDepreciation> = sqlx::query_as::<_, AssetDepreciation>(
-			r#"
+            r#"
 	        WITH active_assets AS (
     	        SELECT asset_id
         	    FROM fixedassets.fixed_assets
@@ -1128,12 +1129,13 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
         uuid: Uuid,
         user_id: Uuid,
     ) -> Result<(), AppError> {
-        let res =
-            sqlx::query("DELETE FROM fixedassets.asset_components WHERE component_id = $1 AND user_id = $2")
-                .bind(uuid)
-                .bind(user_id)
-                .execute(pool)
-                .await?;
+        let res = sqlx::query(
+            "DELETE FROM fixedassets.asset_components WHERE component_id = $1 AND user_id = $2",
+        )
+        .bind(uuid)
+        .bind(user_id)
+        .execute(pool)
+        .await?;
 
         if res.rows_affected() == 0 {
             Err(AppError::NotFound("Component not found".into()))
@@ -1310,12 +1312,13 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
         uuid: Uuid,
         user_id: Uuid,
     ) -> Result<(), AppError> {
-        let res =
-            sqlx::query("DELETE FROM fixedassets.asset_maintenance WHERE maintenance_id = $1 AND user_id = $2")
-                .bind(uuid)
-                .bind(user_id)
-                .execute(pool)
-                .await?;
+        let res = sqlx::query(
+            "DELETE FROM fixedassets.asset_maintenance WHERE maintenance_id = $1 AND user_id = $2",
+        )
+        .bind(uuid)
+        .bind(user_id)
+        .execute(pool)
+        .await?;
 
         if res.rows_affected() == 0 {
             Err(AppError::NotFound("Maintenance record not found".into()))
@@ -1433,12 +1436,13 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
         uuid: Uuid,
         user_id: Uuid,
     ) -> Result<(), AppError> {
-        let res =
-            sqlx::query("DELETE FROM fixedassets.asset_insurance WHERE insurance_id = $1 AND user_id = $2")
-                .bind(uuid)
-                .bind(user_id)
-                .execute(pool)
-                .await?;
+        let res = sqlx::query(
+            "DELETE FROM fixedassets.asset_insurance WHERE insurance_id = $1 AND user_id = $2",
+        )
+        .bind(uuid)
+        .bind(user_id)
+        .execute(pool)
+        .await?;
 
         if res.rows_affected() == 0 {
             Err(AppError::NotFound("Insurance record not found".into()))
@@ -1546,7 +1550,7 @@ impl FixedAssetRepository for PostgresFixedAssetRepository {
         .bind(payload.disposal_date)
         .bind(&payload.proceeds)
         .bind(&payload.reason)
-		.bind(&payload.disposal_type.as_deref().unwrap_or("Sale")) 
+        .bind(&payload.disposal_type.as_deref().unwrap_or("Sale"))
         .fetch_one(pool)
         .await?;
 

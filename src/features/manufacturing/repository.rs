@@ -357,7 +357,7 @@ impl ManufacturingRepo {
         Ok(cost_application)
     }
 
-	// =============================== Labor Application ============================
+    // =============================== Labor Application ============================
     pub async fn apply_direct_labor(
         &self,
         dto: ApplyDirectLaborDto,
@@ -423,32 +423,32 @@ impl ManufacturingRepo {
         self.get_production_order(dto.production_order_uuid).await
     }*/
 
-pub async fn complete_production_order(
-    &self,
-    dto: CompleteProductionOrderDto,
-    user_uuid: Uuid,
-) -> Result<ProductionOrder, AppError> {
-    let _gl_txn: Uuid = sqlx::query_scalar(
-        r#"
+    pub async fn complete_production_order(
+        &self,
+        dto: CompleteProductionOrderDto,
+        user_uuid: Uuid,
+    ) -> Result<ProductionOrder, AppError> {
+        let _gl_txn: Uuid = sqlx::query_scalar(
+            r#"
         SELECT manufacturing.complete_production_order(
             $1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_DATE
         )
         "#,
-    )
-    .bind(dto.production_order_uuid)
-    .bind(dto.completed_quantity)
-    .bind(user_uuid)
-    .bind(&dto.control_code)
-    .bind(&dto.wip_account_code)
-    .bind(&dto.fg_account_code)
-    .bind(&dto.mfg_mat_var_code)
-    .bind(&dto.mfg_lab_var_code)
-    .bind(&dto.mfg_moh_var_code)
-    .fetch_one(&self.pool)
-    .await?;
+        )
+        .bind(dto.production_order_uuid)
+        .bind(dto.completed_quantity)
+        .bind(user_uuid)
+        .bind(&dto.control_code)
+        .bind(&dto.wip_account_code)
+        .bind(&dto.fg_account_code)
+        .bind(&dto.mfg_mat_var_code)
+        .bind(&dto.mfg_lab_var_code)
+        .bind(&dto.mfg_moh_var_code)
+        .fetch_one(&self.pool)
+        .await?;
 
-    self.get_production_order(dto.production_order_uuid).await
-}
+        self.get_production_order(dto.production_order_uuid).await
+    }
 
     // ============================ Manual Variance Proration v2.0 ============================
     pub async fn prorate_variance(
@@ -533,7 +533,7 @@ pub async fn complete_production_order(
         Ok(bom_header)
     }
 
-	pub async fn get_full_bom(&self, bom_uuid: Uuid) -> Result<Option<BomWithLines>, AppError> {
+    pub async fn get_full_bom(&self, bom_uuid: Uuid) -> Result<Option<BomWithLines>, AppError> {
         let header_opt: Option<BomHeader> = sqlx::query_as::<_, BomHeader>(
             "SELECT * FROM manufacturing.bom_headers WHERE uuid = $1",
         )

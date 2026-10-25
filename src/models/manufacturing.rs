@@ -137,8 +137,8 @@ pub struct SingleMaterialIssueDto {
 pub struct CostApplication {
     pub uuid: Uuid,
     pub production_order_uuid: Uuid,
-	#[sqlx(rename = "type")]
-    #[serde(rename = "application_type")]  // keep API name if you want
+    #[sqlx(rename = "type")]
+    #[serde(rename = "application_type")] // keep API name if you want
     pub application_type: String, // "DirectLabor" | "Overhead"
     pub amount: BigDecimal,
     pub applied_at: DateTime<Utc>,
@@ -329,8 +329,8 @@ pub struct BomLine {
     pub uom: String,
     pub scrap_factor: BigDecimal,
     pub notes: Option<String>,
-    pub child_bom_uuid: Option<Uuid>,   // NEW
-    pub is_phantom: bool,               // NEW
+    pub child_bom_uuid: Option<Uuid>, // NEW
+    pub is_phantom: bool,             // NEW
     pub created_at: DateTime<Utc>,
 }
 
@@ -343,8 +343,8 @@ pub struct CreateBomLineDto {
     pub uom: Option<String>,
     pub scrap_factor: Option<BigDecimal>,
     pub notes: Option<String>,
-    pub child_bom_uuid: Option<Uuid>,   // NEW – pin a specific sub-BOM revision
-    pub is_phantom: Option<bool>,       // NEW
+    pub child_bom_uuid: Option<Uuid>, // NEW – pin a specific sub-BOM revision
+    pub is_phantom: Option<bool>,     // NEW
 }
 
 // Optional: useful for an explode endpoint later

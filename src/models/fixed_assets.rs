@@ -292,7 +292,7 @@ pub struct CreateAssetDisposal {
     pub proceeds: BigDecimal,
     // pub gain_loss: Option<BigDecimal>,
     pub reason: Option<String>,
-	pub disposal_type: Option<String>,
+    pub disposal_type: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]

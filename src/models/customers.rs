@@ -36,7 +36,7 @@ pub struct Turnover {
     pub customer_uuid: Uuid,
     pub issue_date: NaiveDate,
     pub due_date: NaiveDate,
-    pub paid_at:  Option<DateTime<Utc>>,
+    pub paid_at: Option<DateTime<Utc>>,
     pub total_amount: Option<BigDecimal>,
     pub tax_amount: Option<BigDecimal>,
     pub balance_due: Option<BigDecimal>,

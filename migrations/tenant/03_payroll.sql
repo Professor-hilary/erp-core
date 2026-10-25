@@ -28,6 +28,8 @@ CREATE TABLE IF NOT EXISTS payroll.payruns (
     status varchar(20) DEFAULT 'Pending' CHECK (status IN ('Pending', 'Processed', 'Posted')),
     gl_transaction_uuid uuid,
     notes text,
+	processed_at timestamptz,
+	posted_at timestamptz,
     created_at timestamptz DEFAULT now(),
     updated_at timestamptz DEFAULT now(),
     CONSTRAINT payruns_pkey PRIMARY KEY (uuid),
@@ -45,7 +47,9 @@ CREATE TABLE IF NOT EXISTS payroll.payslips (
     gross_pay numeric(14, 2) NOT NULL,
     tax_deducted numeric(14, 2) DEFAULT 0,
     social_security numeric(14, 2) DEFAULT 0,
+	employer_social_security numeric(14,2) DEFAULT 0,
     other_deductions numeric(14, 2) DEFAULT 0,
+	basic_pay numeric(14,2),
     net_pay numeric(14, 2) GENERATED ALWAYS AS (
         ((gross_pay - tax_deducted) - social_security) - other_deductions
     ) STORED,
@@ -71,6 +75,7 @@ CREATE TABLE IF NOT EXISTS payroll.payslip_items (
     payslip_uuid uuid NOT NULL,
     item_type varchar(20) CHECK (item_type IN ('Allowance', 'Deduction')),
     description varchar(100),
+	component_uuid uuid REFERENCES payroll.pay_components(uuid),
     amount numeric(14, 2) NOT NULL,
     created_at timestamptz DEFAULT now(),
     CONSTRAINT payslip_items_pkey PRIMARY KEY (uuid),
@@ -79,8 +84,31 @@ CREATE TABLE IF NOT EXISTS payroll.payslip_items (
         FOREIGN KEY (payslip_uuid) REFERENCES payroll.payslips(uuid) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS payroll.pay_components (
+  uuid uuid PRIMARY KEY DEFAULT uuidv7(),
+  code varchar(30) NOT NULL UNIQUE,
+  name varchar(100) NOT NULL,
+  component_kind varchar(20) NOT NULL
+    CHECK (component_kind IN ('EARNING','DEDUCTION','EMPLOYER_COST')),
+  calc_method varchar(30) NOT NULL
+    CHECK (calc_method IN ('FIXED','PERCENT_OF_BASIC','PERCENT_OF_GROSS','MANUAL','EXTERNAL')),
+  default_rate numeric(12,6),
+  is_taxable boolean NOT NULL DEFAULT true,
+  statutory_role varchar(40),
+  is_active boolean NOT NULL DEFAULT true,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+INSERT INTO payroll.pay_components (code, name, component_kind, calc_method, statutory_role) VALUES
+  ('BASIC', 		'Basic salary', 				'EARNING', 		 'FIXED', NULL),
+  ('LEAVE_ENCASH', 	'Leave encashment', 			'EARNING', 		 'MANUAL', NULL),
+  ('TAX_WH', 		'Income tax withheld', 			'DEDUCTION', 	 'EXTERNAL', 'income_tax_employee'),
+  ('SS_EE', 		'Social security (employee)', 	'DEDUCTION', 	 'EXTERNAL', 'social_security_employee'),
+  ('SS_ER', 		'Social security (employer)', 	'EMPLOYER_COST', 'EXTERNAL', 'social_security_employer')
+ON CONFLICT (code) DO NOTHING;
+
 -- ========================================
--- VIEWS (Optional but useful)
+-- VIEWS
 -- ========================================
 CREATE OR REPLACE VIEW payroll.payrun_summary AS
 SELECT
@@ -97,6 +125,27 @@ SELECT
 FROM payroll.payruns pr
 LEFT JOIN payroll.payslips ps ON ps.payrun_uuid = pr.uuid
 GROUP BY pr.uuid, pr.serial_id;
+
+CREATE OR REPLACE VIEW hr.v_employee_payroll_snapshot AS
+SELECT
+  e.uuid AS employee_uuid,
+  e.status,
+  e.hire_date,
+  lc.termination_date,
+  lc.last_working_date,
+  c.basic_salary,
+  COALESCE(c.pay_frequency, e.pay_frequency) AS pay_frequency,
+  pp.bank_account_number,
+  pp.bank_name,
+  pp.payment_method,
+  sp.tax_id,
+  sp.social_security_number
+FROM hr.employees e
+LEFT JOIN hr.employee_lifecycle lc ON lc.employee_uuid = e.uuid
+LEFT JOIN hr.employment_contracts c
+  ON c.employee_uuid = e.uuid AND c.status = 'Active'
+LEFT JOIN hr.employee_payment_profiles pp ON pp.employee_uuid = e.uuid
+LEFT JOIN hr.employee_statutory_profiles sp ON sp.employee_uuid = e.uuid;
 
 -- ========================================
 -- FUNCTION: post_payrun

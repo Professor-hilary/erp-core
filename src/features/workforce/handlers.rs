@@ -137,9 +137,7 @@ async fn get_job_title(
 ) -> Result<Response, AppError> {
     let repo = PostgresHrRepo::new();
     let svc = HrService::new(repo);
-    let emp = svc
-        .get_job_title(&user.tenant_pool, id)
-        .await?;
+    let emp = svc.get_job_title(&user.tenant_pool, id).await?;
     Ok(ApiResponse::success(emp, "Employee fetched"))
 }
 
