@@ -110,6 +110,101 @@ impl PostgresHrRepo {
 
 #[async_trait]
 impl HrRepository for PostgresHrRepo {
+async fn create_employee(
+    &self,
+    pool: &PgPool,
+    user_id: Uuid,
+    payload: &CreateEmployee,
+) -> Result<Employee, AppError> {
+    let mut tx = pool.begin().await?;
+
+    let emp: Employee = sqlx::query_as::<_, Employee>(
+        r#"
+        INSERT INTO hr.employees (
+            first_name, last_name, middle_name,
+            email, work_email, phone_number,
+            date_of_birth, gender, hire_date,
+            department_uuid, job_title_uuid, supervisor_uuid,
+            employment_type, pay_frequency
+        )
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+        RETURNING *
+        "#,
+    )
+    .bind(&payload.first_name)
+    .bind(&payload.last_name)
+    .bind(&payload.middle_name)
+    .bind(&payload.email)
+    .bind(&payload.work_email)
+    .bind(&payload.phone_number)
+    .bind(payload.date_of_birth)
+    .bind(&payload.gender)
+    .bind(payload.hire_date)
+    .bind(payload.department_uuid)
+    .bind(payload.job_title_uuid)
+    .bind(payload.supervisor_uuid)
+    .bind(&payload.employment_type)
+    .bind(&payload.pay_frequency)
+    .fetch_one(&mut *tx)
+    .await?;
+
+    sqlx::query("SELECT hr.after_employee_hired($1, $2)")
+        .bind(emp.uuid)
+        .bind(user_id)
+        .execute(&mut *tx)
+        .await?;
+
+    tx.commit().await?;
+    Ok(emp)
+}
+
+async fn update_employee(
+    &self,
+    pool: &PgPool,
+    id: Uuid,
+    _user_id: Uuid,
+    payload: &UpdateEmployee, // prefer UpdateEmployee over CreateEmployee
+) -> Result<Employee, AppError> {
+    let emp: Employee = sqlx::query_as::<_, Employee>(
+        r#"
+        UPDATE hr.employees SET
+            first_name      = COALESCE($1, first_name),
+            last_name       = COALESCE($2, last_name),
+            middle_name     = COALESCE($3, middle_name),
+            email           = COALESCE($4, email),
+            work_email      = COALESCE($5, work_email),
+            phone_number    = COALESCE($6, phone_number),
+            date_of_birth   = COALESCE($7, date_of_birth),
+            gender          = COALESCE($8, gender),
+            department_uuid = COALESCE($9, department_uuid),
+            job_title_uuid  = COALESCE($10, job_title_uuid),
+            supervisor_uuid = COALESCE($11, supervisor_uuid),
+            employment_type = COALESCE($12, employment_type),
+            pay_frequency   = COALESCE($13, pay_frequency),
+            updated_at      = now()
+        WHERE uuid = $14
+        RETURNING *
+        "#,
+    )
+    .bind(&payload.first_name)
+    .bind(&payload.last_name)
+    .bind(&payload.middle_name)
+    .bind(&payload.email)
+    .bind(&payload.work_email)
+    .bind(&payload.phone_number)
+    .bind(payload.date_of_birth)
+    .bind(&payload.gender)
+    .bind(payload.department_uuid)
+    .bind(payload.job_title_uuid)
+    .bind(payload.supervisor_uuid)
+    .bind(&payload.employment_type)
+    .bind(&payload.pay_frequency)
+    .bind(id)
+    .fetch_optional(pool)
+    .await?
+    .ok_or_else(|| AppError::NotFound("Employee not found".into()))?;
+    Ok(emp)
+}
     async fn create_employee(
         &self,
         pool: &PgPool,
