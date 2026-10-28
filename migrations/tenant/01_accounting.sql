@@ -6,13 +6,6 @@ CREATE SCHEMA IF NOT EXISTS accounting;
 CREATE EXTENSION IF NOT EXISTS ltree schema public;
 
 -- UUID extension Enabled automatically (required for uuidv7())
--- Sequences
-CREATE SEQUENCE accounting.accounts_serial_id_seq;
-
-CREATE SEQUENCE accounting.transactions_serial_id_seq;
-
-CREATE SEQUENCE accounting.transaction_entries_serial_id_seq;
-
 CREATE TABLE accounting.currencies (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     serial_id       bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
@@ -56,6 +49,7 @@ CREATE TABLE accounting.accounts (
     hierarchy_depth smallint GENERATED ALWAYS AS (nlevel (path)) STORED,
     is_contra BOOLEAN DEFAULT FALSE,
     is_active BOOLEAN DEFAULT TRUE,
+	is_postable BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );

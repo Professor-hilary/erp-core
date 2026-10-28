@@ -4,9 +4,13 @@ use chrono::NaiveDate;
 use dashmap::DashMap;
 use moka::future::Cache;
 use sqlx::{FromRow, PgPool};
+use std::sync::Arc;
 use uuid::Uuid;
 
-use crate::infrastructure::redis_blacklist::SharedBlacklist;
+use crate::{
+    features::accounts::account_roles::AccountRoleResolver,
+    infrastructure::redis_blacklist::SharedBlacklist,
+};
 
 #[derive(Clone, Debug)]
 pub struct JwtConfig {
@@ -33,6 +37,7 @@ pub struct AppState {
     pub tenant_config: TenantConfig,
     pub period_cache: Cache<Uuid, PeriodInfo>,
     pub token_blacklist: Option<SharedBlacklist>,
+    pub account_role_maps: DashMap<Uuid, Arc<AccountRoleResolver>>,
 }
 
 #[derive(Clone, Debug)]
@@ -47,13 +52,3 @@ pub struct PeriodInfo {
     pub end_date: NaiveDate,
     pub is_locked: bool,
 }
-
-// #[derive(Clone, Debug, FromRow)]
-// pub struct AppState {
-//     pub master_pool: PgPool,
-//     pub tenant_pools: DashMap<Uuid, PgPool>,
-//     pub jwt_secret: String,
-//     pub coa_seed_path: String,
-//     pub tenant_config: TenantConfig,
-//     pub period_cache: Cache<Uuid, PeriodInfo>,
-// }

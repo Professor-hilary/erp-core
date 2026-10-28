@@ -125,6 +125,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         },
         jwt_config,
         token_blacklist,
+		account_role_maps: DashMap::new(),
     });
 
     // --------------------------------------------------

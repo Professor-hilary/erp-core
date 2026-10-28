@@ -1,7 +1,8 @@
 // src/features/company/service.rs
 use crate::{
     features::{
-        accounts::repository::{AccountRepository, PostgresAccountRepo},
+        accounts::{account_roles::AccountRoleResolver,
+        repository::{AccountRepository, PostgresAccountRepo},},
         auth::{AuthService, repository::PostgresUserRepo},
         company::repository::{CompanyRepository, PostgresCompanyRepository},
     },
@@ -52,6 +53,12 @@ impl CompanyService {
             .map_err(|_| AppError::Internal("Failed to seed Chart of Accounts".into()))?;
 
         let repo: PostgresCompanyRepository = PostgresCompanyRepository;
+
+        let account_role_map = AccountRoleResolver::load(&tenant_pool)
+            .await
+            .map_err(|error| {
+                AppError::Internal(format!("Failed to load account-role mappings: {error}"))
+            })?;
 
         // Step 4: Insert company record into master DB
         let company: Company = repo
@@ -125,7 +132,13 @@ impl CompanyService {
         println!("Pool Size: {}", tenant_pool.size());
 
         // Step 7: Cache the tenant pool only after everything succeeds
+        state.tenant_pools.insert(company.uuid, tenant_pool.clone());
+
         state.tenant_pools.insert(company.uuid, tenant_pool);
+
+        state
+            .account_role_maps
+            .insert(company.uuid, Arc::new(account_role_map));
 
         // After caching tenant_pool and committing:
         let repo: PostgresUserRepo = PostgresUserRepo::new(state.master_pool.clone());
@@ -166,6 +179,7 @@ impl CompanyService {
 
         // Optional: remove from cache
         state.tenant_pools.remove(&company_id);
+        state.account_role_maps.remove(&company_id);
 
         Ok(())
     }
@@ -327,6 +341,35 @@ impl CompanyService {
                     )));
                 }
             }
+        }
+
+        let report = AccountRoleResolver::discover_and_seed_defaults(tenant_pool)
+            .await
+            .map_err(|error| {
+                AppError::Internal(format!(
+                    "Failed to discover default account-role mappings: {error}"
+                ))
+            })?;
+
+        tracing::info!(
+            inserted = report.inserted,
+            ambiguous = report.ambiguous.len(),
+            missing = report.missing.len(),
+            "Account-role discovery completed"
+        );
+
+        if !report.ambiguous.is_empty() {
+            tracing::warn!(
+                roles = ?report.ambiguous,
+                "Some account roles require manual configuration"
+            );
+        }
+
+        if !report.missing.is_empty() {
+            tracing::info!(
+                roles = ?report.missing,
+                "Some account roles have no matching CoA account"
+            );
         }
 
         println!(
