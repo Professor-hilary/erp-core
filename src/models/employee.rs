@@ -41,6 +41,49 @@ pub struct CreateEmployee {
     pub pay_frequency: Option<String>,
 }
 
+//---------------------//-----------------//----------------
+pub struct Employee {
+    pub uuid: Uuid,
+    pub serial_id: i64,
+    pub first_name: String,
+    pub last_name: String,
+    pub middle_name: Option<String>,
+    pub email: Option<String>,
+    pub work_email: Option<String>,
+    pub phone_number: Option<String>,
+    pub date_of_birth: Option<NaiveDate>,
+    pub gender: Option<String>,
+    pub hire_date: NaiveDate,
+    pub department_uuid: Option<Uuid>,
+    pub job_title_uuid: Option<Uuid>,  // was job_title
+    pub supervisor_uuid: Option<Uuid>,
+    pub employment_type: Option<String>,
+    pub pay_frequency: Option<String>,
+    pub status: String,
+    pub party_uuid: Option<Uuid>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+pub struct CreateEmployee {
+    pub first_name: String,
+    pub last_name: String,
+    pub middle_name: Option<String>,
+    pub email: Option<String>,
+    pub work_email: Option<String>,
+    pub phone_number: Option<String>,
+    pub date_of_birth: Option<NaiveDate>,
+    pub gender: Option<String>,
+    pub hire_date: NaiveDate,
+    pub department_uuid: Option<Uuid>,
+    pub job_title_uuid: Option<Uuid>,
+    pub supervisor_uuid: Option<Uuid>,
+    pub employment_type: Option<String>,
+    pub pay_frequency: Option<String>,
+    // status optional; DB default Onboarding
+}
+//----------------//----------------//----------------
+
 #[derive(Debug, Serialize)]
 pub struct EmployeeResponse {
     pub uuid: Uuid,
