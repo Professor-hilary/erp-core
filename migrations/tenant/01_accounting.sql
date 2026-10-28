@@ -58,6 +58,9 @@ COMMENT ON COLUMN accounting.accounts.path IS 'Materialized hierarchical path us
 
 COMMENT ON COLUMN accounting.accounts.hierarchy_depth IS 'Is computed depth level (root = 1)';
 
+COMMENT ON COLUMN accounting.accounts.is_postable IS
+    'Whether direct journal postings are permitted. Parent accounts must not be postable.';
+
 -- Indexes (keep the ones you need)
 CREATE INDEX ON accounting.accounts (category);
 
@@ -107,7 +110,6 @@ CREATE TABLE accounting.period_account_balances (
 
 CREATE INDEX ON accounting.period_account_balances (period_id);
 CREATE INDEX ON accounting.period_account_balances (account_uuid);
-
 
 -----------------------------------------------------------------
 -- transactions: header/journal

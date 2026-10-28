@@ -12,8 +12,8 @@ pub enum AccountRole {
     SalesRevenue,
     CostOfGoodsSold,
 
-    CashOnHand,
-    Bank,
+    CashAtHand,
+    CashAtBank,
 
     RawMaterialsInventory,
     WorkInProgress,
@@ -50,8 +50,8 @@ impl AccountRole {
         Self::AccountsPayable,
         Self::SalesRevenue,
         Self::CostOfGoodsSold,
-        Self::CashOnHand,
-        Self::Bank,
+        Self::CashAtHand,
+        Self::CashAtBank,
         Self::RawMaterialsInventory,
         Self::WorkInProgress,
         Self::FinishedGoodsInventory,
@@ -82,8 +82,8 @@ impl AccountRole {
             Self::AccountsPayable => "accounts_payable",
             Self::SalesRevenue => "sales_revenue",
             Self::CostOfGoodsSold => "cost_of_goods_sold",
-            Self::CashOnHand => "cash_on_hand",
-            Self::Bank => "bank",
+            Self::CashAtHand => "cash_on_hand",
+            Self::CashAtBank => "bank",
             Self::RawMaterialsInventory => "raw_materials_inventory",
             Self::WorkInProgress => "work_in_progress",
             Self::FinishedGoodsInventory => "finished_goods_inventory",
@@ -95,12 +95,8 @@ impl AccountRole {
             Self::DirectLabourExpense => "direct_labour_expense",
             Self::WagesExpense => "wages_expense",
             Self::WagesPayable => "wages_payable",
-            Self::ManufacturingOverheadControl => {
-                "manufacturing_overhead_control"
-            }
-            Self::ManufacturingOverheadApplied => {
-                "manufacturing_overhead_applied"
-            }
+            Self::ManufacturingOverheadControl => "manufacturing_overhead_control",
+            Self::ManufacturingOverheadApplied => "manufacturing_overhead_applied",
             Self::MaterialUsageVariance => "material_usage_variance",
             Self::LabourEfficiencyVariance => "labour_efficiency_variance",
             Self::OverheadVariance => "overhead_variance",
@@ -114,10 +110,7 @@ impl AccountRole {
     }
 
     pub fn from_key(key: &str) -> Option<Self> {
-        Self::ALL
-            .iter()
-            .copied()
-            .find(|role| role.key() == key)
+        Self::ALL.iter().copied().find(|role| role.key() == key)
     }
 
     /// Candidate names used by the automatic discovery process.
@@ -125,135 +118,63 @@ impl AccountRole {
     /// These are suggestions, not account codes or UUIDs.
     fn aliases(self) -> &'static [&'static str] {
         match self {
-            Self::AccountsReceivable => &[
-                "accounts receivable",
-                "trade receivables",
-                "debtors",
-            ],
-            Self::AccountsPayable => &[
-                "accounts payable",
-                "trade payables",
-                "creditors",
-            ],
-            Self::SalesRevenue => &[
-                "sales revenue",
-                "sales",
-                "revenue from sales",
-            ],
-            Self::CostOfGoodsSold => &[
-                "cost of goods sold",
-                "cost of sales",
-            ],
-            Self::CashOnHand => &[
-                "cash on hand",
-                "cash in hand",
-            ],
-            Self::Bank => &[
-                "bank",
-                "bank accounts",
-            ],
+            Self::AccountsReceivable => &["accounts receivable", "trade receivables", "debtors"],
+            Self::AccountsPayable => &["accounts payable", "trade payables", "creditors"],
+            Self::SalesRevenue => &["sales revenue", "sales", "revenue from sales"],
+            Self::CostOfGoodsSold => &["cost of goods sold", "cost of sales"],
+            Self::CashAtHand => &["cash on hand", "cash in hand", "cash at hand"],
+            Self::CashAtBank => &["bank", "bank accounts"],
             Self::RawMaterialsInventory => &[
                 "raw materials inventory",
                 "raw material inventory",
                 "raw materials",
             ],
-            Self::WorkInProgress => &[
-                "work in progress",
-                "work in progress wip",
-                "wip",
-            ],
-            Self::FinishedGoodsInventory => &[
-                "finished goods inventory",
-                "finished goods",
-            ],
-            Self::MerchandiseInventory => &[
-                "merchandise inventory",
-                "trading inventory",
-            ],
-            Self::InventoryAdjustments => &[
-                "inventory adjustments",
-                "inventory adjustment",
-            ],
-            Self::InputVat => &[
-                "input vat",
-                "vat input",
-                "recoverable vat",
-            ],
-            Self::OutputVat => &[
-                "output vat",
-                "vat output",
-                "vat payable",
-            ],
-            Self::DirectMaterialsExpense => &[
-                "direct materials expense",
-                "direct material expense",
-            ],
+            Self::WorkInProgress => &["work in progress", "work in progress wip", "wip"],
+            Self::FinishedGoodsInventory => &["finished goods inventory", "finished goods"],
+            Self::MerchandiseInventory => &["merchandise inventory", "trading inventory"],
+            Self::InventoryAdjustments => &["inventory adjustments", "inventory adjustment"],
+            Self::InputVat => &["input vat", "vat input", "recoverable vat"],
+            Self::OutputVat => &["output vat", "vat output", "vat payable"],
+            Self::DirectMaterialsExpense => {
+                &["direct materials expense", "direct material expense"]
+            }
             Self::DirectLabourExpense => &[
                 "direct labour expense",
                 "direct labor expense",
                 "direct labour",
                 "direct labor",
             ],
-            Self::WagesExpense => &[
-                "wages expense",
-                "salary expense",
-                "salaries and wages",
-            ],
-            Self::WagesPayable => &[
-                "wages payable",
-                "salaries payable",
-            ],
-            Self::ManufacturingOverheadControl => &[
-                "manufacturing overhead control",
-                "factory overhead control",
-            ],
-            Self::ManufacturingOverheadApplied => &[
-                "manufacturing overhead applied",
-                "applied factory overhead",
-            ],
-            Self::MaterialUsageVariance => &[
-                "material usage variance",
-                "materials usage variance",
-            ],
-            Self::LabourEfficiencyVariance => &[
-                "labour efficiency variance",
-                "labor efficiency variance",
-            ],
-            Self::OverheadVariance => &[
-                "overhead variance",
-                "manufacturing overhead variance",
-            ],
+            Self::WagesExpense => &["wages expense", "salary expense", "salaries and wages"],
+            Self::WagesPayable => &["wages payable", "salaries payable"],
+            Self::ManufacturingOverheadControl => {
+                &["manufacturing overhead control", "factory overhead control"]
+            }
+            Self::ManufacturingOverheadApplied => {
+                &["manufacturing overhead applied", "applied factory overhead"]
+            }
+            Self::MaterialUsageVariance => &["material usage variance", "materials usage variance"],
+            Self::LabourEfficiencyVariance => {
+                &["labour efficiency variance", "labor efficiency variance"]
+            }
+            Self::OverheadVariance => &["overhead variance", "manufacturing overhead variance"],
             Self::FixedAssetsCost => &[
                 "fixed assets",
                 "property plant and equipment",
                 "property plant equipment",
             ],
-            Self::AccumulatedDepreciation => &[
-                "accumulated depreciation",
-            ],
-            Self::DepreciationExpense => &[
-                "depreciation expense",
-            ],
-            Self::ShareCapital => &[
-                "share capital",
-                "ordinary share capital",
-            ],
-            Self::RetainedEarnings => &[
-                "retained earnings",
-                "retained profits",
-            ],
-            Self::DividendsPayable => &[
-                "dividends payable",
-                "dividend payable",
-            ],
+            Self::AccumulatedDepreciation => &["accumulated depreciation"],
+            Self::DepreciationExpense => &["depreciation expense"],
+            Self::ShareCapital => &["share capital", "ordinary share capital"],
+            Self::RetainedEarnings => &["retained earnings", "retained profits"],
+            Self::DividendsPayable => &["dividends payable", "dividend payable"],
         }
     }
 
     fn allowed_categories(self) -> &'static [&'static str] {
         match self {
             Self::AccountsReceivable
-            | Self::CashOnHand
-            | Self::Bank
+            | Self::CashAtHand
+            | Self::CashAtBank
             | Self::RawMaterialsInventory
             | Self::WorkInProgress
             | Self::FinishedGoodsInventory
@@ -281,15 +202,14 @@ impl AccountRole {
             | Self::OverheadVariance
             | Self::DepreciationExpense => &["expense"],
 
-            Self::ShareCapital
-            | Self::RetainedEarnings => &["equity"],
+            Self::ShareCapital | Self::RetainedEarnings => &["equity"],
         }
     }
 
     /// Cash and bank accounts may be operational choices.
     /// Do not guess a universal default when multiple accounts may exist.
     fn requires_context(self) -> bool {
-        matches!(self, Self::CashOnHand | Self::Bank)
+        match self(Self::CashAtHand => true, Self::CashAtBank => true, _=>false,)
     }
 }
 
@@ -385,15 +305,17 @@ impl AccountRoleResolver {
                 continue;
             }
 
-            let aliases: Vec<String> =
-                role.aliases().iter().map(|name| normalize_name(name)).collect();
+            let aliases: Vec<String> = role
+                .aliases()
+                .iter()
+                .map(|name| normalize_name(name))
+                .collect();
 
             let matches: Vec<&AccountCandidate> = candidates
                 .iter()
                 .filter(|account| {
-                    role.allowed_categories().contains(
-                        &account.category.as_str()
-                    )
+                    role.allowed_categories()
+                        .contains(&account.category.as_str())
                 })
                 .filter(|account| {
                     let name = normalize_name(&account.name);
@@ -526,14 +448,9 @@ impl AccountRoleResolver {
         Ok(Self { accounts })
     }
 
-    pub fn resolve(
-        &self,
-        role: AccountRole,
-    ) -> Result<&ResolvedAccount, AccountRoleError> {
+    pub fn resolve(&self, role: AccountRole) -> Result<&ResolvedAccount, AccountRoleError> {
         self.accounts
             .get(&role)
-            .ok_or_else(|| AccountRoleError::MissingMapping(
-                role.key().to_string()
-            ))
+            .ok_or_else(|| AccountRoleError::MissingMapping(role.key().to_string()))
     }
 }

@@ -13,21 +13,6 @@
 --   - Canonical role definitions and accounting policies live in Rust.
 -- ============================================================================
 
-BEGIN;
-
--- ============================================================================
--- 1. Account posting eligibility
--- ============================================================================
--- Hierarchy and posting eligibility are different concepts.
--- An account with children cannot receive direct postings.
--- Leaf accounts are initially eligible, subject to other validations.
-
-ALTER TABLE accounting.accounts
-    ADD COLUMN is_postable BOOLEAN NOT NULL DEFAULT TRUE;
-
-COMMENT ON COLUMN accounting.accounts.is_postable IS
-    'Whether direct journal postings are permitted. Parent accounts must not be postable.';
-
 -- ============================================================================
 -- 2. Tenant-specific accounting-role mappings
 -- ============================================================================
@@ -49,13 +34,7 @@ CREATE TABLE accounting.account_role_mappings (
         ON DELETE RESTRICT,
 
     mapping_source TEXT NOT NULL DEFAULT 'manual'
-        CHECK (
-            mapping_source IN (
-                'manual',
-                'discovery',
-                'seed'
-            )
-        ),
+        CHECK (mapping_source IN ('manual', 'discovery', 'seed')),
 
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
 
@@ -65,13 +44,6 @@ CREATE TABLE accounting.account_role_mappings (
     CONSTRAINT account_role_mappings_role_context_unique
         UNIQUE (role_key, context_key)
 );
-
-CREATE INDEX idx_account_role_mappings_account
-    ON accounting.account_role_mappings(account_uuid);
-
-CREATE INDEX idx_account_role_mappings_active
-    ON accounting.account_role_mappings(role_key, context_key)
-    WHERE is_active;
 
 COMMENT ON TABLE accounting.account_role_mappings IS
     'Tenant-specific mapping from stable accounting role keys to chart-of-accounts entries.';
@@ -111,7 +83,7 @@ CREATE TRIGGER trg_enforce_account_postability
     FOR EACH ROW
     EXECUTE FUNCTION accounting.enforce_account_postability();
 
-CREATE OR REPLACE FUNCTION accounting.refresh_parent_postability()
+/*CREATE OR REPLACE FUNCTION accounting.refresh_parent_postability()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 AS $$
@@ -152,12 +124,13 @@ CREATE TRIGGER trg_refresh_parent_postability
     ON accounting.accounts
     FOR EACH ROW
     EXECUTE FUNCTION accounting.refresh_parent_postability();
-
+*/
 -- ============================================================================
 -- 4. Validate accounts referenced by journal lines
 -- ============================================================================
 -- This protects journal insertion even if a caller bypasses the normal
 -- Rust posting service. The FK in 01_accounting.sql already checks existence.
+
 
 CREATE OR REPLACE FUNCTION accounting.validate_posting_account()
 RETURNS TRIGGER
@@ -166,36 +139,42 @@ AS $$
 DECLARE
     v_is_active BOOLEAN;
     v_is_postable BOOLEAN;
+    v_code TEXT;
 BEGIN
-    SELECT a.is_active, a.is_postable
-    INTO v_is_active, v_is_postable
+    SELECT a.is_active, a.is_postable, a.code
+    INTO v_is_active, v_is_postable, v_code
     FROM accounting.accounts a
-    WHERE a.uuid = NEW.account_uuid;
+    WHERE a.uuid = NEW.account_uuid
+    FOR SHARE;
 
     IF NOT FOUND THEN
-        RAISE EXCEPTION
-            'Posting account % does not exist',
-            NEW.account_uuid
+        RAISE EXCEPTION 'Posting account % does not exist', NEW.account_uuid
             USING ERRCODE = '23503';
     END IF;
 
     IF NOT v_is_active THEN
-        RAISE EXCEPTION
-            'Account % is inactive and cannot receive postings',
-            NEW.account_uuid
+        RAISE EXCEPTION 'Account % is inactive', v_code
             USING ERRCODE = '23514';
     END IF;
 
     IF NOT v_is_postable THEN
-        RAISE EXCEPTION
-            'Account % is not eligible for direct postings',
-            NEW.account_uuid
+        RAISE EXCEPTION 'Account % is not enabled for direct posting', v_code
+            USING ERRCODE = '23514';
+    END IF;
+
+    IF EXISTS (
+        SELECT 1
+        FROM accounting.accounts child
+        WHERE child.parent_code = v_code
+    ) THEN
+        RAISE EXCEPTION 'Account % is a parent account and cannot receive direct postings', v_code
             USING ERRCODE = '23514';
     END IF;
 
     RETURN NEW;
 END;
 $$;
+
 
 CREATE TRIGGER trg_validate_posting_account
     BEFORE INSERT OR UPDATE OF account_uuid
@@ -287,33 +266,6 @@ WHERE EXISTS (
     WHERE child.parent_code = parent.code
 );
 
-COMMENT ON COLUMN accounting.accounts.is_postable IS
-    'Whether the account is eligible to receive new general-ledger journal entries.';
-
--- 2. Persistent account-role configuration.
-CREATE TABLE IF NOT EXISTS accounting.account_role_mappings (
-    uuid UUID PRIMARY KEY DEFAULT uuidv7(),
-
-    role_key TEXT NOT NULL UNIQUE,
-
-    account_uuid UUID NOT NULL
-        REFERENCES accounting.accounts(uuid)
-        ON DELETE RESTRICT,
-
-    mapping_source TEXT NOT NULL DEFAULT 'manual'
-        CHECK (
-            mapping_source IN ('auto_discovered', 'seed', 'manual')
-        ),
-
-    is_active BOOLEAN NOT NULL DEFAULT TRUE,
-
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-
-    CONSTRAINT account_role_mappings_role_key_not_empty
-        CHECK (length(trim(role_key)) > 0)
-);
-
 CREATE INDEX IF NOT EXISTS idx_account_role_mappings_account
     ON accounting.account_role_mappings(account_uuid);
 
@@ -350,46 +302,5 @@ ON accounting.accounts
 FOR EACH ROW
 EXECUTE FUNCTION accounting.mark_parent_as_non_postable();
 
--- 4. Prevent journal lines from targeting inactive or grouping accounts.
-CREATE OR REPLACE FUNCTION accounting.validate_posting_account()
-RETURNS TRIGGER
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    v_is_active BOOLEAN;
-    v_is_postable BOOLEAN;
-BEGIN
-    SELECT is_active, is_postable
-    INTO v_is_active, v_is_postable
-    FROM accounting.accounts
-    WHERE uuid = NEW.account_uuid
-    FOR KEY SHARE;
-
-    IF NOT FOUND THEN
-        RAISE EXCEPTION 'Account % does not exist', NEW.account_uuid
-            USING ERRCODE = '23503';
-    END IF;
-
-    IF NOT v_is_active THEN
-        RAISE EXCEPTION 'Cannot post to inactive account %', NEW.account_uuid
-            USING ERRCODE = '23514';
-    END IF;
-
-    IF NOT v_is_postable THEN
-        RAISE EXCEPTION 'Cannot post directly to grouping account %',
-            NEW.account_uuid
-            USING ERRCODE = '23514';
-    END IF;
-
-    RETURN NEW;
-END;
-$$;
-
 DROP TRIGGER IF EXISTS trg_validate_posting_account
     ON accounting.transaction_entries;
-
-CREATE TRIGGER trg_validate_posting_account
-BEFORE INSERT OR UPDATE OF account_uuid
-ON accounting.transaction_entries
-FOR EACH ROW
-EXECUTE FUNCTION accounting.validate_posting_account();
