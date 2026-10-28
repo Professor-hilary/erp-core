@@ -205,6 +205,64 @@ async fn update_employee(
     .ok_or_else(|| AppError::NotFound("Employee not found".into()))?;
     Ok(emp)
 }
+
+async fn to_employee_response(
+    pool: &PgPool,
+    e: Employee,
+) -> Result<EmployeeResponse, AppError> {
+    let department = if let Some(did) = e.department_uuid {
+        sqlx::query_as::<_, Department>("SELECT * FROM hr.departments WHERE uuid = $1")
+            .bind(did)
+            .fetch_optional(pool)
+            .await?
+    } else {
+        None
+    };
+
+    let job_title = if let Some(jid) = e.job_title_uuid {
+        sqlx::query_as::<_, JobTitle>("SELECT * FROM hr.job_titles WHERE uuid = $1")
+            .bind(jid)
+            .fetch_optional(pool)
+            .await?
+    } else {
+        None
+    };
+
+    let supervisor = if let Some(sid) = e.supervisor_uuid {
+        sqlx::query_as::<_, SupervisorBrief>(
+            r#"SELECT uuid, first_name, last_name FROM hr.employees WHERE uuid = $1"#,
+        )
+        .bind(sid)
+        .fetch_optional(pool)
+        .await?
+    } else {
+        None
+    };
+
+    Ok(EmployeeResponse {
+        uuid: e.uuid,
+        serial_id: e.serial_id,
+        first_name: e.first_name,
+        last_name: e.last_name,
+        middle_name: e.middle_name,
+        email: e.email,
+        work_email: e.work_email,
+        phone_number: e.phone_number,
+        date_of_birth: e.date_of_birth,
+        gender: e.gender,
+        hire_date: e.hire_date,
+        department,
+        job_title,
+        supervisor,
+        employment_type: e.employment_type,
+        pay_frequency: e.pay_frequency,
+        status: e.status,
+        party_uuid: e.party_uuid,
+        created_at: e.created_at,
+        updated_at: e.updated_at,
+    })
+}
+
     async fn create_employee(
         &self,
         pool: &PgPool,
