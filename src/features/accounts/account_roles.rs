@@ -209,7 +209,11 @@ impl AccountRole {
     /// Cash and bank accounts may be operational choices.
     /// Do not guess a universal default when multiple accounts may exist.
     fn requires_context(self) -> bool {
-        match self{Self::CashAtHand => true, Self::CashAtBank => true, _=>false,}
+        match self {
+            Self::CashAtHand => true,
+            Self::CashAtBank => true,
+            _ => false,
+        }
     }
 }
 

@@ -9,7 +9,7 @@ pub mod fixed_assets;
 pub mod inventory;
 pub mod investment;
 pub mod manufacturing;
-pub mod payrun;
+pub mod payroll;
 pub mod reports;
 pub mod transaction;
 pub mod user;

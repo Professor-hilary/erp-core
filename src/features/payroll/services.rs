@@ -121,25 +121,7 @@ impl<R: PayrollRepository> PayrollService<R> {
     }
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+/*
 // src/features/payroll/service.rs
 use crate::{
     features::payroll::repository::PayrollRepository,
@@ -210,3 +192,4 @@ impl<R: PayrollRepository> PayrollService<R> {
         self.repo.get_all_payslips(tenant_pool).await
     }
 }
+*/

@@ -624,17 +624,7 @@ pub struct CreatePayslipItem {
     pub component_uuid: Option<Uuid>,
 }
 
-
-
-
-
-
-
-
-
-
-
-
+/*
 // src/models/employee.rs
 use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
@@ -780,3 +770,4 @@ pub struct CreateJobTitle {
     pub title: String,
     pub description: Option<String>,
 }
+*/

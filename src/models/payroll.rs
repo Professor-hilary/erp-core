@@ -139,26 +139,7 @@ pub struct EligibleEmployeeRow {
     pub payment_method: Option<String>,
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+/*
 // src/models/payrun.rs
 use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
@@ -231,3 +212,4 @@ pub struct PayslipItem {
     pub description: Option<String>,
     pub amount: bigdecimal::BigDecimal,
 }
+*/

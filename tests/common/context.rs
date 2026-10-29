@@ -283,7 +283,7 @@ impl TestContext {
         Ok(())
     }
 
-    pub async fn seed_workforce(&mut self) -> Result<()> {
+    /*pub async fn seed_workforce(&mut self) -> Result<()> {
         // Departments
         for (name, desc) in [
             ("Production", "Manufacturing floor"),
@@ -352,7 +352,168 @@ impl TestContext {
             }
         }
         Ok(())
+    }*/
+
+pub async fn seed_workforce(&mut self) -> Result<()> {
+    use crate::common::client::extract_uuid;
+
+    // ----- Departments -----
+    let mut dept_ids: Vec<Uuid> = Vec::new();
+    for (name, desc) in [
+        ("Production", "Manufacturing floor"),
+        ("Sales", "Order to cash"),
+        ("Finance", "Accounts and payroll"),
+        ("Warehouse", "Inventory and logistics"),
+        ("Administration", "HR and office"),
+    ] {
+        let (s, value) = self
+            .client
+            .post(
+                "/api/workforce/create/department",
+                json!({ "name": name, "description": desc }),
+            )
+            .await?;
+        if s.is_success() || s.as_u16() == 201 {
+            if let Ok(id) = extract_uuid(&value, &["data", "uuid"]) {
+                dept_ids.push(id);
+            }
+        }
     }
+
+    // ----- Job titles -----
+    let mut title_ids: Vec<Uuid> = Vec::new();
+    for title in [
+        "Managing Director",
+        "Production Manager",
+        "Sales Executive",
+        "Accountant",
+        "Warehouse Supervisor",
+        "Machine Operator",
+        "Quality Controller",
+        "Driver",
+        "Admin Officer",
+        "Technician",
+    ] {
+        let (s, value) = self
+            .client
+            .post(
+                "/api/workforce/create/jobtitle",
+                json!({ "title": title, "description": title }),
+            )
+            .await?;
+        if s.is_success() || s.as_u16() == 201 {
+            if let Ok(id) = extract_uuid(&value, &["data", "uuid"]) {
+                title_ids.push(id);
+            }
+        }
+    }
+
+    let default_dept = dept_ids.first().copied();
+    let default_title = title_ids.first().copied();
+
+    // ----- Employees (Onboarding by default) -----
+    for person in fixtures::PEOPLE
+        .iter()
+        .filter(|person| person.role == "employee")
+    {
+        let (status, value) = self
+            .client
+            .post(
+                "/api/workforce/create/employee",
+                json!({
+                    "first_name": person.first_name,
+                    "last_name": person.last_name,
+                    "email": person.email,
+                    "phone_number": person.phone,
+                    "hire_date": "2025-01-15",
+                    "department_uuid": default_dept,
+                    "job_title_uuid": default_title,
+                    "employment_type": "Full-time",
+                    "pay_frequency": "Monthly"
+                }),
+            )
+            .await?;
+
+        if !(status.is_success() || status.as_u16() == 201) {
+            eprintln!("employee create failed for {}: {status} {value}", person.key);
+            continue;
+        }
+
+        let emp_id = match extract_uuid(&value, &["data", "uuid"]) {
+            Ok(id) => id,
+            Err(_) => continue,
+        };
+        self.employees.insert(person.key.to_string(), emp_id);
+
+        // Payment profile (bank on payslip)
+        let _ = self
+            .client
+            .put(
+                &format!("/api/workforce/employees/{emp_id}/payment-profile"),
+                json!({
+                    "bank_name": "Stanbic",
+                    "bank_account_number": format!("ACC-{}", &emp_id.to_string()[..8]),
+                    "payment_method": "Bank Transfer",
+                    "currency_code": "UGX"
+                }),
+            )
+            .await;
+
+        // Active contract = salary source of truth
+        let _ = self
+            .client
+            .post(
+                "/api/workforce/contracts",
+                json!({
+                    "employee_uuid": emp_id,
+                    "contract_type": "Permanent",
+                    "start_date": "2025-01-15",
+                    "job_title_uuid": default_title,
+                    "department_uuid": default_dept,
+                    "basic_salary": "1500000",
+                    "pay_frequency": "Monthly",
+                    "employment_type": "Full-time",
+                    "status": "Active"
+                }),
+            )
+            .await;
+
+        // Activate for payroll eligibility (skip full checklist in seed)
+        // Prefer completing onboarding tasks if you want strict path:
+        let (ts, tasks) = self
+            .client
+            .get(&format!("/api/workforce/employees/{emp_id}/onboarding-tasks"))
+            .await?;
+        if ts.is_success() {
+            if let Some(arr) = tasks["data"].as_array() {
+                for t in arr {
+                    if let Some(tid) = t["uuid"].as_str() {
+                        let _ = self
+                            .client
+                            .post(
+                                &format!("/api/workforce/onboarding-tasks/{tid}/complete"),
+                                json!({ "notes": "e2e seed" }),
+                            )
+                            .await;
+                    }
+                }
+            }
+        }
+        let (as_, ab) = self
+            .client
+            .post(
+                &format!("/api/workforce/employees/{emp_id}/complete-onboarding"),
+                json!({}),
+            )
+            .await?;
+        if !(as_.is_success() || as_.as_u16() == 201) {
+            // If required tasks/SQL differ, surface once — payroll needs Active
+            eprintln!("complete-onboarding {}: {as_} {ab}", person.key);
+        }
+    }
+
+    Ok(())
+}
 
     /// Capital parties: owners, shareholders, lenders (people + institutions).
     pub async fn seed_capital_parties(&mut self) -> Result<()> {

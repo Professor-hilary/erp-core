@@ -19,11 +19,13 @@ use crate::{
 pub fn router() -> Router<Arc<AppState>> {
     Router::new()
         .route("/payrun/create", post(create_payrun))
-        .route("/payrun/process/{uuid}", post(process_payrun))
+        .route("/payrun/process/{serial_id}", post(process_payrun))
         .route("/payrun/post", post(post_payrun))
         .route("/get/payrun/{uuid}", get(get_payrun))
         .route("/list/payruns", get(list_payruns))
         .route("/list/payslips", get(list_payslips))
+		.route("/payrun/{uuid}/payslips", get(list_payslips_for_payrun))
+        .route("/components", post(create_pay_component).get(list_pay_components))
 }
 
 async fn create_payrun(
@@ -69,8 +71,8 @@ async fn list_payruns(
 ) -> Result<Response, AppError> {
     let repo = PostgresPayrollRepo::new();
     let service = PayrollService::new(repo);
-    let payrun: Vec<Payrun> = service.get_payruns(&user.tenant_pool).await?;
-    Ok(ApiResponse::success(payrun, "Payrun list fetched"))
+    let payruns: Vec<Payrun> = service.get_payruns(&user.tenant_pool).await?;
+    Ok(ApiResponse::success(payruns, "Payruns fetched"))
 }
 
 async fn list_payslips(
@@ -80,8 +82,20 @@ async fn list_payslips(
     let repo = PostgresPayrollRepo::new();
     let service = PayrollService::new(repo);
     let payrun: Vec<Payslip> = service.get_payslips(&user.tenant_pool).await?;
-    Ok(ApiResponse::success(payrun, "Payrun list fetched"))
+    Ok(ApiResponse::success(payrun, "Payslips fetched"))
 }
+
+async fn list_payslips_for_payrun(
+    State(_state): State<Arc<AppState>>,
+	Path(id): Path<Uuid>
+    Extension(user): Extension<AuthenticatedTenant>,
+) -> Result<Response, AppError> {  
+    let repo = PostgresPayrollRepo::new();
+    let service = PayrollService::new(repo);
+    let payrun: Vec<Payslip> = service.get_payslips_for_payrun(&user.tenant_pool, id).await?;
+    Ok(ApiResponse::success(payrun, "Payslips fetched"))
+}
+
 
 async fn post_payrun(
     State(_state): State<Arc<AppState>>,
@@ -94,4 +108,25 @@ async fn post_payrun(
         .post_payrun(user.user_id, &user.tenant_pool, &payload)
         .await?;
     Ok(ApiResponse::success(payrun, "Payrun posted to GL"))
+}
+
+async fn create_pay_component(
+    State(_state): State<Arc<AppState>>,
+    Extension(user): Extension<AuthenticatedTenant>,
+	Json(payload): Json<CreatePayComponent>,
+) -> Result<Response, AppError> {  
+    let repo = PostgresPayrollRepo::new();
+    let service = PayrollService::new(repo);
+    let payrun = service.create_pay_component(&user.tenant_pool).await?;
+    Ok(ApiResponse::success(payrun, "Pay component created"))
+}
+
+async fn list_pay_component(
+    State(_state): State<Arc<AppState>>,
+    Extension(user): Extension<AuthenticatedTenant>,
+) -> Result<Response, AppError> {  
+    let repo = PostgresPayrollRepo::new();
+    let service = PayrollService::new(repo);
+    let payrun = service.list_pay_components(&user.tenant_pool).await?;
+    Ok(ApiResponse::success(payrun, "Pay components fetched"))
 }

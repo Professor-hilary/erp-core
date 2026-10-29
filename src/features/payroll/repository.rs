@@ -366,24 +366,7 @@ impl PayrollRepository for PostgresPayrollRepo {
     }
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+/*
 // src/features/payroll/repository.rs
 use crate::{
     interface::api::errors::AppError,
@@ -572,3 +555,4 @@ impl PayrollRepository for PostgresPayrollRepo {
         Ok(payslips)
     }
 }
+*/
