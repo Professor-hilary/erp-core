@@ -283,76 +283,6 @@ impl TestContext {
         Ok(())
     }
 
-    /*pub async fn seed_workforce(&mut self) -> Result<()> {
-        // Departments
-        for (name, desc) in [
-            ("Production", "Manufacturing floor"),
-            ("Sales", "Order to cash"),
-            ("Finance", "Accounts and payroll"),
-            ("Warehouse", "Inventory and logistics"),
-            ("Administration", "HR and office"),
-        ] {
-            let (_s, value) = self
-                .client
-                .post(
-                    "/api/workforce/create/department",
-                    json!({ "name": name, "description": desc }),
-                )
-                .await?;
-            let _ = value; // store dept ids if your API returns them
-        }
-
-        // Job titles
-        for title in [
-            "Managing Director",
-            "Production Manager",
-            "Sales Executive",
-            "Accountant",
-            "Warehouse Supervisor",
-            "Machine Operator",
-            "Quality Controller",
-            "Driver",
-            "Admin Officer",
-            "Technician",
-        ] {
-            let _ = self
-                .client
-                .post(
-                    "/api/workforce/create/jobtitle",
-                    json!({ "title": title, "description": title }),
-                )
-                .await?;
-        }
-
-        // Employees (≥10 from PEOPLE with role employee)
-        for person in fixtures::PEOPLE
-            .iter()
-            .filter(|person| person.role == "employee")
-        {
-            let (status, value) = self
-                .client
-                .post(
-                    "/api/workforce/create/employee",
-                    json!({
-                        "first_name": person.first_name,
-                        "last_name": person.last_name,
-                        "email": person.email,
-                        "phone_number": person.phone,
-                        "hire_date": "2025-01-15",
-                        "employment_type": "Full-time",   // ← exact match
-                        "salary": "1500000",
-                        "pay_frequency": "Monthly"        // ← exact match
-                    }),
-                )
-                .await?;
-            if status.is_success() || status.as_u16() == 201 {
-                if let Ok(id) = extract_uuid(&value, &["data", "uuid"]) {
-                    self.employees.insert(person.key.to_string(), id);
-                }
-            }
-        }
-        Ok(())
-    }*/
 
 pub async fn seed_workforce(&mut self) -> Result<()> {
     use crate::common::client::extract_uuid;
@@ -459,6 +389,15 @@ pub async fn seed_workforce(&mut self) -> Result<()> {
             )
             .await;
 
+		if !status.is_success() {
+    anyhow::bail!(
+        "Creating payment profile for {} failed: {} {}",
+        person.key,
+        status,
+        body
+    );
+}
+
         // Active contract = salary source of truth
         let _ = self
             .client
@@ -477,6 +416,15 @@ pub async fn seed_workforce(&mut self) -> Result<()> {
                 }),
             )
             .await;
+
+		if !status.is_success() {
+ 		   	anyhow::bail!(
+        		"Creating contract for {} failed: {} {}",
+        		person.key,
+        		status,
+        		body
+    		);
+		}
 
         // Activate for payroll eligibility (skip full checklist in seed)
         // Prefer completing onboarding tasks if you want strict path:

@@ -13,12 +13,7 @@ use crate::{
     features::workforce::{repository::PostgresHrRepo, services::HrService},
     interface::api::{errors::AppError, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,
-    models::hr_payroll::{
-        CompleteChecklistTask, CreateContractAmendment, CreateDepartment, CreateEmployee,
-        CreateEmploymentContract, CreateJobTitle, CreateLeaveEncashment, CreateLeaveRequest,
-        CreateLeaveSchedule, CreateLeaveType, DecideLeaveRequest, StartExit, UpdateEmployee,
-        UpdateLeaveScheduleStatus, UpsertLeaveBalance, UpsertPaymentProfile, UpsertStatutoryProfile,
-    },
+    models::employee::*,
     state::AppState,
 };
 

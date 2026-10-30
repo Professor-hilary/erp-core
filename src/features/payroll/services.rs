@@ -2,9 +2,7 @@
 use crate::{
     features::payroll::repository::PayrollRepository,
     interface::api::errors::AppError,
-    models::payrun::{
-        CreatePayComponent, CreatePayslip, CreatePayrun, PayComponent, Payrun, Payslip, PostPayrun,
-    },
+    models::payroll::*,
 };
 use bigdecimal::BigDecimal;
 use sqlx::PgPool;

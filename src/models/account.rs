@@ -18,6 +18,7 @@ pub struct Account {
     pub current_balance: BigDecimal,        // Required
     pub is_contra: bool,                    // Optional, False Default
     pub is_active: bool,                    // Optional, False Default
+	pub is_postable: Option<bool>,			// Required, True Default
     pub created_at: DateTime<Utc>,          // Required, Auto_gen
     pub updated_at: DateTime<Utc>,          // Required, Auto_gen
     pub category: String,                   // Required

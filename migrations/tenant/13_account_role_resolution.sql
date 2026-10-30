@@ -83,48 +83,6 @@ CREATE TRIGGER trg_enforce_account_postability
     FOR EACH ROW
     EXECUTE FUNCTION accounting.enforce_account_postability();
 
-/*CREATE OR REPLACE FUNCTION accounting.refresh_parent_postability()
-RETURNS TRIGGER
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    v_parent_code TEXT;
-BEGIN
-    -- Recalculate the old parent when an account is moved.
-    IF TG_OP = 'UPDATE'
-       AND OLD.parent_code IS DISTINCT FROM NEW.parent_code THEN
-
-        v_parent_code := OLD.parent_code;
-
-        IF v_parent_code IS NOT NULL THEN
-            UPDATE accounting.accounts parent
-            SET is_postable = NOT EXISTS (
-                SELECT 1
-                FROM accounting.accounts child
-                WHERE child.parent_code = parent.code
-            )
-            WHERE parent.code = v_parent_code;
-        END IF;
-    END IF;
-
-    -- Any account with a child must be non-postable.
-    IF NEW.parent_code IS NOT NULL THEN
-        UPDATE accounting.accounts parent
-        SET is_postable = FALSE
-        WHERE parent.code = NEW.parent_code
-          AND parent.is_postable = TRUE;
-    END IF;
-
-    RETURN NEW;
-END;
-$$;
-
-CREATE TRIGGER trg_refresh_parent_postability
-    AFTER INSERT OR UPDATE OF parent_code
-    ON accounting.accounts
-    FOR EACH ROW
-    EXECUTE FUNCTION accounting.refresh_parent_postability();
-*/
 -- ============================================================================
 -- 4. Validate accounts referenced by journal lines
 -- ============================================================================
@@ -246,8 +204,6 @@ CREATE TRIGGER trg_prevent_invalid_mapped_account_change
     ON accounting.accounts
     FOR EACH ROW
     EXECUTE FUNCTION accounting.prevent_invalid_mapped_account_change();
-
-COMMIT;
 
 -- =============================================================================
 -- Chiefalry: Account Role Resolution

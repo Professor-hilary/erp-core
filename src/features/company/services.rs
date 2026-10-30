@@ -52,6 +52,31 @@ impl CompanyService {
             .await
             .map_err(|_| AppError::Internal("Failed to seed Chart of Accounts".into()))?;
 
+// Insert discovery after chart seeding and before loading the resolver
+let discovery =
+    AccountRoleResolver::discover_and_seed_defaults(&tenant_pool)
+        .await
+        .map_err(|error| {
+            AppError::Internal(format!(
+                "Failed to discover account-role mappings: {error}"
+            ))
+        })?;
+
+tracing::info!(
+    inserted = discovery.inserted,
+    ambiguous = discovery.ambiguous.len(),
+    missing = discovery.missing.len(),
+    "Initial account-role discovery completed"
+);
+
+let account_role_map = AccountRoleResolver::load(&tenant_pool)
+    .await
+    .map_err(|error| {
+        AppError::Internal(format!(
+            "Failed to load account-role mappings: {error}"
+        ))
+    })?;
+
         let repo: PostgresCompanyRepository = PostgresCompanyRepository;
 
         let account_role_map = AccountRoleResolver::load(&tenant_pool)

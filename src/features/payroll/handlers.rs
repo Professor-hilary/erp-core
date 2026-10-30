@@ -12,7 +12,7 @@ use crate::{
     features::payroll::{repository::PostgresPayrollRepo, services::PayrollService},
     interface::api::{errors::AppError, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,
-    models::payrun::{CreatePayrun, Payrun, Payslip, PostPayrun},
+    models::payroll::*,
     state::AppState,
 };
 
@@ -87,7 +87,7 @@ async fn list_payslips(
 
 async fn list_payslips_for_payrun(
     State(_state): State<Arc<AppState>>,
-	Path(id): Path<Uuid>
+	Path(id): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
 ) -> Result<Response, AppError> {  
     let repo = PostgresPayrollRepo::new();
@@ -117,16 +117,16 @@ async fn create_pay_component(
 ) -> Result<Response, AppError> {  
     let repo = PostgresPayrollRepo::new();
     let service = PayrollService::new(repo);
-    let payrun = service.create_pay_component(&user.tenant_pool).await?;
-    Ok(ApiResponse::success(payrun, "Pay component created"))
+    let component = service.create_pay_component(&user.tenant_pool, &payload).await?;
+    Ok(ApiResponse::success(component, "Pay component created"))
 }
 
-async fn list_pay_component(
+async fn list_pay_components(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
 ) -> Result<Response, AppError> {  
     let repo = PostgresPayrollRepo::new();
     let service = PayrollService::new(repo);
-    let payrun = service.list_pay_components(&user.tenant_pool).await?;
-    Ok(ApiResponse::success(payrun, "Pay components fetched"))
+    let components = service.list_pay_components(&user.tenant_pool).await?;
+    Ok(ApiResponse::success(components, "Pay components fetched"))
 }

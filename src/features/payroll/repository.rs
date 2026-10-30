@@ -1,7 +1,7 @@
 // src/features/payroll/repository.rs
 use crate::{
     interface::api::errors::AppError,
-    models::payrun::{
+    models::payroll::{
         CreatePayComponent, CreatePayslip, CreatePayrun, EligibleEmployeeRow, PayComponent,
         Payrun, Payslip, PostPayrun,
     },

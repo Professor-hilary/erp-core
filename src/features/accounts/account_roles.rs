@@ -337,7 +337,7 @@ impl AccountRoleResolver {
                             mapping_source,
                             is_active
                         )
-                        VALUES ($1, $2, 'auto_discovered', TRUE)
+                        VALUES ($1, $2, 'discovery', TRUE)
                         ON CONFLICT (role_key) DO NOTHING
                         "#,
                     )
