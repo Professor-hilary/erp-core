@@ -111,7 +111,7 @@ pub struct UpdateEmployee {
     // status is NOT patched here — use lifecycle endpoints
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, FromRow)]
 pub struct SupervisorBrief {
     pub uuid: Uuid,
     pub first_name: String,

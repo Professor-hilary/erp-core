@@ -1,7 +1,6 @@
 // src/features/payroll/services.rs
 use crate::{
-    features::payroll::repository::PayrollRepository,
-    interface::api::errors::AppError,
+    features::payroll::repository::PayrollRepository, interface::api::errors::AppError,
     models::payroll::*,
 };
 use bigdecimal::BigDecimal;

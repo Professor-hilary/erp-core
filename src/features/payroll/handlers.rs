@@ -60,7 +60,7 @@ async fn get_payrun(
     let repo = PostgresPayrollRepo::new();
     let service = PayrollService::new(repo);
     let payrun: Payrun = service
-        .get_payrun(&user.tenant_pool, id, user.user_id)
+        .get_payrun(&user.tenant_pool, id)
         .await?;
     Ok(ApiResponse::success(payrun, "Payrun fetched"))
 }
@@ -89,7 +89,7 @@ async fn list_payslips_for_payrun(
     State(_state): State<Arc<AppState>>,
 	Path(id): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
-) -> Result<Response, AppError> {  
+) -> Result<Response, AppError> {
     let repo = PostgresPayrollRepo::new();
     let service = PayrollService::new(repo);
     let payrun: Vec<Payslip> = service.get_payslips_for_payrun(&user.tenant_pool, id).await?;
@@ -114,7 +114,7 @@ async fn create_pay_component(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
 	Json(payload): Json<CreatePayComponent>,
-) -> Result<Response, AppError> {  
+) -> Result<Response, AppError> {
     let repo = PostgresPayrollRepo::new();
     let service = PayrollService::new(repo);
     let component = service.create_pay_component(&user.tenant_pool, &payload).await?;
@@ -124,7 +124,7 @@ async fn create_pay_component(
 async fn list_pay_components(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-) -> Result<Response, AppError> {  
+) -> Result<Response, AppError> {
     let repo = PostgresPayrollRepo::new();
     let service = PayrollService::new(repo);
     let components = service.list_pay_components(&user.tenant_pool).await?;

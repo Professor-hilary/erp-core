@@ -1,8 +1,10 @@
 // src/features/company/service.rs
 use crate::{
     features::{
-        accounts::{account_roles::AccountRoleResolver,
-        repository::{AccountRepository, PostgresAccountRepo},},
+        accounts::{
+            account_roles::AccountRoleResolver,
+            repository::{AccountRepository, PostgresAccountRepo},
+        },
         auth::{AuthService, repository::PostgresUserRepo},
         company::repository::{CompanyRepository, PostgresCompanyRepository},
     },
@@ -52,30 +54,25 @@ impl CompanyService {
             .await
             .map_err(|_| AppError::Internal("Failed to seed Chart of Accounts".into()))?;
 
-// Insert discovery after chart seeding and before loading the resolver
-let discovery =
-    AccountRoleResolver::discover_and_seed_defaults(&tenant_pool)
-        .await
-        .map_err(|error| {
-            AppError::Internal(format!(
-                "Failed to discover account-role mappings: {error}"
-            ))
-        })?;
+        // Insert discovery after chart seeding and before loading the resolver
+        let discovery = AccountRoleResolver::discover_and_seed_defaults(&tenant_pool)
+            .await
+            .map_err(|error| {
+                AppError::Internal(format!("Failed to discover account-role mappings: {error}"))
+            })?;
 
-tracing::info!(
-    inserted = discovery.inserted,
-    ambiguous = discovery.ambiguous.len(),
-    missing = discovery.missing.len(),
-    "Initial account-role discovery completed"
-);
+        tracing::info!(
+            inserted = discovery.inserted,
+            ambiguous = discovery.ambiguous.len(),
+            missing = discovery.missing.len(),
+            "Initial account-role discovery completed"
+        );
 
-let account_role_map = AccountRoleResolver::load(&tenant_pool)
-    .await
-    .map_err(|error| {
-        AppError::Internal(format!(
-            "Failed to load account-role mappings: {error}"
-        ))
-    })?;
+        let account_role_map = AccountRoleResolver::load(&tenant_pool)
+            .await
+            .map_err(|error| {
+                AppError::Internal(format!("Failed to load account-role mappings: {error}"))
+            })?;
 
         let repo: PostgresCompanyRepository = PostgresCompanyRepository;
 
@@ -97,6 +94,14 @@ let account_role_map = AccountRoleResolver::load(&tenant_pool)
             )
             .await
             .map_err(|e| AppError::Internal(e.to_string()))?;
+
+        // After the tenant CoA and default mappings have been seeded.
+
+        let resolver = AccountRoleResolver::load(&tenant_pool).await?;
+
+        state
+            .account_role_maps
+            .insert(company.uuid, Arc::new(resolver));
 
         // Step 5: Assign user as admin + activate + update the secrets table
         repo.assign_user_as_admin(&mut *tx, user_id, company.uuid)

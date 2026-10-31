@@ -1,6 +1,7 @@
 // src/features/accounts/service.rs
 use crate::{
     features::manufacturing::repository::ManufacturingRepo, interface::api::errors::AppError,
+	features::accounts::account_roles::{AccountRole, AccountRoleResolver},
     models::manufacturing::*,
 };
 use uuid::Uuid;
@@ -53,10 +54,19 @@ impl ManufacturingService {
 
     pub async fn issue_material(
         &self,
+		resolver: &AccountRoleResolver,
         dto: SingleMaterialIssueDto,
         user_uuid: Uuid,
     ) -> Result<Vec<FullMaterialIssue>, AppError> {
-        Ok(self.repo.issue_material_to_prod(dto, user_uuid).await?)
+		let raw_materials = resolver
+	        .resolve_default(AccountRole::RawMaterialsInventory)?;
+
+	    let work_in_progress = resolver
+	        .resolve_default(AccountRole::WorkInProgress)?;
+
+        Ok(self.repo.issue_material_to_prod(
+			dto, user_uuid, raw_materials.uuid, work_in_progress.uuid,
+		).await?)
     }
 
     /// Overhead applied with overhead rate

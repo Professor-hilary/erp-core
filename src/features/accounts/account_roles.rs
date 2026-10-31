@@ -4,6 +4,12 @@ use sqlx::{PgPool, Row};
 use thiserror::Error;
 use uuid::Uuid;
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct AccountRoleContext {
+    pub role: AccountRole,
+    pub context_key: String,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum AccountRole {
     AccountsReceivable,
@@ -82,8 +88,8 @@ impl AccountRole {
             Self::AccountsPayable => "accounts_payable",
             Self::SalesRevenue => "sales_revenue",
             Self::CostOfGoodsSold => "cost_of_goods_sold",
-            Self::CashAtHand => "cash_on_hand",
-            Self::CashAtBank => "bank",
+            Self::CashAtHand => "cash_at_hand",
+            Self::CashAtBank => "cash_at_bank",
             Self::RawMaterialsInventory => "raw_materials_inventory",
             Self::WorkInProgress => "work_in_progress",
             Self::FinishedGoodsInventory => "finished_goods_inventory",
@@ -331,15 +337,21 @@ impl AccountRoleResolver {
                 [account] => {
                     let result = sqlx::query(
                         r#"
-                        INSERT INTO accounting.account_role_mappings (
-                            role_key,
-                            account_uuid,
-                            mapping_source,
-                            is_active
-                        )
-                        VALUES ($1, $2, 'discovery', TRUE)
-                        ON CONFLICT (role_key) DO NOTHING
-                        "#,
+						INSERT INTO accounting.account_role_mappings (
+						    role_key,
+						    context_key,
+						    account_uuid,
+						    mapping_source,
+						    is_active
+						)
+						VALUES ($1, $2, $3, 'manual', TRUE)
+						ON CONFLICT (role_key, context_key)
+						DO UPDATE SET
+						    account_uuid = EXCLUDED.account_uuid,
+						    mapping_source = 'manual',
+						    is_active = TRUE,
+						    updated_at = NOW();
+					"#,
                     )
                     .bind(role.key())
                     .bind(account.uuid)
@@ -452,9 +464,40 @@ impl AccountRoleResolver {
         Ok(Self { accounts })
     }
 
-    pub fn resolve(&self, role: AccountRole) -> Result<&ResolvedAccount, AccountRoleError> {
+	pub fn resolve(
+        &self,
+        role: AccountRole,
+        context: &str,
+    ) -> Result<&ResolvedAccount, AccountRoleError> {
+        let key = AccountRoleContext {
+            role,
+            context_key: context.to_string(),
+        };
+
         self.accounts
-            .get(&role)
-            .ok_or_else(|| AccountRoleError::MissingMapping(role.key().to_string()))
+            .get(&key)
+            .ok_or_else(|| {
+                AccountRoleError::MissingMapping(format!(
+                    "{}:{}",
+                    role.key(),
+                    context
+                ))
+            })
     }
+
+    pub fn resolve_default(
+        &self,
+        role: AccountRole,
+    ) -> Result<&ResolvedAccount, AccountRoleError> {
+        self.resolve(role, "default")
+    }
+
+	pub fn resolve_uuid(
+ 	   	&self,
+    	role: AccountRole,
+    	context: &str,
+	) -> Result<Uuid, AccountRoleError> {
+	    Ok(self.resolve(role, context)?.uuid)
+	}
+
 }

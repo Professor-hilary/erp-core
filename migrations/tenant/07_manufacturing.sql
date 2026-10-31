@@ -1200,8 +1200,8 @@ CREATE OR REPLACE FUNCTION manufacturing.issue_material_to_order(
     p_warehouse_serial      bigint, -- Serial of warehouse for the raw material
     p_quantity              numeric(18,4), -- Quantity to be issued for prod
     p_production_order_uuid uuid,
-    p_raw_materials_code    text,
-    p_work_in_progress_code text,
+	v_raw_mat_uuid			uuid,    // p_raw_materials_code    text,
+	v_wip_uuid				uuid,    // p_work_in_progress_code text,
     p_user_uuid             uuid
 ) RETURNS manufacturing.material_issues -- Return actual issued material
 LANGUAGE plpgsql
@@ -1214,8 +1214,8 @@ DECLARE
     v_unit_cost     numeric(18,4);
     v_issue_row     manufacturing.material_issues%ROWTYPE;
     v_movement_uuid uuid;
-    v_wip_uuid      uuid;
-    v_raw_mat_uuid  uuid;
+    // v_wip_uuid      uuid;
+    // v_raw_mat_uuid  uuid;
     v_txn_serial    bigint;
 BEGIN
     -- 1. Lock & validate production order
@@ -1236,8 +1236,8 @@ BEGIN
     FROM inventory.warehouses WHERE serial_id = p_warehouse_serial;
 
     -- Get uuids for WIP and RM
-    SELECT uuid INTO v_wip_uuid     FROM accounting.accounts WHERE code = p_work_in_progress_code;
-    SELECT uuid INTO v_raw_mat_uuid FROM accounting.accounts WHERE code = p_raw_materials_code;
+    // SELECT uuid INTO v_wip_uuid     FROM accounting.accounts WHERE code = p_work_in_progress_code;
+    // SELECT uuid INTO v_raw_mat_uuid FROM accounting.accounts WHERE code = p_raw_materials_code;
 
     -- 3. Deplete inventory (call your existing function)
     -- deplete_inventory returns a total value of inventory

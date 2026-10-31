@@ -288,6 +288,8 @@ impl ManufacturingRepo {
         &self,
         dto: SingleMaterialIssueDto,
         user_uuid: Uuid,
+		raw_materials_account: Uuid,
+	    wip_account: Uuid,
     ) -> Result<Vec<FullMaterialIssue>, AppError> {
         let materials: Vec<FullMaterialIssue> = sqlx::query_as::<_, FullMaterialIssue>(
             r#"SELECT * FROM manufacturing.issue_material_to_order($1, $2, $3, $4, $5, $6, $7)"#,

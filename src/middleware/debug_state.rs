@@ -1,5 +1,5 @@
 // src/middleware/debug_state.rs
-use crate::{middleware::auth::AuthenticatedUser, models::dto::JwtClaims, state::AppState};
+/*use crate::{middleware::auth::AuthenticatedUser, models::dto::JwtClaims, state::AppState};
 use axum::{
     extract::{Request, State},
     http::HeaderValue,
@@ -70,3 +70,4 @@ pub async fn debug_app_state_middleware(
 
     next.run(request).await
 }
+*/
