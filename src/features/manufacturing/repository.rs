@@ -298,8 +298,8 @@ impl ManufacturingRepo {
         .bind(dto.warehouse_serial)
         .bind(dto.quantity)
         .bind(&dto.production_order_uuid)
-        .bind(&dto.raw_materials_code)
-        .bind(dto.work_in_progress_code)
+        .bind(raw_materials_account)
+        .bind(wip_account)
         .bind(user_uuid)
         .fetch_all(&self.pool)
         .await?;

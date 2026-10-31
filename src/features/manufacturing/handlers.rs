@@ -158,17 +158,37 @@ async fn bulk_raw_material_issuance_route(
 ///# POST /manufacturing/materials-issuance
 /// 3rd Prepare Materials for production, Debit WIP Credit Raw Materials
 async fn raw_material_issuance_route(
-    State(_state): State<Arc<AppState>>,
+    State(state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     AppJson(payload): AppJson<SingleMaterialIssueDto>,
 ) -> Result<Response, AppError> {
+	// Get the resolver for this tenant.
+    // Clone the Arc so we don't hold the DashMap guard across an await.
+    let resolver = state
+        .account_role_maps
+        .get(&user.company_id)
+        .map(|entry| Arc::clone(entry.value()))
+        .ok_or_else(|| {
+            AppError::Internal(
+                "Account-role resolver is not loaded for this company".into(),
+            )
+        })?;
+
     let repo: ManufacturingRepo = ManufacturingRepo::new(user.tenant_pool);
     let service: ManufacturingService = ManufacturingService::new(repo);
 
-    match service.issue_material(payload, user.user_id).await {
+    /*match service.issue_material(payload, user.user_id).await {
         Ok(result) => Ok(ApiResponse::created(result, "Material Issuance Successful")),
         Err(e) => Err(internal_error(e)),
-    }
+    }*/
+	let result = service
+        .issue_material(&resolver, payload, user.user_id)
+        .await?;
+
+    Ok(ApiResponse::created(
+        result,
+        "Material Issuance Successful",
+    ))
 }
 
 ///# POST /manufacturing/create/overhead-rate

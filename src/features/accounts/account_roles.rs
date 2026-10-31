@@ -234,7 +234,7 @@ pub struct ResolvedAccount {
 
 #[derive(Debug, Clone, Default)]
 pub struct AccountRoleResolver {
-    accounts: HashMap<AccountRole, ResolvedAccount>,
+    accounts: HashMap<AccountRoleContext, ResolvedAccount>,
 }
 
 #[derive(Debug, Error)]
@@ -416,6 +416,7 @@ impl AccountRoleResolver {
 
         for row in rows {
             let key: String = row.try_get("role_key")?;
+			let context_key: String = row.try_get("context_key")?;
 
             let role = AccountRole::from_key(&key)
                 .ok_or_else(|| AccountRoleError::UnknownRole(key.clone()))?;
@@ -449,7 +450,7 @@ impl AccountRoleResolver {
                 )));
             }
 
-            accounts.insert(
+            /*accounts.insert(
                 role,
                 ResolvedAccount {
                     uuid,
@@ -458,7 +459,21 @@ impl AccountRoleResolver {
                     category,
                     normal_balance,
                 },
-            );
+            );*/
+
+			accounts.insert(
+			    AccountRoleContext {
+			        role,
+			        context_key,
+			    },
+			    ResolvedAccount {
+			        uuid,
+			        code,
+			        name,
+			        category,
+			        normal_balance,
+			    },
+			);
         }
 
         Ok(Self { accounts })

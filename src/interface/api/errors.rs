@@ -10,6 +10,8 @@ use sqlx::Error::{
 };
 use thiserror::Error as ThisError;
 
+use crate::features::accounts::account_roles::AccountRoleError;
+
 #[derive(ThisError, Debug)]
 pub enum AppError {
     #[error("Database error: {0}")]
@@ -218,6 +220,25 @@ impl IntoResponse for AppError {
                     })),
                 )
                     .into_response()
+            }
+        }
+    }
+}
+
+impl From<AccountRoleError> for AppError {
+    fn from(error: AccountRoleError) -> Self {
+        match error {
+            AccountRoleError::Database(source) => {
+                AppError::Database(source)
+            }
+            AccountRoleError::MissingMapping(message)
+            | AccountRoleError::InvalidMapping(message) => {
+                AppError::Unprocessable(message)
+            }
+            AccountRoleError::UnknownRole(role) => {
+                AppError::Internal(format!(
+                    "Unknown account role: {role}"
+                ))
             }
         }
     }

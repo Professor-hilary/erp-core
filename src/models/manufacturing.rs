@@ -129,8 +129,8 @@ pub struct SingleMaterialIssueDto {
     pub warehouse_serial: i64,
     pub quantity: BigDecimal,
     pub production_order_uuid: Uuid,
-    pub raw_materials_code: String,
-    pub work_in_progress_code: String,
+    // pub raw_materials_code: String,
+    // pub work_in_progress_code: String,
 }
 
 #[derive(Debug, Clone, FromRow, Serialize, Deserialize)]

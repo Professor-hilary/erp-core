@@ -76,12 +76,6 @@ impl CompanyService {
 
         let repo: PostgresCompanyRepository = PostgresCompanyRepository;
 
-        let account_role_map = AccountRoleResolver::load(&tenant_pool)
-            .await
-            .map_err(|error| {
-                AppError::Internal(format!("Failed to load account-role mappings: {error}"))
-            })?;
-
         // Step 4: Insert company record into master DB
         let company: Company = repo
             .create(
