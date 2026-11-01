@@ -80,7 +80,7 @@ CREATE TABLE IF NOT EXISTS hr.employee_statutory_profiles (
 	nssf_covered 			BOOLEAN NOT NULL DEFAULT TRUE,
 	nssf_exempt 			BOOLEAN NOT NULL DEFAULT FALSE,
     other_ids               jsonb NOT NULL DEFAULT '{}',
-	date_of_birth 			DATE;
+	date_of_birth DATE,
     updated_at              timestamptz NOT NULL DEFAULT now()
 );
 
@@ -206,7 +206,7 @@ CREATE TABLE IF NOT EXISTS hr.leave_balances (
     entitled            numeric(8,2) NOT NULL DEFAULT 0,
     taken               numeric(8,2) NOT NULL DEFAULT 0,
 	encashed 			NUMERIC(8,2) NOT NULL DEFAULT 0,
-	balance 			NUMERIC(8,2) GENERATED ALWAYS AS (entitled - taken - encashed) STORED
+	balance 			NUMERIC(8,2) GENERATED ALWAYS AS (entitled - taken - encashed) STORED,
     updated_at          timestamptz NOT NULL DEFAULT now(),
 	CONSTRAINT leave_balances_nonnegative CHECK (entitled >= 0 AND taken >= 0 AND encashed >= 0),
 	CONSTRAINT leave_balances_not_overused CHECK (taken + encashed <= entitled),

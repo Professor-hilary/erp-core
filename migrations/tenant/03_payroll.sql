@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS payroll.payslips (
     payment_method varchar(30) DEFAULT 'Bank Transfer',
     bank_account varchar(50),
     status varchar(20) DEFAULT 'Pending' CHECK (status IN ('Pending', 'Paid')),
-	calculation_snapshot JSONB NOT NULL DEFAULT '{}'::jsonb
+	calculation_snapshot JSONB NOT NULL DEFAULT '{}'::jsonb,
 	calculated_at TIMESTAMPTZ,
     created_at timestamptz DEFAULT now(),
     updated_at timestamptz DEFAULT now(),
@@ -73,7 +73,7 @@ CREATE TABLE IF NOT EXISTS payroll.payslips (
     CONSTRAINT payslips_employee_uuid_fkey
         FOREIGN KEY (employee_uuid) REFERENCES hr.employees(uuid),
 	CONSTRAINT payslips_status_check
-	    CHECK (status IN ('Pending', 'Paid', 'Partially_Paid'))
+	    CHECK (status IN ('Pending', 'Paid', 'Partially_Paid')),
 	CONSTRAINT payslips_nonnegative_amounts
 	    CHECK (
 	        gross_pay >= 0

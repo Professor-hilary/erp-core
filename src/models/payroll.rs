@@ -144,21 +144,20 @@ pub struct Payslip {
     pub employee_uuid: Uuid,
     pub gross_pay: BigDecimal,
     pub basic_pay: Option<BigDecimal>,
-    pub allowances_total: Option<BigDecimal>,
+    pub allowances_total: BigDecimal,
+    pub taxable_earnings: BigDecimal,
     pub tax_deducted: Option<BigDecimal>,
     pub social_security: Option<BigDecimal>,
     pub other_deductions: Option<BigDecimal>,
     pub employer_social_security: Option<BigDecimal>,
+    pub employer_cost_total: BigDecimal,
     pub net_pay: Option<BigDecimal>,
     pub payment_method: Option<String>,
-	pub allowances_total: BigDecimal, 
-	pub taxable_earnings: BigDecimal,
-	pub employer_cost_total: BigDecimal, 
-	pub calculation_version: Option<String>, 
-	pub calculated_at: Option<DateTime<Utc>>, 
-	pub calculation_snapshot: Option<serde_json::Value>,
     pub bank_account: Option<String>,
     pub status: Option<String>,
+    pub calculation_version: Option<String>,
+    pub calculated_at: Option<DateTime<Utc>>,
+    pub calculation_snapshot: Option<serde_json::Value>,
     pub created_at: DateTime<Utc>,
     pub updated_at: Option<DateTime<Utc>>,
 }
@@ -205,127 +204,68 @@ pub struct EligibleEmployeeRow {
     pub basic_salary: Option<BigDecimal>,
     pub payment_method: Option<String>,
 }
-/*
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TaxBand {
+
+/// Full context required to calculate one employee in a payrun.
+#[derive(Debug, Clone, FromRow)]
+pub struct EmployeePayrollContext {
+    pub employee_uuid: Uuid,
+    pub date_of_birth: Option<NaiveDate>,
+    pub tax_residency: String,
+    pub nssf_covered: bool,
+    pub nssf_exempt: bool,
+    pub contract_uuid: Option<Uuid>,
+    pub contract_start: Option<NaiveDate>,
+    pub contract_end: Option<NaiveDate>,
+    pub basic_salary: Option<BigDecimal>,
+    pub payment_method: Option<String>,
+    pub bank_account_number: Option<String>,
+}
+
+#[derive(Debug, Clone, FromRow)]
+pub struct ComponentAssignmentRow {
+    pub component_uuid: Uuid,
+    pub code: String,
+    pub name: String,
+    pub component_kind: String,
+    pub calc_method: String,
+    pub amount: Option<BigDecimal>,
+    pub rate: Option<BigDecimal>,
+    pub is_taxable: bool,
+    pub affects_social_security: bool,
+    pub sequence_no: i16,
+    pub rounding_scale: i16,
+}
+
+#[derive(Debug, Clone, FromRow)]
+pub struct StatutoryBandRow {
     pub lower_bound: BigDecimal,
     pub upper_bound: Option<BigDecimal>,
     pub base_tax: BigDecimal,
     pub marginal_rate: BigDecimal,
+    pub sequence_no: i16,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ComponentInput {
-    pub component_uuid: Option<Uuid>,
-    pub code: String,
-    pub name: String,
-    pub kind: ComponentKind,
-    pub method: CalculationMethod,
+#[derive(Debug, Clone, FromRow)]
+pub struct NssfRuleRow {
+    pub rule_set_uuid: Uuid,
+    pub employee_rate: BigDecimal,
+    pub employer_rate: BigDecimal,
+    pub minimum_age: Option<i16>,
+    pub maximum_age: Option<i16>,
+}
+
+#[derive(Debug, Clone, FromRow)]
+pub struct EmployeeTaxPeriodRow {
+    pub uuid: Uuid,
+    pub taxable_income: BigDecimal,
+    pub paye_due: BigDecimal,
+    pub paye_withheld: BigDecimal,
+}
+
+#[derive(Debug, Clone, FromRow)]
+pub struct LeaveEncashmentRow {
+    pub uuid: Uuid,
     pub amount: BigDecimal,
-    pub rate: Option<BigDecimal>,
-    pub taxable: bool,
-    pub included_in_nssf_base: bool,
+    pub days: BigDecimal,
+    pub leave_type_code: Option<String>,
 }
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PayrollInput {
-    pub employee_uuid: Uuid,
-    pub basic_salary: BigDecimal,
-    pub period_start: NaiveDate,
-    pub period_end: NaiveDate,
-    pub contract_start: NaiveDate,
-    pub contract_end: Option<NaiveDate>,
-    pub components: Vec<ComponentInput>,
-    pub tax_profile: EmployeeTaxProfile,
-    pub tax_bands: Vec<TaxBand>,
-    pub nssf_employee_rate: BigDecimal,
-    pub nssf_employer_rate: BigDecimal,
-    pub nssf_minimum_age: Option<u8>,
-    pub nssf_maximum_age: Option<u8>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CalculatedItem {
-    pub component_uuid: Option<Uuid>,
-    pub code: String,
-    pub name: String,
-    pub kind: ComponentKind,
-    pub method: CalculationMethod,
-    pub basis_amount: BigDecimal,
-    pub rate: Option<BigDecimal>,
-    pub unrounded_amount: BigDecimal,
-    pub amount: BigDecimal,
-    pub taxable: bool,
-    pub included_in_nssf_base: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PayrollResult {
-    pub employee_uuid: Uuid,
-    pub basic_pay: BigDecimal,
-    pub gross_pay: BigDecimal,
-    pub taxable_earnings: BigDecimal,
-    pub paye: BigDecimal,
-    pub employee_nssf: BigDecimal,
-    pub employer_nssf: BigDecimal,
-    pub other_deductions: BigDecimal,
-    pub employer_cost_total: BigDecimal,
-    pub net_pay: BigDecimal,
-    pub items: Vec<CalculatedItem>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PayrollInput {
-    pub employee_uuid: Uuid,
-    pub basic_salary: BigDecimal,
-    pub period_start: NaiveDate,
-    pub period_end: NaiveDate,
-    pub contract_start: NaiveDate,
-    pub contract_end: Option<NaiveDate>,
-    pub components: Vec<ComponentInput>,
-    pub tax_profile: EmployeeTaxProfile,
-    pub tax_bands: Vec<TaxBand>,
-    pub nssf_employee_rate: BigDecimal,
-    pub nssf_employer_rate: BigDecimal,
-    pub nssf_minimum_age: Option<u8>,
-    pub nssf_maximum_age: Option<u8>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CalculatedItem {
-    pub component_uuid: Option<Uuid>,
-    pub code: String,
-    pub name: String,
-    pub kind: ComponentKind,
-    pub method: CalculationMethod,
-    pub basis_amount: BigDecimal,
-    pub rate: Option<BigDecimal>,
-    pub unrounded_amount: BigDecimal,
-    pub amount: BigDecimal,
-    pub taxable: bool,
-    pub included_in_nssf_base: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PayrollResult {
-    pub employee_uuid: Uuid,
-    pub basic_pay: BigDecimal,
-    pub gross_pay: BigDecimal,
-    pub taxable_earnings: BigDecimal,
-    pub paye: BigDecimal,
-    pub employee_nssf: BigDecimal,
-    pub employer_nssf: BigDecimal,
-    pub other_deductions: BigDecimal,
-    pub employer_cost_total: BigDecimal,
-    pub net_pay: BigDecimal,
-    pub items: Vec<CalculatedItem>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EmployeeTaxProfile {
-    pub tax_residency: String,
-    pub nssf_covered: bool,
-    pub nssf_exempt: bool,
-    pub date_of_birth: Option<NaiveDate>,
-}
-*/
