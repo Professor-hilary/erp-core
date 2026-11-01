@@ -344,16 +344,13 @@ impl AccountRoleResolver {
 						    mapping_source,
 						    is_active
 						)
-						VALUES ($1, $2, $3, 'manual', TRUE)
+						VALUES ($1, $2, $3, 'automatic', TRUE)
 						ON CONFLICT (role_key, context_key)
-						DO UPDATE SET
-						    account_uuid = EXCLUDED.account_uuid,
-						    mapping_source = 'manual',
-						    is_active = TRUE,
-						    updated_at = NOW();
+						DO NOTHING
 					"#,
                     )
                     .bind(role.key())
+					.bind("default")
                     .bind(account.uuid)
                     .execute(pool)
                     .await?;

@@ -68,11 +68,11 @@ impl CompanyService {
             "Initial account-role discovery completed"
         );
 
-        let account_role_map = AccountRoleResolver::load(&tenant_pool)
+        /*let account_role_map = AccountRoleResolver::load(&tenant_pool)
             .await
             .map_err(|error| {
                 AppError::Internal(format!("Failed to load account-role mappings: {error}"))
-            })?;
+            })?;*/
 
         let repo: PostgresCompanyRepository = PostgresCompanyRepository;
 
@@ -91,11 +91,13 @@ impl CompanyService {
 
         // After the tenant CoA and default mappings have been seeded.
 
-        let resolver = AccountRoleResolver::load(&tenant_pool).await?;
+        let acc_code_resolver = AccountRoleResolver::load(&tenant_pool).await.map_err(|error| {
+                AppError::Internal(format!("Failed to load account-role mappings: {error}"))
+            })?;
 
-        state
-            .account_role_maps
-            .insert(company.uuid, Arc::new(resolver));
+        // state
+        //    .account_role_maps
+        //    .insert(company.uuid, Arc::new(acc_code_resolver));
 
         // Step 5: Assign user as admin + activate + update the secrets table
         repo.assign_user_as_admin(&mut *tx, user_id, company.uuid)
@@ -158,11 +160,9 @@ impl CompanyService {
         // Step 7: Cache the tenant pool only after everything succeeds
         state.tenant_pools.insert(company.uuid, tenant_pool.clone());
 
-        state.tenant_pools.insert(company.uuid, tenant_pool);
-
         state
             .account_role_maps
-            .insert(company.uuid, Arc::new(account_role_map));
+            .insert(company.uuid, Arc::new(acc_code_resolver));
 
         // After caching tenant_pool and committing:
         let repo: PostgresUserRepo = PostgresUserRepo::new(state.master_pool.clone());
