@@ -233,14 +233,14 @@ pub trait HrRepository: Send + Sync {
         &self,
         pool: &PgPool,
         employee_uuid: Uuid,
-    ) -> Result<Vec<OnboardingTask>, AppError>;
+    ) -> Result<Vec<OffboardingTask>, AppError>;
     async fn complete_offboarding_task(
         &self,
         pool: &PgPool,
         task_id: Uuid,
         user_id: Uuid,
         payload: &CompleteChecklistTask,
-    ) -> Result<OnboardingTask, AppError>;
+    ) -> Result<OffboardingTask, AppError>;
     async fn complete_exit(
         &self,
         pool: &PgPool,
@@ -1278,7 +1278,7 @@ impl HrRepository for PostgresHrRepo {
         &self,
         pool: &PgPool,
         employee_uuid: Uuid,
-    ) -> Result<Vec<OnboardingTask>, AppError> {
+    ) -> Result<Vec<OffboardingTask>, AppError> {
         sqlx::query_as::<_, OnboardingTask>(
             r#"
             SELECT * FROM hr.offboarding_tasks
@@ -1298,7 +1298,7 @@ impl HrRepository for PostgresHrRepo {
         task_id: Uuid,
         user_id: Uuid,
         payload: &CompleteChecklistTask,
-    ) -> Result<OnboardingTask, AppError> {
+    ) -> Result<OffboardingTask, AppError> {
         sqlx::query_as::<_, OnboardingTask>(
             r#"
             UPDATE hr.offboarding_tasks

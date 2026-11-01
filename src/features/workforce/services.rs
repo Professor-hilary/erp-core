@@ -386,7 +386,7 @@ impl<R: HrRepository> HrService<R> {
         &self,
         pool: &PgPool,
         employee_uuid: Uuid,
-    ) -> Result<Vec<OnboardingTask>, AppError> {
+    ) -> Result<Vec<OffboardingTask>, AppError> {
         self.repo.list_offboarding_tasks(pool, employee_uuid).await
     }
 
@@ -396,7 +396,7 @@ impl<R: HrRepository> HrService<R> {
         task_id: Uuid,
         user_id: Uuid,
         payload: &CompleteChecklistTask,
-    ) -> Result<OnboardingTask, AppError> {
+    ) -> Result<OffboardingTask, AppError> {
         self.repo
             .complete_offboarding_task(pool, task_id, user_id, payload)
             .await
