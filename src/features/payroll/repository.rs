@@ -2,9 +2,11 @@
 use crate::{
     interface::api::errors::AppError,
     models::payroll::{
-        ComponentAssignmentRow, CreatePayComponent, CreatePayrun, CreatePayslip,
-        EligibleEmployeeRow, EmployeePayrollContext, EmployeeTaxPeriodRow, LeaveEncashmentRow,
-        NssfRuleRow, PayComponent, Payrun, Payslip, PostPayrun, StatutoryBandRow,
+        ComponentAssignmentRow, CreateComponentAssignment, CreatePayComponent, CreatePayrun,
+        CreatePayslip, CreateStatutoryRemittance, EligibleEmployeeRow, EmployeeComponentAssignment,
+        EmployeePaymentBatch, EmployeePaymentLine, EmployeePayrollContext, EmployeeTaxPeriodRow,
+        LeaveEncashmentRow, NssfRuleRow, PayComponent, Payrun, Payslip, PayslipCalculationItem,
+        PostPayrun, RemitStatutory, SettleEmployees, StatutoryBandRow, StatutoryRemittance,
     },
 };
 use async_trait::async_trait;
@@ -64,6 +66,57 @@ pub trait PayrollRepository: Send + Sync {
         payload: &CreatePayComponent,
     ) -> Result<PayComponent, AppError>;
     async fn list_pay_components(&self, pool: &PgPool) -> Result<Vec<PayComponent>, AppError>;
+
+    // Component assignments
+    async fn create_component_assignment(
+        &self,
+        pool: &PgPool,
+        payload: &CreateComponentAssignment,
+    ) -> Result<EmployeeComponentAssignment, AppError>;
+    async fn list_component_assignments(
+        &self,
+        pool: &PgPool,
+        employee_uuid: Option<Uuid>,
+    ) -> Result<Vec<EmployeeComponentAssignment>, AppError>;
+
+    // Payslip breakdown
+    async fn get_payslip_calculation_items(
+        &self,
+        pool: &PgPool,
+        payslip_uuid: Uuid,
+    ) -> Result<Vec<PayslipCalculationItem>, AppError>;
+
+    // Settlement
+    async fn settle_employees(
+        &self,
+        user_id: Uuid,
+        pool: &PgPool,
+        payload: &SettleEmployees,
+    ) -> Result<EmployeePaymentBatch, AppError>;
+    async fn get_payment_batch_for_payrun(
+        &self,
+        pool: &PgPool,
+        payrun_uuid: Uuid,
+    ) -> Result<Option<EmployeePaymentBatch>, AppError>;
+
+    // Statutory remittance
+    async fn create_statutory_remittances(
+        &self,
+        pool: &PgPool,
+        payrun_uuid: Uuid,
+        due_date: NaiveDate,
+    ) -> Result<Vec<StatutoryRemittance>, AppError>;
+    async fn remit_statutory(
+        &self,
+        user_id: Uuid,
+        pool: &PgPool,
+        payload: &RemitStatutory,
+    ) -> Result<StatutoryRemittance, AppError>;
+    async fn list_statutory_remittances(
+        &self,
+        pool: &PgPool,
+        payrun_uuid: Option<Uuid>,
+    ) -> Result<Vec<StatutoryRemittance>, AppError>;
 }
 
 pub struct PostgresPayrollRepo;
@@ -986,4 +1039,463 @@ impl PayrollRepository for PostgresPayrollRepo {
         .await
         .map_err(AppError::from)
     }
+    async fn create_component_assignment(
+        &self,
+        pool: &PgPool,
+        payload: &CreateComponentAssignment,
+    ) -> Result<EmployeeComponentAssignment, AppError> {
+        if payload.amount.is_none() && payload.rate.is_none() {
+            return Err(AppError::Unprocessable(
+                "Assignment requires either amount or rate".into(),
+            ));
+        }
+        if payload
+            .effective_to
+            .is_some_and(|to| to < payload.effective_from)
+        {
+            return Err(AppError::Unprocessable(
+                "effective_to cannot precede effective_from".into(),
+            ));
+        }
+
+        sqlx::query_as::<_, EmployeeComponentAssignment>(
+            r#"
+            INSERT INTO payroll.employee_component_assignments (
+                employee_uuid, component_uuid, amount, rate,
+                calculation_basis, effective_from, effective_to
+            )
+            VALUES ($1,$2,$3,$4,$5,$6,$7)
+            RETURNING *
+            "#,
+        )
+        .bind(payload.employee_uuid)
+        .bind(payload.component_uuid)
+        .bind(&payload.amount)
+        .bind(&payload.rate)
+        .bind(&payload.calculation_basis)
+        .bind(payload.effective_from)
+        .bind(payload.effective_to)
+        .fetch_one(pool)
+        .await
+        .map_err(AppError::from)
+    }
+
+    async fn list_component_assignments(
+        &self,
+        pool: &PgPool,
+        employee_uuid: Option<Uuid>,
+    ) -> Result<Vec<EmployeeComponentAssignment>, AppError> {
+        if let Some(emp) = employee_uuid {
+            sqlx::query_as::<_, EmployeeComponentAssignment>(
+                r#"
+                SELECT * FROM payroll.employee_component_assignments
+                WHERE employee_uuid = $1 AND is_active = TRUE
+                ORDER BY effective_from DESC
+                "#,
+            )
+            .bind(emp)
+            .fetch_all(pool)
+            .await
+            .map_err(AppError::from)
+        } else {
+            sqlx::query_as::<_, EmployeeComponentAssignment>(
+                r#"
+                SELECT * FROM payroll.employee_component_assignments
+                WHERE is_active = TRUE
+                ORDER BY employee_uuid, effective_from DESC
+                "#,
+            )
+            .fetch_all(pool)
+            .await
+            .map_err(AppError::from)
+        }
+    }
+
+    async fn get_payslip_calculation_items(
+        &self,
+        pool: &PgPool,
+        payslip_uuid: Uuid,
+    ) -> Result<Vec<PayslipCalculationItem>, AppError> {
+        sqlx::query_as::<_, PayslipCalculationItem>(
+            r#"
+            SELECT * FROM payroll.payslip_calculation_items
+            WHERE payslip_uuid = $1
+            ORDER BY item_kind, item_code
+            "#,
+        )
+        .bind(payslip_uuid)
+        .fetch_all(pool)
+        .await
+        .map_err(AppError::from)
+    }
+
+    async fn settle_employees(
+        &self,
+        user_id: Uuid,
+        pool: &PgPool,
+        payload: &SettleEmployees,
+    ) -> Result<EmployeePaymentBatch, AppError> {
+        let mut tx = pool.begin().await?;
+
+        let payrun: Payrun = sqlx::query_as(
+            r#"
+            SELECT * FROM payroll.payruns
+            WHERE uuid = $1
+            FOR UPDATE
+            "#,
+        )
+        .bind(payload.payrun_uuid)
+        .fetch_optional(&mut *tx)
+        .await?
+        .ok_or_else(|| AppError::NotFound("Payrun not found".into()))?;
+
+        if payrun.status != "Posted" {
+            return Err(AppError::Unprocessable(
+                "Payrun must be Posted before settling employees".into(),
+            ));
+        }
+
+        // Idempotent: return existing batch if already created
+        if let Some(existing) = sqlx::query_as::<_, EmployeePaymentBatch>(
+            "SELECT * FROM payroll.employee_payment_batches WHERE payrun_uuid = $1",
+        )
+        .bind(payload.payrun_uuid)
+        .fetch_optional(&mut *tx)
+        .await?
+        {
+            if existing.status == "PAID" {
+                return Ok(existing);
+            }
+        }
+
+        let slips: Vec<Payslip> = sqlx::query_as(
+            r#"
+            SELECT * FROM payroll.payslips
+            WHERE payrun_uuid = $1 AND status = 'Pending'
+            FOR UPDATE
+            "#,
+        )
+        .bind(payload.payrun_uuid)
+        .fetch_all(&mut *tx)
+        .await?;
+
+        if slips.is_empty() {
+            return Err(AppError::Unprocessable(
+                "No unsettled payslips for this payrun".into(),
+            ));
+        }
+
+        let total_net: BigDecimal = slips.iter().fold(BigDecimal::from(0), |acc, s| {
+            acc + s.net_pay.clone().unwrap_or_else(|| BigDecimal::from(0))
+        });
+
+        if total_net <= BigDecimal::from(0) {
+            return Err(AppError::Unprocessable(
+                "Nothing to settle — total net is zero".into(),
+            ));
+        }
+
+        // GL: Dr Payroll payable, Cr Cash/Bank
+        let lines = serde_json::json!([
+            {
+                "account_ref": payload.payroll_payable_uuid,
+                "debit": total_net,
+                "credit": 0,
+                "memo": "Settle net wages payable"
+            },
+            {
+                "account_ref": payload.cash_account_uuid,
+                "debit": 0,
+                "credit": total_net,
+                "memo": "Employee net pay disbursement"
+            }
+        ]);
+
+        let txn_serial: i64 = sqlx::query_scalar(
+            r#"
+            SELECT accounting.post_transaction(
+                $1, $2, $3, 'payroll_settlement', $4, $5
+            )
+            "#,
+        )
+        .bind(format!(
+            "Employee settlement payrun {}",
+            payrun.serial_id
+        ))
+        .bind(format!(
+            "Settle employees for period {} to {}",
+            payrun.pay_period_start, payrun.pay_period_end
+        ))
+        .bind(user_id)
+        .bind(payload.payment_date)
+        .bind(&lines)
+        .fetch_one(&mut *tx)
+        .await?;
+
+        let gl_uuid: Uuid = sqlx::query_scalar(
+            "SELECT uuid FROM accounting.transactions WHERE serial_id = $1",
+        )
+        .bind(txn_serial)
+        .fetch_one(&mut *tx)
+        .await?;
+
+        let batch = sqlx::query_as::<_, EmployeePaymentBatch>(
+            r#"
+            INSERT INTO payroll.employee_payment_batches (
+                payrun_uuid, payment_reference, payment_date,
+                status, gl_transaction_uuid, created_by
+            )
+            VALUES ($1,$2,$3,'PAID',$4,$5)
+            ON CONFLICT (payrun_uuid) DO UPDATE SET
+                status = 'PAID',
+                gl_transaction_uuid = EXCLUDED.gl_transaction_uuid,
+                payment_date = EXCLUDED.payment_date,
+                payment_reference = EXCLUDED.payment_reference,
+                updated_at = NOW()
+            RETURNING *
+            "#,
+        )
+        .bind(payload.payrun_uuid)
+        .bind(&payload.payment_reference)
+        .bind(payload.payment_date)
+        .bind(gl_uuid)
+        .bind(user_id)
+        .fetch_one(&mut *tx)
+        .await?;
+
+        for slip in &slips {
+            let amount = slip.net_pay.clone().unwrap_or_else(|| BigDecimal::from(0));
+            sqlx::query(
+                r#"
+                INSERT INTO payroll.employee_payment_lines (
+                    payment_batch_uuid, payslip_uuid, amount, status, paid_at
+                )
+                VALUES ($1,$2,$3,'PAID',NOW())
+                ON CONFLICT (payment_batch_uuid, payslip_uuid) DO UPDATE SET
+                    status = 'PAID', paid_at = NOW(), amount = EXCLUDED.amount
+                "#,
+            )
+            .bind(batch.uuid)
+            .bind(slip.uuid)
+            .bind(&amount)
+            .execute(&mut *tx)
+            .await?;
+
+            sqlx::query(
+                r#"
+                UPDATE payroll.payslips
+                SET status = 'Paid', updated_at = NOW()
+                WHERE uuid = $1
+                "#,
+            )
+            .bind(slip.uuid)
+            .execute(&mut *tx)
+            .await?;
+        }
+
+        tx.commit().await?;
+        Ok(batch)
+    }
+
+    async fn get_payment_batch_for_payrun(
+        &self,
+        pool: &PgPool,
+        payrun_uuid: Uuid,
+    ) -> Result<Option<EmployeePaymentBatch>, AppError> {
+        sqlx::query_as::<_, EmployeePaymentBatch>(
+            "SELECT * FROM payroll.employee_payment_batches WHERE payrun_uuid = $1",
+        )
+        .bind(payrun_uuid)
+        .fetch_optional(pool)
+        .await
+        .map_err(AppError::from)
+    }
+
+    async fn create_statutory_remittances(
+        &self,
+        pool: &PgPool,
+        payrun_uuid: Uuid,
+        due_date: NaiveDate,
+    ) -> Result<Vec<StatutoryRemittance>, AppError> {
+        let mut tx = pool.begin().await?;
+
+        let payrun: Payrun = sqlx::query_as(
+            "SELECT * FROM payroll.payruns WHERE uuid = $1 FOR UPDATE",
+        )
+        .bind(payrun_uuid)
+        .fetch_optional(&mut *tx)
+        .await?
+        .ok_or_else(|| AppError::NotFound("Payrun not found".into()))?;
+
+        if payrun.status != "Posted" && payrun.status != "Processed" {
+            return Err(AppError::Unprocessable(
+                "Payrun must be Processed or Posted before creating remittances".into(),
+            ));
+        }
+
+        let totals: (BigDecimal, BigDecimal, BigDecimal) = sqlx::query_as(
+            r#"
+            SELECT
+                COALESCE(SUM(tax_deducted), 0),
+                COALESCE(SUM(social_security), 0),
+                COALESCE(SUM(employer_social_security), 0)
+            FROM payroll.payslips
+            WHERE payrun_uuid = $1
+            "#,
+        )
+        .bind(payrun_uuid)
+        .fetch_one(&mut *tx)
+        .await?;
+
+        let (paye, nssf_ee, nssf_er) = totals;
+        let mut created = Vec::new();
+
+        for (code, amount) in [
+            ("PAYE", paye),
+            ("NSSF_EE", nssf_ee),
+            ("NSSF_ER", nssf_er),
+        ] {
+            if amount <= BigDecimal::from(0) {
+                continue;
+            }
+            let row = sqlx::query_as::<_, StatutoryRemittance>(
+                r#"
+                INSERT INTO payroll.statutory_remittances (
+                    payrun_uuid, statutory_code, amount, due_date, status
+                )
+                VALUES ($1,$2,$3,$4,'PENDING')
+                ON CONFLICT (payrun_uuid, statutory_code) DO UPDATE SET
+                    amount = EXCLUDED.amount,
+                    due_date = EXCLUDED.due_date
+                RETURNING *
+                "#,
+            )
+            .bind(payrun_uuid)
+            .bind(code)
+            .bind(&amount)
+            .bind(due_date)
+            .fetch_one(&mut *tx)
+            .await?;
+            created.push(row);
+        }
+
+        tx.commit().await?;
+        Ok(created)
+    }
+
+    async fn remit_statutory(
+        &self,
+        user_id: Uuid,
+        pool: &PgPool,
+        payload: &RemitStatutory,
+    ) -> Result<StatutoryRemittance, AppError> {
+        let mut tx = pool.begin().await?;
+
+        let rem: StatutoryRemittance = sqlx::query_as(
+            r#"
+            SELECT * FROM payroll.statutory_remittances
+            WHERE uuid = $1
+            FOR UPDATE
+            "#,
+        )
+        .bind(payload.remittance_uuid)
+        .fetch_optional(&mut *tx)
+        .await?
+        .ok_or_else(|| AppError::NotFound("Remittance not found".into()))?;
+
+        if rem.status == "PAID" {
+            return Ok(rem);
+        }
+        if rem.status != "PENDING" {
+            return Err(AppError::Unprocessable(format!(
+                "Cannot remit remittance in status {}",
+                rem.status
+            )));
+        }
+
+        // GL: Dr liability, Cr cash
+        let lines = serde_json::json!([
+            {
+                "account_ref": payload.liability_account_uuid,
+                "debit": rem.amount,
+                "credit": 0,
+                "memo": format!("Remit {}", rem.statutory_code)
+            },
+            {
+                "account_ref": payload.cash_account_uuid,
+                "debit": 0,
+                "credit": rem.amount,
+                "memo": format!("Payment of {}", rem.statutory_code)
+            }
+        ]);
+
+        let txn_serial: i64 = sqlx::query_scalar(
+            r#"
+            SELECT accounting.post_transaction(
+                $1, $2, $3, 'payroll_remittance', $4, $5
+            )
+            "#,
+        )
+        .bind(format!("Remit {}", rem.statutory_code))
+        .bind(format!(
+            "Statutory remittance {} for payrun",
+            rem.statutory_code
+        ))
+        .bind(user_id)
+        .bind(payload.payment_date)
+        .bind(&lines)
+        .fetch_one(&mut *tx)
+        .await?;
+
+        let gl_uuid: Uuid = sqlx::query_scalar(
+            "SELECT uuid FROM accounting.transactions WHERE serial_id = $1",
+        )
+        .bind(txn_serial)
+        .fetch_one(&mut *tx)
+        .await?;
+
+        let updated = sqlx::query_as::<_, StatutoryRemittance>(
+            r#"
+            UPDATE payroll.statutory_remittances SET
+                status = 'PAID',
+                payment_date = $2,
+                gl_transaction_uuid = $3
+            WHERE uuid = $1
+            RETURNING *
+            "#,
+        )
+        .bind(rem.uuid)
+        .bind(payload.payment_date)
+        .bind(gl_uuid)
+        .fetch_one(&mut *tx)
+        .await?;
+
+        tx.commit().await?;
+        Ok(updated)
+    }
+
+    async fn list_statutory_remittances(
+        &self,
+        pool: &PgPool,
+        payrun_uuid: Option<Uuid>,
+    ) -> Result<Vec<StatutoryRemittance>, AppError> {
+        if let Some(pr) = payrun_uuid {
+            sqlx::query_as::<_, StatutoryRemittance>(
+                "SELECT * FROM payroll.statutory_remittances WHERE payrun_uuid = $1 ORDER BY statutory_code",
+            )
+            .bind(pr)
+            .fetch_all(pool)
+            .await
+            .map_err(AppError::from)
+        } else {
+            sqlx::query_as::<_, StatutoryRemittance>(
+                "SELECT * FROM payroll.statutory_remittances ORDER BY created_at DESC",
+            )
+            .fetch_all(pool)
+            .await
+            .map_err(AppError::from)
+        }
+    }
+}
+
 }

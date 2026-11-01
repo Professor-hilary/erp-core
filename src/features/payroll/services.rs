@@ -5,6 +5,7 @@ use crate::{
     models::payroll::*,
 };
 use bigdecimal::BigDecimal;
+use chrono::NaiveDate;
 use sqlx::PgPool;
 use uuid::Uuid;
 
@@ -17,8 +18,6 @@ impl<R: PayrollRepository> PayrollService<R> {
         Self { repo }
     }
 
-    /// Prepare: create the payrun header and seed unpaid payslip shells
-    /// for every eligible employee. Calculation happens in process_payrun.
     pub async fn create_payrun(
         &self,
         pool: &PgPool,
@@ -58,20 +57,6 @@ impl<R: PayrollRepository> PayrollService<R> {
                     "Payroll amounts cannot be negative".into(),
                 ));
             }
-            if let Some(items) = &slip.benefits {
-                for item in items {
-                    if !["Allowance", "Deduction"].contains(&item.item_type.as_str()) {
-                        return Err(AppError::Unprocessable(
-                            "Payslip item must be Allowance or Deduction".into(),
-                        ));
-                    }
-                    if item.amount < zero {
-                        return Err(AppError::Unprocessable(
-                            "Payslip item amount cannot be negative".into(),
-                        ));
-                    }
-                }
-            }
         }
 
         let mut tx = pool.begin().await?;
@@ -91,7 +76,6 @@ impl<R: PayrollRepository> PayrollService<R> {
                 .into_iter()
                 .map(|employee| CreatePayslip {
                     employee_uuid: employee.employee_uuid,
-                    // Zeros — real values are produced by process_payrun
                     gross_pay: BigDecimal::from(0),
                     basic_pay: Some(BigDecimal::from(0)),
                     tax_deducted: Some(BigDecimal::from(0)),
@@ -107,15 +91,6 @@ impl<R: PayrollRepository> PayrollService<R> {
             payload.payslips.clone()
         };
 
-        let mut generated = std::collections::HashSet::new();
-        for slip in &slips {
-            if !generated.insert(slip.employee_uuid) {
-                return Err(AppError::Unprocessable(
-                    "Duplicate employee in generated payrun".into(),
-                ));
-            }
-        }
-
         self.repo
             .create_payslips(payrun.uuid, &slips, &mut tx)
             .await?;
@@ -123,8 +98,6 @@ impl<R: PayrollRepository> PayrollService<R> {
         Ok(payrun)
     }
 
-    /// Calculate → validate → lock.
-    /// This is the real payroll engine step.
     pub async fn process_payrun(
         &self,
         pool: &PgPool,
@@ -133,7 +106,6 @@ impl<R: PayrollRepository> PayrollService<R> {
         self.repo.process_payrun(pool, payrun_serial_id).await
     }
 
-    /// Accrue into GL (expenses + liabilities). Settlement is separate.
     pub async fn post_payrun(
         &self,
         user_id: Uuid,
@@ -173,5 +145,90 @@ impl<R: PayrollRepository> PayrollService<R> {
 
     pub async fn list_pay_components(&self, pool: &PgPool) -> Result<Vec<PayComponent>, AppError> {
         self.repo.list_pay_components(pool).await
+    }
+
+    // --- Component assignments ---
+
+    pub async fn create_component_assignment(
+        &self,
+        pool: &PgPool,
+        payload: &CreateComponentAssignment,
+    ) -> Result<EmployeeComponentAssignment, AppError> {
+        self.repo.create_component_assignment(pool, payload).await
+    }
+
+    pub async fn list_component_assignments(
+        &self,
+        pool: &PgPool,
+        employee_uuid: Option<Uuid>,
+    ) -> Result<Vec<EmployeeComponentAssignment>, AppError> {
+        self.repo
+            .list_component_assignments(pool, employee_uuid)
+            .await
+    }
+
+    // --- Payslip breakdown ---
+
+    pub async fn get_payslip_calculation_items(
+        &self,
+        pool: &PgPool,
+        payslip_uuid: Uuid,
+    ) -> Result<Vec<PayslipCalculationItem>, AppError> {
+        self.repo
+            .get_payslip_calculation_items(pool, payslip_uuid)
+            .await
+    }
+
+    // --- Settlement ---
+
+    pub async fn settle_employees(
+        &self,
+        user_id: Uuid,
+        pool: &PgPool,
+        payload: &SettleEmployees,
+    ) -> Result<EmployeePaymentBatch, AppError> {
+        self.repo.settle_employees(user_id, pool, payload).await
+    }
+
+    pub async fn get_payment_batch(
+        &self,
+        pool: &PgPool,
+        payrun_uuid: Uuid,
+    ) -> Result<Option<EmployeePaymentBatch>, AppError> {
+        self.repo
+            .get_payment_batch_for_payrun(pool, payrun_uuid)
+            .await
+    }
+
+    // --- Statutory remittance ---
+
+    pub async fn create_statutory_remittances(
+        &self,
+        pool: &PgPool,
+        payrun_uuid: Uuid,
+        due_date: NaiveDate,
+    ) -> Result<Vec<StatutoryRemittance>, AppError> {
+        self.repo
+            .create_statutory_remittances(pool, payrun_uuid, due_date)
+            .await
+    }
+
+    pub async fn remit_statutory(
+        &self,
+        user_id: Uuid,
+        pool: &PgPool,
+        payload: &RemitStatutory,
+    ) -> Result<StatutoryRemittance, AppError> {
+        self.repo.remit_statutory(user_id, pool, payload).await
+    }
+
+    pub async fn list_statutory_remittances(
+        &self,
+        pool: &PgPool,
+        payrun_uuid: Option<Uuid>,
+    ) -> Result<Vec<StatutoryRemittance>, AppError> {
+        self.repo
+            .list_statutory_remittances(pool, payrun_uuid)
+            .await
     }
 }

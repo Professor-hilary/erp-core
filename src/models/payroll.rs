@@ -269,3 +269,125 @@ pub struct LeaveEncashmentRow {
     pub days: BigDecimal,
     pub leave_type_code: Option<String>,
 }
+
+// =============================================================================
+// COMPONENT ASSIGNMENTS
+// =============================================================================
+
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+pub struct EmployeeComponentAssignment {
+    pub uuid: Uuid,
+    pub employee_uuid: Uuid,
+    pub component_uuid: Uuid,
+    pub amount: Option<BigDecimal>,
+    pub rate: Option<BigDecimal>,
+    pub calculation_basis: Option<String>,
+    pub effective_from: NaiveDate,
+    pub effective_to: Option<NaiveDate>,
+    pub is_active: bool,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CreateComponentAssignment {
+    pub employee_uuid: Uuid,
+    pub component_uuid: Uuid,
+    pub amount: Option<BigDecimal>,
+    pub rate: Option<BigDecimal>,
+    pub calculation_basis: Option<String>,
+    pub effective_from: NaiveDate,
+    pub effective_to: Option<NaiveDate>,
+}
+
+// =============================================================================
+// EMPLOYEE SETTLEMENT
+// =============================================================================
+
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+pub struct EmployeePaymentBatch {
+    pub uuid: Uuid,
+    pub payrun_uuid: Uuid,
+    pub payment_reference: Option<String>,
+    pub payment_date: NaiveDate,
+    pub status: String,
+    pub gl_transaction_uuid: Option<Uuid>,
+    pub created_by: Option<Uuid>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+pub struct EmployeePaymentLine {
+    pub uuid: Uuid,
+    pub payment_batch_uuid: Uuid,
+    pub payslip_uuid: Uuid,
+    pub amount: BigDecimal,
+    pub payment_reference: Option<String>,
+    pub status: String,
+    pub paid_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct SettleEmployees {
+    pub payrun_uuid: Uuid,
+    pub payment_date: NaiveDate,
+    pub payment_reference: Option<String>,
+    /// Bank / cash account to credit when settling net wages
+    pub cash_account_uuid: Uuid,
+    /// Payroll payable account (must match what was credited at accrual)
+    pub payroll_payable_uuid: Uuid,
+}
+
+// =============================================================================
+// STATUTORY REMITTANCE
+// =============================================================================
+
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+pub struct StatutoryRemittance {
+    pub uuid: Uuid,
+    pub payrun_uuid: Uuid,
+    pub statutory_code: String,
+    pub amount: BigDecimal,
+    pub due_date: NaiveDate,
+    pub payment_date: Option<NaiveDate>,
+    pub status: String,
+    pub gl_transaction_uuid: Option<Uuid>,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CreateStatutoryRemittance {
+    pub payrun_uuid: Uuid,
+    pub statutory_code: String, // PAYE | NSSF_EE | NSSF_ER
+    pub due_date: NaiveDate,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct RemitStatutory {
+    pub remittance_uuid: Uuid,
+    pub payment_date: NaiveDate,
+    /// Liability account being settled (PAYE payable / NSSF payable)
+    pub liability_account_uuid: Uuid,
+    /// Bank / cash account
+    pub cash_account_uuid: Uuid,
+}
+
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+pub struct PayslipCalculationItem {
+    pub uuid: Uuid,
+    pub payslip_uuid: Uuid,
+    pub component_uuid: Option<Uuid>,
+    pub item_code: String,
+    pub item_name: String,
+    pub item_kind: String,
+    pub calculation_method: String,
+    pub basis_amount: BigDecimal,
+    pub rate: Option<BigDecimal>,
+    pub quantity: BigDecimal,
+    pub unrounded_amount: BigDecimal,
+    pub amount: BigDecimal,
+    pub taxable: bool,
+    pub included_in_nssf_base: bool,
+    pub created_at: DateTime<Utc>,
+}
