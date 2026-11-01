@@ -69,10 +69,10 @@ impl CompanyService {
         );
 
         /*let account_role_map = AccountRoleResolver::load(&tenant_pool)
-            .await
-            .map_err(|error| {
-                AppError::Internal(format!("Failed to load account-role mappings: {error}"))
-            })?;*/
+        .await
+        .map_err(|error| {
+            AppError::Internal(format!("Failed to load account-role mappings: {error}"))
+        })?;*/
 
         let repo: PostgresCompanyRepository = PostgresCompanyRepository;
 
@@ -91,7 +91,9 @@ impl CompanyService {
 
         // After the tenant CoA and default mappings have been seeded.
 
-        let acc_code_resolver = AccountRoleResolver::load(&tenant_pool).await.map_err(|error| {
+        let acc_code_resolver = AccountRoleResolver::load(&tenant_pool)
+            .await
+            .map_err(|error| {
                 AppError::Internal(format!("Failed to load account-role mappings: {error}"))
             })?;
 

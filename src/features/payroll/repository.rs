@@ -2,9 +2,9 @@
 use crate::{
     interface::api::errors::AppError,
     models::payroll::{
-        CreatePayComponent, CreatePayslip, CreatePayrun, EligibleEmployeeRow, PayComponent,
-        Payrun, Payslip, PostPayrun,
-    }, 
+        CreatePayComponent, CreatePayrun, CreatePayslip, EligibleEmployeeRow, PayComponent, Payrun,
+        Payslip, PostPayrun,
+    },
 };
 use async_trait::async_trait;
 use bigdecimal::BigDecimal;
@@ -34,7 +34,11 @@ pub trait PayrollRepository: Send + Sync {
         period_end: NaiveDate,
     ) -> Result<Vec<EligibleEmployeeRow>, AppError>;
 
-    async fn process_payrun(&self, pool: &PgPool, payrun_serial_id: i64) -> Result<Payrun, AppError>;
+    async fn process_payrun(
+        &self,
+        pool: &PgPool,
+        payrun_serial_id: i64,
+    ) -> Result<Payrun, AppError>;
 
     async fn post_payrun(
         &self,
@@ -98,7 +102,10 @@ impl PayrollRepository for PostgresPayrollRepo {
         tx: &mut Transaction<'_, sqlx::Postgres>,
     ) -> Result<(), AppError> {
         for slip in payslips {
-            let tax = slip.tax_deducted.clone().unwrap_or_else(|| BigDecimal::from(0));
+            let tax = slip
+                .tax_deducted
+                .clone()
+                .unwrap_or_else(|| BigDecimal::from(0));
             let ss = slip
                 .social_security
                 .clone()
@@ -216,9 +223,7 @@ impl PayrollRepository for PostgresPayrollRepo {
         .fetch_optional(pool)
         .await?
         .ok_or_else(|| {
-            AppError::Unprocessable(
-                "Payrun not found or not in Pending status".into(),
-            )
+            AppError::Unprocessable("Payrun not found or not in Pending status".into())
         })?;
         Ok(payrun)
     }
@@ -230,28 +235,37 @@ impl PayrollRepository for PostgresPayrollRepo {
         payload: &PostPayrun,
     ) -> Result<(), AppError> {
         let labor = payload.labor_expense_id.ok_or_else(|| {
-            AppError::Unprocessable("labor_expense_id required until account roles resolve posts".into())
+            AppError::Unprocessable(
+                "labor_expense_id required until account roles resolve posts".into(),
+            )
         })?;
         let tax = payload.income_tax_id.ok_or_else(|| {
-            AppError::Unprocessable("income_tax_id required until account roles resolve posts".into())
+            AppError::Unprocessable(
+                "income_tax_id required until account roles resolve posts".into(),
+            )
         })?;
         let ss = payload.social_security_id.ok_or_else(|| {
-            AppError::Unprocessable("social_security_id required until account roles resolve posts".into())
+            AppError::Unprocessable(
+                "social_security_id required until account roles resolve posts".into(),
+            )
         })?;
         let cash = payload.cash_account_uuid.ok_or_else(|| {
-            AppError::Unprocessable("cash_account_uuid required until account roles resolve posts".into())
+            AppError::Unprocessable(
+                "cash_account_uuid required until account roles resolve posts".into(),
+            )
         })?;
         let payable = payload.payroll_payable.ok_or_else(|| {
-            AppError::Unprocessable("payroll_payable required until account roles resolve posts".into())
+            AppError::Unprocessable(
+                "payroll_payable required until account roles resolve posts".into(),
+            )
         })?;
 
         // Guard: only Processed
-        let status: Option<(String,)> = sqlx::query_as(
-            "SELECT status FROM payroll.payruns WHERE serial_id = $1",
-        )
-        .bind(payload.payrun_serial_id)
-        .fetch_optional(pool)
-        .await?;
+        let status: Option<(String,)> =
+            sqlx::query_as("SELECT status FROM payroll.payruns WHERE serial_id = $1")
+                .bind(payload.payrun_serial_id)
+                .fetch_optional(pool)
+                .await?;
 
         match status {
             Some((ref s,)) if s == "Processed" => {}

@@ -68,7 +68,9 @@ impl<R: CustomerRepository> CustomerService<R> {
         user_id: Uuid,
         payload: &PostTurnover,
     ) -> Result<Turnover, AppError> {
-        self.repo.post_cash_sale(tenant_pool, user_id, payload).await
+        self.repo
+            .post_cash_sale(tenant_pool, user_id, payload)
+            .await
     }
 
     pub async fn create_invoice(

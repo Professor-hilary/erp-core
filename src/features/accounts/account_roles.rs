@@ -226,10 +226,10 @@ impl AccountRole {
 #[derive(Debug, Clone)]
 pub struct ResolvedAccount {
     pub uuid: Uuid,
-    pub code: String,
-    pub name: String,
-    pub category: String,
-    pub normal_balance: String,
+    // pub code: String,
+    // pub name: String,
+    // pub category: String,
+    // pub normal_balance: String,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -265,7 +265,7 @@ struct AccountCandidate {
     code: String,
     name: String,
     category: String,
-    normal_balance: String,
+    // normal_balance: String,
 }
 
 fn normalize_name(value: &str) -> String {
@@ -286,7 +286,7 @@ impl AccountRoleResolver {
     ) -> Result<MappingDiscoveryReport, AccountRoleError> {
         let rows = sqlx::query(
             r#"
-            SELECT uuid, code, name, category, normal_balance
+            SELECT uuid, code, name, category
             FROM accounting.accounts
             WHERE is_active = TRUE
               AND is_postable = TRUE
@@ -304,7 +304,7 @@ impl AccountRoleResolver {
                 code: row.try_get("code")?,
                 name: row.try_get("name")?,
                 category: row.try_get("category")?,
-                normal_balance: row.try_get("normal_balance")?,
+                // normal_balance: row.try_get("normal_balance")?,
             });
         }
 
@@ -350,7 +350,7 @@ impl AccountRoleResolver {
 					"#,
                     )
                     .bind(role.key())
-					.bind("default")
+                    .bind("default")
                     .bind(account.uuid)
                     .execute(pool)
                     .await?;
@@ -413,16 +413,16 @@ impl AccountRoleResolver {
 
         for row in rows {
             let key: String = row.try_get("role_key")?;
-			let context_key: String = row.try_get("context_key")?;
+            let context_key: String = row.try_get("context_key")?;
 
             let role = AccountRole::from_key(&key)
                 .ok_or_else(|| AccountRoleError::UnknownRole(key.clone()))?;
 
             let uuid: Uuid = row.try_get("account_uuid")?;
             let code: String = row.try_get("code")?;
-            let name: String = row.try_get("name")?;
+            let _name: String = row.try_get("name")?;
             let category: String = row.try_get("category")?;
-            let normal_balance: String = row.try_get("normal_balance")?;
+            let _normal_balance: String = row.try_get("normal_balance")?;
             let is_active: bool = row.try_get("is_active")?;
             let is_postable: bool = row.try_get("is_postable")?;
 
@@ -447,36 +447,22 @@ impl AccountRoleResolver {
                 )));
             }
 
-            /*accounts.insert(
-                role,
+            accounts.insert(
+                AccountRoleContext { role, context_key },
                 ResolvedAccount {
                     uuid,
-                    code,
-                    name,
-                    category,
-                    normal_balance,
+                    // code,
+                    // name,
+                    // category,
+                    // normal_balance,
                 },
-            );*/
-
-			accounts.insert(
-			    AccountRoleContext {
-			        role,
-			        context_key,
-			    },
-			    ResolvedAccount {
-			        uuid,
-			        code,
-			        name,
-			        category,
-			        normal_balance,
-			    },
-			);
+            );
         }
 
         Ok(Self { accounts })
     }
 
-	pub fn resolve(
+    pub fn resolve(
         &self,
         role: AccountRole,
         context: &str,
@@ -488,28 +474,18 @@ impl AccountRoleResolver {
 
         self.accounts
             .get(&key)
-            .ok_or_else(|| {
-                AccountRoleError::MissingMapping(format!(
-                    "{}:{}",
-                    role.key(),
-                    context
-                ))
-            })
+            .ok_or_else(|| AccountRoleError::MissingMapping(format!("{}:{}", role.key(), context)))
     }
 
-    pub fn resolve_default(
-        &self,
-        role: AccountRole,
-    ) -> Result<&ResolvedAccount, AccountRoleError> {
+    pub fn resolve_default(&self, role: AccountRole) -> Result<&ResolvedAccount, AccountRoleError> {
         self.resolve(role, "default")
     }
 
-	pub fn resolve_uuid(
- 	   	&self,
-    	role: AccountRole,
-    	context: &str,
-	) -> Result<Uuid, AccountRoleError> {
-	    Ok(self.resolve(role, context)?.uuid)
-	}
-
+    /*pub fn resolve_uuid(
+            &self,
+        role: AccountRole,
+        context: &str,
+    ) -> Result<Uuid, AccountRoleError> {
+        Ok(self.resolve(role, context)?.uuid)
+    }*/
 }

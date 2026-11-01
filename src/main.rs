@@ -18,7 +18,7 @@ use tracing_subscriber::{EnvFilter, fmt, prelude::*};
 
 use crate::{
     infrastructure::{database::init_master_db::init_master, redis_blacklist::TokenBlacklist},
-    state::{AppState, JwtConfig, TenantConfig},
+    state::{AppState, JwtConfig /*TenantConfig*/},
 };
 
 #[tokio::main]
@@ -94,7 +94,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 Err(error) => {
                     tracing::error!("Redis connected but ping failed: {error:?}");
                     // None // soft fail but continue
-                    return Err(error.into()) // Return this to terminate program
+                    return Err(error.into()); // Return this to terminate program
                 }
             },
             Err(error) => {
@@ -120,12 +120,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             .time_to_live(Duration::from_secs(300))
             .max_capacity(1000)
             .build(),
-        tenant_config: TenantConfig {
-            base_url: "".to_string(),
-        },
+        // tenant_config: TenantConfig {
+        //     base_url: "".to_string(),
+        // },
         jwt_config,
         token_blacklist,
-		account_role_maps: DashMap::new(),
+        account_role_maps: DashMap::new(),
     });
 
     // --------------------------------------------------

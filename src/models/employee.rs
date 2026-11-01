@@ -466,4 +466,3 @@ pub struct StartExit {
     pub notice_start_date: Option<NaiveDate>,
     pub notes: Option<String>,
 }
-

@@ -228,17 +228,11 @@ impl IntoResponse for AppError {
 impl From<AccountRoleError> for AppError {
     fn from(error: AccountRoleError) -> Self {
         match error {
-            AccountRoleError::Database(source) => {
-                AppError::Database(source)
-            }
+            AccountRoleError::Database(source) => AppError::Database(source),
             AccountRoleError::MissingMapping(message)
-            | AccountRoleError::InvalidMapping(message) => {
-                AppError::Unprocessable(message)
-            }
+            | AccountRoleError::InvalidMapping(message) => AppError::Unprocessable(message),
             AccountRoleError::UnknownRole(role) => {
-                AppError::Internal(format!(
-                    "Unknown account role: {role}"
-                ))
+                AppError::Internal(format!("Unknown account role: {role}"))
             }
         }
     }

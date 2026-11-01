@@ -1,8 +1,5 @@
 // src/features/workforce/repository.rs
-use crate::{
-    interface::api::errors::AppError,
-    models::employee::*,
-};
+use crate::{interface::api::errors::AppError, models::employee::*};
 use async_trait::async_trait;
 use chrono::Datelike;
 use sqlx::PgPool;
@@ -23,9 +20,22 @@ pub trait HrRepository: Send + Sync {
         user_id: Uuid,
         payload: &CreateJobTitle,
     ) -> Result<JobTitle, AppError>;
-    async fn list_departments(&self, pool: &PgPool, user_id: Uuid) -> Result<Vec<Department>, AppError>;
-    async fn list_job_titles(&self, pool: &PgPool, user_id: Uuid) -> Result<Vec<JobTitle>, AppError>;
-    async fn get_department(&self, pool: &PgPool, id: Uuid, user_id: Uuid) -> Result<Department, AppError>;
+    async fn list_departments(
+        &self,
+        pool: &PgPool,
+        user_id: Uuid,
+    ) -> Result<Vec<Department>, AppError>;
+    async fn list_job_titles(
+        &self,
+        pool: &PgPool,
+        user_id: Uuid,
+    ) -> Result<Vec<JobTitle>, AppError>;
+    async fn get_department(
+        &self,
+        pool: &PgPool,
+        id: Uuid,
+        user_id: Uuid,
+    ) -> Result<Department, AppError>;
     async fn get_job_title(&self, pool: &PgPool, id: Uuid) -> Result<JobTitle, AppError>;
     async fn update_department(
         &self,
@@ -41,8 +51,18 @@ pub trait HrRepository: Send + Sync {
         user_id: Uuid,
         payload: &CreateJobTitle,
     ) -> Result<JobTitle, AppError>;
-    async fn delete_department(&self, pool: &PgPool, id: Uuid, user_id: Uuid) -> Result<(), AppError>;
-    async fn delete_job_title(&self, pool: &PgPool, id: Uuid, user_id: Uuid) -> Result<(), AppError>;
+    async fn delete_department(
+        &self,
+        pool: &PgPool,
+        id: Uuid,
+        user_id: Uuid,
+    ) -> Result<(), AppError>;
+    async fn delete_job_title(
+        &self,
+        pool: &PgPool,
+        id: Uuid,
+        user_id: Uuid,
+    ) -> Result<(), AppError>;
 
     // ----- Employees -----
     async fn create_employee(
@@ -69,7 +89,8 @@ pub trait HrRepository: Send + Sync {
         user_id: Uuid,
         payload: &UpdateEmployee,
     ) -> Result<Employee, AppError>;
-    async fn delete_employee(&self, pool: &PgPool, id: Uuid, user_id: Uuid) -> Result<(), AppError>;
+    async fn delete_employee(&self, pool: &PgPool, id: Uuid, user_id: Uuid)
+    -> Result<(), AppError>;
 
     // ----- Profiles -----
     async fn upsert_statutory_profile(
@@ -240,7 +261,10 @@ impl PostgresHrRepo {
         Self
     }
 
-    async fn to_employee_response(pool: &PgPool, e: Employee) -> Result<EmployeeResponse, AppError> {
+    async fn to_employee_response(
+        pool: &PgPool,
+        e: Employee,
+    ) -> Result<EmployeeResponse, AppError> {
         let department = match e.department_uuid {
             Some(did) => {
                 sqlx::query_as::<_, Department>("SELECT * FROM hr.departments WHERE uuid = $1")
@@ -260,12 +284,14 @@ impl PostgresHrRepo {
             None => None,
         };
         let supervisor = match e.supervisor_uuid {
-            Some(sid) => sqlx::query_as::<_, SupervisorBrief>(
-                "SELECT uuid, first_name, last_name FROM hr.employees WHERE uuid = $1",
-            )
-            .bind(sid)
-            .fetch_optional(pool)
-            .await?,
+            Some(sid) => {
+                sqlx::query_as::<_, SupervisorBrief>(
+                    "SELECT uuid, first_name, last_name FROM hr.employees WHERE uuid = $1",
+                )
+                .bind(sid)
+                .fetch_optional(pool)
+                .await?
+            }
             None => None,
         };
 
@@ -513,10 +539,11 @@ impl HrRepository for PostgresHrRepo {
         pool: &PgPool,
         _user_id: Uuid,
     ) -> Result<Vec<EmployeeResponse>, AppError> {
-        let rows: Vec<Employee> =
-            sqlx::query_as::<_, Employee>("SELECT * FROM hr.employees ORDER BY last_name, first_name")
-                .fetch_all(pool)
-                .await?;
+        let rows: Vec<Employee> = sqlx::query_as::<_, Employee>(
+            "SELECT * FROM hr.employees ORDER BY last_name, first_name",
+        )
+        .fetch_all(pool)
+        .await?;
         let mut out = Vec::with_capacity(rows.len());
         for e in rows {
             out.push(Self::to_employee_response(pool, e).await?);
@@ -530,11 +557,12 @@ impl HrRepository for PostgresHrRepo {
         id: Uuid,
         _user_id: Uuid,
     ) -> Result<EmployeeResponse, AppError> {
-        let e: Employee = sqlx::query_as::<_, Employee>("SELECT * FROM hr.employees WHERE uuid = $1")
-            .bind(id)
-            .fetch_optional(pool)
-            .await?
-            .ok_or_else(|| AppError::NotFound("Employee not found".into()))?;
+        let e: Employee =
+            sqlx::query_as::<_, Employee>("SELECT * FROM hr.employees WHERE uuid = $1")
+                .bind(id)
+                .fetch_optional(pool)
+                .await?
+                .ok_or_else(|| AppError::NotFound("Employee not found".into()))?;
         Self::to_employee_response(pool, e).await
     }
 
@@ -908,11 +936,10 @@ impl HrRepository for PostgresHrRepo {
         employee_uuid: Option<Uuid>,
         year: Option<i32>,
     ) -> Result<Vec<LeaveBalance>, AppError> {
-        let rows = sqlx::query_as::<_, LeaveBalance>(
-            "SELECT * FROM hr.leave_balances ORDER BY year DESC",
-        )
-        .fetch_all(pool)
-        .await?;
+        let rows =
+            sqlx::query_as::<_, LeaveBalance>("SELECT * FROM hr.leave_balances ORDER BY year DESC")
+                .fetch_all(pool)
+                .await?;
         Ok(rows
             .into_iter()
             .filter(|b| employee_uuid.map(|e| b.employee_uuid == e).unwrap_or(true))
@@ -1136,12 +1163,10 @@ impl HrRepository for PostgresHrRepo {
         .await?;
 
         if let Some(sid) = payload.schedule_uuid {
-            sqlx::query(
-                "UPDATE hr.leave_schedules SET status = 'Encashed' WHERE uuid = $1",
-            )
-            .bind(sid)
-            .execute(&mut *tx)
-            .await?;
+            sqlx::query("UPDATE hr.leave_schedules SET status = 'Encashed' WHERE uuid = $1")
+                .bind(sid)
+                .execute(&mut *tx)
+                .await?;
         }
         tx.commit().await?;
         Ok(row)
@@ -1160,7 +1185,11 @@ impl HrRepository for PostgresHrRepo {
         .await?;
         Ok(rows
             .into_iter()
-            .filter(|e| employee_uuid.map(|id| e.employee_uuid == id).unwrap_or(true))
+            .filter(|e| {
+                employee_uuid
+                    .map(|id| e.employee_uuid == id)
+                    .unwrap_or(true)
+            })
             .filter(|e| status.map(|s| e.status == s).unwrap_or(true))
             .collect())
     }
@@ -1319,4 +1348,3 @@ impl HrRepository for PostgresHrRepo {
         .map_err(AppError::from)
     }
 }
-

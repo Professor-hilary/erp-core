@@ -2,10 +2,8 @@
 use crate::{
     features::procurement::repository::VendorRepository,
     interface::api::errors::AppError,
-    models::{
-        vendor::{
-            ApplyPayment, CreatePurchase, CreateVendor, Payment, PostPurchase, Purchase, Vendor,
-        },
+    models::vendor::{
+        ApplyPayment, CreatePurchase, CreateVendor, Payment, PostPurchase, Purchase, Vendor,
     },
 };
 use sqlx::PgPool;

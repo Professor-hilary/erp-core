@@ -1,7 +1,6 @@
 // src/features/workforce/services.rs
 use crate::{
-    features::workforce::repository::HrRepository,
-    interface::api::errors::AppError,
+    features::workforce::repository::HrRepository, interface::api::errors::AppError,
     models::employee::*,
 };
 use sqlx::PgPool;
@@ -83,9 +82,7 @@ impl<R: HrRepository> HrService<R> {
         user_id: Uuid,
         payload: &CreateJobTitle,
     ) -> Result<JobTitle, AppError> {
-        self.repo
-            .update_job_title(pool, id, user_id, payload)
-            .await
+        self.repo.update_job_title(pool, id, user_id, payload).await
     }
 
     pub async fn delete_department(
@@ -390,9 +387,7 @@ impl<R: HrRepository> HrService<R> {
         pool: &PgPool,
         employee_uuid: Uuid,
     ) -> Result<Vec<OnboardingTask>, AppError> {
-        self.repo
-            .list_offboarding_tasks(pool, employee_uuid)
-            .await
+        self.repo.list_offboarding_tasks(pool, employee_uuid).await
     }
 
     pub async fn complete_offboarding_task(
@@ -421,9 +416,6 @@ impl<R: HrRepository> HrService<R> {
         pool: &PgPool,
         employee_uuid: Uuid,
     ) -> Result<Vec<EmploymentEvent>, AppError> {
-        self.repo
-            .list_employment_events(pool, employee_uuid)
-            .await
+        self.repo.list_employment_events(pool, employee_uuid).await
     }
 }
-

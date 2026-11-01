@@ -184,10 +184,7 @@ async fn monthly_payroll() -> E2eResult<()> {
         assert!(ok(s2), "list payslips: {s2} {body2}");
         body2["data"].as_array().map(|a| a.len()).unwrap_or(0)
     };
-    assert!(
-        n_slips >= 1,
-        "expected ≥1 payslip, got {n_slips}"
-    );
+    assert!(n_slips >= 1, "expected ≥1 payslip, got {n_slips}");
     println!("✓ payslips n={n_slips}");
 
     // ----- 5. Trial balance -----

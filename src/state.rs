@@ -34,16 +34,16 @@ pub struct AppState {
     pub jwt_secret: String,
     pub jwt_config: JwtConfig,
     pub coa_seed_path: String,
-    pub tenant_config: TenantConfig,
+    // pub tenant_config: TenantConfig,
     pub period_cache: Cache<Uuid, PeriodInfo>,
     pub token_blacklist: Option<SharedBlacklist>,
     pub account_role_maps: DashMap<Uuid, Arc<AccountRoleResolver>>,
 }
 
-#[derive(Clone, Debug)]
-pub struct TenantConfig {
-    pub base_url: String,
-}
+// #[derive(Clone, Debug)]
+// pub struct TenantConfig {
+//     pub base_url: String,
+// }
 
 #[derive(Clone, Debug)]
 pub struct PeriodInfo {

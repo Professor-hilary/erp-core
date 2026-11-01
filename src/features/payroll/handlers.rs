@@ -24,8 +24,11 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/get/payrun/{uuid}", get(get_payrun))
         .route("/list/payruns", get(list_payruns))
         .route("/list/payslips", get(list_payslips))
-		.route("/payrun/{uuid}/payslips", get(list_payslips_for_payrun))
-        .route("/components", post(create_pay_component).get(list_pay_components))
+        .route("/payrun/{uuid}/payslips", get(list_payslips_for_payrun))
+        .route(
+            "/components",
+            post(create_pay_component).get(list_pay_components),
+        )
 }
 
 async fn create_payrun(
@@ -59,9 +62,7 @@ async fn get_payrun(
 ) -> Result<Response, AppError> {
     let repo = PostgresPayrollRepo::new();
     let service = PayrollService::new(repo);
-    let payrun: Payrun = service
-        .get_payrun(&user.tenant_pool, id)
-        .await?;
+    let payrun: Payrun = service.get_payrun(&user.tenant_pool, id).await?;
     Ok(ApiResponse::success(payrun, "Payrun fetched"))
 }
 
@@ -87,15 +88,16 @@ async fn list_payslips(
 
 async fn list_payslips_for_payrun(
     State(_state): State<Arc<AppState>>,
-	Path(id): Path<Uuid>,
+    Path(id): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
 ) -> Result<Response, AppError> {
     let repo = PostgresPayrollRepo::new();
     let service = PayrollService::new(repo);
-    let payrun: Vec<Payslip> = service.get_payslips_for_payrun(&user.tenant_pool, id).await?;
+    let payrun: Vec<Payslip> = service
+        .get_payslips_for_payrun(&user.tenant_pool, id)
+        .await?;
     Ok(ApiResponse::success(payrun, "Payslips fetched"))
 }
-
 
 async fn post_payrun(
     State(_state): State<Arc<AppState>>,
@@ -113,11 +115,13 @@ async fn post_payrun(
 async fn create_pay_component(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-	Json(payload): Json<CreatePayComponent>,
+    Json(payload): Json<CreatePayComponent>,
 ) -> Result<Response, AppError> {
     let repo = PostgresPayrollRepo::new();
     let service = PayrollService::new(repo);
-    let component = service.create_pay_component(&user.tenant_pool, &payload).await?;
+    let component = service
+        .create_pay_component(&user.tenant_pool, &payload)
+        .await?;
     Ok(ApiResponse::success(component, "Pay component created"))
 }
 

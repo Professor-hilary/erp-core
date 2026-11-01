@@ -12,10 +12,8 @@ use crate::{
     features::inventory::{repository::PostgresInventoryRepo, services::InventoryService},
     interface::api::{errors::AppError, json_errors::AppJson, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,
-    models::{
-        inventory::{
-            CreateItem, CreateItemCategory, CreateWarehouse, Item, ItemCategory, Warehouse,
-        },
+    models::inventory::{
+        CreateItem, CreateItemCategory, CreateWarehouse, Item, ItemCategory, Warehouse,
     },
     state::AppState,
 };

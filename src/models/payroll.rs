@@ -5,12 +5,11 @@ use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use uuid::Uuid;
 
-
 // =============================================================================
 // PAYROLL SNAPSHOT (read model for generate payslips — optional FromRow)
 // =============================================================================
 
-#[derive(Debug, Clone, FromRow, Serialize)]
+/*#[derive(Debug, Clone, FromRow, Serialize)]
 pub struct EmployeePayrollSnapshot {
     pub employee_uuid: Uuid,
     pub status: String,
@@ -26,7 +25,7 @@ pub struct EmployeePayrollSnapshot {
     pub currency_code: Option<String>,
     pub tax_id: Option<String>,
     pub social_security_number: Option<String>,
-}
+}*/
 
 // =============================================================================
 // PAY COMPONENTS
@@ -102,8 +101,8 @@ pub struct PostPayrun {
     pub social_security_id: Option<Uuid>,
     pub cash_account_uuid: Option<Uuid>,
     pub payroll_payable: Option<Uuid>,
-    /// Optional role_key → account_uuid overrides.
-    pub overrides: Option<std::collections::HashMap<String, Uuid>>,
+    // Optional role_key → account_uuid overrides.
+    // pub overrides: Option<std::collections::HashMap<String, Uuid>>,
 }
 
 #[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
@@ -161,7 +160,7 @@ pub struct CreatePayslipItem {
     pub amount: BigDecimal,
     pub component_uuid: Option<Uuid>,
 }
- 
+
 #[derive(Debug, Deserialize, Clone, FromRow)]
 pub struct EligibleEmployeeRow {
     pub employee_uuid: Uuid,

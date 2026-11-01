@@ -71,17 +71,17 @@ impl TestClient {
         Ok((status, v))
     }
 
-	pub async fn delete(&self, path: &str) -> Result<(StatusCode, Value)> {
-    let res = self
-        .http
-        .delete(format!("{BASE}{path}"))
-        .header("Authorization", format!("Bearer {}", self.access))
-        .send()
-        .await?;
-    let status = res.status();
-    let v: Value = res.json().await.unwrap_or(json!({}));
-    Ok((status, v))
-}
+    pub async fn delete(&self, path: &str) -> Result<(StatusCode, Value)> {
+        let res = self
+            .http
+            .delete(format!("{BASE}{path}"))
+            .header("Authorization", format!("Bearer {}", self.access))
+            .send()
+            .await?;
+        let status = res.status();
+        let v: Value = res.json().await.unwrap_or(json!({}));
+        Ok((status, v))
+    }
 }
 
 #[allow(dead_code)]

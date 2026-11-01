@@ -42,7 +42,8 @@ async fn create_company(
 
     Ok(ApiResponse::created_with_tokens(
         company,
-         access, refresh,
+        access,
+        refresh,
         "Company Created Successfully",
     ))
 }
@@ -120,13 +121,14 @@ async fn switch_company(
         .ok_or(AppError::NotFound("Company not found".into()))?;
 
     let service: AuthService<PostgresUserRepo> = AuthService::new(repo, state.clone());
-    let  (access, refresh) = service
+    let (access, refresh) = service
         .switch_company(user.user_id, company_id, state)
         .await?;
 
     Ok(ApiResponse::created_with_tokens(
         company,
-         access, refresh,
+        access,
+        refresh,
         "Company switched successfully",
     ))
 }

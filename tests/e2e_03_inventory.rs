@@ -4,11 +4,9 @@
 mod common;
 
 use common::client::extract_uuid;
-use common::fixtures::{
-    FG_CARGO_MULE, RMS, SA_CTRL_CORE, SA_PROP_GROUND,
-};
+use common::fixtures::{FG_CARGO_MULE, RMS, SA_CTRL_CORE, SA_PROP_GROUND};
 use common::{E2eResult, TestContext};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 fn ok(status: reqwest::StatusCode) -> bool {
     status.is_success() || status.as_u16() == 201
@@ -45,7 +43,11 @@ async fn inventory_master_data() -> E2eResult<()> {
     // 1. Warehouses
     // =========================================================================
     let warehouses = [
-        ("WH-RM", "Raw Materials Store", "Electronics & mechanical leaves"),
+        (
+            "WH-RM",
+            "Raw Materials Store",
+            "Electronics & mechanical leaves",
+        ),
         ("WH-FG", "Finished Goods Store", "Ship-ready robots"),
         ("WH-WIP", "WIP Floor", "Optional bin — not a stock item"),
     ];
@@ -204,11 +206,33 @@ async fn inventory_master_data() -> E2eResult<()> {
     let fg_cat = cat_uuids.get("FG").unwrap();
 
     for (sku, name, cost, price, wh) in [
-        (SA_CTRL_CORE, "Control core subassembly", "150000", "0", wh_rm),
-        (SA_PROP_GROUND, "Ground propulsion subassembly", "200000", "0", wh_rm),
-        (FG_CARGO_MULE, "CargoMule site delivery robot", "0", "1500000", wh_fg),
+        (
+            SA_CTRL_CORE,
+            "Control core subassembly",
+            "150000",
+            "0",
+            wh_rm,
+        ),
+        (
+            SA_PROP_GROUND,
+            "Ground propulsion subassembly",
+            "200000",
+            "0",
+            wh_rm,
+        ),
+        (
+            FG_CARGO_MULE,
+            "CargoMule site delivery robot",
+            "0",
+            "1500000",
+            wh_fg,
+        ),
     ] {
-        let cat = if sku.starts_with("FG") { fg_cat } else { sa_cat };
+        let cat = if sku.starts_with("FG") {
+            fg_cat
+        } else {
+            sa_cat
+        };
         let (s, body) = ctx
             .client
             .post(

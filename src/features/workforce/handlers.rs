@@ -52,7 +52,10 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/contracts/{id}", get(get_contract))
         .route("/contracts/{id}/amendments", post(add_amendment))
         // Leave
-        .route("/leave-types", post(create_leave_type).get(list_leave_types))
+        .route(
+            "/leave-types",
+            post(create_leave_type).get(list_leave_types),
+        )
         .route(
             "/leave-balances",
             post(upsert_leave_balance).get(list_leave_balances),
@@ -300,9 +303,7 @@ async fn get_statutory_profile(
     Path(id): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
 ) -> Result<Response, AppError> {
-    let row = svc()
-        .get_statutory_profile(&user.tenant_pool, id)
-        .await?;
+    let row = svc().get_statutory_profile(&user.tenant_pool, id).await?;
     Ok(ApiResponse::success(row, "Statutory profile fetched"))
 }
 
@@ -323,9 +324,7 @@ async fn get_payment_profile(
     Path(id): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
 ) -> Result<Response, AppError> {
-    let row = svc()
-        .get_payment_profile(&user.tenant_pool, id)
-        .await?;
+    let row = svc().get_payment_profile(&user.tenant_pool, id).await?;
     Ok(ApiResponse::success(row, "Payment profile fetched"))
 }
 
@@ -343,9 +342,7 @@ async fn list_employment_events(
     Path(id): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
 ) -> Result<Response, AppError> {
-    let rows = svc()
-        .list_employment_events(&user.tenant_pool, id)
-        .await?;
+    let rows = svc().list_employment_events(&user.tenant_pool, id).await?;
     Ok(ApiResponse::success(rows, "Employment events fetched"))
 }
 
@@ -387,9 +384,7 @@ async fn add_amendment(
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<CreateContractAmendment>,
 ) -> Result<Response, AppError> {
-    let row = svc()
-        .add_amendment(&user.tenant_pool, id, &payload)
-        .await?;
+    let row = svc().add_amendment(&user.tenant_pool, id, &payload).await?;
     Ok(ApiResponse::created(row, "Amendment recorded"))
 }
 
@@ -401,9 +396,7 @@ async fn create_leave_type(
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<CreateLeaveType>,
 ) -> Result<Response, AppError> {
-    let row = svc()
-        .create_leave_type(&user.tenant_pool, &payload)
-        .await?;
+    let row = svc().create_leave_type(&user.tenant_pool, &payload).await?;
     Ok(ApiResponse::created(row, "Leave type created"))
 }
 
@@ -522,11 +515,7 @@ async fn list_leave_encashments(
     Query(q): Query<EmployeeFilter>,
 ) -> Result<Response, AppError> {
     let rows = svc()
-        .list_leave_encashments(
-            &user.tenant_pool,
-            q.employee_uuid,
-            q.status.as_deref(),
-        )
+        .list_leave_encashments(&user.tenant_pool, q.employee_uuid, q.status.as_deref())
         .await?;
     Ok(ApiResponse::success(rows, "Leave encashments fetched"))
 }
@@ -539,9 +528,7 @@ async fn list_onboarding_tasks(
     Path(id): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
 ) -> Result<Response, AppError> {
-    let rows = svc()
-        .list_onboarding_tasks(&user.tenant_pool, id)
-        .await?;
+    let rows = svc().list_onboarding_tasks(&user.tenant_pool, id).await?;
     Ok(ApiResponse::success(rows, "Onboarding tasks fetched"))
 }
 
@@ -585,9 +572,7 @@ async fn list_offboarding_tasks(
     Path(id): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
 ) -> Result<Response, AppError> {
-    let rows = svc()
-        .list_offboarding_tasks(&user.tenant_pool, id)
-        .await?;
+    let rows = svc().list_offboarding_tasks(&user.tenant_pool, id).await?;
     Ok(ApiResponse::success(rows, "Offboarding tasks fetched"))
 }
 

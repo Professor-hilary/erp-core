@@ -41,13 +41,14 @@ async fn seed_all_stakeholders_and_institutions() -> E2eResult<()> {
         .await?;
     assert!(ok(s), "get employee: {s} {body}");
     let status = body["data"]["status"].as_str().unwrap_or("");
-    assert_eq!(status, "Active", "seeded employee should be Active for payroll");
+    assert_eq!(
+        status, "Active",
+        "seeded employee should be Active for payroll"
+    );
 
     let (s, body) = ctx
         .client
-        .get(&format!(
-            "/api/workforce/contracts?employee_uuid={sample}"
-        ))
+        .get(&format!("/api/workforce/contracts?employee_uuid={sample}"))
         .await?;
     assert!(ok(s), "list contracts: {s} {body}");
     let contracts = body["data"].as_array().cloned().unwrap_or_default();
@@ -58,7 +59,9 @@ async fn seed_all_stakeholders_and_institutions() -> E2eResult<()> {
 
     let (s, body) = ctx
         .client
-        .get(&format!("/api/workforce/employees/{sample}/payment-profile"))
+        .get(&format!(
+            "/api/workforce/employees/{sample}/payment-profile"
+        ))
         .await?;
     assert!(ok(s), "payment profile: {s} {body}");
 

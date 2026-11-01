@@ -1,7 +1,7 @@
 mod common;
 
 use common::{E2eResult, TestContext, client::extract_uuid, fixtures::RMS};
- // FG only if needed
+// FG only if needed
 use serde_json::json;
 
 fn ok(status: reqwest::StatusCode) -> bool {
@@ -66,7 +66,10 @@ async fn procure_to_pay() -> E2eResult<()> {
             "unit_price": rm.unit_price,
             "tax_rate": "18"
         }));
-        println!("✓ bill line {} serial={stock_item_id} qty={}", rm.sku, rm.qty_buy);
+        println!(
+            "✓ bill line {} serial={stock_item_id} qty={}",
+            rm.sku, rm.qty_buy
+        );
     }
     assert!(!bill_items.is_empty(), "no RM lines for purchase bill");
 
@@ -91,7 +94,7 @@ async fn procure_to_pay() -> E2eResult<()> {
         .map_err(|e| e.to_string())?;
     assert!(ok(s), "create purchase: {s} {body}");
 
-	// post credit
+    // post credit
     let bill_serial = body["data"]["serial_id"]
         .as_i64()
         .ok_or("bill serial_id missing")?;

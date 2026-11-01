@@ -2,11 +2,8 @@
 use crate::{
     features::inventory::repository::InventoryRepository,
     interface::api::errors::AppError,
-    models::{
-
-        inventory::{
-            CreateItem, CreateItemCategory, CreateWarehouse, Item, ItemCategory, Warehouse,
-        },
+    models::inventory::{
+        CreateItem, CreateItemCategory, CreateWarehouse, Item, ItemCategory, Warehouse,
     },
 };
 use sqlx::PgPool;
