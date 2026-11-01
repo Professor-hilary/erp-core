@@ -254,6 +254,30 @@ impl PayrollRepository for PostgresPayrollRepo {
     ) -> Result<Payrun, AppError> {
         let mut tx = pool.begin().await?;
 
+		let uncalculated_count: i64 = sqlx::query_scalar(
+		    r#"
+		    SELECT COUNT(*)
+		    FROM payroll.payslips
+		    WHERE payrun_uuid = $1
+		      AND (
+		          calculated_at IS NULL
+		          OR calculation_version IS NULL
+		      )
+		    "#,
+		)
+		.bind(payrun.uuid)
+		.fetch_one(&mut *tx)
+		.await?;
+
+		if uncalculated_count > 0 {
+		    return Err(AppError::Unprocessable(
+		        format!(
+		            "{} payslip(s) have not been calculated",
+		            uncalculated_count
+		        ),
+		    ));
+		}
+
         let payrun: Payrun = sqlx::query_as(
             r#"
 	        SELECT *
@@ -335,7 +359,65 @@ impl PayrollRepository for PostgresPayrollRepo {
         Ok(updated)
     }
 
-    async fn post_payrun(
+async fn post_payrun(
+    &self,
+    user_id: Uuid,
+    pool: &PgPool,
+    payload: &PostPayrun,
+) -> Result<(), AppError> {
+    let labor = payload.labor_expense_id.ok_or_else(|| {
+        AppError::Unprocessable("Payroll expense account is required".into())
+    })?;
+
+    let tax = payload.income_tax_id.ok_or_else(|| {
+        AppError::Unprocessable("PAYE payable account is required".into())
+    })?;
+
+    let employee_nssf = payload.employee_social_security_id.ok_or_else(|| {
+        AppError::Unprocessable("Employee NSSF payable account is required".into())
+    })?;
+
+    let employer_nssf = payload.employer_social_security_id.ok_or_else(|| {
+        AppError::Unprocessable("Employer NSSF payable account is required".into())
+    })?;
+
+    let employer_nssf_expense =
+        payload.employer_social_security_expense_id.ok_or_else(|| {
+            AppError::Unprocessable(
+                "Employer NSSF expense account is required".into(),
+            )
+        })?;
+
+    let payable = payload.payroll_payable.ok_or_else(|| {
+        AppError::Unprocessable("Payroll payable account is required".into())
+    })?;
+
+    let mut tx = pool.begin().await?;
+
+    sqlx::query(
+        r#"
+        SELECT payroll.post_payrun(
+            $1,$2,$3,$4,$5,$6,$7,$8
+        )
+        "#,
+    )
+    .bind(payload.payrun_serial_id)
+    .bind(labor)
+    .bind(tax)
+    .bind(employee_nssf)
+    .bind(employer_nssf)
+    .bind(employer_nssf_expense)
+    .bind(payable)
+    .bind(user_id)
+    .execute(&mut *tx)
+    .await?;
+
+    tx.commit().await?;
+
+    Ok(())
+}
+
+    /*async fn post_payrun(
         &self,
         user_id: Uuid,
         pool: &PgPool,
@@ -407,7 +489,7 @@ impl PayrollRepository for PostgresPayrollRepo {
         .await?;
 
         Ok(())
-    }
+    }*/
 
     async fn get_payrun(&self, pool: &PgPool, id: Uuid) -> Result<Payrun, AppError> {
         sqlx::query_as::<_, Payrun>("SELECT * FROM payroll.payruns WHERE uuid = $1")
@@ -445,7 +527,7 @@ impl PayrollRepository for PostgresPayrollRepo {
         .map_err(AppError::from)
     }
 
-    async fn create_pay_component(
+    /*async fn create_pay_component(
         &self,
         pool: &PgPool,
         payload: &CreatePayComponent,
@@ -475,7 +557,84 @@ impl PayrollRepository for PostgresPayrollRepo {
         .fetch_one(pool)
         .await
         .map_err(AppError::from)
+    }*/
+
+async fn create_pay_component(
+    &self,
+    pool: &PgPool,
+    payload: &CreatePayComponent,
+) -> Result<PayComponent, AppError> {
+    if payload.code.trim().is_empty() || payload.name.trim().is_empty() {
+        return Err(AppError::Unprocessable(
+            "Component code and name are required".into(),
+        ));
     }
+
+    if payload.default_rate.as_ref().is_some_and(|v| {
+        v < &BigDecimal::from(0)
+    }) {
+        return Err(AppError::Unprocessable(
+            "Component rate cannot be negative".into(),
+        ));
+    }
+
+    if payload.rounding_scale < 0 || payload.rounding_scale > 6 {
+        return Err(AppError::Unprocessable(
+            "Rounding scale must be between 0 and 6".into(),
+        ));
+    }
+
+    if payload.effective_from.zip(payload.effective_to)
+        .is_some_and(|(from, to)| to < from)
+    {
+        return Err(AppError::Unprocessable(
+            "Component effective end date cannot precede start date".into(),
+        ));
+    }
+
+    sqlx::query_as::<_, PayComponent>(
+        r#"
+        INSERT INTO payroll.pay_components (
+            code,
+            name,
+            component_kind,
+            calc_method,
+            default_rate,
+            is_taxable,
+            affects_social_security,
+            statutory_role,
+            gl_account_hint,
+            sequence_no,
+            rounding_scale,
+            effective_from,
+            effective_to
+        )
+        VALUES (
+            $1,$2,$3,$4,$5,
+            COALESCE($6, TRUE),
+            COALESCE($7, TRUE),
+            $8,$9,$10,$11,$12,$13
+        )
+        RETURNING *
+        "#,
+    )
+    .bind(payload.code.trim().to_uppercase())
+    .bind(payload.name.trim())
+    .bind(&payload.component_kind)
+    .bind(&payload.calc_method)
+    .bind(&payload.default_rate)
+    .bind(payload.is_taxable)
+    .bind(payload.affects_social_security)
+    .bind(&payload.statutory_role)
+    .bind(&payload.gl_account_hint)
+    .bind(payload.sequence_no)
+    .bind(payload.rounding_scale)
+    .bind(payload.effective_from)
+    .bind(payload.effective_to)
+    .fetch_one(pool)
+    .await
+    .map_err(AppError::from)
+}
 
     async fn list_pay_components(&self, pool: &PgPool) -> Result<Vec<PayComponent>, AppError> {
         sqlx::query_as::<_, PayComponent>(
@@ -485,6 +644,23 @@ impl PayrollRepository for PostgresPayrollRepo {
         .await
         .map_err(AppError::from)
     }
+
+	async fn list_pay_components(
+    	&self,
+    	pool: &PgPool,
+	) -> Result<Vec<PayComponent>, AppError> {
+    	sqlx::query_as::<_, PayComponent>(
+        	r#"
+        	SELECT *
+        	FROM payroll.pay_components
+        	WHERE is_active = TRUE
+        	ORDER BY sequence_no, code
+        	"#,
+    	)
+    	.fetch_all(pool)
+    	.await
+    	.map_err(AppError::from)
+	}			
 }
 /*
 fn money(value: &str) -> BigDecimal {

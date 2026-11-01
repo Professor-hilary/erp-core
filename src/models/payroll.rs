@@ -39,6 +39,10 @@ pub struct PayComponent {
     pub name: String,
     pub component_kind: String,
     pub calc_method: String,
+	pub sequence_no: i16,
+	pub rounding_scale: i16,
+	pub effective_from: Option<NaiveDate>,
+	pub effective_to: Option<NaiveDate>,
     pub default_rate: Option<BigDecimal>,
     pub is_taxable: Option<bool>,
     pub affects_social_security: Option<bool>,
@@ -54,10 +58,26 @@ pub struct CreatePayComponent {
     pub component_kind: String,
     pub calc_method: String,
     pub default_rate: Option<BigDecimal>,
+	#[serde(default = "default_component_sequence")]
+	pub sequence_no: i16,
+
+	#[serde(default = "default_rounding_scale")]
+	pub rounding_scale: i16,
+
+	pub effective_from: Option<NaiveDate>,
+	pub effective_to: Option<NaiveDate>,
     pub is_taxable: Option<bool>,
     pub affects_social_security: Option<bool>,
     pub statutory_role: Option<String>,
     pub gl_account_hint: Option<String>,
+}
+
+fn default_component_sequence() -> i16 {
+    100
+}
+
+fn default_rounding_scale() -> i16 {
+    2
 }
 
 // =============================================================================
@@ -92,7 +112,7 @@ pub struct CreatePayrun {
     pub payslips: Vec<CreatePayslip>,
 }
 
-#[derive(Debug, Deserialize)]
+/*#[derive(Debug, Deserialize)]
 pub struct PostPayrun {
     pub payrun_serial_id: i64,
     /// Legacy explicit accounts (optional once role mapping is live).
@@ -103,6 +123,17 @@ pub struct PostPayrun {
     pub payroll_payable: Option<Uuid>,
     // Optional role_key → account_uuid overrides.
     // pub overrides: Option<std::collections::HashMap<String, Uuid>>,
+}*/
+
+#[derive(Debug, Deserialize)]
+pub struct PostPayrun {
+    pub payrun_serial_id: i64,
+    pub labor_expense_id: Option<Uuid>,
+    pub income_tax_id: Option<Uuid>,
+    pub employee_social_security_id: Option<Uuid>,
+    pub employer_social_security_id: Option<Uuid>,
+    pub employer_social_security_expense_id: Option<Uuid>,
+    pub payroll_payable: Option<Uuid>,
 }
 
 #[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
@@ -120,6 +151,12 @@ pub struct Payslip {
     pub employer_social_security: Option<BigDecimal>,
     pub net_pay: Option<BigDecimal>,
     pub payment_method: Option<String>,
+	pub allowances_total: BigDecimal, 
+	pub taxable_earnings: BigDecimal,
+	pub employer_cost_total: BigDecimal, 
+	pub calculation_version: Option<String>, 
+	pub calculated_at: Option<DateTime<Utc>>, 
+	pub calculation_snapshot: Option<serde_json::Value>,
     pub bank_account: Option<String>,
     pub status: Option<String>,
     pub created_at: DateTime<Utc>,

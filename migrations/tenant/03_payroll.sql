@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS payroll.payruns (
     status varchar(20) DEFAULT 'Pending' CHECK (status IN ('Pending', 'Processed', 'Posted')),
     gl_transaction_uuid uuid,
     notes text,
+	posting_snapshot JSONB NOT NULL DEFAULT '{}'::jsonb,
 	processed_at timestamptz,
 	posted_at timestamptz,
     created_at timestamptz DEFAULT now(),
@@ -49,6 +50,10 @@ CREATE TABLE IF NOT EXISTS payroll.payslips (
     tax_deducted numeric(14, 2) DEFAULT 0,
     social_security numeric(14, 2) DEFAULT 0,
 	employer_social_security numeric(14,2) DEFAULT 0,
+	allowances_total NUMERIC(18,2) NOT NULL DEFAULT 0,
+	taxable_earnings NUMERIC(18,2) NOT NULL DEFAULT 0,
+	employer_cost_total NUMERIC(18,2) NOT NULL DEFAULT 0,
+	calculation_version VARCHAR(40),
     other_deductions numeric(14, 2) DEFAULT 0,
 	basic_pay numeric(14,2),
     net_pay numeric(14, 2) GENERATED ALWAYS AS (
@@ -57,6 +62,8 @@ CREATE TABLE IF NOT EXISTS payroll.payslips (
     payment_method varchar(30) DEFAULT 'Bank Transfer',
     bank_account varchar(50),
     status varchar(20) DEFAULT 'Pending' CHECK (status IN ('Pending', 'Paid')),
+	calculation_snapshot JSONB NOT NULL DEFAULT '{}'::jsonb
+	calculated_at TIMESTAMPTZ,
     created_at timestamptz DEFAULT now(),
     updated_at timestamptz DEFAULT now(),
     CONSTRAINT payslips_pkey PRIMARY KEY (uuid),
@@ -65,6 +72,8 @@ CREATE TABLE IF NOT EXISTS payroll.payslips (
         FOREIGN KEY (payrun_uuid) REFERENCES payroll.payruns(uuid) ON DELETE CASCADE,
     CONSTRAINT payslips_employee_uuid_fkey
         FOREIGN KEY (employee_uuid) REFERENCES hr.employees(uuid),
+	CONSTRAINT payslips_status_check
+	    CHECK (status IN ('Pending', 'Paid', 'Partially_Paid'))
 	CONSTRAINT payslips_nonnegative_amounts
 	    CHECK (
 	        gross_pay >= 0
@@ -79,44 +88,66 @@ CREATE TABLE IF NOT EXISTS payroll.payslips (
 -- ========================================
 -- TABLE: payslip_items
 -- ========================================
+CREATE TABLE IF NOT EXISTS payroll.pay_components (
+    uuid 			UUID PRIMARY KEY DEFAULT uuidv7(),
+    serial_id 		BIGINT GENERATED ALWAYS AS IDENTITY NOT NULL,
+    code 			VARCHAR(30) NOT NULL UNIQUE,
+    name 			VARCHAR(100) NOT NULL,
+
+    component_kind 	VARCHAR(20) NOT NULL CHECK (component_kind IN (
+            'EARNING','DEDUCTION','EMPLOYER_COST'
+        )),
+
+    calc_method 	VARCHAR(40) NOT NULL CHECK (calc_method IN (
+            'FIXED','PERCENT_OF_BASIC','PERCENT_OF_GROSS','PERCENT_OF_TAXABLE_EARNINGS',
+            'MANUAL','EXTERNAL'
+        )),
+
+    default_rate 	NUMERIC(18,8),
+
+    is_taxable 		BOOLEAN NOT NULL DEFAULT TRUE,
+    affects_social_security BOOLEAN NOT NULL DEFAULT TRUE,
+
+    statutory_role 	VARCHAR(40),
+    gl_account_hint VARCHAR(80),
+
+    sequence_no 	SMALLINT NOT NULL DEFAULT 100,
+    rounding_scale 	SMALLINT NOT NULL DEFAULT 2,
+
+    effective_from 	DATE,
+    effective_to 	DATE,
+
+    is_active 		BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at 		TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT pay_components_effective_dates_ck
+        CHECK (
+            effective_to IS NULL
+            OR effective_from IS NULL
+            OR effective_to >= effective_from
+        ),
+
+    CONSTRAINT pay_components_rounding_ck
+        CHECK (rounding_scale BETWEEN 0 AND 6),
+
+    CONSTRAINT pay_components_rate_ck
+        CHECK (default_rate IS NULL OR default_rate >= 0)
+);
+
 CREATE TABLE IF NOT EXISTS payroll.payslip_items (
     uuid uuid DEFAULT uuidv7() NOT NULL,
     serial_id bigint DEFAULT nextval('payroll.payslip_items_serial_id_seq') NOT NULL,
     payslip_uuid uuid NOT NULL,
     item_type varchar(20) CHECK (item_type IN ('Allowance', 'Deduction')),
     description varchar(100),
-	component_uuid uuid REFERENCES payroll.pay_components(uuid),
+    component_uuid uuid REFERENCES payroll.pay_components(uuid),
     amount numeric(14, 2) NOT NULL,
     created_at timestamptz DEFAULT now(),
     CONSTRAINT payslip_items_pkey PRIMARY KEY (uuid),
     CONSTRAINT payslip_items_serial_id_key UNIQUE (serial_id),
-	CONSTRAINT payslip_items_positive_amount CHECK (amount >= 0),
+    CONSTRAINT payslip_items_positive_amount CHECK (amount >= 0),
     CONSTRAINT payslip_items_payslip_uuid_fkey
         FOREIGN KEY (payslip_uuid) REFERENCES payroll.payslips(uuid) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS payroll.pay_components (
-  	uuid uuid PRIMARY KEY DEFAULT uuidv7(),
-	serial_id       bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
-  	code varchar(30) NOT NULL UNIQUE,
-  	name varchar(100) NOT NULL,
-  	affects_social_security BOOLEAN NOT NULL DEFAULT TRUE,
-	gl_account_hint VARCHAR(80),
-	component_kind varchar(20) NOT NULL
-    CHECK (component_kind IN ('EARNING','DEDUCTION','EMPLOYER_COST')),
-  	calc_method varchar(30) NOT NULL
-    CHECK (calc_method IN ('FIXED','PERCENT_OF_BASIC','PERCENT_OF_GROSS','MANUAL','EXTERNAL')),
-  	default_rate numeric(12,6),
-	rounding_scale SMALLINT NOT NULL DEFAULT 2;
-  	is_taxable boolean NOT NULL DEFAULT true,
-  	statutory_role varchar(40),
-	effective_from DATE,
-	effective_to DATE,
-	is_active boolean NOT NULL DEFAULT true,
-  	created_at timestamptz NOT NULL DEFAULT now(),
-	CONSTRAINT pay_components_effective_dates_ck
-    	CHECK (effective_to IS NULL OR effective_from IS NULL OR effective_to >= effective_from)
-    	NOT VALID
 );
 
 -- ---------------------------------------------------------------------------
@@ -215,6 +246,45 @@ CREATE TABLE IF NOT EXISTS payroll.statutory_contribution_rules (
     exemption_key VARCHAR(50)
 );
 
+CREATE TABLE IF NOT EXISTS payroll.employee_tax_periods (
+    uuid UUID PRIMARY KEY DEFAULT uuidv7(),
+    employee_uuid UUID NOT NULL REFERENCES hr.employees(uuid),
+    tax_year SMALLINT NOT NULL,
+    tax_month SMALLINT NOT NULL CHECK (tax_month BETWEEN 1 AND 12),
+
+    taxable_income NUMERIC(18,2) NOT NULL DEFAULT 0,
+    paye_due NUMERIC(18,2) NOT NULL DEFAULT 0,
+    paye_withheld NUMERIC(18,2) NOT NULL DEFAULT 0,
+
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    UNIQUE(employee_uuid, tax_year, tax_month)
+);
+
+CREATE TABLE IF NOT EXISTS payroll.employee_tax_period_entries (
+    uuid UUID PRIMARY KEY DEFAULT uuidv7(),
+
+    employee_tax_period_uuid UUID NOT NULL
+        REFERENCES payroll.employee_tax_periods(uuid),
+
+    payslip_uuid UUID NOT NULL
+        REFERENCES payroll.payslips(uuid),
+
+    taxable_income NUMERIC(18,2) NOT NULL,
+    paye_withheld NUMERIC(18,2) NOT NULL,
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    UNIQUE(payslip_uuid)
+);
+
+CREATE INDEX IF NOT EXISTS employee_tax_period_lookup_idx
+    ON payroll.employee_tax_periods(employee_uuid, tax_year, tax_month);
+
+CREATE INDEX IF NOT EXISTS pay_components_sequence_idx
+    ON payroll.pay_components(sequence_no, code)
+    WHERE is_active;
+
 -- Uganda resident PAYE rates effective 1 July 2026.
 -- The tax bands are monthly chargeable income bands.
 INSERT INTO payroll.statutory_rule_sets (
@@ -241,7 +311,7 @@ CROSS JOIN (
       (335000::numeric,  410000::numeric,       0::numeric,       0.20::numeric, 2::smallint),
       (410000::numeric,  485000::numeric,   15000::numeric,       0.25::numeric, 3::smallint),
       (485000::numeric, 10000000::numeric,  33750::numeric,       0.30::numeric, 4::smallint),
-      (10000000::numeric, NULL::numeric,   2887875::numeric,       0.40::numeric, 5::smallint)
+      (10000000::numeric, NULL::numeric,   2888250::numeric,       0.40::numeric, 5::smallint)
 ) AS b(lower_bound, upper_bound, base_tax, marginal_rate, sequence_no)
 WHERE r.jurisdiction_code = 'UG'
   AND r.rule_code = 'PAYE'
@@ -263,6 +333,7 @@ WHERE b.rule_set_uuid = r.uuid
   AND r.jurisdiction_code = 'UG'
   AND r.rule_code = 'PAYE'
   AND r.effective_from = DATE '2026-07-01'
+  AND b.lower_bound = 10000000
   AND b.upper_bound IS NULL;
 
 
@@ -329,14 +400,6 @@ ON CONFLICT (rule_set_uuid) DO NOTHING;
 -- ---------------------------------------------------------------------------
 -- 4. Calculation snapshots and immutable calculation lines.
 -- ---------------------------------------------------------------------------
-
-ALTER TABLE payroll.payslips
-    ADD COLUMN IF NOT EXISTS taxable_earnings NUMERIC(18,2) NOT NULL DEFAULT 0,
-    ADD COLUMN IF NOT EXISTS employer_cost_total NUMERIC(18,2) NOT NULL DEFAULT 0,
-    ADD COLUMN IF NOT EXISTS calculation_version VARCHAR(40),
-    ADD COLUMN IF NOT EXISTS calculated_at TIMESTAMPTZ,
-    ADD COLUMN IF NOT EXISTS calculation_snapshot JSONB NOT NULL DEFAULT '{}'::jsonb;
-
 CREATE TABLE IF NOT EXISTS payroll.payslip_calculation_items (
     uuid UUID PRIMARY KEY DEFAULT uuidv7(),
     payslip_uuid UUID NOT NULL
@@ -472,6 +535,164 @@ LEFT JOIN hr.employee_statutory_profiles sp ON sp.employee_uuid = e.uuid;
 -- FUNCTION: post_payrun
 -- ========================================
 CREATE OR REPLACE FUNCTION payroll.post_payrun(
+    p_payrun_serial_id BIGINT,
+    p_labor_expense_id UUID,
+    p_tax_payable_id UUID,
+    p_employee_nssf_payable_id UUID,
+    p_employer_nssf_payable_id UUID,
+    p_employer_nssf_expense_id UUID,
+    p_payroll_payable_id UUID,
+    p_user_uuid UUID
+)
+RETURNS UUID
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_payrun payroll.payruns%ROWTYPE;
+
+    v_gross NUMERIC(18,2);
+    v_tax NUMERIC(18,2);
+    v_employee_nssf NUMERIC(18,2);
+    v_employer_nssf NUMERIC(18,2);
+    v_net NUMERIC(18,2);
+
+    v_transaction_serial BIGINT;
+    v_transaction_uuid UUID;
+
+    v_lines JSONB;
+BEGIN
+    SELECT *
+    INTO v_payrun
+    FROM payroll.payruns
+    WHERE serial_id = p_payrun_serial_id
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Payrun not found: %', p_payrun_serial_id;
+    END IF;
+
+    IF v_payrun.status = 'Posted' THEN
+        IF v_payrun.gl_transaction_uuid IS NOT NULL THEN
+            RETURN v_payrun.gl_transaction_uuid;
+        END IF;
+
+        RAISE EXCEPTION 'Payrun already marked Posted without GL transaction';
+    END IF;
+
+    IF v_payrun.status <> 'Processed' THEN
+        RAISE EXCEPTION 'Payrun must be Processed before posting';
+    END IF;
+
+    SELECT
+        COALESCE(SUM(gross_pay), 0),
+        COALESCE(SUM(tax_deducted), 0),
+        COALESCE(SUM(social_security), 0),
+        COALESCE(SUM(employer_social_security), 0),
+        COALESCE(SUM(net_pay), 0)
+    INTO
+        v_gross,
+        v_tax,
+        v_employee_nssf,
+        v_employer_nssf,
+        v_net
+    FROM payroll.payslips
+    WHERE payrun_uuid = v_payrun.uuid;
+
+    IF v_gross <= 0 THEN
+        RAISE EXCEPTION 'Payroll gross total must be positive';
+    END IF;
+
+    IF v_net < 0 THEN
+        RAISE EXCEPTION 'Payroll net total cannot be negative';
+    END IF;
+
+    IF v_gross <> (
+        v_net + v_tax + v_employee_nssf
+        + COALESCE((
+            SELECT SUM(other_deductions)
+            FROM payroll.payslips
+            WHERE payrun_uuid = v_payrun.uuid
+        ), 0)
+    ) THEN
+        RAISE EXCEPTION 'Payroll totals do not reconcile';
+    END IF;
+
+    v_lines := jsonb_build_array(
+        jsonb_build_object(
+            'account_ref', p_labor_expense_id,
+            'debit', v_gross,
+            'credit', 0,
+            'memo', 'Gross payroll expense'
+        ),
+        jsonb_build_object(
+            'account_ref', p_employer_nssf_expense_id,
+            'debit', v_employer_nssf,
+            'credit', 0,
+            'memo', 'Employer NSSF expense'
+        ),
+        jsonb_build_object(
+            'account_ref', p_payroll_payable_id,
+            'debit', 0,
+            'credit', v_net,
+            'memo', 'Net wages payable'
+        ),
+        jsonb_build_object(
+            'account_ref', p_tax_payable_id,
+            'debit', 0,
+            'credit', v_tax,
+            'memo', 'PAYE payable'
+        ),
+        jsonb_build_object(
+            'account_ref', p_employee_nssf_payable_id,
+            'debit', 0,
+            'credit', v_employee_nssf,
+            'memo', 'Employee NSSF payable'
+        ),
+        jsonb_build_object(
+            'account_ref', p_employer_nssf_payable_id,
+            'debit', 0,
+            'credit', v_employer_nssf,
+            'memo', 'Employer NSSF payable'
+        )
+    );
+
+    v_transaction_serial := accounting.post_transaction(
+        format(
+            'Payroll %s to %s',
+            v_payrun.pay_period_start,
+            v_payrun.pay_period_end
+        ),
+        format('Payroll accrual - payrun %s', v_payrun.serial_id),
+        p_user_uuid,
+        'payroll',
+        v_payrun.payment_date,
+        v_lines
+    );
+
+    SELECT uuid
+    INTO v_transaction_uuid
+    FROM accounting.transactions
+    WHERE serial_id = v_transaction_serial;
+
+    IF v_transaction_uuid IS NULL THEN
+        RAISE EXCEPTION 'Unable to retrieve posted GL transaction';
+    END IF;
+
+    UPDATE payroll.payruns
+    SET
+        status = 'Posted',
+        gl_transaction_uuid = v_transaction_uuid,
+        posted_at = NOW(),
+        updated_at = NOW()
+    WHERE uuid = v_payrun.uuid;
+
+    -- Accrual is NOT settlement.
+    -- Payslips remain Pending until employee payment is confirmed.
+
+    RETURN v_transaction_uuid;
+END;
+$$;
+/*CREATE OR REPLACE FUNCTION payroll.post_payrun(
     p_payrun_serial_id bigint,
     p_payrun_labor_expense_id uuid,
     p_payrun_tax_id uuid,
@@ -608,7 +829,7 @@ BEGIN
     SET status = 'Paid', updated_at = now()
     WHERE payrun_uuid = v_payrun.uuid AND status = 'Pending';
 END;
-$$;
+$$;*/
 
 -- ========================================
 -- INDEXES

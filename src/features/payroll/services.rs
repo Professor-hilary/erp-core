@@ -92,8 +92,24 @@ impl<R: PayrollRepository> PayrollService<R> {
                     "No payroll-eligible employees for this period".into(),
                 ));
             }
+	
+			eligible
+			    .into_iter()
+			    .map(|employee| CreatePayslip {
+			        employee_uuid: employee.employee_uuid,
+			        gross_pay: BigDecimal::from(0),
+			        basic_pay: Some(BigDecimal::from(0)),
+			        tax_deducted: Some(BigDecimal::from(0)),
+			        social_security: Some(BigDecimal::from(0)),
+			        employer_social_security: Some(BigDecimal::from(0)),
+			        other_deductions: Some(BigDecimal::from(0)),
+			        payment_method: employee.payment_method,
+			        bank_account: employee.bank_account_number,
+			        benefits: None,
+			    })
+			    .collect()
 
-            eligible
+			/* eligible
                 .into_iter()
                 .map(|employee| {
                     let basic = employee
@@ -114,7 +130,7 @@ impl<R: PayrollRepository> PayrollService<R> {
                         benefits: None,
                     }
                 })
-                .collect()
+                .collect()*/
         } else {
             payload.payslips.clone()
         };
