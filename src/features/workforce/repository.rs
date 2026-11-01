@@ -619,13 +619,25 @@ impl HrRepository for PostgresHrRepo {
         id: Uuid,
         _user_id: Uuid,
     ) -> Result<(), AppError> {
-        let res = sqlx::query("DELETE FROM hr.employees WHERE uuid = $1")
-            .bind(id)
-            .execute(pool)
-            .await?;
-        if res.rows_affected() == 0 {
-            return Err(AppError::NotFound("Employee not found".into()));
+        let result = sqlx::query(
+            r#"
+	        UPDATE hr.employees
+	        SET status = 'Alumni',
+	            updated_at = NOW()
+	        WHERE uuid = $1
+	          AND status <> 'Alumni'
+	        "#,
+        )
+        .bind(id)
+        .execute(pool)
+        .await?;
+
+        if result.rows_affected() == 0 {
+            return Err(AppError::NotFound(
+                "Employee not found or already archived".into(),
+            ));
         }
+
         Ok(())
     }
 
@@ -952,14 +964,43 @@ impl HrRepository for PostgresHrRepo {
         pool: &PgPool,
         payload: &CreateLeaveRequest,
     ) -> Result<LeaveRequest, AppError> {
+        if payload.start_date > payload.end_date {
+            return Err(AppError::Unprocessable(
+                "Leave end date cannot precede start date".into(),
+            ));
+        }
+
+        if payload.days <= bigdecimal::BigDecimal::from(0) {
+            return Err(AppError::Unprocessable(
+                "Leave days must be greater than zero".into(),
+            ));
+        }
+
+        if payload.start_date.year() != payload.end_date.year() {
+            return Err(AppError::Unprocessable(
+                "A leave request cannot span multiple calendar years".into(),
+            ));
+        }
+
         sqlx::query_as::<_, LeaveRequest>(
             r#"
-            INSERT INTO hr.leave_requests (
-                employee_uuid, leave_type_uuid, start_date, end_date, days, reason
-            )
-            VALUES ($1, $2, $3, $4, $5, $6)
-            RETURNING *
-            "#,
+	        INSERT INTO hr.leave_requests (
+	            employee_uuid,
+	            leave_type_uuid,
+	            start_date,
+	            end_date,
+	            days,
+	            reason
+	        )
+	        SELECT $1, $2, $3, $4, $5, $6
+	        WHERE EXISTS (
+	            SELECT 1
+	            FROM hr.employees
+	            WHERE uuid = $1
+	              AND status = 'Active'
+	        )
+	        RETURNING *
+	        "#,
         )
         .bind(payload.employee_uuid)
         .bind(payload.leave_type_uuid)
@@ -967,9 +1008,9 @@ impl HrRepository for PostgresHrRepo {
         .bind(payload.end_date)
         .bind(&payload.days)
         .bind(&payload.reason)
-        .fetch_one(pool)
-        .await
-        .map_err(AppError::from)
+        .fetch_optional(pool)
+        .await?
+        .ok_or_else(|| AppError::Unprocessable("Employee does not exist or is not active".into()))
     }
 
     async fn list_leave_requests(
@@ -1001,30 +1042,43 @@ impl HrRepository for PostgresHrRepo {
         request_id: Uuid,
         payload: &DecideLeaveRequest,
     ) -> Result<LeaveRequest, AppError> {
+        if !["Approved", "Rejected", "Cancelled"].contains(&payload.status.as_str()) {
+            return Err(AppError::Unprocessable(
+                "Decision must be Approved, Rejected or Cancelled".into(),
+            ));
+        }
+
         let mut tx = pool.begin().await?;
+
         let req: LeaveRequest = sqlx::query_as(
             r#"
-            UPDATE hr.leave_requests
-            SET status = $2, approver_uuid = $3, decided_at = now()
-            WHERE uuid = $1 AND status = 'Pending'
-            RETURNING *
-            "#,
+	        SELECT *
+	        FROM hr.leave_requests
+	        WHERE uuid = $1
+	          AND status = 'Pending'
+	        FOR UPDATE
+	        "#,
         )
         .bind(request_id)
-        .bind(&payload.status)
-        .bind(payload.approver_uuid)
         .fetch_optional(&mut *tx)
         .await?
-        .ok_or_else(|| AppError::Unprocessable("Leave request not pending or missing".into()))?;
+        .ok_or_else(|| {
+            AppError::Unprocessable("Leave request is missing or no longer pending".into())
+        })?;
 
         if payload.status == "Approved" {
             let year = req.start_date.year();
-            sqlx::query(
+
+            let result = sqlx::query(
                 r#"
-                UPDATE hr.leave_balances
-                SET taken = taken + $4, updated_at = now()
-                WHERE employee_uuid = $1 AND leave_type_uuid = $2 AND year = $3
-                "#,
+	            UPDATE hr.leave_balances
+	            SET taken = taken + $4,
+	                updated_at = NOW()
+	            WHERE employee_uuid = $1
+	              AND leave_type_uuid = $2
+	              AND year = $3
+	              AND balance >= $4
+	            "#,
             )
             .bind(req.employee_uuid)
             .bind(req.leave_type_uuid)
@@ -1032,9 +1086,33 @@ impl HrRepository for PostgresHrRepo {
             .bind(&req.days)
             .execute(&mut *tx)
             .await?;
+
+            if result.rows_affected() == 0 {
+                return Err(AppError::Unprocessable(
+                    "Insufficient leave balance or leave balance not configured".into(),
+                ));
+            }
         }
+
+        let updated = sqlx::query_as::<_, LeaveRequest>(
+            r#"
+	        UPDATE hr.leave_requests
+	        SET status = $2,
+	            approver_uuid = $3,
+	            decided_at = NOW()
+	        WHERE uuid = $1
+	        RETURNING *
+	        "#,
+        )
+        .bind(request_id)
+        .bind(&payload.status)
+        .bind(payload.approver_uuid)
+        .fetch_one(&mut *tx)
+        .await?;
+
         tx.commit().await?;
-        Ok(req)
+
+        Ok(updated)
     }
 
     async fn create_leave_schedule(
@@ -1042,15 +1120,48 @@ impl HrRepository for PostgresHrRepo {
         pool: &PgPool,
         payload: &CreateLeaveSchedule,
     ) -> Result<LeaveSchedule, AppError> {
+        if payload.planned_start > payload.planned_end {
+            return Err(AppError::Unprocessable(
+                "Planned end date cannot precede planned start date".into(),
+            ));
+        }
+
+        if payload.planned_start.year() != payload.year
+            || payload.planned_end.year() != payload.year
+        {
+            return Err(AppError::Unprocessable(
+                "Schedule dates must belong to the specified leave year".into(),
+            ));
+        }
+
+        if payload.days_planned <= bigdecimal::BigDecimal::from(0) {
+            return Err(AppError::Unprocessable(
+                "Planned leave days must be greater than zero".into(),
+            ));
+        }
+
         sqlx::query_as::<_, LeaveSchedule>(
             r#"
-            INSERT INTO hr.leave_schedules (
-                employee_uuid, leave_type_uuid, year,
-                planned_start, planned_end, days_planned, source, notes
-            )
-            VALUES ($1, $2, $3, $4, $5, $6, COALESCE($7, 'HR'), $8)
-            RETURNING *
-            "#,
+	        INSERT INTO hr.leave_schedules (
+	            employee_uuid,
+	            leave_type_uuid,
+	            year,
+	            planned_start,
+	            planned_end,
+	            days_planned,
+	            source,
+	            notes
+	        )
+	        SELECT $1, $2, $3, $4, $5, $6,
+	               COALESCE($7, 'HR'), $8
+	        WHERE EXISTS (
+	            SELECT 1
+	            FROM hr.employees
+	            WHERE uuid = $1
+	              AND status = 'Active'
+	        )
+	        RETURNING *
+	        "#,
         )
         .bind(payload.employee_uuid)
         .bind(payload.leave_type_uuid)
@@ -1060,9 +1171,9 @@ impl HrRepository for PostgresHrRepo {
         .bind(&payload.days_planned)
         .bind(&payload.source)
         .bind(&payload.notes)
-        .fetch_one(pool)
-        .await
-        .map_err(AppError::from)
+        .fetch_optional(pool)
+        .await?
+        .ok_or_else(|| AppError::Unprocessable("Employee does not exist or is not active".into()))
     }
 
     async fn list_leave_schedules(
@@ -1090,36 +1201,79 @@ impl HrRepository for PostgresHrRepo {
         payload: &UpdateLeaveScheduleStatus,
     ) -> Result<LeaveSchedule, AppError> {
         let mut tx = pool.begin().await?;
-        let sched: LeaveSchedule = sqlx::query_as(
+
+        let schedule: LeaveSchedule = sqlx::query_as(
             r#"
-            UPDATE hr.leave_schedules SET status = $2
-            WHERE uuid = $1
-            RETURNING *
-            "#,
+	        SELECT *
+	        FROM hr.leave_schedules
+	        WHERE uuid = $1
+	        FOR UPDATE
+	        "#,
         )
         .bind(schedule_id)
-        .bind(&payload.status)
         .fetch_optional(&mut *tx)
         .await?
         .ok_or_else(|| AppError::NotFound("Leave schedule not found".into()))?;
 
+        let valid_transition = matches!(
+            (schedule.status.as_str(), payload.status.as_str()),
+            ("Planned", "Taken")
+                | ("Planned", "Skipped")
+                | ("Planned", "Cancelled")
+                | ("Planned", "Encash_Pending")
+                | ("Encash_Pending", "Encashed")
+                | ("Encash_Pending", "Cancelled")
+        );
+
+        if !valid_transition {
+            return Err(AppError::Unprocessable(format!(
+                "Invalid leave schedule transition: {} -> {}",
+                schedule.status, payload.status
+            )));
+        }
+
         if payload.status == "Taken" {
-            sqlx::query(
+            let result = sqlx::query(
                 r#"
-                UPDATE hr.leave_balances
-                SET taken = taken + $4, updated_at = now()
-                WHERE employee_uuid = $1 AND leave_type_uuid = $2 AND year = $3
-                "#,
+	            UPDATE hr.leave_balances
+	            SET taken = taken + $4,
+	                updated_at = NOW()
+	            WHERE employee_uuid = $1
+	              AND leave_type_uuid = $2
+	              AND year = $3
+	              AND balance >= $4
+	            "#,
             )
-            .bind(sched.employee_uuid)
-            .bind(sched.leave_type_uuid)
-            .bind(sched.year)
-            .bind(&sched.days_planned)
+            .bind(schedule.employee_uuid)
+            .bind(schedule.leave_type_uuid)
+            .bind(schedule.year)
+            .bind(&schedule.days_planned)
             .execute(&mut *tx)
             .await?;
+
+            if result.rows_affected() == 0 {
+                return Err(AppError::Unprocessable(
+                    "Insufficient leave balance or leave balance not configured".into(),
+                ));
+            }
         }
+
+        let updated = sqlx::query_as::<_, LeaveSchedule>(
+            r#"
+	        UPDATE hr.leave_schedules
+	        SET status = $2
+	        WHERE uuid = $1
+	        RETURNING *
+	        "#,
+        )
+        .bind(schedule_id)
+        .bind(&payload.status)
+        .fetch_one(&mut *tx)
+        .await?;
+
         tx.commit().await?;
-        Ok(sched)
+
+        Ok(updated)
     }
 
     async fn create_leave_encashment(

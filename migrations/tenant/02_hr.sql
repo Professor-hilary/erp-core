@@ -76,7 +76,11 @@ CREATE TABLE IF NOT EXISTS hr.employee_statutory_profiles (
     national_id             varchar(50),
     tax_id                  varchar(50),
     social_security_number  varchar(50),
+	tax_residency 			VARCHAR(20) NOT NULL DEFAULT 'RESIDENT',
+	nssf_covered 			BOOLEAN NOT NULL DEFAULT TRUE,
+	nssf_exempt 			BOOLEAN NOT NULL DEFAULT FALSE,
     other_ids               jsonb NOT NULL DEFAULT '{}',
+	date_of_birth 			DATE;
     updated_at              timestamptz NOT NULL DEFAULT now()
 );
 
@@ -201,8 +205,11 @@ CREATE TABLE IF NOT EXISTS hr.leave_balances (
     year                integer NOT NULL,
     entitled            numeric(8,2) NOT NULL DEFAULT 0,
     taken               numeric(8,2) NOT NULL DEFAULT 0,
-    balance             numeric(8,2) GENERATED ALWAYS AS (entitled - taken) STORED,
+	encashed 			NUMERIC(8,2) NOT NULL DEFAULT 0,
+	balance 			NUMERIC(8,2) GENERATED ALWAYS AS (entitled - taken - encashed) STORED
     updated_at          timestamptz NOT NULL DEFAULT now(),
+	CONSTRAINT leave_balances_nonnegative CHECK (entitled >= 0 AND taken >= 0 AND encashed >= 0),
+	CONSTRAINT leave_balances_not_overused CHECK (taken + encashed <= entitled),
     UNIQUE (employee_uuid, leave_type_uuid, year)
 );
 
@@ -219,39 +226,45 @@ CREATE TABLE IF NOT EXISTS hr.leave_requests (
     reason              text,
     approver_uuid       uuid REFERENCES hr.employees(uuid),
     decided_at          timestamptz,
-    created_at          timestamptz NOT NULL DEFAULT now()
+    created_at          timestamptz NOT NULL DEFAULT now(),
+	CONSTRAINT leave_requests_positive_days CHECK (days > 0),
+	CONSTRAINT leave_requests_valid_dates CHECK (end_date >= start_date)
 );
 
 CREATE TABLE IF NOT EXISTS hr.leave_schedules (
-  uuid 				uuid PRIMARY KEY DEFAULT uuidv7(),
-  employee_uuid 	uuid NOT NULL REFERENCES hr.employees(uuid) ON DELETE CASCADE,
-  leave_type_uuid 	uuid NOT NULL REFERENCES hr.leave_types(uuid),
-  year 				int NOT NULL,
-  planned_start 	date NOT NULL,
-  planned_end 		date NOT NULL,
-  days_planned 		numeric(6,2) NOT NULL,
-  status 			varchar(20) NOT NULL DEFAULT 'Planned' CHECK (status IN (
+  	uuid 			uuid PRIMARY KEY DEFAULT uuidv7(),
+  	employee_uuid 	uuid NOT NULL REFERENCES hr.employees(uuid) ON DELETE CASCADE,
+  	leave_type_uuid uuid NOT NULL REFERENCES hr.leave_types(uuid),
+  	year 			int NOT NULL,
+  	planned_start 	date NOT NULL,
+  	planned_end 	date NOT NULL,
+  	days_planned 	numeric(6,2) NOT NULL,
+  	status 			varchar(20) NOT NULL DEFAULT 'Planned' CHECK (status IN (
 						'Planned','Taken','Skipped','Encash_Pending','Encashed','Cancelled'
 					)),
-  source 			varchar(20) DEFAULT 'HR',
-  notes 			text,
-  created_at 		timestamptz NOT NULL DEFAULT now()
+  	source 			varchar(20) DEFAULT 'HR',
+  	notes 			text,
+  	created_at 		timestamptz NOT NULL DEFAULT now(),
+	CONSTRAINT leave_schedules_valid_dates CHECK (planned_end >= planned_start),
+	CONSTRAINT leave_schedules_positive_days CHECK (days_planned > 0)
 );
 
 CREATE TABLE IF NOT EXISTS hr.leave_encashments (
-  uuid 				uuid PRIMARY KEY DEFAULT uuidv7(),
-  employee_uuid 	uuid NOT NULL REFERENCES hr.employees(uuid) ON DELETE CASCADE,
-  leave_type_uuid 	uuid NOT NULL REFERENCES hr.leave_types(uuid),
-  year 				int NOT NULL,
-  days 				numeric(6,2) NOT NULL,
-  rate_per_day 		numeric(14,4) NOT NULL,
-  amount 			numeric(14,2) NOT NULL,
-  schedule_uuid 	uuid REFERENCES hr.leave_schedules(uuid),
-  payrun_uuid 		uuid,
-  status 			varchar(20) NOT NULL DEFAULT 'Pending' CHECK (status IN (
+	uuid			uuid PRIMARY KEY DEFAULT uuidv7(),
+  	employee_uuid 	uuid NOT NULL REFERENCES hr.employees(uuid) ON DELETE CASCADE,
+  	leave_type_uuid uuid NOT NULL REFERENCES hr.leave_types(uuid),
+  	year 			int NOT NULL,
+  	days 			numeric(6,2) NOT NULL,
+  	rate_per_day 	numeric(14,4) NOT NULL,
+  	amount 			numeric(14,2) NOT NULL,
+  	schedule_uuid 	uuid REFERENCES hr.leave_schedules(uuid),
+  	payrun_uuid 	uuid,
+ 	status 			varchar(20) NOT NULL DEFAULT 'Pending' CHECK (status IN (
 						'Pending','Included_In_Payrun','Paid','Cancelled'
 					)),
-  created_at timestamptz NOT NULL DEFAULT now()
+  	created_at 		timestamptz NOT NULL DEFAULT now(),
+	CONSTRAINT leave_encashments_positive_values
+		CHECK (days > 0 AND rate_per_day >= 0 AND amount >= 0)
 );
 
 -- ---------------------------------------------------------------------------
@@ -299,6 +312,12 @@ CREATE INDEX IF NOT EXISTS idx_onboarding_pending
     ON hr.onboarding_tasks (employee_uuid) WHERE is_done = false;
 CREATE INDEX IF NOT EXISTS idx_offboarding_pending
     ON hr.offboarding_tasks (employee_uuid) WHERE is_done = false;
+CREATE INDEX IF NOT EXISTS idx_leave_requests_employee_status
+    ON hr.leave_requests(employee_uuid, status);
+CREATE INDEX IF NOT EXISTS idx_leave_schedules_employee_year
+    ON hr.leave_schedules(employee_uuid, year);
+CREATE INDEX IF NOT EXISTS idx_leave_encashments_employee_status
+    ON hr.leave_encashments(employee_uuid, status);
 
 -- Log event helper
 CREATE OR REPLACE FUNCTION hr.log_event(
