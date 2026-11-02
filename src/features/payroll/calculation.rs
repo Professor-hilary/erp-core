@@ -260,7 +260,7 @@ fn calculate_component(
     basic: &BigDecimal,
     gross_before: &BigDecimal,
     taxable_before: &BigDecimal,
-) -> Result<(BigDecimal, BigDecimal), PayrollCalculationError> {
+) -> Result<(BigDecimal, BigDecimal, BigDecimal), PayrollCalculationError> {
     if component.amount < zero() {
         return Err(
             PayrollCalculationError::InvalidComponentAmount(
@@ -332,10 +332,9 @@ fn calculate_component(
         }
     };
 
-    Ok((
-        basis,
-        round_money(&amount, component.rounding_scale),
-    ))
+    let unrounded = amount;
+    let rounded = round_money(&unrounded, component.rounding_scale);
+    Ok((basis, unrounded, rounded))
 }
 
 fn age_at(date_of_birth: NaiveDate, date: NaiveDate) -> i32 {
@@ -435,7 +434,7 @@ pub fn calculate_payroll(
             );
         }
 
-        let (basis, amount) = calculate_component(
+        let (basis, unrounded, amount) = calculate_component(
             component,
             &basic,
             &gross,
@@ -472,7 +471,7 @@ pub fn calculate_payroll(
             method: component.method,
             basis_amount: basis,
             rate: component.rate.clone(),
-            unrounded_amount: amount.clone(),
+            unrounded_amount: unrounded,
             amount,
             taxable: component.taxable,
             included_in_nssf_base: component.included_in_nssf_base,

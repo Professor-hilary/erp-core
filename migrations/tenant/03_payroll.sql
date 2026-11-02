@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXISTS payroll.payslips (
     ) STORED,
     payment_method varchar(30) DEFAULT 'Bank Transfer',
     bank_account varchar(50),
-    status varchar(20) DEFAULT 'Pending' CHECK (status IN ('Pending', 'Paid')),
+    status varchar(20) DEFAULT 'Pending',
 	calculation_snapshot JSONB NOT NULL DEFAULT '{}'::jsonb,
 	calculated_at TIMESTAMPTZ,
     created_at timestamptz DEFAULT now(),
@@ -359,7 +359,7 @@ CROSS JOIN (
       (0::numeric,       335000::numeric,       0::numeric,       0.10::numeric, 1::smallint),
       (335000::numeric,  410000::numeric,   33500::numeric,       0.20::numeric, 2::smallint),
       (410000::numeric, 10000000::numeric,  48500::numeric,       0.30::numeric, 3::smallint),
-      (10000000::numeric, NULL::numeric,  2915500::numeric,       0.40::numeric, 4::smallint)
+      (10000000::numeric, NULL::numeric,  2925500::numeric,       0.40::numeric, 4::smallint)
 ) AS b(lower_bound, upper_bound, base_tax, marginal_rate, sequence_no)
 WHERE r.jurisdiction_code = 'UG'
   AND r.rule_code = 'PAYE'
@@ -533,6 +533,8 @@ LEFT JOIN hr.employee_statutory_profiles sp ON sp.employee_uuid = e.uuid;
 
 -- ========================================
 -- FUNCTION: post_payrun
+-- Accrues payroll: expenses (gross labour + employer costs) and liabilities
+-- (net payable, PAYE, EE NSSF, ER NSSF, other deductions).
 -- ========================================
 CREATE OR REPLACE FUNCTION payroll.post_payrun(
     p_payrun_serial_id BIGINT,
@@ -542,7 +544,9 @@ CREATE OR REPLACE FUNCTION payroll.post_payrun(
     p_employer_nssf_payable_id UUID,
     p_employer_nssf_expense_id UUID,
     p_payroll_payable_id UUID,
-    p_user_uuid UUID
+    p_user_uuid UUID,
+    p_other_deductions_payable_id UUID DEFAULT NULL,
+    p_other_employer_cost_expense_id UUID DEFAULT NULL
 )
 RETURNS UUID
 LANGUAGE plpgsql
@@ -554,12 +558,15 @@ DECLARE
     v_tax NUMERIC(18,2);
     v_employee_nssf NUMERIC(18,2);
     v_employer_nssf NUMERIC(18,2);
+    v_other_deductions NUMERIC(18,2);
+    v_employer_cost_total NUMERIC(18,2);
+    v_other_employer_costs NUMERIC(18,2);
     v_net NUMERIC(18,2);
 
     v_transaction_serial BIGINT;
     v_transaction_uuid UUID;
 
-    v_lines JSONB;
+    v_lines JSONB := '[]'::jsonb;
 BEGIN
     SELECT *
     INTO v_payrun
@@ -575,7 +582,6 @@ BEGIN
         IF v_payrun.gl_transaction_uuid IS NOT NULL THEN
             RETURN v_payrun.gl_transaction_uuid;
         END IF;
-
         RAISE EXCEPTION 'Payrun already marked Posted without GL transaction';
     END IF;
 
@@ -588,15 +594,25 @@ BEGIN
         COALESCE(SUM(tax_deducted), 0),
         COALESCE(SUM(social_security), 0),
         COALESCE(SUM(employer_social_security), 0),
+        COALESCE(SUM(other_deductions), 0),
+        COALESCE(SUM(employer_cost_total), 0),
         COALESCE(SUM(net_pay), 0)
     INTO
         v_gross,
         v_tax,
         v_employee_nssf,
         v_employer_nssf,
+        v_other_deductions,
+        v_employer_cost_total,
         v_net
     FROM payroll.payslips
     WHERE payrun_uuid = v_payrun.uuid;
+
+    -- Other employer costs = total employer cost - gross - employer NSSF
+    v_other_employer_costs := GREATEST(
+        COALESCE(v_employer_cost_total, 0) - COALESCE(v_gross, 0) - COALESCE(v_employer_nssf, 0),
+        0
+    );
 
     IF v_gross <= 0 THEN
         RAISE EXCEPTION 'Payroll gross total must be positive';
@@ -606,55 +622,106 @@ BEGIN
         RAISE EXCEPTION 'Payroll net total cannot be negative';
     END IF;
 
-    IF v_gross <> (
-        v_net + v_tax + v_employee_nssf
-        + COALESCE((
-            SELECT SUM(other_deductions)
-            FROM payroll.payslips
-            WHERE payrun_uuid = v_payrun.uuid
-        ), 0)
+    -- Identity: gross = net + PAYE + EE NSSF + other deductions
+    IF ROUND(v_gross, 2) <> ROUND(
+        v_net + v_tax + v_employee_nssf + v_other_deductions, 2
     ) THEN
-        RAISE EXCEPTION 'Payroll totals do not reconcile';
+        RAISE EXCEPTION 'Payroll totals do not reconcile (gross % vs net+tax+nssf+other %)',
+            v_gross, (v_net + v_tax + v_employee_nssf + v_other_deductions);
     END IF;
 
-    v_lines := jsonb_build_array(
+    IF v_other_deductions > 0 AND p_other_deductions_payable_id IS NULL THEN
+        RAISE EXCEPTION 'other_deductions_payable account is required when other deductions exist';
+    END IF;
+
+    IF v_other_employer_costs > 0 AND p_other_employer_cost_expense_id IS NULL THEN
+        RAISE EXCEPTION 'other_employer_cost_expense account is required when employer costs exist';
+    END IF;
+
+    -- Build journal lines (only non-zero)
+    v_lines := v_lines || jsonb_build_array(
         jsonb_build_object(
             'account_ref', p_labor_expense_id,
             'debit', v_gross,
             'credit', 0,
             'memo', 'Gross payroll expense'
-        ),
-        jsonb_build_object(
-            'account_ref', p_employer_nssf_expense_id,
-            'debit', v_employer_nssf,
-            'credit', 0,
-            'memo', 'Employer NSSF expense'
-        ),
+        )
+    );
+
+    IF v_employer_nssf > 0 THEN
+        v_lines := v_lines || jsonb_build_array(
+            jsonb_build_object(
+                'account_ref', p_employer_nssf_expense_id,
+                'debit', v_employer_nssf,
+                'credit', 0,
+                'memo', 'Employer NSSF expense'
+            )
+        );
+    END IF;
+
+    IF v_other_employer_costs > 0 THEN
+        v_lines := v_lines || jsonb_build_array(
+            jsonb_build_object(
+                'account_ref', p_other_employer_cost_expense_id,
+                'debit', v_other_employer_costs,
+                'credit', 0,
+                'memo', 'Other employer payroll costs'
+            )
+        );
+    END IF;
+
+    v_lines := v_lines || jsonb_build_array(
         jsonb_build_object(
             'account_ref', p_payroll_payable_id,
             'debit', 0,
             'credit', v_net,
             'memo', 'Net wages payable'
-        ),
-        jsonb_build_object(
-            'account_ref', p_tax_payable_id,
-            'debit', 0,
-            'credit', v_tax,
-            'memo', 'PAYE payable'
-        ),
-        jsonb_build_object(
-            'account_ref', p_employee_nssf_payable_id,
-            'debit', 0,
-            'credit', v_employee_nssf,
-            'memo', 'Employee NSSF payable'
-        ),
-        jsonb_build_object(
-            'account_ref', p_employer_nssf_payable_id,
-            'debit', 0,
-            'credit', v_employer_nssf,
-            'memo', 'Employer NSSF payable'
         )
     );
+
+    IF v_tax > 0 THEN
+        v_lines := v_lines || jsonb_build_array(
+            jsonb_build_object(
+                'account_ref', p_tax_payable_id,
+                'debit', 0,
+                'credit', v_tax,
+                'memo', 'PAYE payable'
+            )
+        );
+    END IF;
+
+    IF v_employee_nssf > 0 THEN
+        v_lines := v_lines || jsonb_build_array(
+            jsonb_build_object(
+                'account_ref', p_employee_nssf_payable_id,
+                'debit', 0,
+                'credit', v_employee_nssf,
+                'memo', 'Employee NSSF payable'
+            )
+        );
+    END IF;
+
+    IF v_employer_nssf > 0 THEN
+        v_lines := v_lines || jsonb_build_array(
+            jsonb_build_object(
+                'account_ref', p_employer_nssf_payable_id,
+                'debit', 0,
+                'credit', v_employer_nssf,
+                'memo', 'Employer NSSF payable'
+            )
+        );
+    END IF;
+
+    IF v_other_deductions > 0 THEN
+        v_lines := v_lines || jsonb_build_array(
+            jsonb_build_object(
+                'account_ref', p_other_deductions_payable_id,
+                'debit', 0,
+                'credit', v_other_deductions,
+                'memo', 'Other payroll deductions payable'
+            )
+        );
+    END IF;
 
     v_transaction_serial := accounting.post_transaction(
         format(
@@ -683,15 +750,22 @@ BEGIN
         status = 'Posted',
         gl_transaction_uuid = v_transaction_uuid,
         posted_at = NOW(),
-        updated_at = NOW()
+        updated_at = NOW(),
+        posting_snapshot = jsonb_build_object(
+            'gross', v_gross,
+            'tax', v_tax,
+            'employee_nssf', v_employee_nssf,
+            'employer_nssf', v_employer_nssf,
+            'other_deductions', v_other_deductions,
+            'other_employer_costs', v_other_employer_costs,
+            'net', v_net
+        )
     WHERE uuid = v_payrun.uuid;
-
-    -- Accrual is NOT settlement.
-    -- Payslips remain Pending until employee payment is confirmed.
 
     RETURN v_transaction_uuid;
 END;
 $$;
+
 /*CREATE OR REPLACE FUNCTION payroll.post_payrun(
     p_payrun_serial_id bigint,
     p_payrun_labor_expense_id uuid,

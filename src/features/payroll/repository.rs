@@ -240,11 +240,13 @@ impl PayrollRepository for PostgresPayrollRepo {
                 pp.bank_account_number,
                 pp.payment_method
             FROM hr.employees e
-            LEFT JOIN hr.employment_contracts c
+            INNER JOIN hr.employment_contracts c
                 ON c.employee_uuid = e.uuid AND c.status = 'Active'
             LEFT JOIN hr.employee_payment_profiles pp
                 ON pp.employee_uuid = e.uuid
             WHERE hr.is_payroll_eligible(e.uuid, $1, $2)
+              AND c.basic_salary IS NOT NULL
+              AND c.basic_salary > 0
             ORDER BY e.last_name, e.first_name
             "#,
         )
@@ -286,6 +288,15 @@ impl PayrollRepository for PostgresPayrollRepo {
                 "Cannot process payrun with status {}",
                 payrun.status
             )));
+        }
+
+        // Tax-month boundary: a single payrun must not span two calendar months.
+        if payrun.pay_period_start.year() != payrun.pay_period_end.year()
+            || payrun.pay_period_start.month() != payrun.pay_period_end.month()
+        {
+            return Err(AppError::Unprocessable(
+                "Payrun period must fall within a single tax month; split the run".into(),
+            ));
         }
 
         let slips: Vec<Payslip> = sqlx::query_as(
@@ -331,11 +342,12 @@ impl PayrollRepository for PostgresPayrollRepo {
                     c.start_date AS contract_start,
                     c.end_date AS contract_end,
                     c.basic_salary,
+                    COALESCE(c.pay_frequency, e.pay_frequency, 'Monthly') AS pay_frequency,
                     pp.payment_method,
                     pp.bank_account_number
                 FROM hr.employees e
                 LEFT JOIN hr.employee_statutory_profiles sp ON sp.employee_uuid = e.uuid
-                LEFT JOIN hr.employment_contracts c
+                INNER JOIN hr.employment_contracts c
                     ON c.employee_uuid = e.uuid AND c.status = 'Active'
                 LEFT JOIN hr.employee_payment_profiles pp ON pp.employee_uuid = e.uuid
                 WHERE e.uuid = $1
@@ -351,12 +363,56 @@ impl PayrollRepository for PostgresPayrollRepo {
                 ))
             })?;
 
-            let basic_salary = ctx
-                .basic_salary
-                .clone()
-                .unwrap_or_else(|| BigDecimal::from(0));
-            let contract_start = ctx.contract_start.unwrap_or(period_start);
+            let basic_salary = ctx.basic_salary.clone().ok_or_else(|| {
+                AppError::Unprocessable(format!(
+                    "Employee {} has no active contract salary",
+                    slip.employee_uuid
+                ))
+            })?;
+            if basic_salary <= BigDecimal::from(0) {
+                return Err(AppError::Unprocessable(format!(
+                    "Employee {} has non-positive basic salary",
+                    slip.employee_uuid
+                )));
+            }
+            let contract_start = ctx.contract_start.ok_or_else(|| {
+                AppError::Unprocessable(format!(
+                    "Employee {} contract has no start date",
+                    slip.employee_uuid
+                ))
+            })?;
             let contract_end = ctx.contract_end;
+
+            // Pay-frequency aware period base:
+            // basic_salary is treated as the amount for one full frequency period.
+            // Convert to the payrun period amount before day-proration.
+            let period_days = (period_end - period_start).num_days() + 1;
+            let freq = ctx.pay_frequency.as_str();
+            let frequency_days: i64 = match freq {
+                "Weekly" => 7,
+                "Bi-weekly" | "Biweekly" | "Bi-Weekly" => 14,
+                _ => {
+                    // Monthly (default): use actual calendar days of the end month
+                    let y = period_end.year();
+                    let m = period_end.month();
+                    let last = chrono::NaiveDate::from_ymd_opt(
+                        if m == 12 { y + 1 } else { y },
+                        if m == 12 { 1 } else { m + 1 },
+                        1,
+                    )
+                    .unwrap()
+                    .pred_opt()
+                    .unwrap();
+                    last.day() as i64
+                }
+            };
+            // Amount attributable to this payrun's calendar span if the employee
+            // worked the whole period under a full-frequency salary.
+            let period_salary_base = if frequency_days > 0 {
+                &basic_salary * BigDecimal::from(period_days) / BigDecimal::from(frequency_days)
+            } else {
+                basic_salary.clone()
+            };
 
             // 3. Load component assignments effective in the period
             let assignments: Vec<ComponentAssignmentRow> = sqlx::query_as(
@@ -388,6 +444,18 @@ impl PayrollRepository for PostgresPayrollRepo {
             .bind(slip.employee_uuid)
             .bind(period_start)
             .bind(period_end)
+            .fetch_all(&mut *tx)
+            .await?;
+
+            // 4a. Manual payslip items (benefits/deductions entered at prepare time)
+            let manual_items: Vec<(String, String, BigDecimal, Option<Uuid>)> = sqlx::query_as(
+                r#"
+                SELECT item_type, COALESCE(description, item_type), amount, component_uuid
+                FROM payroll.payslip_items
+                WHERE payslip_uuid = $1
+                "#,
+            )
+            .bind(slip.uuid)
             .fetch_all(&mut *tx)
             .await?;
 
@@ -453,6 +521,30 @@ impl PayrollRepository for PostgresPayrollRepo {
                     included_in_nssf_base: a.affects_social_security,
                     sequence_no: a.sequence_no,
                     rounding_scale: a.rounding_scale as i64,
+                });
+            }
+
+            // Manual payslip benefits / deductions
+            for (idx, (item_type, description, amount, component_uuid)) in
+                manual_items.iter().enumerate()
+            {
+                let kind = if item_type.eq_ignore_ascii_case("Deduction") {
+                    ComponentKind::Deduction
+                } else {
+                    ComponentKind::Earning
+                };
+                components.push(ComponentInput {
+                    component_uuid: *component_uuid,
+                    code: format!("MANUAL_{}_{}", item_type.to_uppercase(), idx + 1),
+                    name: description.clone(),
+                    kind,
+                    method: CalculationMethod::Fixed,
+                    amount: amount.clone(),
+                    rate: None,
+                    taxable: kind == ComponentKind::Earning,
+                    included_in_nssf_base: kind == ComponentKind::Earning,
+                    sequence_no: 40,
+                    rounding_scale: 2,
                 });
             }
 
@@ -564,7 +656,7 @@ impl PayrollRepository for PostgresPayrollRepo {
             // 8. Build calculation input and run the engine
             let input = PayrollInput {
                 employee_uuid: slip.employee_uuid,
-                basic_salary,
+                basic_salary: period_salary_base,
                 period_start,
                 period_end,
                 contract_start,
@@ -591,7 +683,37 @@ impl PayrollRepository for PostgresPayrollRepo {
             })?;
 
             // 9. Cumulative PAYE within the tax month
-            //    Compute tax on (prior taxable + this taxable), subtract prior withheld.
+            // Guard: refuse out-of-order processing for the same employee/tax month.
+            let later_conflict: i64 = sqlx::query_scalar(
+                r#"
+                SELECT COUNT(*)
+                FROM payroll.payslips ps
+                JOIN payroll.payruns pr ON pr.uuid = ps.payrun_uuid
+                WHERE ps.employee_uuid = $1
+                  AND ps.calculated_at IS NOT NULL
+                  AND pr.status IN ('Processed', 'Posted')
+                  AND EXTRACT(YEAR FROM pr.pay_period_end) = $2
+                  AND EXTRACT(MONTH FROM pr.pay_period_end) = $3
+                  AND pr.pay_period_end > $4
+                  AND pr.uuid <> $5
+                "#,
+            )
+            .bind(slip.employee_uuid)
+            .bind(tax_year)
+            .bind(tax_month)
+            .bind(period_end)
+            .bind(payrun.uuid)
+            .fetch_one(&mut *tx)
+            .await?;
+
+            if later_conflict > 0 {
+                return Err(AppError::Unprocessable(format!(
+                    "Employee {}: a later payrun in tax month {}-{} is already processed. Process payruns in chronological order.",
+                    slip.employee_uuid, tax_year, tax_month
+                )));
+            }
+
+            // Compute tax on (prior taxable + this taxable), subtract prior withheld.
             let prior: Option<EmployeeTaxPeriodRow> = sqlx::query_as(
                 r#"
                 SELECT uuid, taxable_income, paye_due, paye_withheld
@@ -620,14 +742,30 @@ impl PayrollRepository for PostgresPayrollRepo {
             )
             .map_err(|e| AppError::Unprocessable(format!("Cumulative PAYE failed: {e}")))?;
 
-            let period_paye = (&cumulative_paye - &prior_withheld).max(BigDecimal::from(0));
+            let period_paye = &cumulative_paye - &prior_withheld;
+            if period_paye < BigDecimal::from(0) {
+                // Over-withholding from prior runs in the month — force review
+                return Err(AppError::Unprocessable(format!(
+                    "Employee {}: cumulative PAYE already exceeds tax due for the month (prior withheld {}, cumulative due {}). Reprocess in chronological order or reverse the later run.",
+                    slip.employee_uuid, prior_withheld, cumulative_paye
+                )));
+            }
             result.paye = period_paye.clone();
-            // Recompute net after PAYE adjustment
-            result.net_pay = (&result.gross_pay
+            // Recompute net after PAYE adjustment — do NOT clamp; surface the exception
+            result.net_pay = &result.gross_pay
                 - &result.paye
                 - &result.employee_nssf
-                - &result.other_deductions)
-                .max(BigDecimal::from(0));
+                - &result.other_deductions;
+            if result.net_pay < BigDecimal::from(0) {
+                return Err(AppError::Unprocessable(format!(
+                    "Employee {}: negative net pay after cumulative PAYE (gross {}, PAYE {}, NSSF {}, other {}). Correct inputs before processing.",
+                    slip.employee_uuid,
+                    result.gross_pay,
+                    result.paye,
+                    result.employee_nssf,
+                    result.other_deductions
+                )));
+            }
 
             // 10. Persist calculation results onto the payslip
             let snapshot = json!({
@@ -906,7 +1044,7 @@ impl PayrollRepository for PostgresPayrollRepo {
 
         sqlx::query(
             r#"
-            SELECT payroll.post_payrun($1,$2,$3,$4,$5,$6,$7,$8)
+            SELECT payroll.post_payrun($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
             "#,
         )
         .bind(payload.payrun_serial_id)
@@ -917,6 +1055,8 @@ impl PayrollRepository for PostgresPayrollRepo {
         .bind(employer_nssf_expense)
         .bind(payable)
         .bind(user_id)
+        .bind(payload.other_deductions_payable_id)
+        .bind(payload.other_employer_cost_expense_id)
         .execute(&mut *tx)
         .await?;
 
@@ -1327,9 +1467,9 @@ impl PayrollRepository for PostgresPayrollRepo {
         .await?
         .ok_or_else(|| AppError::NotFound("Payrun not found".into()))?;
 
-        if payrun.status != "Posted" && payrun.status != "Processed" {
+        if payrun.status != "Posted" {
             return Err(AppError::Unprocessable(
-                "Payrun must be Processed or Posted before creating remittances".into(),
+                "Payrun must be Posted (accrued to GL) before creating statutory remittances".into(),
             ));
         }
 

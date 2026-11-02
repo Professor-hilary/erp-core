@@ -134,6 +134,10 @@ pub struct PostPayrun {
     pub employer_social_security_id: Option<Uuid>,
     pub employer_social_security_expense_id: Option<Uuid>,
     pub payroll_payable: Option<Uuid>,
+    /// Required when any payslip has other_deductions > 0
+    pub other_deductions_payable_id: Option<Uuid>,
+    /// Required when any payslip has employer costs beyond NSSF
+    pub other_employer_cost_expense_id: Option<Uuid>,
 }
 
 #[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
@@ -217,6 +221,7 @@ pub struct EmployeePayrollContext {
     pub contract_start: Option<NaiveDate>,
     pub contract_end: Option<NaiveDate>,
     pub basic_salary: Option<BigDecimal>,
+    pub pay_frequency: String,
     pub payment_method: Option<String>,
     pub bank_account_number: Option<String>,
 }
