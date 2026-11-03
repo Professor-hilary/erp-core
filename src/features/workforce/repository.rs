@@ -617,19 +617,20 @@ impl HrRepository for PostgresHrRepo {
         &self,
         pool: &PgPool,
         id: Uuid,
-        _user_id: Uuid,
+        user_id: Uuid,
     ) -> Result<(), AppError> {
+        let mut tx = pool.begin().await?;
         let result = sqlx::query(
             r#"
-	        UPDATE hr.employees
-	        SET status = 'Alumni',
-	            updated_at = NOW()
-	        WHERE uuid = $1
-	          AND status <> 'Alumni'
-	        "#,
+            UPDATE hr.employees
+            SET status = 'Alumni',
+                updated_at = NOW()
+            WHERE uuid = $1
+              AND status <> 'Alumni'
+            "#,
         )
         .bind(id)
-        .execute(pool)
+        .execute(&mut *tx)
         .await?;
 
         if result.rows_affected() == 0 {
@@ -638,6 +639,20 @@ impl HrRepository for PostgresHrRepo {
             ));
         }
 
+        sqlx::query(
+            r#"
+            INSERT INTO hr.employment_events (
+                employee_uuid, event_type, event_date, from_status, to_status, notes, recorded_by
+            )
+            VALUES ($1, 'ARCHIVED', CURRENT_DATE, NULL, 'Alumni', 'Employee archived (soft delete)', $2)
+            "#,
+        )
+        .bind(id)
+        .bind(user_id)
+        .execute(&mut *tx)
+        .await?;
+
+        tx.commit().await?;
         Ok(())
     }
 
@@ -653,13 +668,28 @@ impl HrRepository for PostgresHrRepo {
         sqlx::query_as::<_, EmployeeStatutoryProfile>(
             r#"
             INSERT INTO hr.employee_statutory_profiles (
-                employee_uuid, national_id, tax_id, social_security_number, other_ids
+                employee_uuid, national_id, tax_id, social_security_number,
+                tax_residency, nssf_covered, nssf_exempt, date_of_birth, other_ids
             )
-            VALUES ($1, $2, $3, $4, COALESCE($5, '{}'::jsonb))
+            VALUES (
+                $1, $2, $3, $4,
+                COALESCE($5, 'RESIDENT'),
+                COALESCE($6, TRUE),
+                COALESCE($7, FALSE),
+                $8,
+                COALESCE($9, '{}'::jsonb)
+            )
             ON CONFLICT (employee_uuid) DO UPDATE SET
                 national_id = COALESCE(EXCLUDED.national_id, hr.employee_statutory_profiles.national_id),
                 tax_id = COALESCE(EXCLUDED.tax_id, hr.employee_statutory_profiles.tax_id),
-                social_security_number = COALESCE(EXCLUDED.social_security_number, hr.employee_statutory_profiles.social_security_number),
+                social_security_number = COALESCE(
+                    EXCLUDED.social_security_number,
+                    hr.employee_statutory_profiles.social_security_number
+                ),
+                tax_residency = COALESCE($5, hr.employee_statutory_profiles.tax_residency),
+                nssf_covered = COALESCE($6, hr.employee_statutory_profiles.nssf_covered),
+                nssf_exempt = COALESCE($7, hr.employee_statutory_profiles.nssf_exempt),
+                date_of_birth = COALESCE(EXCLUDED.date_of_birth, hr.employee_statutory_profiles.date_of_birth),
                 other_ids = COALESCE(EXCLUDED.other_ids, hr.employee_statutory_profiles.other_ids),
                 updated_at = now()
             RETURNING *
@@ -669,6 +699,10 @@ impl HrRepository for PostgresHrRepo {
         .bind(&payload.national_id)
         .bind(&payload.tax_id)
         .bind(&payload.social_security_number)
+        .bind(&payload.tax_residency)
+        .bind(payload.nssf_covered)
+        .bind(payload.nssf_exempt)
+        .bind(payload.date_of_birth)
         .bind(&payload.other_ids)
         .fetch_one(pool)
         .await
@@ -857,14 +891,40 @@ impl HrRepository for PostgresHrRepo {
         .fetch_one(&mut *tx)
         .await?;
 
+        // Only materialise salary onto the live contract when the amendment is
+        // already effective. Future-dated amendments remain in the log until
+        // payroll (or a later process) resolves terms as-of the pay period.
         if let Some(ref sal) = payload.basic_salary {
-            sqlx::query(
-                "UPDATE hr.employment_contracts SET basic_salary = $2, updated_at = now() WHERE uuid = $1",
-            )
-            .bind(contract_uuid)
-            .bind(sal)
-            .execute(&mut *tx)
-            .await?;
+            let today = chrono::Utc::now().date_naive();
+            if payload.effective_date <= today {
+                sqlx::query(
+                    r#"
+                    UPDATE hr.employment_contracts
+                    SET basic_salary = $2, updated_at = now()
+                    WHERE uuid = $1
+                    "#,
+                )
+                .bind(contract_uuid)
+                .bind(sal)
+                .execute(&mut *tx)
+                .await?;
+            }
+        }
+        if let Some(jt) = payload.job_title_uuid {
+            let today = chrono::Utc::now().date_naive();
+            if payload.effective_date <= today {
+                sqlx::query(
+                    r#"
+                    UPDATE hr.employment_contracts
+                    SET job_title_uuid = $2, updated_at = now()
+                    WHERE uuid = $1
+                    "#,
+                )
+                .bind(contract_uuid)
+                .bind(jt)
+                .execute(&mut *tx)
+                .await?;
+            }
         }
         tx.commit().await?;
         Ok(row)
@@ -1302,11 +1362,15 @@ impl HrRepository for PostgresHrRepo {
         .fetch_one(&mut *tx)
         .await?;
 
-        sqlx::query(
+        // Ensure a balance exists and has enough remaining days.
+        let updated = sqlx::query(
             r#"
             UPDATE hr.leave_balances
             SET encashed = COALESCE(encashed, 0) + $4, updated_at = now()
-            WHERE employee_uuid = $1 AND leave_type_uuid = $2 AND year = $3
+            WHERE employee_uuid = $1
+              AND leave_type_uuid = $2
+              AND year = $3
+              AND (entitled - taken - COALESCE(encashed, 0)) >= $4
             "#,
         )
         .bind(payload.employee_uuid)
@@ -1316,11 +1380,32 @@ impl HrRepository for PostgresHrRepo {
         .execute(&mut *tx)
         .await?;
 
+        if updated.rows_affected() == 0 {
+            return Err(AppError::Unprocessable(
+                "No leave balance with sufficient remaining days for this employee/type/year".into(),
+            ));
+        }
+
         if let Some(sid) = payload.schedule_uuid {
-            sqlx::query("UPDATE hr.leave_schedules SET status = 'Encashed' WHERE uuid = $1")
-                .bind(sid)
-                .execute(&mut *tx)
-                .await?;
+            let sched = sqlx::query(
+                r#"
+                UPDATE hr.leave_schedules
+                SET status = 'Encashed'
+                WHERE uuid = $1
+                  AND employee_uuid = $2
+                  AND leave_type_uuid = $3
+                "#,
+            )
+            .bind(sid)
+            .bind(payload.employee_uuid)
+            .bind(payload.leave_type_uuid)
+            .execute(&mut *tx)
+            .await?;
+            if sched.rows_affected() == 0 {
+                return Err(AppError::Unprocessable(
+                    "Leave schedule not found for this employee/type".into(),
+                ));
+            }
         }
         tx.commit().await?;
         Ok(row)

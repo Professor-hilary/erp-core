@@ -152,6 +152,10 @@ pub struct EmployeeStatutoryProfile {
     pub national_id: Option<String>,
     pub tax_id: Option<String>,
     pub social_security_number: Option<String>,
+    pub tax_residency: String,
+    pub nssf_covered: bool,
+    pub nssf_exempt: bool,
+    pub date_of_birth: Option<NaiveDate>,
     pub other_ids: Option<serde_json::Value>,
     pub updated_at: DateTime<Utc>,
 }
@@ -161,6 +165,11 @@ pub struct UpsertStatutoryProfile {
     pub national_id: Option<String>,
     pub tax_id: Option<String>,
     pub social_security_number: Option<String>,
+    /// RESIDENT | NON_RESIDENT
+    pub tax_residency: Option<String>,
+    pub nssf_covered: Option<bool>,
+    pub nssf_exempt: Option<bool>,
+    pub date_of_birth: Option<NaiveDate>,
     pub other_ids: Option<serde_json::Value>,
 }
 

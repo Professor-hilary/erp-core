@@ -363,12 +363,34 @@ impl PayrollRepository for PostgresPayrollRepo {
                 ))
             })?;
 
-            let basic_salary = ctx.basic_salary.clone().ok_or_else(|| {
+            let mut basic_salary = ctx.basic_salary.clone().ok_or_else(|| {
                 AppError::Unprocessable(format!(
                     "Employee {} has no active contract salary",
                     slip.employee_uuid
                 ))
             })?;
+            // Effective-dated amendments: use the latest salary amendment
+            // whose effective_date is on or before the pay period end.
+            if let Some(contract_uuid) = ctx.contract_uuid {
+                let amended: Option<BigDecimal> = sqlx::query_scalar(
+                    r#"
+                    SELECT basic_salary
+                    FROM hr.contract_amendments
+                    WHERE contract_uuid = $1
+                      AND basic_salary IS NOT NULL
+                      AND effective_date <= $2
+                    ORDER BY effective_date DESC, created_at DESC
+                    LIMIT 1
+                    "#,
+                )
+                .bind(contract_uuid)
+                .bind(period_end)
+                .fetch_optional(&mut *tx)
+                .await?;
+                if let Some(sal) = amended {
+                    basic_salary = sal;
+                }
+            }
             if basic_salary <= BigDecimal::from(0) {
                 return Err(AppError::Unprocessable(format!(
                     "Employee {} has non-positive basic salary",
@@ -381,7 +403,20 @@ impl PayrollRepository for PostgresPayrollRepo {
                     slip.employee_uuid
                 ))
             })?;
-            let contract_end = ctx.contract_end;
+            // Cap service end by contract end and last_working_date from lifecycle
+            let last_working: Option<chrono::NaiveDate> = sqlx::query_scalar(
+                "SELECT last_working_date FROM hr.employee_lifecycle WHERE employee_uuid = $1",
+            )
+            .bind(slip.employee_uuid)
+            .fetch_optional(&mut *tx)
+            .await?
+            .flatten();
+            let contract_end = match (ctx.contract_end, last_working) {
+                (Some(c), Some(l)) => Some(std::cmp::min(c, l)),
+                (Some(c), None) => Some(c),
+                (None, Some(l)) => Some(l),
+                (None, None) => None,
+            };
 
             // Pay-frequency aware period base:
             // basic_salary is treated as the amount for one full frequency period.
@@ -772,6 +807,7 @@ impl PayrollRepository for PostgresPayrollRepo {
                 "version": calculation_version,
                 "basic_pay": result.basic_pay,
                 "gross_pay": result.gross_pay,
+                "nssf_contribution_base": result.nssf_contribution_base,
                 "taxable_earnings": result.taxable_earnings,
                 "paye": result.paye,
                 "employee_nssf": result.employee_nssf,
@@ -874,7 +910,7 @@ impl PayrollRepository for PostgresPayrollRepo {
             .bind(slip.uuid)
             .bind(&result.taxable_earnings)
             .bind(&result.paye)
-            .bind(&result.gross_pay) // approx base
+            .bind(&result.nssf_contribution_base) // actual NSSF base
             .bind(&nssf_employee_rate)
             .bind(&result.employee_nssf)
             .bind(&nssf_employer_rate)

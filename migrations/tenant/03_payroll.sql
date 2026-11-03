@@ -285,6 +285,98 @@ CREATE INDEX IF NOT EXISTS pay_components_sequence_idx
     ON payroll.pay_components(sequence_no, code)
     WHERE is_active;
 
+-- Uganda resident PAYE rates effective 1 July 2024 (prior revision, for
+-- historical periods and integration tests covering FY2024–FY2025).
+-- Jurisdiction-specific; engine selects the set effective on period_end.
+INSERT INTO payroll.statutory_rule_sets (
+    jurisdiction_code, rule_code, rule_name, employee_class,
+    calculation_method, effective_from, effective_to, currency_code,
+    source_reference, revision_label
+)
+VALUES (
+    'UG', 'PAYE', 'Uganda PAYE', 'RESIDENT',
+    'PROGRESSIVE_BANDS', DATE '2024-07-01', DATE '2026-06-30', 'UGX',
+    'URA PAYE rates', 'FY2024-2026'
+)
+ON CONFLICT DO NOTHING;
+
+INSERT INTO payroll.statutory_rule_bands
+    (rule_set_uuid, lower_bound, upper_bound, base_tax, marginal_rate, sequence_no)
+SELECT r.uuid, b.lower_bound, b.upper_bound, b.base_tax, b.marginal_rate, b.sequence_no
+FROM payroll.statutory_rule_sets r
+CROSS JOIN (
+    VALUES
+      (0::numeric,       235000::numeric,       0::numeric,       0.00::numeric, 1::smallint),
+      (235000::numeric,  335000::numeric,       0::numeric,       0.10::numeric, 2::smallint),
+      (335000::numeric,  410000::numeric,   10000::numeric,       0.20::numeric, 3::smallint),
+      (410000::numeric, 10000000::numeric,  25000::numeric,       0.30::numeric, 4::smallint),
+      (10000000::numeric, NULL::numeric,  2888250::numeric,       0.40::numeric, 5::smallint)
+) AS b(lower_bound, upper_bound, base_tax, marginal_rate, sequence_no)
+WHERE r.jurisdiction_code = 'UG'
+  AND r.rule_code = 'PAYE'
+  AND r.employee_class = 'RESIDENT'
+  AND r.effective_from = DATE '2024-07-01'
+  AND NOT EXISTS (
+      SELECT 1 FROM payroll.statutory_rule_bands existing
+      WHERE existing.rule_set_uuid = r.uuid
+  );
+
+INSERT INTO payroll.statutory_rule_sets (
+    jurisdiction_code, rule_code, rule_name, employee_class,
+    calculation_method, effective_from, effective_to, currency_code,
+    source_reference, revision_label
+)
+VALUES (
+    'UG', 'PAYE', 'Uganda PAYE', 'NON_RESIDENT',
+    'PROGRESSIVE_BANDS', DATE '2024-07-01', DATE '2026-06-30', 'UGX',
+    'URA PAYE rates', 'FY2024-2026'
+)
+ON CONFLICT DO NOTHING;
+
+INSERT INTO payroll.statutory_rule_bands
+    (rule_set_uuid, lower_bound, upper_bound, base_tax, marginal_rate, sequence_no)
+SELECT r.uuid, b.lower_bound, b.upper_bound, b.base_tax, b.marginal_rate, b.sequence_no
+FROM payroll.statutory_rule_sets r
+CROSS JOIN (
+    VALUES
+      (0::numeric,       335000::numeric,       0::numeric,       0.10::numeric, 1::smallint),
+      (335000::numeric,  410000::numeric,   33500::numeric,       0.20::numeric, 2::smallint),
+      (410000::numeric, 10000000::numeric,  48500::numeric,       0.30::numeric, 3::smallint),
+      (10000000::numeric, NULL::numeric,  2925500::numeric,       0.40::numeric, 4::smallint)
+) AS b(lower_bound, upper_bound, base_tax, marginal_rate, sequence_no)
+WHERE r.jurisdiction_code = 'UG'
+  AND r.rule_code = 'PAYE'
+  AND r.employee_class = 'NON_RESIDENT'
+  AND r.effective_from = DATE '2024-07-01'
+  AND NOT EXISTS (
+      SELECT 1 FROM payroll.statutory_rule_bands existing
+      WHERE existing.rule_set_uuid = r.uuid
+  );
+
+INSERT INTO payroll.statutory_rule_sets (
+    jurisdiction_code, rule_code, rule_name, employee_class,
+    calculation_method, effective_from, effective_to, currency_code,
+    source_reference, revision_label
+)
+VALUES (
+    'UG', 'NSSF', 'Uganda NSSF', 'ALL',
+    'PERCENT_OF_BASE', DATE '2024-07-01', DATE '2026-06-30', 'UGX',
+    'NSSF Act', 'FY2024-2026'
+)
+ON CONFLICT DO NOTHING;
+
+INSERT INTO payroll.statutory_contribution_rules
+    (rule_set_uuid, employee_rate, employer_rate, minimum_age, maximum_age)
+SELECT r.uuid, 0.05, 0.10, 16, 60
+FROM payroll.statutory_rule_sets r
+WHERE r.jurisdiction_code = 'UG'
+  AND r.rule_code = 'NSSF'
+  AND r.effective_from = DATE '2024-07-01'
+  AND NOT EXISTS (
+      SELECT 1 FROM payroll.statutory_contribution_rules existing
+      WHERE existing.rule_set_uuid = r.uuid
+  );
+
 -- Uganda resident PAYE rates effective 1 July 2026.
 -- The tax bands are monthly chargeable income bands.
 INSERT INTO payroll.statutory_rule_sets (

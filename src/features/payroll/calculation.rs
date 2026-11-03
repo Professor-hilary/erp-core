@@ -123,6 +123,8 @@ pub struct PayrollResult {
     pub basic_pay: BigDecimal,
     pub gross_pay: BigDecimal,
     pub taxable_earnings: BigDecimal,
+    /// Actual NSSF contribution base (may differ from gross).
+    pub nssf_contribution_base: BigDecimal,
 
     pub paye: BigDecimal,
 
@@ -524,6 +526,7 @@ pub fn calculate_payroll(
         basic_pay: basic,
         gross_pay: round_money(&gross, 2),
         taxable_earnings: round_money(&taxable, 2),
+        nssf_contribution_base: round_money(&nssf_base, 2),
         paye,
         employee_nssf,
         employer_nssf,

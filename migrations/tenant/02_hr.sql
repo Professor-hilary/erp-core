@@ -518,7 +518,10 @@ LANGUAGE sql STABLE AS $$
         WHERE e.uuid = p_employee
           AND e.status IN ('Active', 'Notice')
           AND e.hire_date <= p_period_end
+          -- Still employed for at least one day of the period
           AND (lc.termination_date IS NULL OR lc.termination_date >= p_period_start)
+          -- Last working day ends eligibility (no pay after leaving the workplace)
+          AND (lc.last_working_date IS NULL OR lc.last_working_date >= p_period_start)
     );
 $$;
 
