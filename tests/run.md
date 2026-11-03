@@ -16,3 +16,11 @@ cargo test --tests -- --nocapture --test-threads=1
 SELECT format('DROP DATABASE IF EXISTS %I WITH (FORCE);', datname) FROM pg_database WHERE datname LIKE 'tenant_test%'\gexec
 SELECT format('REASSIGN OWNED BY %I TO postgres; DROP OWNED BY %I', rolname, rolname) FROM pg_roles WHERE rolname LIKE 'role%' ESCAPE '\'\gexec
 SELECT format('DROP ROLE IF EXISTS %I;', rolname) FROM pg_roles WHERE rolname LIKE 'role%' ESCAPE '\'\gexec
+
+# Workforce + payroll (elevated)
+cargo test --test e2e_15_workforce -- --nocapture --test-threads=1
+cargo test --test e2e_12_payroll -- --nocapture --test-threads=1
+
+# Single function
+cargo test --test e2e_12_payroll payroll_full_lifecycle -- --nocapture
+cargo test --test e2e_12_payroll payroll_rejects_cross_month_period -- --nocapture
