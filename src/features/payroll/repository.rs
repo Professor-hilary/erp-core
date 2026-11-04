@@ -3,8 +3,8 @@ use crate::{
     interface::api::errors::AppError,
     models::payroll::{
         ComponentAssignmentRow, CreateComponentAssignment, CreatePayComponent, CreatePayrun,
-        CreatePayslip, CreateStatutoryRemittance, EligibleEmployeeRow, EmployeeComponentAssignment,
-        EmployeePaymentBatch, EmployeePaymentLine, EmployeePayrollContext, EmployeeTaxPeriodRow,
+        CreatePayslip, EligibleEmployeeRow, EmployeeComponentAssignment,
+        EmployeePaymentBatch, EmployeePayrollContext, EmployeeTaxPeriodRow,
         LeaveEncashmentRow, NssfRuleRow, PayComponent, Payrun, Payslip, PayslipCalculationItem,
         PostPayrun, RemitStatutory, SettleEmployees, StatutoryBandRow, StatutoryRemittance,
     },
@@ -704,8 +704,8 @@ impl PayrollRepository for PostgresPayrollRepo {
                     date_of_birth: ctx.date_of_birth,
                 },
                 tax_bands,
-                nssf_employee_rate,
-                nssf_employer_rate,
+                nssf_employee_rate: nssf_employee_rate.clone(),
+                nssf_employer_rate: nssf_employer_rate.clone(),
                 nssf_minimum_age: nssf_min_age,
                 nssf_maximum_age: nssf_max_age,
             };
@@ -911,9 +911,9 @@ impl PayrollRepository for PostgresPayrollRepo {
             .bind(&result.taxable_earnings)
             .bind(&result.paye)
             .bind(&result.nssf_contribution_base) // actual NSSF base
-            .bind(&nssf_employee_rate)
+            .bind(&nssf_employee_rate.clone())
             .bind(&result.employee_nssf)
-            .bind(&nssf_employer_rate)
+            .bind(&nssf_employer_rate.clone())
             .bind(&result.employer_nssf)
             .execute(&mut *tx)
             .await?;
@@ -1672,6 +1672,4 @@ impl PayrollRepository for PostgresPayrollRepo {
             .map_err(AppError::from)
         }
     }
-}
-
 }
