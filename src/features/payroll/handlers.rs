@@ -5,7 +5,7 @@ use axum::{
     response::Response,
     routing::{get, post},
 };
-use chrono::NaiveDate;
+// use chrono::NaiveDate;
 use serde::Deserialize;
 use std::sync::Arc;
 use uuid::Uuid;
@@ -229,20 +229,20 @@ async fn get_payment_batch(
 // Statutory remittance
 // ---------------------------------------------------------------------------
 
-#[derive(Debug, Deserialize)]
+/*#[derive(Debug, Deserialize)]
 struct CreateRemittancesBody {
     payrun_uuid: Uuid,
     due_date: NaiveDate,
-}
+}*/
 
 async fn create_statutory_remittances(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    Json(payload): Json<CreateRemittancesBody>,
+    Json(payload): Json<CreateStatutoryRemittance/*CreateRemittancesBody*/>,
 ) -> Result<Response, AppError> {
     let service = PayrollService::new(PostgresPayrollRepo::new());
     let rows = service
-        .create_statutory_remittances(&user.tenant_pool, payload.payrun_uuid, payload.due_date)
+        .create_statutory_remittances(&user.tenant_pool, &payload/*.payrun_uuid, payload.due_date*/)
         .await?;
     Ok(ApiResponse::created(rows, "Statutory remittances created"))
 }

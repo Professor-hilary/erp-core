@@ -364,6 +364,8 @@ pub struct StatutoryRemittance {
 #[derive(Debug, Deserialize)]
 pub struct CreateStatutoryRemittance {
     pub payrun_uuid: Uuid,
+	/// PAYE | NSSF_EE | NSSF_ER — empty / "*" / "ALL" creates every non-zero liability
+	#[serde(default)]
     pub statutory_code: String, // PAYE | NSSF_EE | NSSF_ER
     pub due_date: NaiveDate,
 }

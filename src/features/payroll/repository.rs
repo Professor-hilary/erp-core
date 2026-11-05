@@ -363,6 +363,12 @@ impl PayrollRepository for PostgresPayrollRepo {
                 ))
             })?;
 
+			if ctx.employee_uuid != slip.employee_uuid {
+			    return Err(AppError::Unprocessable(
+			        "Payroll context employee mismatch".into(),
+			    ));
+			}
+
             let mut basic_salary = ctx.basic_salary.clone().ok_or_else(|| {
                 AppError::Unprocessable(format!(
                     "Employee {} has no active contract salary",
@@ -585,20 +591,30 @@ impl PayrollRepository for PostgresPayrollRepo {
 
             // Leave encashment as taxable earning
             for (idx, enc) in encashments.iter().enumerate() {
+				if enc.days <= BigDecimal::from(0) {
+			        return Err(AppError::Unprocessable(format!(
+			            "Leave encashment {} has non-positive days",
+			            enc.uuid
+			        )));
+			    }
+			    let daily_rate = &enc.amount / &enc.days;
+			    let type_label = enc
+			        .leave_type_code
+			        .as_ref()
+			        .map(|c| format!(" ({c})"))
+			        .unwrap_or_default();
+
                 components.push(ComponentInput {
                     component_uuid: None,
                     code: format!("LEAVE_ENCASH_{}", idx + 1),
                     name: format!(
-                        "Leave encashment{}",
-                        enc.leave_type_code
-                            .as_ref()
-                            .map(|c| format!(" ({c})"))
-                            .unwrap_or_default()
+                        "Leave encashment{} — {} day(s) @ {}",
+						type_label, enc.days, daily_rate
                     ),
                     kind: ComponentKind::Earning,
                     method: CalculationMethod::Fixed,
                     amount: enc.amount.clone(),
-                    rate: None,
+                    rate: Some(daily_rate),
                     taxable: true,
                     included_in_nssf_base: true,
                     sequence_no: 50,
@@ -639,7 +655,27 @@ impl PayrollRepository for PostgresPayrollRepo {
                 )));
             }
 
-            let tax_bands: Vec<TaxBand> = bands
+			let mut last_seq: Option<i16> = None;
+			let mut tax_bands: Vec<TaxBand> = Vec::with_capacity(bands.len());
+			for b in bands {
+			    if let Some(prev) = last_seq {
+			        if b.sequence_no <= prev {
+			            return Err(AppError::Unprocessable(format!(
+			                "PAYE bands out of sequence: {} after {}",
+			                b.sequence_no, prev
+			            )));
+			        }
+			    }
+			    last_seq = Some(b.sequence_no);
+			    tax_bands.push(TaxBand {
+			        lower_bound: b.lower_bound,
+			        upper_bound: b.upper_bound,
+			        base_tax: b.base_tax,
+			        marginal_rate: b.marginal_rate,
+			    });
+			}
+
+            /*let tax_bands: Vec<TaxBand> = bands
                 .into_iter()
                 .map(|b| TaxBand {
                     lower_bound: b.lower_bound,
@@ -647,7 +683,7 @@ impl PayrollRepository for PostgresPayrollRepo {
                     base_tax: b.base_tax,
                     marginal_rate: b.marginal_rate,
                 })
-                .collect();
+                .collect();*/
 
             // 7. Load NSSF rates
             let nssf: Option<NssfRuleRow> = sqlx::query_as(
@@ -672,19 +708,21 @@ impl PayrollRepository for PostgresPayrollRepo {
             .fetch_optional(&mut *tx)
             .await?;
 
-            let (nssf_employee_rate, nssf_employer_rate, nssf_min_age, nssf_max_age) =
+            let (nssf_employee_rate, nssf_employer_rate, nssf_min_age, nssf_max_age, nssf_rule_set_uuid) =
                 match nssf {
                     Some(n) => (
                         n.employee_rate,
                         n.employer_rate,
                         n.minimum_age.map(|a| a as u8),
                         n.maximum_age.map(|a| a as u8),
+						Some(n.rule_set_uuid),
                     ),
                     None => (
                         BigDecimal::from(5) / BigDecimal::from(100),
                         BigDecimal::from(10) / BigDecimal::from(100),
                         Some(16),
                         Some(55),
+						None
                     ),
                 };
 
@@ -765,10 +803,17 @@ impl PayrollRepository for PostgresPayrollRepo {
             .fetch_optional(&mut *tx)
             .await?;
 
-            let (prior_taxable, prior_withheld, tax_period_uuid) = match &prior {
-                Some(p) => (p.taxable_income.clone(), p.paye_withheld.clone(), Some(p.uuid)),
-                None => (BigDecimal::from(0), BigDecimal::from(0), None),
+            let (prior_taxable, prior_withheld, prior_paye_due, tax_period_uuid) = match &prior {
+                Some(p) => (p.taxable_income.clone(), p.paye_due.clone(), p.paye_withheld.clone(), Some(p.uuid)),
+                None => (BigDecimal::from(0), BigDecimal::from(0), BigDecimal::from(0), None),
             };
+
+			if prior_withheld > prior_paye_due + BigDecimal::from(1) {
+			    return Err(AppError::Unprocessable(format!(
+			        "Employee {}: tax period inconsistent (withheld {} > due {}). Repair tax period before processing.",
+			        slip.employee_uuid, prior_withheld, prior_paye_due
+			    )));
+			}
 
             let cumulative_taxable = &prior_taxable + &result.taxable_earnings;
             let cumulative_paye = crate::features::payroll::calculation::progressive_tax(
@@ -836,6 +881,8 @@ impl PayrollRepository for PostgresPayrollRepo {
                     calculation_version = $11,
                     calculated_at = NOW(),
                     calculation_snapshot = $12,
+					payment_method = COALESCE($13, payment_method),
+				    bank_account = COALESCE($14, bank_account),
                     updated_at = NOW()
                 WHERE uuid = $1
                 "#,
@@ -852,6 +899,8 @@ impl PayrollRepository for PostgresPayrollRepo {
             .bind(&result.employer_cost_total)
             .bind(&calculation_version)
             .bind(&snapshot)
+			.bind(&ctx.payment_method)
+			.bind(&ctx.bank_account_number)
             .execute(&mut *tx)
             .await?;
 
@@ -1526,6 +1575,7 @@ impl PayrollRepository for PostgresPayrollRepo {
         let (paye, nssf_ee, nssf_er) = totals;
         let mut created = Vec::new();
 
+		let code_filter = statutory_code.trim().to_uppercase();
         for (code, amount) in [
             ("PAYE", paye),
             ("NSSF_EE", nssf_ee),
@@ -1534,6 +1584,12 @@ impl PayrollRepository for PostgresPayrollRepo {
             if amount <= BigDecimal::from(0) {
                 continue;
             }
+			if !code_filter.is_empty()
+		        && code_filter != "*"
+		        && code_filter != "ALL"
+		        && code_filter != code {
+		        continue;
+		    }
             let row = sqlx::query_as::<_, StatutoryRemittance>(
                 r#"
                 INSERT INTO payroll.statutory_remittances (

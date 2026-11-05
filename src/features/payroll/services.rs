@@ -74,17 +74,23 @@ impl<R: PayrollRepository> PayrollService<R> {
             }
             eligible
                 .into_iter()
-                .map(|employee| CreatePayslip {
-                    employee_uuid: employee.employee_uuid,
-                    gross_pay: BigDecimal::from(0),
-                    basic_pay: Some(BigDecimal::from(0)),
-                    tax_deducted: Some(BigDecimal::from(0)),
-                    social_security: Some(BigDecimal::from(0)),
-                    employer_social_security: Some(BigDecimal::from(0)),
-                    other_deductions: Some(BigDecimal::from(0)),
-                    payment_method: employee.payment_method,
-                    bank_account: employee.bank_account_number,
-                    benefits: None,
+                .map(|employee| {
+					let basic = employee
+				        .basic_salary
+				        .clone()
+				        .unwrap_or_else(|| BigDecimal::from(0));
+					CreatePayslip {
+	                    employee_uuid: employee.employee_uuid,
+	                    gross_pay: BigDecimal::from(0),
+	                    basic_pay: Some(basic),
+	                    tax_deducted: Some(BigDecimal::from(0)),
+	                    social_security: Some(BigDecimal::from(0)),
+	                    employer_social_security: Some(BigDecimal::from(0)),
+	                    other_deductions: Some(BigDecimal::from(0)),
+	                    payment_method: employee.payment_method,
+	                    bank_account: employee.bank_account_number,
+	                    benefits: None,
+					}
                 })
                 .collect()
         } else {
