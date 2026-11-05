@@ -1571,7 +1571,7 @@ impl PayrollRepository for PostgresPayrollRepo {
         let (paye, nssf_ee, nssf_er) = totals;
         let mut created = Vec::new();
 
-		let code_filter = statutory_code.trim().to_uppercase();
+		let code_filter = remittance.statutory_code.trim().to_uppercase();
         for (code, amount) in [
             ("PAYE", paye),
             ("NSSF_EE", nssf_ee),

@@ -252,7 +252,7 @@ pub struct StatutoryBandRow {
 
 #[derive(Debug, Clone, FromRow)]
 pub struct NssfRuleRow {
-    pub rule_set_uuid: Uuid,
+    // pub rule_set_uuid: Uuid,
     pub employee_rate: BigDecimal,
     pub employer_rate: BigDecimal,
     pub minimum_age: Option<i16>,
