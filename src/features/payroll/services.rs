@@ -5,7 +5,7 @@ use crate::{
     models::payroll::*,
 };
 use bigdecimal::BigDecimal;
-use chrono::NaiveDate;
+// use chrono::NaiveDate;
 use sqlx::PgPool;
 use uuid::Uuid;
 
@@ -149,7 +149,10 @@ impl<R: PayrollRepository> PayrollService<R> {
         self.repo.create_pay_component(pool, payload).await
     }
 
-    pub async fn list_pay_components(&self, pool: &PgPool) -> Result<Vec<PayComponent>, AppError> {
+    pub async fn list_pay_components(
+		&self, 
+		pool: &PgPool
+	) -> Result<Vec<PayComponent>, AppError> {
         self.repo.list_pay_components(pool).await
     }
 
@@ -211,11 +214,12 @@ impl<R: PayrollRepository> PayrollService<R> {
     pub async fn create_statutory_remittances(
         &self,
         pool: &PgPool,
-        payrun_uuid: Uuid,
-        due_date: NaiveDate,
+		remittance: &CreateStatutoryRemittance,
+        // payrun_uuid: Uuid,
+        // due_date: NaiveDate,
     ) -> Result<Vec<StatutoryRemittance>, AppError> {
         self.repo
-            .create_statutory_remittances(pool, payrun_uuid, due_date)
+            .create_statutory_remittances(pool, remittance/*payrun_uuid, due_date*/)
             .await
     }
 

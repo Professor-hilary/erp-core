@@ -1,13 +1,7 @@
 // src/features/payroll/repository.rs
 use crate::{
     interface::api::errors::AppError,
-    models::payroll::{
-        ComponentAssignmentRow, CreateComponentAssignment, CreatePayComponent, CreatePayrun,
-        CreatePayslip, EligibleEmployeeRow, EmployeeComponentAssignment,
-        EmployeePaymentBatch, EmployeePayrollContext, EmployeeTaxPeriodRow,
-        LeaveEncashmentRow, NssfRuleRow, PayComponent, Payrun, Payslip, PayslipCalculationItem,
-        PostPayrun, RemitStatutory, SettleEmployees, StatutoryBandRow, StatutoryRemittance,
-    },
+    models::payroll::*,
 };
 use async_trait::async_trait;
 use bigdecimal::BigDecimal;
@@ -103,8 +97,9 @@ pub trait PayrollRepository: Send + Sync {
     async fn create_statutory_remittances(
         &self,
         pool: &PgPool,
-        payrun_uuid: Uuid,
-        due_date: NaiveDate,
+		remittance: &CreateStatutoryRemittance,
+        // payrun_uuid: Uuid,
+        // due_date: NaiveDate,
     ) -> Result<Vec<StatutoryRemittance>, AppError>;
     async fn remit_statutory(
         &self,
@@ -708,21 +703,21 @@ impl PayrollRepository for PostgresPayrollRepo {
             .fetch_optional(&mut *tx)
             .await?;
 
-            let (nssf_employee_rate, nssf_employer_rate, nssf_min_age, nssf_max_age, nssf_rule_set_uuid) =
+            let (nssf_employee_rate, nssf_employer_rate, nssf_min_age, nssf_max_age, /*nssf_rule_set_uuid*/) =
                 match nssf {
                     Some(n) => (
                         n.employee_rate,
                         n.employer_rate,
                         n.minimum_age.map(|a| a as u8),
                         n.maximum_age.map(|a| a as u8),
-						Some(n.rule_set_uuid),
+						// Some(n.rule_set_uuid),
                     ),
                     None => (
                         BigDecimal::from(5) / BigDecimal::from(100),
                         BigDecimal::from(10) / BigDecimal::from(100),
                         Some(16),
                         Some(55),
-						None
+						// None
                     ),
                 };
 
@@ -808,7 +803,7 @@ impl PayrollRepository for PostgresPayrollRepo {
                 None => (BigDecimal::from(0), BigDecimal::from(0), BigDecimal::from(0), None),
             };
 
-			if prior_withheld > prior_paye_due + BigDecimal::from(1) {
+			if prior_withheld > &prior_paye_due + BigDecimal::from(1) {
 			    return Err(AppError::Unprocessable(format!(
 			        "Employee {}: tax period inconsistent (withheld {} > due {}). Repair tax period before processing.",
 			        slip.employee_uuid, prior_withheld, prior_paye_due
@@ -1539,15 +1534,16 @@ impl PayrollRepository for PostgresPayrollRepo {
     async fn create_statutory_remittances(
         &self,
         pool: &PgPool,
-        payrun_uuid: Uuid,
-        due_date: NaiveDate,
+		remittance: &CreateStatutoryRemittance,
+        // payrun_uuid: Uuid,
+        // due_date: NaiveDate,
     ) -> Result<Vec<StatutoryRemittance>, AppError> {
         let mut tx = pool.begin().await?;
 
         let payrun: Payrun = sqlx::query_as(
             "SELECT * FROM payroll.payruns WHERE uuid = $1 FOR UPDATE",
         )
-        .bind(payrun_uuid)
+        .bind(remittance.payrun_uuid)
         .fetch_optional(&mut *tx)
         .await?
         .ok_or_else(|| AppError::NotFound("Payrun not found".into()))?;
@@ -1568,7 +1564,7 @@ impl PayrollRepository for PostgresPayrollRepo {
             WHERE payrun_uuid = $1
             "#,
         )
-        .bind(payrun_uuid)
+        .bind(remittance.payrun_uuid)
         .fetch_one(&mut *tx)
         .await?;
 
@@ -1602,10 +1598,10 @@ impl PayrollRepository for PostgresPayrollRepo {
                 RETURNING *
                 "#,
             )
-            .bind(payrun_uuid)
+            .bind(remittance.payrun_uuid)
             .bind(code)
             .bind(&amount)
-            .bind(due_date)
+            .bind(remittance.due_date)
             .fetch_one(&mut *tx)
             .await?;
             created.push(row);
