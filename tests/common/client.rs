@@ -70,6 +70,20 @@ impl TestClient {
         let v: Value = res.json().await.unwrap_or(json!({}));
         Ok((status, v))
     }
+    pub async fn put(&self, path: &str, body: Value) -> Result<(StatusCode, Value)> {
+        let res = self
+            .http
+            .put(format!("{BASE}{path}"))
+            .header("Authorization", format!("Bearer {}", self.access))
+            .header("Content-Type", "application/json")
+            .json(&body)
+            .send()
+            .await?;
+        let status = res.status();
+        let v: Value = res.json().await.unwrap_or(json!({}));
+        Ok((status, v))
+    }
+
 
     pub async fn delete(&self, path: &str) -> Result<(StatusCode, Value)> {
         let res = self

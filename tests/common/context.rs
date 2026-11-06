@@ -378,7 +378,7 @@ impl TestContext {
             self.employees.insert(person.key.to_string(), emp_id);
 
             // Payment profile (bank on payslip)
-            let _ = self
+            let (pp_status, pp_body) = self
                 .client
                 .put(
                     &format!("/api/workforce/employees/{emp_id}/payment-profile"),
@@ -389,19 +389,19 @@ impl TestContext {
                         "currency_code": "UGX"
                     }),
                 )
-                .await;
+                .await?;
 
-            if !status.is_success() {
+            if !(pp_status.is_success() || pp_status.as_u16() == 201) {
                 anyhow::bail!(
                     "Creating payment profile for {} failed: {} {}",
                     person.key,
-                    status,
-                    body
+                    pp_status,
+                    pp_body
                 );
             }
 
             // Active contract = salary source of truth
-            let _ = self
+            let (c_status, c_body) = self
                 .client
                 .post(
                     "/api/workforce/contracts",
@@ -417,14 +417,14 @@ impl TestContext {
                         "status": "Active"
                     }),
                 )
-                .await;
+                .await?;
 
-            if !status.is_success() {
+            if !(c_status.is_success() || c_status.as_u16() == 201) {
                 anyhow::bail!(
                     "Creating contract for {} failed: {} {}",
                     person.key,
-                    status,
-                    body
+                    c_status,
+                    c_body
                 );
             }
 
