@@ -397,8 +397,8 @@ async fn workforce_leave_type_and_request() -> E2eResult<()> {
         .await
         .map_err(|e| e.to_string())?;
     assert!(
-        ok(s) || s.as_u16() == 409 || s.as_u16() == 400,
-        "leave type: {s} {body}"
+        ok(s) || s.as_u16() == 409,
+        "leave type create must succeed or already exist: {s} {body}"
     );
 
     // Resolve leave type uuid
@@ -425,11 +425,24 @@ async fn workforce_leave_type_and_request() -> E2eResult<()> {
             .await
             .map_err(|e| e.to_string())?;
         // May require balances; accept success or business rejection
-        assert!(
-            ok(s) || s.as_u16() == 422 || s.as_u16() == 400,
-            "leave request: {s} {body}"
-        );
-        println!("✓ leave request status={s}");
+        if ok(s) {
+            println!("✓ leave request created");
+        } else {
+            let msg = body.to_string();
+            assert!(
+                s.as_u16() == 422 || s.as_u16() == 400,
+                "leave request unexpected status {s} {body}"
+            );
+            assert!(
+                msg.to_lowercase().contains("balance")
+                    || msg.to_lowercase().contains("leave")
+                    || msg.to_lowercase().contains("entitlement")
+                    || msg.to_lowercase().contains("insufficient")
+                    || msg.to_lowercase().contains("unprocessable"),
+                "expected a leave-business error body, got {s} {body}"
+            );
+            println!("✓ leave request rejected with business error (acceptable without balances)");
+        }
     } else {
         println!("✓ leave type exists or create returned non-uuid; skip request");
     }
@@ -477,11 +490,28 @@ async fn workforce_contract_amendment_salary() -> E2eResult<()> {
         )
         .await
         .map_err(|e| e.to_string())?;
+    assert!(ok(s), "salary amendment must succeed: {s} {body}");
+
+    // effective_date 2026-07-01 is in the past relative to current wall clock →
+    // live contract basic_salary must materialise to 1,650,000.
+    let (s, body) = ctx
+        .client
+        .get(&format!("/api/workforce/contracts?employee_uuid={sample}"))
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "re-list contracts: {s} {body}");
+    let contracts = body["data"].as_array().cloned().unwrap_or_default();
+    let active = contracts
+        .iter()
+        .find(|c| c["status"] == "Active")
+        .or_else(|| contracts.first())
+        .ok_or("no contract after amendment")?;
+    let basic = active["basic_salary"].as_str().unwrap_or("");
     assert!(
-        ok(s) || s.as_u16() == 422 || s.as_u16() == 400,
-        "salary amendment: {s} {body}"
+        basic == "1650000" || basic == "1650000.00" || basic.starts_with("1650000"),
+        "expected live contract basic_salary 1650000 after past-effective amendment, got {basic}"
     );
-    println!("✓ contract amendment surface status={s}");
+    println!("✓ contract amendment applied; basic_salary={basic}");
     Ok(())
 }
 
@@ -503,6 +533,10 @@ async fn workforce_employment_events_list() -> E2eResult<()> {
     assert!(ok(s), "events: {s} {body}");
     // Seed path should have produced at least HIRED / ONBOARDING events
     let events = body["data"].as_array().cloned().unwrap_or_default();
+    assert!(
+        !events.is_empty(),
+        "expected employment events from seed/hire path"
+    );
     println!("✓ employment events n={}", events.len());
     Ok(())
 }
