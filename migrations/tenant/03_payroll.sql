@@ -1,93 +1,37 @@
--- ========================================
--- PAYROLL MODULE - FULL SCHEMA (GLOBAL-READY)
--- Run this ONCE after `accounting` and `hr` schemas exist
--- ========================================
+-- =============================================================================
+-- PAYROLL MODULE — FULL SCHEMA (GLOBAL-READY)
+-- =============================================================================
+-- Prerequisites: accounting schema, hr schema (employees, contracts, profiles)
+--
+-- Layout:
+--   1. Schema + sequences
+--   2. Reference / config   (components, assignments, statutory rules)
+--   3. Run + result         (payruns, payslips, manual items, calc lines)
+--   4. Tax-period tracking
+--   5. Settlement + remittance
+--   6. Indexes
+--   7. Views
+--   8. Functions
+--   9. Seed data            (system components + UG statutory packs)
+--
+-- Same objects and behaviour as before; order, comments and precision aligned.
+-- =============================================================================
 
--- Enable UUID extension
--- CREATE EXTENSION IF NOT EXISTS pg_uuidv7;
-
--- Create schema
 CREATE SCHEMA IF NOT EXISTS payroll;
 
--- ========================================
--- SEQUENCES
--- ========================================
+-- =============================================================================
+-- 1. SEQUENCES
+-- =============================================================================
 CREATE SEQUENCE IF NOT EXISTS payroll.payruns_serial_id_seq;
 CREATE SEQUENCE IF NOT EXISTS payroll.payslips_serial_id_seq;
 CREATE SEQUENCE IF NOT EXISTS payroll.payslip_items_serial_id_seq;
 
--- ========================================
--- TABLE: payruns
--- ========================================
-CREATE TABLE IF NOT EXISTS payroll.payruns (
-    uuid uuid DEFAULT uuidv7() NOT NULL,
-    serial_id bigint DEFAULT nextval('payroll.payruns_serial_id_seq') NOT NULL,
-    pay_period_start date NOT NULL,
-    pay_period_end date NOT NULL,
-    payment_date date NOT NULL,
-    status varchar(20) DEFAULT 'Pending' CHECK (status IN ('Pending', 'Processed', 'Posted')),
-    gl_transaction_uuid uuid,
-    notes text,
-	posting_snapshot JSONB NOT NULL DEFAULT '{}'::jsonb,
-	processed_at timestamptz,
-	posted_at timestamptz,
-    created_at timestamptz DEFAULT now(),
-    updated_at timestamptz DEFAULT now(),
-    CONSTRAINT payruns_pkey PRIMARY KEY (uuid),
-    CONSTRAINT payruns_serial_id_key UNIQUE (serial_id),
-	CONSTRAINT payruns_valid_period CHECK (pay_period_end >= pay_period_start)
-);
+-- =============================================================================
+-- 2. REFERENCE / CONFIG
+-- =============================================================================
 
--- ========================================
--- TABLE: payslips
--- ========================================
-CREATE TABLE IF NOT EXISTS payroll.payslips (
-    uuid uuid DEFAULT uuidv7() NOT NULL,
-    serial_id bigint DEFAULT nextval('payroll.payslips_serial_id_seq') NOT NULL,
-    payrun_uuid uuid NOT NULL,
-    employee_uuid uuid NOT NULL,
-    gross_pay numeric(14, 2) NOT NULL,
-    tax_deducted numeric(14, 2) DEFAULT 0,
-    social_security numeric(14, 2) DEFAULT 0,
-	employer_social_security numeric(14,2) DEFAULT 0,
-	allowances_total NUMERIC(18,2) NOT NULL DEFAULT 0,
-	taxable_earnings NUMERIC(18,2) NOT NULL DEFAULT 0,
-	employer_cost_total NUMERIC(18,2) NOT NULL DEFAULT 0,
-	calculation_version VARCHAR(40),
-    other_deductions numeric(14, 2) DEFAULT 0,
-	basic_pay numeric(14,2),
-    net_pay numeric(14, 2) GENERATED ALWAYS AS (
-        ((gross_pay - tax_deducted) - social_security) - other_deductions
-    ) STORED,
-    payment_method varchar(30) DEFAULT 'Bank Transfer',
-    bank_account varchar(50),
-    status varchar(20) DEFAULT 'Pending',
-	calculation_snapshot JSONB NOT NULL DEFAULT '{}'::jsonb,
-	calculated_at TIMESTAMPTZ,
-    created_at timestamptz DEFAULT now(),
-    updated_at timestamptz DEFAULT now(),
-    CONSTRAINT payslips_pkey PRIMARY KEY (uuid),
-    CONSTRAINT payslips_serial_id_key UNIQUE (serial_id),
-    CONSTRAINT payslips_payrun_uuid_fkey
-        FOREIGN KEY (payrun_uuid) REFERENCES payroll.payruns(uuid) ON DELETE CASCADE,
-    CONSTRAINT payslips_employee_uuid_fkey
-        FOREIGN KEY (employee_uuid) REFERENCES hr.employees(uuid),
-	CONSTRAINT payslips_status_check
-	    CHECK (status IN ('Pending', 'Paid', 'Partially_Paid')),
-	CONSTRAINT payslips_nonnegative_amounts
-	    CHECK (
-	        gross_pay >= 0
-	        AND COALESCE(basic_pay, 0) >= 0
-	        AND COALESCE(tax_deducted, 0) >= 0
-	        AND COALESCE(social_security, 0) >= 0
-	        AND COALESCE(employer_social_security, 0) >= 0
-	        AND COALESCE(other_deductions, 0) >= 0
-	    )
-);
-
--- ========================================
--- TABLE: payslip_items
--- ========================================
+-- Catalog of earnings, deductions and employer costs.
+-- sequence_no drives deterministic calculation order.
 CREATE TABLE IF NOT EXISTS payroll.pay_components (
     uuid 			UUID PRIMARY KEY DEFAULT uuidv7(),
     serial_id 		BIGINT GENERATED ALWAYS AS IDENTITY NOT NULL,
@@ -134,26 +78,8 @@ CREATE TABLE IF NOT EXISTS payroll.pay_components (
         CHECK (default_rate IS NULL OR default_rate >= 0)
 );
 
-CREATE TABLE IF NOT EXISTS payroll.payslip_items (
-    uuid uuid DEFAULT uuidv7() NOT NULL,
-    serial_id bigint DEFAULT nextval('payroll.payslip_items_serial_id_seq') NOT NULL,
-    payslip_uuid uuid NOT NULL,
-    item_type varchar(20) CHECK (item_type IN ('Allowance', 'Deduction')),
-    description varchar(100),
-    component_uuid uuid REFERENCES payroll.pay_components(uuid),
-    amount numeric(14, 2) NOT NULL,
-    created_at timestamptz DEFAULT now(),
-    CONSTRAINT payslip_items_pkey PRIMARY KEY (uuid),
-    CONSTRAINT payslip_items_serial_id_key UNIQUE (serial_id),
-    CONSTRAINT payslip_items_positive_amount CHECK (amount >= 0),
-    CONSTRAINT payslip_items_payslip_uuid_fkey
-        FOREIGN KEY (payslip_uuid) REFERENCES payroll.payslips(uuid) ON DELETE CASCADE
-);
 
--- ---------------------------------------------------------------------------
--- 2. Component assignments: recurring employee-specific earnings/deductions.
--- ---------------------------------------------------------------------------
-
+-- Recurring employee-specific component assignments (effective-dated).
 CREATE TABLE IF NOT EXISTS payroll.employee_component_assignments (
     uuid UUID PRIMARY KEY DEFAULT uuidv7(),
     employee_uuid UUID NOT NULL REFERENCES hr.employees(uuid),
@@ -176,15 +102,8 @@ CREATE TABLE IF NOT EXISTS payroll.employee_component_assignments (
         )
 );
 
-CREATE INDEX IF NOT EXISTS employee_component_assignments_employee_idx
-    ON payroll.employee_component_assignments(employee_uuid, effective_from, effective_to)
-    WHERE is_active;
-
--- ---------------------------------------------------------------------------
--- 3. Effective-dated statutory rules.
---    Values are data, not Rust constants.
--- ---------------------------------------------------------------------------
-
+-- Effective-dated statutory rule packs (PAYE bands, NSSF rates, …).
+-- Values are data, not application constants.
 CREATE TABLE IF NOT EXISTS payroll.statutory_rule_sets (
     uuid UUID PRIMARY KEY DEFAULT uuidv7(),
     jurisdiction_code VARCHAR(10) NOT NULL,
@@ -209,12 +128,6 @@ CREATE TABLE IF NOT EXISTS payroll.statutory_rule_sets (
             'CONFIGURED'
         ))
 );
-
-CREATE INDEX IF NOT EXISTS statutory_rule_sets_lookup_idx
-    ON payroll.statutory_rule_sets(
-        jurisdiction_code, rule_code, employee_class, effective_from, effective_to
-    )
-    WHERE is_active;
 
 CREATE TABLE IF NOT EXISTS payroll.statutory_rule_bands (
     uuid UUID PRIMARY KEY DEFAULT uuidv7(),
@@ -246,6 +159,121 @@ CREATE TABLE IF NOT EXISTS payroll.statutory_contribution_rules (
     exemption_key VARCHAR(50)
 );
 
+-- =============================================================================
+-- 3. RUN + RESULT
+-- =============================================================================
+
+-- One payrun covers a single tax-month-aligned period.
+CREATE TABLE IF NOT EXISTS payroll.payruns (
+    uuid UUID DEFAULT uuidv7() NOT NULL,
+    serial_id BIGINT DEFAULT nextval('payroll.payruns_serial_id_seq') NOT NULL,
+    pay_period_start DATE NOT NULL,
+    pay_period_end DATE NOT NULL,
+    payment_date DATE NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'Pending'
+        CHECK (status IN ('Pending', 'Processed', 'Posted')),
+    gl_transaction_uuid UUID,
+    notes TEXT,
+    posting_snapshot JSONB NOT NULL DEFAULT '{}'::jsonb,
+    processed_at TIMESTAMPTZ,
+    posted_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT payruns_pkey PRIMARY KEY (uuid),
+    CONSTRAINT payruns_serial_id_key UNIQUE (serial_id),
+    CONSTRAINT payruns_valid_period CHECK (pay_period_end >= pay_period_start)
+);
+
+-- One payslip per employee per payrun. net_pay is derived.
+-- calculation_snapshot freezes the engine result at process time.
+CREATE TABLE IF NOT EXISTS payroll.payslips (
+    uuid UUID DEFAULT uuidv7() NOT NULL,
+    serial_id BIGINT DEFAULT nextval('payroll.payslips_serial_id_seq') NOT NULL,
+    payrun_uuid UUID NOT NULL,
+    employee_uuid UUID NOT NULL,
+    basic_pay NUMERIC(18,2),
+    gross_pay NUMERIC(18,2) NOT NULL,
+    allowances_total NUMERIC(18,2) NOT NULL DEFAULT 0,
+    taxable_earnings NUMERIC(18,2) NOT NULL DEFAULT 0,
+    tax_deducted NUMERIC(18,2) NOT NULL DEFAULT 0,
+    social_security NUMERIC(18,2) NOT NULL DEFAULT 0,
+    employer_social_security NUMERIC(18,2) NOT NULL DEFAULT 0,
+    other_deductions NUMERIC(18,2) NOT NULL DEFAULT 0,
+    employer_cost_total NUMERIC(18,2) NOT NULL DEFAULT 0,
+    net_pay NUMERIC(18,2) GENERATED ALWAYS AS (
+        ((gross_pay - tax_deducted) - social_security) - other_deductions
+    ) STORED,
+    payment_method VARCHAR(30) DEFAULT 'Bank Transfer',
+    bank_account VARCHAR(50),
+    status VARCHAR(20) NOT NULL DEFAULT 'Pending',
+    calculation_version VARCHAR(40),
+    calculation_snapshot JSONB NOT NULL DEFAULT '{}'::jsonb,
+    calculated_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT payslips_pkey PRIMARY KEY (uuid),
+    CONSTRAINT payslips_serial_id_key UNIQUE (serial_id),
+    CONSTRAINT payslips_payrun_uuid_fkey
+        FOREIGN KEY (payrun_uuid) REFERENCES payroll.payruns(uuid) ON DELETE CASCADE,
+    CONSTRAINT payslips_employee_uuid_fkey
+        FOREIGN KEY (employee_uuid) REFERENCES hr.employees(uuid),
+    CONSTRAINT payslips_status_check
+        CHECK (status IN ('Pending', 'Paid', 'Partially_Paid')),
+    CONSTRAINT payslips_nonnegative_amounts
+        CHECK (
+            gross_pay >= 0
+            AND COALESCE(basic_pay, 0) >= 0
+            AND COALESCE(tax_deducted, 0) >= 0
+            AND COALESCE(social_security, 0) >= 0
+            AND COALESCE(employer_social_security, 0) >= 0
+            AND COALESCE(other_deductions, 0) >= 0
+        )
+);
+
+-- Manual / external payslip inputs (allowances or deductions entered by hand).
+-- Distinct from payslip_calculation_items (immutable engine output).
+CREATE TABLE IF NOT EXISTS payroll.payslip_items (
+    uuid UUID DEFAULT uuidv7() NOT NULL,
+    serial_id BIGINT DEFAULT nextval('payroll.payslip_items_serial_id_seq') NOT NULL,
+    payslip_uuid UUID NOT NULL,
+    item_type VARCHAR(20) CHECK (item_type IN ('Allowance', 'Deduction')),
+    description VARCHAR(100),
+    component_uuid UUID REFERENCES payroll.pay_components(uuid),
+    amount NUMERIC(18,2) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT payslip_items_pkey PRIMARY KEY (uuid),
+    CONSTRAINT payslip_items_serial_id_key UNIQUE (serial_id),
+    CONSTRAINT payslip_items_positive_amount CHECK (amount >= 0),
+    CONSTRAINT payslip_items_payslip_uuid_fkey
+        FOREIGN KEY (payslip_uuid) REFERENCES payroll.payslips(uuid) ON DELETE CASCADE
+);
+
+-- Immutable calculation lines produced by process_payrun.
+CREATE TABLE IF NOT EXISTS payroll.payslip_calculation_items (
+    uuid UUID PRIMARY KEY DEFAULT uuidv7(),
+    payslip_uuid UUID NOT NULL
+        REFERENCES payroll.payslips(uuid) ON DELETE CASCADE,
+    component_uuid UUID REFERENCES payroll.pay_components(uuid),
+    statutory_rule_set_uuid UUID REFERENCES payroll.statutory_rule_sets(uuid),
+    item_code VARCHAR(40) NOT NULL,
+    item_name VARCHAR(120) NOT NULL,
+    item_kind VARCHAR(20) NOT NULL
+        CHECK (item_kind IN ('EARNING', 'DEDUCTION', 'EMPLOYER_COST', 'INFORMATION')),
+    calculation_method VARCHAR(30) NOT NULL,
+    basis_amount NUMERIC(18,6) NOT NULL DEFAULT 0,
+    rate NUMERIC(18,8),
+    quantity NUMERIC(18,6) NOT NULL DEFAULT 1,
+    unrounded_amount NUMERIC(24,8) NOT NULL,
+    amount NUMERIC(18,2) NOT NULL,
+    taxable BOOLEAN NOT NULL DEFAULT FALSE,
+    included_in_nssf_base BOOLEAN NOT NULL DEFAULT FALSE,
+    calculation_inputs JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- =============================================================================
+-- 4. TAX-PERIOD TRACKING (cumulative PAYE within a tax month)
+-- =============================================================================
 CREATE TABLE IF NOT EXISTS payroll.employee_tax_periods (
     uuid UUID PRIMARY KEY DEFAULT uuidv7(),
     employee_uuid UUID NOT NULL REFERENCES hr.employees(uuid),
@@ -278,252 +306,10 @@ CREATE TABLE IF NOT EXISTS payroll.employee_tax_period_entries (
     UNIQUE(payslip_uuid)
 );
 
-CREATE INDEX IF NOT EXISTS employee_tax_period_lookup_idx
-    ON payroll.employee_tax_periods(employee_uuid, tax_year, tax_month);
-
-CREATE INDEX IF NOT EXISTS pay_components_sequence_idx
-    ON payroll.pay_components(sequence_no, code)
-    WHERE is_active;
-
--- Uganda resident PAYE rates effective 1 July 2024 (prior revision, for
--- historical periods and integration tests covering FY2024–FY2025).
--- Jurisdiction-specific; engine selects the set effective on period_end.
-INSERT INTO payroll.statutory_rule_sets (
-    jurisdiction_code, rule_code, rule_name, employee_class,
-    calculation_method, effective_from, effective_to, currency_code,
-    source_reference, revision_label
-)
-VALUES (
-    'UG', 'PAYE', 'Uganda PAYE', 'RESIDENT',
-    'PROGRESSIVE_BANDS', DATE '2024-07-01', DATE '2026-06-30', 'UGX',
-    'URA PAYE rates', 'FY2024-2026'
-)
-ON CONFLICT DO NOTHING;
-
-INSERT INTO payroll.statutory_rule_bands
-    (rule_set_uuid, lower_bound, upper_bound, base_tax, marginal_rate, sequence_no)
-SELECT r.uuid, b.lower_bound, b.upper_bound, b.base_tax, b.marginal_rate, b.sequence_no
-FROM payroll.statutory_rule_sets r
-CROSS JOIN (
-    VALUES
-      (0::numeric,       235000::numeric,       0::numeric,       0.00::numeric, 1::smallint),
-      (235000::numeric,  335000::numeric,       0::numeric,       0.10::numeric, 2::smallint),
-      (335000::numeric,  410000::numeric,   10000::numeric,       0.20::numeric, 3::smallint),
-      (410000::numeric, 10000000::numeric,  25000::numeric,       0.30::numeric, 4::smallint),
-      (10000000::numeric, NULL::numeric,  2888250::numeric,       0.40::numeric, 5::smallint)
-) AS b(lower_bound, upper_bound, base_tax, marginal_rate, sequence_no)
-WHERE r.jurisdiction_code = 'UG'
-  AND r.rule_code = 'PAYE'
-  AND r.employee_class = 'RESIDENT'
-  AND r.effective_from = DATE '2024-07-01'
-  AND NOT EXISTS (
-      SELECT 1 FROM payroll.statutory_rule_bands existing
-      WHERE existing.rule_set_uuid = r.uuid
-  );
-
-INSERT INTO payroll.statutory_rule_sets (
-    jurisdiction_code, rule_code, rule_name, employee_class,
-    calculation_method, effective_from, effective_to, currency_code,
-    source_reference, revision_label
-)
-VALUES (
-    'UG', 'PAYE', 'Uganda PAYE', 'NON_RESIDENT',
-    'PROGRESSIVE_BANDS', DATE '2024-07-01', DATE '2026-06-30', 'UGX',
-    'URA PAYE rates', 'FY2024-2026'
-)
-ON CONFLICT DO NOTHING;
-
-INSERT INTO payroll.statutory_rule_bands
-    (rule_set_uuid, lower_bound, upper_bound, base_tax, marginal_rate, sequence_no)
-SELECT r.uuid, b.lower_bound, b.upper_bound, b.base_tax, b.marginal_rate, b.sequence_no
-FROM payroll.statutory_rule_sets r
-CROSS JOIN (
-    VALUES
-      (0::numeric,       335000::numeric,       0::numeric,       0.10::numeric, 1::smallint),
-      (335000::numeric,  410000::numeric,   33500::numeric,       0.20::numeric, 2::smallint),
-      (410000::numeric, 10000000::numeric,  48500::numeric,       0.30::numeric, 3::smallint),
-      (10000000::numeric, NULL::numeric,  2925500::numeric,       0.40::numeric, 4::smallint)
-) AS b(lower_bound, upper_bound, base_tax, marginal_rate, sequence_no)
-WHERE r.jurisdiction_code = 'UG'
-  AND r.rule_code = 'PAYE'
-  AND r.employee_class = 'NON_RESIDENT'
-  AND r.effective_from = DATE '2024-07-01'
-  AND NOT EXISTS (
-      SELECT 1 FROM payroll.statutory_rule_bands existing
-      WHERE existing.rule_set_uuid = r.uuid
-  );
-
-INSERT INTO payroll.statutory_rule_sets (
-    jurisdiction_code, rule_code, rule_name, employee_class,
-    calculation_method, effective_from, effective_to, currency_code,
-    source_reference, revision_label
-)
-VALUES (
-    'UG', 'NSSF', 'Uganda NSSF', 'ALL',
-    'PERCENT_OF_BASE', DATE '2024-07-01', DATE '2026-06-30', 'UGX',
-    'NSSF Act', 'FY2024-2026'
-)
-ON CONFLICT DO NOTHING;
-
-INSERT INTO payroll.statutory_contribution_rules
-    (rule_set_uuid, employee_rate, employer_rate, minimum_age, maximum_age)
-SELECT r.uuid, 0.05, 0.10, 16, 60
-FROM payroll.statutory_rule_sets r
-WHERE r.jurisdiction_code = 'UG'
-  AND r.rule_code = 'NSSF'
-  AND r.effective_from = DATE '2024-07-01'
-  AND NOT EXISTS (
-      SELECT 1 FROM payroll.statutory_contribution_rules existing
-      WHERE existing.rule_set_uuid = r.uuid
-  );
-
--- Uganda resident PAYE rates effective 1 July 2026.
--- The tax bands are monthly chargeable income bands.
-INSERT INTO payroll.statutory_rule_sets (
-    jurisdiction_code, rule_code, rule_name, employee_class,
-    calculation_method, effective_from, currency_code,
-    source_reference, revision_label
-)
-VALUES (
-    'UG', 'PAYE', 'Uganda PAYE', 'RESIDENT',
-    'PROGRESSIVE_BANDS', DATE '2026-07-01', 'UGX',
-    'URA revised PAYE rates effective 1 July 2026',
-    'FY2026-2027'
-)
-ON CONFLICT DO NOTHING;
-
--- Use a guarded seed so rerunning this migration does not duplicate bands.
-INSERT INTO payroll.statutory_rule_bands
-    (rule_set_uuid, lower_bound, upper_bound, base_tax, marginal_rate, sequence_no)
-SELECT r.uuid, b.lower_bound, b.upper_bound, b.base_tax, b.marginal_rate, b.sequence_no
-FROM payroll.statutory_rule_sets r
-CROSS JOIN (
-    VALUES
-      (0::numeric,       335000::numeric,       0::numeric,       0::numeric, 1::smallint),
-      (335000::numeric,  410000::numeric,       0::numeric,       0.20::numeric, 2::smallint),
-      (410000::numeric,  485000::numeric,   15000::numeric,       0.25::numeric, 3::smallint),
-      (485000::numeric, 10000000::numeric,  33750::numeric,       0.30::numeric, 4::smallint),
-      (10000000::numeric, NULL::numeric,   2888250::numeric,       0.40::numeric, 5::smallint)
-) AS b(lower_bound, upper_bound, base_tax, marginal_rate, sequence_no)
-WHERE r.jurisdiction_code = 'UG'
-  AND r.rule_code = 'PAYE'
-  AND r.employee_class = 'RESIDENT'
-  AND r.effective_from = DATE '2026-07-01'
-  AND NOT EXISTS (
-      SELECT 1
-      FROM payroll.statutory_rule_bands existing
-      WHERE existing.rule_set_uuid = r.uuid
-  );
-
-UPDATE payroll.statutory_rule_bands b
-SET base_tax = CASE
-    WHEN r.employee_class = 'RESIDENT' THEN 2888250
-    WHEN r.employee_class = 'NON_RESIDENT' THEN 2925500
-END
-FROM payroll.statutory_rule_sets r
-WHERE b.rule_set_uuid = r.uuid
-  AND r.jurisdiction_code = 'UG'
-  AND r.rule_code = 'PAYE'
-  AND r.effective_from = DATE '2026-07-01'
-  AND b.lower_bound = 10000000
-  AND b.upper_bound IS NULL;
-
-
--- Uganda non-resident PAYE.
-INSERT INTO payroll.statutory_rule_sets (
-    jurisdiction_code, rule_code, rule_name, employee_class,
-    calculation_method, effective_from, currency_code,
-    source_reference, revision_label
-)
-VALUES (
-    'UG', 'PAYE', 'Uganda PAYE', 'NON_RESIDENT',
-    'PROGRESSIVE_BANDS', DATE '2026-07-01', 'UGX',
-    'URA PAYE rates', 'FY2026-2027'
-)
-ON CONFLICT DO NOTHING;
-
-INSERT INTO payroll.statutory_rule_bands
-    (rule_set_uuid, lower_bound, upper_bound, base_tax, marginal_rate, sequence_no)
-SELECT r.uuid, b.lower_bound, b.upper_bound, b.base_tax, b.marginal_rate, b.sequence_no
-FROM payroll.statutory_rule_sets r
-CROSS JOIN (
-    VALUES
-      (0::numeric,       335000::numeric,       0::numeric,       0.10::numeric, 1::smallint),
-      (335000::numeric,  410000::numeric,   33500::numeric,       0.20::numeric, 2::smallint),
-      (410000::numeric, 10000000::numeric,  48500::numeric,       0.30::numeric, 3::smallint),
-      (10000000::numeric, NULL::numeric,  2925500::numeric,       0.40::numeric, 4::smallint)
-) AS b(lower_bound, upper_bound, base_tax, marginal_rate, sequence_no)
-WHERE r.jurisdiction_code = 'UG'
-  AND r.rule_code = 'PAYE'
-  AND r.employee_class = 'NON_RESIDENT'
-  AND r.effective_from = DATE '2026-07-01'
-  AND NOT EXISTS (
-      SELECT 1
-      FROM payroll.statutory_rule_bands existing
-      WHERE existing.rule_set_uuid = r.uuid
-  );
-
--- NSSF: employee 5%, employer 10%. Employee eligibility/exemption is per person.
-INSERT INTO payroll.statutory_rule_sets (
-    jurisdiction_code, rule_code, rule_name, employee_class,
-    calculation_method, effective_from, currency_code,
-    source_reference, revision_label
-)
-VALUES (
-    'UG', 'NSSF', 'Uganda NSSF', 'ALL',
-    'PERCENT_OF_BASE', DATE '2026-07-01', 'UGX',
-    'National Social Security Fund Uganda', 'FY2026-2027'
-)
-ON CONFLICT DO NOTHING;
-
-INSERT INTO payroll.statutory_contribution_rules (
-    rule_set_uuid, employee_rate, employer_rate,
-    minimum_age, maximum_age, applies_to_gross,
-    requires_employee_coverage, exemption_key
-)
-SELECT uuid, 0.05, 0.10, 16, 55, TRUE, TRUE, 'NSSF_EXEMPT'
-FROM payroll.statutory_rule_sets
-WHERE jurisdiction_code = 'UG'
-  AND rule_code = 'NSSF'
-  AND employee_class = 'ALL'
-  AND effective_from = DATE '2026-07-01'
-ON CONFLICT (rule_set_uuid) DO NOTHING;
-
--- ---------------------------------------------------------------------------
--- 4. Calculation snapshots and immutable calculation lines.
--- ---------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS payroll.payslip_calculation_items (
-    uuid UUID PRIMARY KEY DEFAULT uuidv7(),
-    payslip_uuid UUID NOT NULL
-        REFERENCES payroll.payslips(uuid) ON DELETE CASCADE,
-    component_uuid UUID REFERENCES payroll.pay_components(uuid),
-    statutory_rule_set_uuid UUID REFERENCES payroll.statutory_rule_sets(uuid),
-    item_code VARCHAR(40) NOT NULL,
-    item_name VARCHAR(120) NOT NULL,
-    item_kind VARCHAR(20) NOT NULL
-        CHECK (item_kind IN ('EARNING', 'DEDUCTION', 'EMPLOYER_COST', 'INFORMATION')),
-    calculation_method VARCHAR(30) NOT NULL,
-    basis_amount NUMERIC(18,6) NOT NULL DEFAULT 0,
-    rate NUMERIC(18,8),
-    quantity NUMERIC(18,6) NOT NULL DEFAULT 1,
-    unrounded_amount NUMERIC(24,8) NOT NULL,
-    amount NUMERIC(18,2) NOT NULL,
-    taxable BOOLEAN NOT NULL DEFAULT FALSE,
-    included_in_nssf_base BOOLEAN NOT NULL DEFAULT FALSE,
-    calculation_inputs JSONB NOT NULL DEFAULT '{}'::jsonb,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE INDEX IF NOT EXISTS payslip_calculation_items_slip_idx
-    ON payroll.payslip_calculation_items(payslip_uuid);
-
-CREATE INDEX IF NOT EXISTS payslip_calculation_items_code_idx
-    ON payroll.payslip_calculation_items(item_code);
-
--- ---------------------------------------------------------------------------
--- 6. Employee settlement is deliberately separate from GL payroll accrual.
--- ---------------------------------------------------------------------------
-
+-- =============================================================================
+-- 5. SETTLEMENT + REMITTANCE
+-- Settlement of net wages and statutory liabilities is separate from accrual.
+-- =============================================================================
 CREATE TABLE IF NOT EXISTS payroll.employee_payment_batches (
     uuid UUID PRIMARY KEY DEFAULT uuidv7(),
     payrun_uuid UUID NOT NULL REFERENCES payroll.payruns(uuid),
@@ -566,26 +352,68 @@ CREATE TABLE IF NOT EXISTS payroll.statutory_remittances (
 );
 
 
-CREATE UNIQUE INDEX IF NOT EXISTS uq_payroll_payslip_employee_per_payrun
-	ON payroll.payslips(payrun_uuid, employee_uuid);
+-- =============================================================================
+-- 6. INDEXES
+-- =============================================================================
 
-CREATE INDEX IF NOT EXISTS idx_payroll_payslips_payrun_status
-	ON payroll.payslips(payrun_uuid, status);
-
+-- pay_components
+CREATE INDEX IF NOT EXISTS pay_components_sequence_idx
+    ON payroll.pay_components(sequence_no, code)
+    WHERE is_active;
 CREATE UNIQUE INDEX IF NOT EXISTS pay_components_serial_id_uidx
     ON payroll.pay_components(serial_id);
 
-INSERT INTO payroll.pay_components (code, name, component_kind, calc_method, statutory_role) VALUES
-  ('BASIC', 		'Basic salary', 				'EARNING', 		 'FIXED', NULL),
-  ('LEAVE_ENCASH', 	'Leave encashment', 			'EARNING', 		 'MANUAL', NULL),
-  ('TAX_WH', 		'Income tax withheld', 			'DEDUCTION', 	 'EXTERNAL', 'income_tax_employee'),
-  ('SS_EE', 		'Social security (employee)', 	'DEDUCTION', 	 'EXTERNAL', 'social_security_employee'),
-  ('SS_ER', 		'Social security (employer)', 	'EMPLOYER_COST', 'EXTERNAL', 'social_security_employer')
-ON CONFLICT (code) DO NOTHING;
+-- assignments
+CREATE INDEX IF NOT EXISTS employee_component_assignments_employee_idx
+    ON payroll.employee_component_assignments(employee_uuid, effective_from, effective_to)
+    WHERE is_active;
 
--- ========================================
--- VIEWS
--- ========================================
+-- statutory rules
+CREATE INDEX IF NOT EXISTS statutory_rule_sets_lookup_idx
+    ON payroll.statutory_rule_sets(
+        jurisdiction_code, rule_code, employee_class, effective_from, effective_to
+    )
+    WHERE is_active;
+
+-- payruns
+CREATE INDEX IF NOT EXISTS idx_payruns_period
+    ON payroll.payruns(pay_period_start, pay_period_end);
+CREATE INDEX IF NOT EXISTS idx_payruns_payment_date
+    ON payroll.payruns(payment_date);
+CREATE INDEX IF NOT EXISTS idx_payruns_status
+    ON payroll.payruns(status);
+
+-- payslips
+CREATE UNIQUE INDEX IF NOT EXISTS uq_payroll_payslip_employee_per_payrun
+    ON payroll.payslips(payrun_uuid, employee_uuid);
+CREATE INDEX IF NOT EXISTS idx_payslips_payrun
+    ON payroll.payslips(payrun_uuid);
+CREATE INDEX IF NOT EXISTS idx_payslips_employee
+    ON payroll.payslips(employee_uuid);
+CREATE INDEX IF NOT EXISTS idx_payslips_status
+    ON payroll.payslips(status);
+CREATE INDEX IF NOT EXISTS idx_payroll_payslips_payrun_status
+    ON payroll.payslips(payrun_uuid, status);
+
+-- payslip_items
+CREATE INDEX IF NOT EXISTS idx_payslip_items_payslip
+    ON payroll.payslip_items(payslip_uuid);
+CREATE INDEX IF NOT EXISTS idx_payslip_items_type
+    ON payroll.payslip_items(item_type);
+
+-- calculation items
+CREATE INDEX IF NOT EXISTS payslip_calculation_items_slip_idx
+    ON payroll.payslip_calculation_items(payslip_uuid);
+CREATE INDEX IF NOT EXISTS payslip_calculation_items_code_idx
+    ON payroll.payslip_calculation_items(item_code);
+
+-- tax periods
+CREATE INDEX IF NOT EXISTS employee_tax_period_lookup_idx
+    ON payroll.employee_tax_periods(employee_uuid, tax_year, tax_month);
+
+-- =============================================================================
+-- 7. VIEWS
+-- =============================================================================
 CREATE OR REPLACE VIEW payroll.payrun_summary AS
 SELECT
     pr.serial_id AS payrun_id,
@@ -623,11 +451,10 @@ LEFT JOIN hr.employment_contracts c
 LEFT JOIN hr.employee_payment_profiles pp ON pp.employee_uuid = e.uuid
 LEFT JOIN hr.employee_statutory_profiles sp ON sp.employee_uuid = e.uuid;
 
--- ========================================
--- FUNCTION: post_payrun
--- Accrues payroll: expenses (gross labour + employer costs) and liabilities
--- (net payable, PAYE, EE NSSF, ER NSSF, other deductions).
--- ========================================
+-- =============================================================================
+-- 8. FUNCTIONS
+-- Accrual only: expenses + liabilities. Settlement and remittance are separate.
+-- =============================================================================
 CREATE OR REPLACE FUNCTION payroll.post_payrun(
     p_payrun_serial_id BIGINT,
     p_labor_expense_id UUID,
@@ -858,155 +685,220 @@ BEGIN
 END;
 $$;
 
-/*CREATE OR REPLACE FUNCTION payroll.post_payrun(
-    p_payrun_serial_id bigint,
-    p_payrun_labor_expense_id uuid,
-    p_payrun_tax_id uuid,
-    p_payrun_social_sec_id uuid,
-    p_payrun_cash_id uuid,
-    p_payrun_user_uuid uuid,
-    p_payrun_payroll_payable_id uuid
+-- =============================================================================
+-- 9. SEED DATA
+-- =============================================================================
+
+-- System component codes used by the engine / remittance layer.
+INSERT INTO payroll.pay_components (code, name, component_kind, calc_method, statutory_role) VALUES
+  ('BASIC', 		'Basic salary', 				'EARNING', 		 'FIXED', NULL),
+  ('LEAVE_ENCASH', 	'Leave encashment', 			'EARNING', 		 'MANUAL', NULL),
+  ('TAX_WH', 		'Income tax withheld', 			'DEDUCTION', 	 'EXTERNAL', 'income_tax_employee'),
+  ('SS_EE', 		'Social security (employee)', 	'DEDUCTION', 	 'EXTERNAL', 'social_security_employee'),
+  ('SS_ER', 		'Social security (employer)', 	'EMPLOYER_COST', 'EXTERNAL', 'social_security_employer')
+ON CONFLICT (code) DO NOTHING;
+
+-- Uganda statutory packs (historical FY for tests + current rates).
+-- Uganda resident PAYE rates effective 1 July 2024 (prior revision, for
+-- historical periods and integration tests covering FY2024–FY2025).
+-- Jurisdiction-specific; engine selects the set effective on period_end.
+INSERT INTO payroll.statutory_rule_sets (
+    jurisdiction_code, rule_code, rule_name, employee_class,
+    calculation_method, effective_from, effective_to, currency_code,
+    source_reference, revision_label
 )
-RETURNS void LANGUAGE plpgsql AS $$
-DECLARE
-    v_payrun payroll.payruns%ROWTYPE;
-    v_total_gross numeric(14, 2) := 0;
-    v_total_tax numeric(14, 2) := 0;
-    v_total_social_security numeric(14, 2) := 0;
-    v_total_net numeric(14, 2) := 0;
-    v_txn_serial_id bigint;
-    v_txn_uuid uuid;
-    v_lines jsonb;
-BEGIN
-    -- Fetch payrun
-    SELECT * INTO v_payrun FROM payroll.payruns WHERE serial_id = p_payrun_serial_id;
-    IF NOT FOUND THEN
-        RAISE EXCEPTION 'Payrun with serial_id % not found', p_payrun_serial_id;
-    END IF;
+VALUES (
+    'UG', 'PAYE', 'Uganda PAYE', 'RESIDENT',
+    'PROGRESSIVE_BANDS', DATE '2024-07-01', DATE '2026-06-30', 'UGX',
+    'URA PAYE rates', 'FY2024-2026'
+)
+ON CONFLICT DO NOTHING;
 
-    IF v_payrun.status = 'Posted' THEN
-        RAISE NOTICE 'Payrun % already posted', v_payrun.serial_id;
-        RETURN;
-    END IF;
+INSERT INTO payroll.statutory_rule_bands
+    (rule_set_uuid, lower_bound, upper_bound, base_tax, marginal_rate, sequence_no)
+SELECT r.uuid, b.lower_bound, b.upper_bound, b.base_tax, b.marginal_rate, b.sequence_no
+FROM payroll.statutory_rule_sets r
+CROSS JOIN (
+    VALUES
+      (0::numeric,       235000::numeric,       0::numeric,       0.00::numeric, 1::smallint),
+      (235000::numeric,  335000::numeric,       0::numeric,       0.10::numeric, 2::smallint),
+      (335000::numeric,  410000::numeric,   10000::numeric,       0.20::numeric, 3::smallint),
+      (410000::numeric, 10000000::numeric,  25000::numeric,       0.30::numeric, 4::smallint),
+      (10000000::numeric, NULL::numeric,  2888250::numeric,       0.40::numeric, 5::smallint)
+) AS b(lower_bound, upper_bound, base_tax, marginal_rate, sequence_no)
+WHERE r.jurisdiction_code = 'UG'
+  AND r.rule_code = 'PAYE'
+  AND r.employee_class = 'RESIDENT'
+  AND r.effective_from = DATE '2024-07-01'
+  AND NOT EXISTS (
+      SELECT 1 FROM payroll.statutory_rule_bands existing
+      WHERE existing.rule_set_uuid = r.uuid
+  );
 
-    IF v_payrun.status != 'Processed' THEN
-        RAISE EXCEPTION 'Payrun must be Processed before posting. Current status: %', v_payrun.status;
-    END IF;
+INSERT INTO payroll.statutory_rule_sets (
+    jurisdiction_code, rule_code, rule_name, employee_class,
+    calculation_method, effective_from, effective_to, currency_code,
+    source_reference, revision_label
+)
+VALUES (
+    'UG', 'PAYE', 'Uganda PAYE', 'NON_RESIDENT',
+    'PROGRESSIVE_BANDS', DATE '2024-07-01', DATE '2026-06-30', 'UGX',
+    'URA PAYE rates', 'FY2024-2026'
+)
+ON CONFLICT DO NOTHING;
 
-    -- Aggregate totals
-    SELECT
-        COALESCE(SUM(gross_pay), 0),
-        COALESCE(SUM(tax_deducted), 0),
-        COALESCE(SUM(social_security), 0),
-        COALESCE(SUM(net_pay), 0)
-    INTO v_total_gross, v_total_tax, v_total_social_security, v_total_net
-    FROM payroll.payslips
-    WHERE payrun_uuid = v_payrun.uuid;
+INSERT INTO payroll.statutory_rule_bands
+    (rule_set_uuid, lower_bound, upper_bound, base_tax, marginal_rate, sequence_no)
+SELECT r.uuid, b.lower_bound, b.upper_bound, b.base_tax, b.marginal_rate, b.sequence_no
+FROM payroll.statutory_rule_sets r
+CROSS JOIN (
+    VALUES
+      (0::numeric,       335000::numeric,       0::numeric,       0.10::numeric, 1::smallint),
+      (335000::numeric,  410000::numeric,   33500::numeric,       0.20::numeric, 2::smallint),
+      (410000::numeric, 10000000::numeric,  48500::numeric,       0.30::numeric, 3::smallint),
+      (10000000::numeric, NULL::numeric,  2925500::numeric,       0.40::numeric, 4::smallint)
+) AS b(lower_bound, upper_bound, base_tax, marginal_rate, sequence_no)
+WHERE r.jurisdiction_code = 'UG'
+  AND r.rule_code = 'PAYE'
+  AND r.employee_class = 'NON_RESIDENT'
+  AND r.effective_from = DATE '2024-07-01'
+  AND NOT EXISTS (
+      SELECT 1 FROM payroll.statutory_rule_bands existing
+      WHERE existing.rule_set_uuid = r.uuid
+  );
 
-    IF v_total_net <= 0 THEN
-        RAISE EXCEPTION 'Net pay total is zero or negative. Cannot post.';
-    END IF;
+INSERT INTO payroll.statutory_rule_sets (
+    jurisdiction_code, rule_code, rule_name, employee_class,
+    calculation_method, effective_from, effective_to, currency_code,
+    source_reference, revision_label
+)
+VALUES (
+    'UG', 'NSSF', 'Uganda NSSF', 'ALL',
+    'PERCENT_OF_BASE', DATE '2024-07-01', DATE '2026-06-30', 'UGX',
+    'NSSF Act', 'FY2024-2026'
+)
+ON CONFLICT DO NOTHING;
 
-    -- Build GL lines
-    -- v_lines := jsonb_build_array(
-    --     jsonb_build_object('account_ref', p_payrun_labor_expense_id, 'debit', v_total_gross, 'credit', 0,
-    --         'memo', format('Payroll Gross - Payrun %s', v_payrun.serial_id)),
-    --     jsonb_build_object('account_ref', p_payrun_tax_id, 'debit', 0, 'credit', v_total_tax,
-    --         'memo', 'Income Tax Withholding'),
-    --     jsonb_build_object('account_ref', p_payrun_social_sec_id, 'debit', 0, 'credit', v_total_social_security,
-    --         'memo', 'Social Security Contribution'),
-    --     jsonb_build_object('account_ref', p_payrun_cash_id, 'debit', 0, 'credit', v_total_net,
-    --         'memo', format('Payroll Net Pay - Payrun %s', v_payrun.serial_id))
-    -- );
-    v_lines := jsonb_build_array(
-        -- 1. Recognize gross payroll
-        jsonb_build_object(
-            'account_ref', p_payrun_labor_expense_id,
-            'debit', v_total_gross,
-            'credit', 0,
-            'memo', format('Payroll Gross - Payrun %s', v_payrun.serial_id)
-        ),
+INSERT INTO payroll.statutory_contribution_rules
+    (rule_set_uuid, employee_rate, employer_rate, minimum_age, maximum_age)
+SELECT r.uuid, 0.05, 0.10, 16, 60
+FROM payroll.statutory_rule_sets r
+WHERE r.jurisdiction_code = 'UG'
+  AND r.rule_code = 'NSSF'
+  AND r.effective_from = DATE '2024-07-01'
+  AND NOT EXISTS (
+      SELECT 1 FROM payroll.statutory_contribution_rules existing
+      WHERE existing.rule_set_uuid = r.uuid
+  );
 
-        -- 2. Create payroll payable (control)
-        jsonb_build_object(
-            'account_ref', p_payrun_payroll_payable_id,
-            'debit', 0,
-            'credit', v_total_gross,
-            'memo', 'Payroll Payable'
-        ),
+-- Uganda resident PAYE rates effective 1 July 2026.
+-- The tax bands are monthly chargeable income bands.
+INSERT INTO payroll.statutory_rule_sets (
+    jurisdiction_code, rule_code, rule_name, employee_class,
+    calculation_method, effective_from, currency_code,
+    source_reference, revision_label
+)
+VALUES (
+    'UG', 'PAYE', 'Uganda PAYE', 'RESIDENT',
+    'PROGRESSIVE_BANDS', DATE '2026-07-01', 'UGX',
+    'URA revised PAYE rates effective 1 July 2026',
+    'FY2026-2027'
+)
+ON CONFLICT DO NOTHING;
 
-        -- 3. Settle payroll payable, typically means payroll liability payment
-        jsonb_build_object(
-            'account_ref', p_payrun_payroll_payable_id,
-            'debit', v_total_gross,
-            'credit', 0,
-            'memo', 'Payroll Payable Settlement'
-        ),
+-- Use a guarded seed so rerunning this migration does not duplicate bands.
+INSERT INTO payroll.statutory_rule_bands
+    (rule_set_uuid, lower_bound, upper_bound, base_tax, marginal_rate, sequence_no)
+SELECT r.uuid, b.lower_bound, b.upper_bound, b.base_tax, b.marginal_rate, b.sequence_no
+FROM payroll.statutory_rule_sets r
+CROSS JOIN (
+    VALUES
+      (0::numeric,       335000::numeric,       0::numeric,       0::numeric, 1::smallint),
+      (335000::numeric,  410000::numeric,       0::numeric,       0.20::numeric, 2::smallint),
+      (410000::numeric,  485000::numeric,   15000::numeric,       0.25::numeric, 3::smallint),
+      (485000::numeric, 10000000::numeric,  33750::numeric,       0.30::numeric, 4::smallint),
+      (10000000::numeric, NULL::numeric,   2888250::numeric,       0.40::numeric, 5::smallint)
+) AS b(lower_bound, upper_bound, base_tax, marginal_rate, sequence_no)
+WHERE r.jurisdiction_code = 'UG'
+  AND r.rule_code = 'PAYE'
+  AND r.employee_class = 'RESIDENT'
+  AND r.effective_from = DATE '2026-07-01'
+  AND NOT EXISTS (
+      SELECT 1
+      FROM payroll.statutory_rule_bands existing
+      WHERE existing.rule_set_uuid = r.uuid
+  );
 
-		-- 4. Settle witholding which should be liability
-        jsonb_build_object(
-            'account_ref', p_payrun_tax_id,
-            'debit', 0,
-            'credit', v_total_tax,
-            'memo', 'Income Tax Withholding'
-        ),
+UPDATE payroll.statutory_rule_bands b
+SET base_tax = CASE
+    WHEN r.employee_class = 'RESIDENT' THEN 2888250
+    WHEN r.employee_class = 'NON_RESIDENT' THEN 2925500
+END
+FROM payroll.statutory_rule_sets r
+WHERE b.rule_set_uuid = r.uuid
+  AND r.jurisdiction_code = 'UG'
+  AND r.rule_code = 'PAYE'
+  AND r.effective_from = DATE '2026-07-01'
+  AND b.lower_bound = 10000000
+  AND b.upper_bound IS NULL;
 
-		-- 5. Settle social security witholding, another liability
-        jsonb_build_object(
-            'account_ref', p_payrun_social_sec_id,
-            'debit', 0,
-            'credit', v_total_social_security,
-            'memo', 'Social Security Withholding'
-        ),
 
-		-- 6. Recognize cash/bank payment for hr benefits & renumeration
-        jsonb_build_object(
-            'account_ref', p_payrun_cash_id,
-            'debit', 0,
-            'credit', v_total_net,
-            'memo', format('Payroll Net Pay - Payrun %s', v_payrun.serial_id)
-        )
-    );
+-- Uganda non-resident PAYE.
+INSERT INTO payroll.statutory_rule_sets (
+    jurisdiction_code, rule_code, rule_name, employee_class,
+    calculation_method, effective_from, currency_code,
+    source_reference, revision_label
+)
+VALUES (
+    'UG', 'PAYE', 'Uganda PAYE', 'NON_RESIDENT',
+    'PROGRESSIVE_BANDS', DATE '2026-07-01', 'UGX',
+    'URA PAYE rates', 'FY2026-2027'
+)
+ON CONFLICT DO NOTHING;
 
-    -- Post to GL
-    v_txn_serial_id := accounting.post_transaction(
-        format('Payroll - %s to %s', v_payrun.pay_period_start, v_payrun.pay_period_end),
-        'Payroll Posting',
-        p_payrun_user_uuid,
-        'payroll',
-        v_payrun.payment_date,
-        v_lines
-    );
+INSERT INTO payroll.statutory_rule_bands
+    (rule_set_uuid, lower_bound, upper_bound, base_tax, marginal_rate, sequence_no)
+SELECT r.uuid, b.lower_bound, b.upper_bound, b.base_tax, b.marginal_rate, b.sequence_no
+FROM payroll.statutory_rule_sets r
+CROSS JOIN (
+    VALUES
+      (0::numeric,       335000::numeric,       0::numeric,       0.10::numeric, 1::smallint),
+      (335000::numeric,  410000::numeric,   33500::numeric,       0.20::numeric, 2::smallint),
+      (410000::numeric, 10000000::numeric,  48500::numeric,       0.30::numeric, 3::smallint),
+      (10000000::numeric, NULL::numeric,  2925500::numeric,       0.40::numeric, 4::smallint)
+) AS b(lower_bound, upper_bound, base_tax, marginal_rate, sequence_no)
+WHERE r.jurisdiction_code = 'UG'
+  AND r.rule_code = 'PAYE'
+  AND r.employee_class = 'NON_RESIDENT'
+  AND r.effective_from = DATE '2026-07-01'
+  AND NOT EXISTS (
+      SELECT 1
+      FROM payroll.statutory_rule_bands existing
+      WHERE existing.rule_set_uuid = r.uuid
+  );
 
-    SELECT uuid INTO v_txn_uuid FROM accounting.transactions WHERE serial_id = v_txn_serial_id;
-    IF v_txn_uuid IS NULL THEN
-        RAISE EXCEPTION 'Failed to retrieve GL transaction UUID';
-    END IF;
+-- NSSF: employee 5%, employer 10%. Employee eligibility/exemption is per person.
+INSERT INTO payroll.statutory_rule_sets (
+    jurisdiction_code, rule_code, rule_name, employee_class,
+    calculation_method, effective_from, currency_code,
+    source_reference, revision_label
+)
+VALUES (
+    'UG', 'NSSF', 'Uganda NSSF', 'ALL',
+    'PERCENT_OF_BASE', DATE '2026-07-01', 'UGX',
+    'National Social Security Fund Uganda', 'FY2026-2027'
+)
+ON CONFLICT DO NOTHING;
 
-    -- Update payrun
-    UPDATE payroll.payruns
-    SET status = 'Posted',
-        gl_transaction_uuid = v_txn_uuid,
-        updated_at = now()
-    WHERE uuid = v_payrun.uuid;
-
-    -- Mark payslips as Paid
-    UPDATE payroll.payslips
-    SET status = 'Paid', updated_at = now()
-    WHERE payrun_uuid = v_payrun.uuid AND status = 'Pending';
-END;
-$$;*/
-
--- ========================================
--- INDEXES
--- ========================================
-CREATE INDEX IF NOT EXISTS idx_payruns_period ON payroll.payruns(pay_period_start, pay_period_end);
-CREATE INDEX IF NOT EXISTS idx_payruns_payment_date ON payroll.payruns(payment_date);
-CREATE INDEX IF NOT EXISTS idx_payruns_status ON payroll.payruns(status);
-
-CREATE INDEX IF NOT EXISTS idx_payslips_payrun ON payroll.payslips(payrun_uuid);
-CREATE INDEX IF NOT EXISTS idx_payslips_employee ON payroll.payslips(employee_uuid);
-CREATE INDEX IF NOT EXISTS idx_payslips_status ON payroll.payslips(status);
-
-CREATE INDEX IF NOT EXISTS idx_payslip_items_payslip ON payroll.payslip_items(payslip_uuid);
-CREATE INDEX IF NOT EXISTS idx_payslip_items_type ON payroll.payslip_items(item_type);
+INSERT INTO payroll.statutory_contribution_rules (
+    rule_set_uuid, employee_rate, employer_rate,
+    minimum_age, maximum_age, applies_to_gross,
+    requires_employee_coverage, exemption_key
+)
+SELECT uuid, 0.05, 0.10, 16, 55, TRUE, TRUE, 'NSSF_EXEMPT'
+FROM payroll.statutory_rule_sets
+WHERE jurisdiction_code = 'UG'
+  AND rule_code = 'NSSF'
+  AND employee_class = 'ALL'
+  AND effective_from = DATE '2026-07-01'
+ON CONFLICT (rule_set_uuid) DO NOTHING;
