@@ -67,6 +67,23 @@ impl ManufacturingRepo {
         .execute(&self.pool)
         .await?;
 
+        let n: i64 = sqlx::query_scalar(
+            r#"
+            SELECT COUNT(*)::bigint
+            FROM manufacturing.production_order_materials
+            WHERE production_order_uuid = $1
+            "#,
+        )
+        .bind(order.uuid)
+        .fetch_one(&self.pool)
+        .await?;
+        if n == 0 {
+            return Err(AppError::Unprocessable(format!(
+                "Production order {} has no leaf materials — ensure a default active BOM exists for the product",
+                order.uuid
+            )));
+        }
+
         Ok(order)
     }
 
