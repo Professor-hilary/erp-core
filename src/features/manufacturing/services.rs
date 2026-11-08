@@ -103,7 +103,17 @@ impl ManufacturingService {
         Ok(self.repo.apply_direct_labor(dto, user_uuid).await?)
     }
 
-    pub async fn complete_order(
+    pub async fn start_order(
+        &self,
+        dto: StartProductionOrderDto,
+    ) -> Result<ProductionOrder, AppError> {
+        Ok(self
+            .repo
+            .start_production_order(dto.production_order_uuid)
+            .await?)
+    }
+
+        pub async fn complete_order(
         &self,
         dto: CompleteProductionOrderDto,
         user_uuid: Uuid,

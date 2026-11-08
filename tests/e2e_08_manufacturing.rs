@@ -513,6 +513,23 @@ async fn manufacturing_flow() -> E2eResult<()> {
     println!("✓ actual overhead recognized");
 
     // =========================================================================
+    // 9b. Explicit start: Planned → In Progress (required before complete)
+    let (s, body) = ctx
+        .client
+        .post(
+            "/api/manufacturing/start-production",
+            json!({ "production_order_uuid": po_uuid }),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "start production: {s} {body}");
+    assert_eq!(
+        body["data"]["status"].as_str().unwrap_or(""),
+        "In Progress",
+        "order must be In Progress before complete"
+    );
+    println!("✓ production started (In Progress)");
+
     // 10. Complete production (Dr FG / Cr WIP + variance accounts)
     // =========================================================================
     let fg_acct = acct(&ctx, &["110703"])?;

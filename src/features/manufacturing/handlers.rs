@@ -47,6 +47,7 @@ pub fn router() -> Router<Arc<AppState>> {
         // .route("/apply/indirect/labor", post(http_indirect_labor_route))
         .route("/apply/overhead/actual", post(actual_overhead_route))
         .route("/apply/overhead/applied", post(applied_overhead_route))
+        .route("/start-production", post(start_order_route))
         .route("/complete-production", post(complete_order_route))
         .route("/create/bom", post(create_bom_route))
         .route("/get/bom/{uuid}", get(get_bom_route))
@@ -282,6 +283,23 @@ async fn http_direct_labor_route(
 //         Err(e) => Err(internal_error(e)),
 //     }
 // }
+
+
+/// POST /manufacturing/start-production
+/// Explicit Planned → In Progress before costs / completion.
+async fn start_order_route(
+    State(_state): State<Arc<AppState>>,
+    Extension(user): Extension<AuthenticatedTenant>,
+    AppJson(payload): AppJson<StartProductionOrderDto>,
+) -> Result<Response, AppError> {
+    let repo: ManufacturingRepo = ManufacturingRepo::new(user.tenant_pool);
+    let service: ManufacturingService = ManufacturingService::new(repo);
+
+    match service.start_order(payload).await {
+        Ok(result) => Ok(ApiResponse::success(result, "Production started")),
+        Err(e) => Err(internal_error(e)),
+    }
+}
 
 /// POST /manufacturing/complete-production
 async fn complete_order_route(

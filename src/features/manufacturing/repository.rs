@@ -425,7 +425,46 @@ impl ManufacturingRepo {
         self.get_production_order(dto.production_order_uuid).await
     }*/
 
-    pub async fn complete_production_order(
+    /// Planned → In Progress. Required before complete_production_order.
+    pub async fn start_production_order(
+        &self,
+        production_order_uuid: Uuid,
+    ) -> Result<ProductionOrder, AppError> {
+        let order: Option<ProductionOrder> = sqlx::query_as(
+            r#"
+            UPDATE manufacturing.production_orders
+            SET status = 'In Progress',
+                updated_at = now()
+            WHERE uuid = $1
+              AND status IN ('Planned', 'In Progress')
+            RETURNING *
+            "#,
+        )
+        .bind(production_order_uuid)
+        .fetch_optional(&self.pool)
+        .await?;
+
+        match order {
+            Some(o) => Ok(o),
+            None => {
+                // Distinguish not-found vs wrong status
+                let existing: Option<(String,)> = sqlx::query_as(
+                    "SELECT status FROM manufacturing.production_orders WHERE uuid = $1",
+                )
+                .bind(production_order_uuid)
+                .fetch_optional(&self.pool)
+                .await?;
+                match existing {
+                    None => Err(AppError::NotFound("Production order not found".into())),
+                    Some((status,)) => Err(AppError::Unprocessable(format!(
+                        "Cannot start production order in status '{status}' (expected Planned or In Progress)"
+                    ))),
+                }
+            }
+        }
+    }
+
+        pub async fn complete_production_order(
         &self,
         dto: CompleteProductionOrderDto,
         user_uuid: Uuid,

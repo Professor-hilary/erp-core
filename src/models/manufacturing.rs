@@ -212,6 +212,11 @@ pub struct ApplyDirectLaborDto {
 // }
 
 #[derive(Debug, Deserialize)]
+pub struct StartProductionOrderDto {
+    pub production_order_uuid: Uuid,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct CompleteProductionOrderDto {
     pub production_order_uuid: Uuid, // Production order being completed
     pub completed_quantity: Option<BigDecimal>, // Quantity completed

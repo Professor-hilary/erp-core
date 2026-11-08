@@ -1169,18 +1169,24 @@ BEGIN
     updated_at = now()
     WHERE po.uuid = p_production_order_uuid;
 
-    -- Force In Progress when anything was issued
+    -- If every line failed (stock, warehouse, …) surface the failure instead of a silent 201.
+    IF NOT EXISTS (
+        SELECT 1
+        FROM manufacturing.production_order_materials pom
+        WHERE pom.production_order_uuid = p_production_order_uuid
+          AND pom.issued_qty > 0
+    ) THEN
+        RAISE EXCEPTION
+            'No materials issued for production order % — check stock, warehouse and order materials',
+            p_production_order_uuid;
+    END IF;
+
+    -- Materials issued ⇒ production has started.
     UPDATE manufacturing.production_orders po
     SET status = 'In Progress',
         updated_at = now()
     WHERE po.uuid = p_production_order_uuid
-      AND po.status = 'Planned'
-      AND EXISTS (
-          SELECT 1
-          FROM manufacturing.production_order_materials pom
-          WHERE pom.production_order_uuid = po.uuid
-            AND pom.issued_qty > 0
-      );
+      AND po.status IN ('Planned', 'In Progress');
 
     RETURN QUERY
     SELECT
