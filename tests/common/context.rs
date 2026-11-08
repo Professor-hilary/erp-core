@@ -400,6 +400,30 @@ impl TestContext {
                 );
             }
 
+            // Statutory profile — DOB required for NSSF age band checks in payroll
+            let (st_status, st_body) = self
+                .client
+                .put(
+                    &format!("/api/workforce/employees/{emp_id}/statutory-profile"),
+                    json!({
+                        "tax_residency": "RESIDENT",
+                        "nssf_covered": true,
+                        "nssf_exempt": false,
+                        "date_of_birth": "1990-06-15",
+                        "tax_id": format!("TIN-{}", &emp_id.to_string()[..8]),
+                        "social_security_number": format!("NSSF-{}", &emp_id.to_string()[..8])
+                    }),
+                )
+                .await?;
+            if !(st_status.is_success() || st_status.as_u16() == 201) {
+                anyhow::bail!(
+                    "Creating statutory profile for {} failed: {} {}",
+                    person.key,
+                    st_status,
+                    st_body
+                );
+            }
+
             // Active contract = salary source of truth
             let (c_status, c_body) = self
                 .client
