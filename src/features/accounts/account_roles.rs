@@ -344,7 +344,7 @@ impl AccountRoleResolver {
 						    mapping_source,
 						    is_active
 						)
-						VALUES ($1, $2, $3, 'automatic', TRUE)
+						VALUES ($1, $2, $3, 'discovery', TRUE)
 						ON CONFLICT (role_key, context_key)
 						DO NOTHING
 					"#,
@@ -393,6 +393,7 @@ impl AccountRoleResolver {
             SELECT
                 m.role_key,
                 a.uuid AS account_uuid,
+				m.context_key,
                 a.code,
                 a.name,
                 a.category,

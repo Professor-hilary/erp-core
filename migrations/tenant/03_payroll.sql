@@ -430,26 +430,26 @@ FROM payroll.payruns pr
 LEFT JOIN payroll.payslips ps ON ps.payrun_uuid = pr.uuid
 GROUP BY pr.uuid, pr.serial_id;
 
-CREATE OR REPLACE VIEW hr.v_employee_payroll_snapshot AS
-SELECT
-  e.uuid AS employee_uuid,
-  e.status,
-  e.hire_date,
-  lc.termination_date,
-  lc.last_working_date,
-  c.basic_salary,
-  COALESCE(c.pay_frequency, e.pay_frequency) AS pay_frequency,
-  pp.bank_account_number,
-  pp.bank_name,
-  pp.payment_method,
-  sp.tax_id,
-  sp.social_security_number
-FROM hr.employees e
-LEFT JOIN hr.employee_lifecycle lc ON lc.employee_uuid = e.uuid
-LEFT JOIN hr.employment_contracts c
-  ON c.employee_uuid = e.uuid AND c.status = 'Active'
-LEFT JOIN hr.employee_payment_profiles pp ON pp.employee_uuid = e.uuid
-LEFT JOIN hr.employee_statutory_profiles sp ON sp.employee_uuid = e.uuid;
+-- CREATE OR REPLACE VIEW hr.v_employee_payroll_snapshot AS
+-- SELECT
+--   e.uuid AS employee_uuid,
+--   e.status,
+--   e.hire_date,
+--   lc.termination_date,
+--   lc.last_working_date,
+--   c.basic_salary,
+--   COALESCE(c.pay_frequency, e.pay_frequency) AS pay_frequency,
+--   pp.bank_account_number,
+--   pp.bank_name,
+--   pp.payment_method,
+--   sp.tax_id,
+--   sp.social_security_number
+-- FROM hr.employees e
+-- LEFT JOIN hr.employee_lifecycle lc ON lc.employee_uuid = e.uuid
+-- LEFT JOIN hr.employment_contracts c
+--   ON c.employee_uuid = e.uuid AND c.status = 'Active'
+-- LEFT JOIN hr.employee_payment_profiles pp ON pp.employee_uuid = e.uuid
+-- LEFT JOIN hr.employee_statutory_profiles sp ON sp.employee_uuid = e.uuid;
 
 -- =============================================================================
 -- 8. FUNCTIONS
