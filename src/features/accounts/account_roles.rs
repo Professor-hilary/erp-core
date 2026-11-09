@@ -395,6 +395,12 @@ impl AccountRoleResolver {
                     .await?;
                     if result.rows_affected() == 1 {
                         report.inserted += 1;
+						tracing::info!(
+					        role = role.key(),
+					        account_code = %account.code,
+					        account_name = %account.name,
+					        "Discovery mapped account role"
+					    );
                     }
                 }
                 [] => report.missing.push(role.key().to_string()),
