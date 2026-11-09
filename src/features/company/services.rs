@@ -52,21 +52,7 @@ impl CompanyService {
         // Step 3: Seed Chart of Accounts
         Self::seed_coa(&tenant_pool, &req.industry, &state.coa_seed_path)
             .await
-            .map_err(|_| AppError::Internal("Failed to seed Chart of Accounts".into()))?;
-
-        // Insert discovery after chart seeding and before loading the resolver
-        let discovery = AccountRoleResolver::discover_and_seed_defaults(&tenant_pool)
-            .await
-            .map_err(|error| {
-                AppError::Internal(format!("Failed to discover account-role mappings: {error}"))
-            })?;
-
-        tracing::info!(
-            inserted = discovery.inserted,
-            ambiguous = discovery.ambiguous.len(),
-            missing = discovery.missing.len(),
-            "Initial account-role discovery completed"
-        );
+            .map_err(|e| AppError::Internal(format!("Failed to seed Chart of Accounts: {e}")))?;
 
         /*let account_role_map = AccountRoleResolver::load(&tenant_pool)
         .await
@@ -369,33 +355,41 @@ impl CompanyService {
             }
         }
 
-        let report = AccountRoleResolver::discover_and_seed_defaults(tenant_pool)
+        let template_roles: Vec<(String, Vec<String>)> = template
+            .accounts
+            .iter()
+            .filter(|e| !e.role_keys.is_empty())
+            .map(|e| (e.code.clone(), e.role_keys.clone()))
+            .collect();
+
+        let seeded = AccountRoleResolver::seed_from_template_roles(tenant_pool, &template_roles)
             .await
             .map_err(|error| {
                 AppError::Internal(format!(
-                    "Failed to discover default account-role mappings: {error}"
+                    "Failed to seed account-role mappings from template: {error}"
                 ))
             })?;
-
         tracing::info!(
-            inserted = report.inserted,
-            ambiguous = report.ambiguous.len(),
-            missing = report.missing.len(),
-            "Account-role discovery completed"
+            inserted = seeded.inserted,
+            missing = seeded.missing.len(),
+            "Template account-role seed completed"
         );
 
-        if !report.ambiguous.is_empty() {
-            tracing::warn!(
-                roles = ?report.ambiguous,
-                "Some account roles require manual configuration"
-            );
-        }
-
-        if !report.missing.is_empty() {
-            tracing::info!(
-                roles = ?report.missing,
-                "Some account roles have no matching CoA account"
-            );
+        let discovered = AccountRoleResolver::discover_and_seed_defaults(tenant_pool)
+            .await
+            .map_err(|error| {
+                AppError::Internal(format!(
+                    "Failed to discover remaining account-role mappings: {error}"
+                ))
+            })?;
+        tracing::info!(
+            inserted = discovered.inserted,
+            ambiguous = discovered.ambiguous.len(),
+            missing = discovered.missing.len(),
+            "Fallback account-role discovery completed"
+        );
+        if !discovered.ambiguous.is_empty() {
+            tracing::warn!(roles = ?discovered.ambiguous, "Some account roles need manual config");
         }
 
         println!(

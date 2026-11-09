@@ -45,6 +45,9 @@ pub struct ChartOfAccountsEntry {
     pub cash_flow_category: Option<String>,
     pub normal_balance: String,
     pub is_contra: bool,
+    /// Canonical module posting roles (template-authored, not name-inferred).
+    #[serde(default)]
+    pub role_keys: Vec<String>,
 }
 
 #[derive(serde::Deserialize)]

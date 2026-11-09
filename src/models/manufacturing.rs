@@ -168,36 +168,46 @@ pub struct CreateProductionOrderDto {
 pub struct IssueMaterialDto {
     pub warehouse_serial_id: i64,
     pub production_order_uuid: Uuid,
-    pub wip_account_code: String,
-    pub raw_mat_account_code: String,
+    /// Optional — resolved from work_in_progress role when omitted
+    #[serde(default)]
+    pub wip_account_code: Option<String>,
+    /// Optional — resolved from raw_materials_inventory role when omitted
+    #[serde(default)]
+    pub raw_mat_account_code: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct ApplyOverheadDto {
     pub production_order: String,
-    pub base_hours: BigDecimal, // e.g. labor or machine hours
-    pub wip_account: String,
-    pub overhead_control_account: String,
+    pub base_hours: BigDecimal,
+    #[serde(default)]
+    pub wip_account: Option<String>,
+    #[serde(default)]
+    pub overhead_control_account: Option<String>,
     pub allocation_base: String,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct RecognizeOverhead {
     pub production_order_uuid: Uuid,
-    /// Actual amount in cash or accrual
     pub base_amount: BigDecimal,
-    pub payable_or_cash: String,
-    pub overhead_control_account: String,
+    #[serde(default)]
+    pub payable_or_cash: Option<String>,
+    #[serde(default)]
+    pub overhead_control_account: Option<String>,
     pub allocation_base: String,
     pub reference: String,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct ApplyDirectLaborDto {
-    pub production_order_uuid: Uuid, // Current inventory in production
-    pub labor_account_code: String,  // Salaries or wages payable code
-    pub wip_account_code: Option<String>, // Work In Progress to accumulate costs
-    pub reference: Option<String>,   // Memo
+    pub production_order_uuid: Uuid,
+    /// Optional — wages_payable / accrued wages
+    #[serde(default)]
+    pub labor_account_code: Option<String>,
+    #[serde(default)]
+    pub wip_account_code: Option<String>,
+    pub reference: Option<String>,
 }
 
 // #[derive(Debug, Deserialize)]
@@ -218,14 +228,20 @@ pub struct StartProductionOrderDto {
 
 #[derive(Debug, Deserialize)]
 pub struct CompleteProductionOrderDto {
-    pub production_order_uuid: Uuid, // Production order being completed
-    pub completed_quantity: Option<BigDecimal>, // Quantity completed
-    pub wip_account_code: String,    // Work In Progress account code
-    pub fg_account_code: String,     // Finished Goods account code
-    pub mfg_mat_var_code: String,    // Manufacturing material variable control account
-    pub mfg_lab_var_code: String,    // Manufacturing labor variable control account
-    pub mfg_moh_var_code: String,    // Manufacturing overhead variable control account
-    pub control_code: String,        // Manufacturing overhead variable control account
+    pub production_order_uuid: Uuid,
+    pub completed_quantity: Option<BigDecimal>,
+    #[serde(default)]
+    pub wip_account_code: Option<String>,
+    #[serde(default)]
+    pub fg_account_code: Option<String>,
+    #[serde(default)]
+    pub mfg_mat_var_code: Option<String>,
+    #[serde(default)]
+    pub mfg_lab_var_code: Option<String>,
+    #[serde(default)]
+    pub mfg_moh_var_code: Option<String>,
+    #[serde(default)]
+    pub control_code: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]

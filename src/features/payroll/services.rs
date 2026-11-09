@@ -1,13 +1,29 @@
 // src/features/payroll/services.rs
 use crate::{
+    features::accounts::account_roles::{AccountRole, AccountRoleResolver},
     features::payroll::repository::PayrollRepository,
     interface::api::errors::AppError,
     models::payroll::*,
 };
 use bigdecimal::BigDecimal;
-// use chrono::NaiveDate;
 use sqlx::PgPool;
 use uuid::Uuid;
+
+fn role_uuid(
+    resolver: &AccountRoleResolver,
+    role: AccountRole,
+    override_id: Option<Uuid>,
+) -> Result<Uuid, AppError> {
+    if let Some(id) = override_id {
+        return Ok(id);
+    }
+    resolver.resolve_default(role).map(|a| a.uuid).map_err(|e| {
+        AppError::Unprocessable(format!(
+            "Account role '{}' is not mapped: {e}",
+            role.key()
+        ))
+    })
+}
 
 pub struct PayrollService<R: PayrollRepository> {
     repo: R,
@@ -118,7 +134,25 @@ impl<R: PayrollRepository> PayrollService<R> {
         pool: &PgPool,
         payload: &PostPayrun,
     ) -> Result<(), AppError> {
-        self.repo.post_payrun(user_id, pool, payload).await
+        let resolver = AccountRoleResolver::load(pool)
+            .await
+            .map_err(|e| AppError::Internal(format!("Failed to load account roles: {e}")))?;
+        let resolved = PostPayrun {
+            payrun_serial_id: payload.payrun_serial_id,
+            labor_expense_id: Some(role_uuid(&resolver, AccountRole::PayrollLabourExpense, payload.labor_expense_id)?),
+            income_tax_id: Some(role_uuid(&resolver, AccountRole::PayePayable, payload.income_tax_id)?),
+            employee_social_security_id: Some(role_uuid(&resolver, AccountRole::EmployeeNssfPayable, payload.employee_social_security_id)?),
+            employer_social_security_id: Some(role_uuid(&resolver, AccountRole::EmployerNssfPayable, payload.employer_social_security_id)?),
+            employer_social_security_expense_id: Some(role_uuid(&resolver, AccountRole::EmployerNssfExpense, payload.employer_social_security_expense_id)?),
+            payroll_payable: Some(role_uuid(&resolver, AccountRole::PayrollNetPayable, payload.payroll_payable)?),
+            other_deductions_payable_id: payload.other_deductions_payable_id.or_else(|| {
+                resolver.resolve_default(AccountRole::OtherPayrollDeductionsPayable).ok().map(|a| a.uuid)
+            }),
+            other_employer_cost_expense_id: payload.other_employer_cost_expense_id.or_else(|| {
+                resolver.resolve_default(AccountRole::OtherEmployerPayrollExpense).ok().map(|a| a.uuid)
+            }),
+        };
+        self.repo.post_payrun(user_id, pool, &resolved).await
     }
 
     pub async fn get_payrun(&self, pool: &PgPool, id: Uuid) -> Result<Payrun, AppError> {
@@ -196,7 +230,25 @@ impl<R: PayrollRepository> PayrollService<R> {
         pool: &PgPool,
         payload: &SettleEmployees,
     ) -> Result<EmployeePaymentBatch, AppError> {
-        self.repo.settle_employees(user_id, pool, payload).await
+        let resolver = AccountRoleResolver::load(pool)
+            .await
+            .map_err(|e| AppError::Internal(format!("Failed to load account roles: {e}")))?;
+        let cash = if let Some(id) = payload.cash_account_uuid {
+            id
+        } else if let Ok(a) = resolver.resolve_default(AccountRole::CashAtBank) {
+            a.uuid
+        } else {
+            role_uuid(&resolver, AccountRole::CashAtHand, None)?
+        };
+        let payable = role_uuid(&resolver, AccountRole::PayrollNetPayable, payload.payroll_payable_uuid)?;
+        let resolved = SettleEmployees {
+            payrun_uuid: payload.payrun_uuid,
+            payment_date: payload.payment_date,
+            payment_reference: payload.payment_reference.clone(),
+            cash_account_uuid: Some(cash),
+            payroll_payable_uuid: Some(payable),
+        };
+        self.repo.settle_employees(user_id, pool, &resolved).await
     }
 
     pub async fn get_payment_batch(

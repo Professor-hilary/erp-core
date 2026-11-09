@@ -1415,16 +1415,21 @@ impl PayrollRepository for PostgresPayrollRepo {
             ));
         }
 
-        // GL: Dr Payroll payable, Cr Cash/Bank
+        let cash_uuid = payload.cash_account_uuid.ok_or_else(|| {
+            AppError::Unprocessable("cash_account_uuid required".into())
+        })?;
+        let payable_uuid = payload.payroll_payable_uuid.ok_or_else(|| {
+            AppError::Unprocessable("payroll_payable_uuid required".into())
+        })?;
         let lines = serde_json::json!([
             {
-                "account_ref": payload.payroll_payable_uuid,
+                "account_ref": payable_uuid,
                 "debit": total_net,
                 "credit": 0,
                 "memo": "Settle net wages payable"
             },
             {
-                "account_ref": payload.cash_account_uuid,
+                "account_ref": cash_uuid,
                 "debit": 0,
                 "credit": total_net,
                 "memo": "Employee net pay disbursement"

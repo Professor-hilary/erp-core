@@ -10,7 +10,8 @@
             "parent_code": null,
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": null
+            "cash_flow_category": null,
+            "role_keys": []
         },
         {
             "code": "110000",
@@ -19,7 +20,8 @@
             "parent_code": "100000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "working-capital"
+            "cash_flow_category": "working-capital",
+            "role_keys": []
         },
         {
             "code": "110100",
@@ -28,7 +30,10 @@
             "parent_code": "110000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "cash"
+            "cash_flow_category": "cash",
+            "role_keys": [
+                "cash_at_hand"
+            ]
         },
         {
             "code": "110101",
@@ -37,7 +42,10 @@
             "parent_code": "110100",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "cash"
+            "cash_flow_category": "cash",
+            "role_keys": [
+                "cash_at_hand"
+            ]
         },
         {
             "code": "110102",
@@ -46,7 +54,8 @@
             "parent_code": "110100",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "cash"
+            "cash_flow_category": "cash",
+            "role_keys": []
         },
         {
             "code": "110103",
@@ -55,7 +64,8 @@
             "parent_code": "110100",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "cash"
+            "cash_flow_category": "cash",
+            "role_keys": []
         },
         {
             "code": "110200",
@@ -64,7 +74,10 @@
             "parent_code": "110000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "working-capital"
+            "cash_flow_category": "working-capital",
+            "role_keys": [
+                "cash_at_bank"
+            ]
         },
         {
             "code": "110201",
@@ -73,7 +86,8 @@
             "parent_code": "110200",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "working-capital"
+            "cash_flow_category": "working-capital",
+            "role_keys": []
         },
         {
             "code": "110202",
@@ -82,7 +96,8 @@
             "parent_code": "110200",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "working-capital"
+            "cash_flow_category": "working-capital",
+            "role_keys": []
         },
         {
             "code": "110203",
@@ -91,7 +106,8 @@
             "parent_code": "110200",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "working-capital"
+            "cash_flow_category": "working-capital",
+            "role_keys": []
         },
         {
             "code": "110204",
@@ -100,7 +116,8 @@
             "parent_code": "110200",
             "normal_balance": "cr",
             "is_contra": true,
-            "cash_flow_category": "working-capital"
+            "cash_flow_category": "working-capital",
+            "role_keys": []
         },
         {
             "code": "110300",
@@ -109,7 +126,10 @@
             "parent_code": "110000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "working-capital"
+            "cash_flow_category": "working-capital",
+            "role_keys": [
+                "accounts_receivable"
+            ]
         },
         {
             "code": "110301",
@@ -118,7 +138,8 @@
             "parent_code": "110300",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "working-capital"
+            "cash_flow_category": "working-capital",
+            "role_keys": []
         },
         {
             "code": "110302",
@@ -127,7 +148,8 @@
             "parent_code": "110300",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "working-capital"
+            "cash_flow_category": "working-capital",
+            "role_keys": []
         },
         {
             "code": "110400",
@@ -136,7 +158,8 @@
             "parent_code": "110000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "working-capital"
+            "cash_flow_category": "working-capital",
+            "role_keys": []
         },
         {
             "code": "110401",
@@ -145,7 +168,8 @@
             "parent_code": "110400",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "working-capital"
+            "cash_flow_category": "working-capital",
+            "role_keys": []
         },
         {
             "code": "110402",
@@ -154,7 +178,8 @@
             "parent_code": "110400",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "working-capital"
+            "cash_flow_category": "working-capital",
+            "role_keys": []
         },
         {
             "code": "110403",
@@ -163,7 +188,8 @@
             "parent_code": "110400",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "working-capital"
+            "cash_flow_category": "working-capital",
+            "role_keys": []
         },
         {
             "code": "110404",
@@ -172,7 +198,8 @@
             "parent_code": "110400",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "working-capital"
+            "cash_flow_category": "working-capital",
+            "role_keys": []
         },
         {
             "code": "120000",
@@ -181,7 +208,8 @@
             "parent_code": "100000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "investing"
+            "cash_flow_category": "investing",
+            "role_keys": []
         },
         {
             "code": "120100",
@@ -190,7 +218,8 @@
             "parent_code": "120000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "investing"
+            "cash_flow_category": "investing",
+            "role_keys": []
         },
         {
             "code": "120101",
@@ -199,7 +228,8 @@
             "parent_code": "120100",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "investing"
+            "cash_flow_category": "investing",
+            "role_keys": []
         },
         {
             "code": "120102",
@@ -208,7 +238,8 @@
             "parent_code": "120100",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "investing"
+            "cash_flow_category": "investing",
+            "role_keys": []
         },
         {
             "code": "120103",
@@ -217,7 +248,8 @@
             "parent_code": "120100",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "investing"
+            "cash_flow_category": "investing",
+            "role_keys": []
         },
         {
             "code": "120104",
@@ -226,7 +258,8 @@
             "parent_code": "120100",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "investing"
+            "cash_flow_category": "investing",
+            "role_keys": []
         },
         {
             "code": "120105",
@@ -235,7 +268,8 @@
             "parent_code": "120100",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "investing"
+            "cash_flow_category": "investing",
+            "role_keys": []
         },
         {
             "code": "120200",
@@ -244,7 +278,8 @@
             "parent_code": "120000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "investing"
+            "cash_flow_category": "investing",
+            "role_keys": []
         },
         {
             "code": "120106",
@@ -253,7 +288,8 @@
             "parent_code": "120100",
             "normal_balance": "cr",
             "is_contra": true,
-            "cash_flow_category": "non-cash"
+            "cash_flow_category": "non-cash",
+            "role_keys": []
         },
         {
             "code": "120107",
@@ -262,7 +298,8 @@
             "parent_code": "120100",
             "normal_balance": "cr",
             "is_contra": true,
-            "cash_flow_category": "non-cash"
+            "cash_flow_category": "non-cash",
+            "role_keys": []
         },
         {
             "code": "120108",
@@ -271,7 +308,8 @@
             "parent_code": "120100",
             "normal_balance": "cr",
             "is_contra": true,
-            "cash_flow_category": "non-cash"
+            "cash_flow_category": "non-cash",
+            "role_keys": []
         },
         {
             "code": "120109",
@@ -280,7 +318,8 @@
             "parent_code": "120100",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "investing"
+            "cash_flow_category": "investing",
+            "role_keys": []
         },
         {
             "code": "120110",
@@ -289,7 +328,8 @@
             "parent_code": "120100",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "investing"
+            "cash_flow_category": "investing",
+            "role_keys": []
         },
         {
             "code": "120300",
@@ -298,7 +338,8 @@
             "parent_code": "120000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "investing"
+            "cash_flow_category": "investing",
+            "role_keys": []
         },
         {
             "code": "120301",
@@ -307,7 +348,8 @@
             "parent_code": "120300",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "investing"
+            "cash_flow_category": "investing",
+            "role_keys": []
         },
         {
             "code": "120302",
@@ -316,7 +358,8 @@
             "parent_code": "120300",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "investing"
+            "cash_flow_category": "investing",
+            "role_keys": []
         },
         {
             "code": "120400",
@@ -325,7 +368,8 @@
             "parent_code": "120000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "investing"
+            "cash_flow_category": "investing",
+            "role_keys": []
         },
         {
             "code": "120500",
@@ -334,7 +378,8 @@
             "parent_code": "120000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "investing"
+            "cash_flow_category": "investing",
+            "role_keys": []
         },
         {
             "code": "200000",
@@ -343,7 +388,8 @@
             "parent_code": null,
             "normal_balance": "cr",
             "is_contra": false,
-            "cash_flow_category": null
+            "cash_flow_category": null,
+            "role_keys": []
         },
         {
             "code": "210000",
@@ -352,7 +398,8 @@
             "parent_code": "200000",
             "normal_balance": "cr",
             "is_contra": false,
-            "cash_flow_category": "working-capital"
+            "cash_flow_category": "working-capital",
+            "role_keys": []
         },
         {
             "code": "210100",
@@ -361,7 +408,10 @@
             "parent_code": "210000",
             "normal_balance": "cr",
             "is_contra": false,
-            "cash_flow_category": "working-capital"
+            "cash_flow_category": "working-capital",
+            "role_keys": [
+                "accounts_payable"
+            ]
         },
         {
             "code": "210101",
@@ -370,7 +420,8 @@
             "parent_code": "210100",
             "normal_balance": "cr",
             "is_contra": false,
-            "cash_flow_category": "working-capital"
+            "cash_flow_category": "working-capital",
+            "role_keys": []
         },
         {
             "code": "210200",
@@ -379,7 +430,11 @@
             "parent_code": "210000",
             "normal_balance": "cr",
             "is_contra": false,
-            "cash_flow_category": "working-capital"
+            "cash_flow_category": "working-capital",
+            "role_keys": [
+                "wages_payable",
+                "payroll_net_payable"
+            ]
         },
         {
             "code": "210300",
@@ -388,7 +443,10 @@
             "parent_code": "210000",
             "normal_balance": "cr",
             "is_contra": false,
-            "cash_flow_category": "working-capital"
+            "cash_flow_category": "working-capital",
+            "role_keys": [
+                "paye_payable"
+            ]
         },
         {
             "code": "210301",
@@ -397,7 +455,8 @@
             "parent_code": "210300",
             "normal_balance": "cr",
             "is_contra": false,
-            "cash_flow_category": "working-capital"
+            "cash_flow_category": "working-capital",
+            "role_keys": []
         },
         {
             "code": "210302",
@@ -406,7 +465,8 @@
             "parent_code": "210300",
             "normal_balance": "cr",
             "is_contra": false,
-            "cash_flow_category": "working-capital"
+            "cash_flow_category": "working-capital",
+            "role_keys": []
         },
         {
             "code": "210303",
@@ -415,7 +475,8 @@
             "parent_code": "210300",
             "normal_balance": "cr",
             "is_contra": false,
-            "cash_flow_category": "working-capital"
+            "cash_flow_category": "working-capital",
+            "role_keys": []
         },
         {
             "code": "210304",
@@ -424,7 +485,11 @@
             "parent_code": "210300",
             "normal_balance": "cr",
             "is_contra": false,
-            "cash_flow_category": "working-capital"
+            "cash_flow_category": "working-capital",
+            "role_keys": [
+                "wages_payable",
+                "payroll_net_payable"
+            ]
         },
         {
             "code": "210400",
@@ -433,7 +498,8 @@
             "parent_code": "210000",
             "normal_balance": "cr",
             "is_contra": false,
-            "cash_flow_category": "working-capital"
+            "cash_flow_category": "working-capital",
+            "role_keys": []
         },
         {
             "code": "210500",
@@ -442,7 +508,8 @@
             "parent_code": "210000",
             "normal_balance": "cr",
             "is_contra": false,
-            "cash_flow_category": "working-capital"
+            "cash_flow_category": "working-capital",
+            "role_keys": []
         },
         {
             "code": "210600",
@@ -451,7 +518,10 @@
             "parent_code": "210000",
             "normal_balance": "cr",
             "is_contra": false,
-            "cash_flow_category": "working-capital"
+            "cash_flow_category": "working-capital",
+            "role_keys": [
+                "paye_payable"
+            ]
         },
         {
             "code": "220000",
@@ -460,7 +530,8 @@
             "parent_code": "200000",
             "normal_balance": "cr",
             "is_contra": false,
-            "cash_flow_category": "financing"
+            "cash_flow_category": "financing",
+            "role_keys": []
         },
         {
             "code": "220100",
@@ -469,7 +540,8 @@
             "parent_code": "220000",
             "normal_balance": "cr",
             "is_contra": false,
-            "cash_flow_category": "financing"
+            "cash_flow_category": "financing",
+            "role_keys": []
         },
         {
             "code": "220101",
@@ -478,7 +550,8 @@
             "parent_code": "220100",
             "normal_balance": "cr",
             "is_contra": false,
-            "cash_flow_category": "financing"
+            "cash_flow_category": "financing",
+            "role_keys": []
         },
         {
             "code": "220102",
@@ -487,7 +560,8 @@
             "parent_code": "220100",
             "normal_balance": "cr",
             "is_contra": false,
-            "cash_flow_category": "financing"
+            "cash_flow_category": "financing",
+            "role_keys": []
         },
         {
             "code": "220200",
@@ -496,7 +570,8 @@
             "parent_code": "220000",
             "normal_balance": "cr",
             "is_contra": false,
-            "cash_flow_category": "financing"
+            "cash_flow_category": "financing",
+            "role_keys": []
         },
         {
             "code": "220300",
@@ -505,7 +580,8 @@
             "parent_code": "220000",
             "normal_balance": "cr",
             "is_contra": false,
-            "cash_flow_category": "financing"
+            "cash_flow_category": "financing",
+            "role_keys": []
         },
         {
             "code": "300000",
@@ -514,7 +590,8 @@
             "parent_code": null,
             "normal_balance": "cr",
             "is_contra": false,
-            "cash_flow_category": null
+            "cash_flow_category": null,
+            "role_keys": []
         },
         {
             "code": "310000",
@@ -523,7 +600,8 @@
             "parent_code": "300000",
             "normal_balance": "cr",
             "is_contra": false,
-            "cash_flow_category": "financing"
+            "cash_flow_category": "financing",
+            "role_keys": []
         },
         {
             "code": "310100",
@@ -532,7 +610,10 @@
             "parent_code": "310000",
             "normal_balance": "cr",
             "is_contra": false,
-            "cash_flow_category": "financing"
+            "cash_flow_category": "financing",
+            "role_keys": [
+                "share_capital"
+            ]
         },
         {
             "code": "310200",
@@ -541,7 +622,8 @@
             "parent_code": "310000",
             "normal_balance": "dr",
             "is_contra": true,
-            "cash_flow_category": "financing"
+            "cash_flow_category": "financing",
+            "role_keys": []
         },
         {
             "code": "310300",
@@ -550,7 +632,10 @@
             "parent_code": "310000",
             "normal_balance": "cr",
             "is_contra": false,
-            "cash_flow_category": "financing"
+            "cash_flow_category": "financing",
+            "role_keys": [
+                "retained_earnings"
+            ]
         },
         {
             "code": "310400",
@@ -559,7 +644,8 @@
             "parent_code": "310000",
             "normal_balance": "cr",
             "is_contra": false,
-            "cash_flow_category": "financing"
+            "cash_flow_category": "financing",
+            "role_keys": []
         },
         {
             "code": "400000",
@@ -568,7 +654,8 @@
             "parent_code": null,
             "normal_balance": "cr",
             "is_contra": false,
-            "cash_flow_category": null
+            "cash_flow_category": null,
+            "role_keys": []
         },
         {
             "code": "410000",
@@ -577,7 +664,10 @@
             "parent_code": "400000",
             "normal_balance": "cr",
             "is_contra": false,
-            "cash_flow_category": "operating"
+            "cash_flow_category": "operating",
+            "role_keys": [
+                "sales_revenue"
+            ]
         },
         {
             "code": "410100",
@@ -586,7 +676,10 @@
             "parent_code": "410000",
             "normal_balance": "cr",
             "is_contra": false,
-            "cash_flow_category": "operating"
+            "cash_flow_category": "operating",
+            "role_keys": [
+                "sales_revenue"
+            ]
         },
         {
             "code": "410200",
@@ -595,7 +688,8 @@
             "parent_code": "410000",
             "normal_balance": "cr",
             "is_contra": false,
-            "cash_flow_category": "operating"
+            "cash_flow_category": "operating",
+            "role_keys": []
         },
         {
             "code": "410300",
@@ -604,7 +698,8 @@
             "parent_code": "410000",
             "normal_balance": "cr",
             "is_contra": false,
-            "cash_flow_category": "operating"
+            "cash_flow_category": "operating",
+            "role_keys": []
         },
         {
             "code": "420000",
@@ -613,7 +708,8 @@
             "parent_code": "400000",
             "normal_balance": "cr",
             "is_contra": false,
-            "cash_flow_category": "operating"
+            "cash_flow_category": "operating",
+            "role_keys": []
         },
         {
             "code": "420100",
@@ -622,7 +718,8 @@
             "parent_code": "420000",
             "normal_balance": "cr",
             "is_contra": false,
-            "cash_flow_category": "operating"
+            "cash_flow_category": "operating",
+            "role_keys": []
         },
         {
             "code": "420200",
@@ -631,7 +728,8 @@
             "parent_code": "420000",
             "normal_balance": "cr",
             "is_contra": false,
-            "cash_flow_category": "operating"
+            "cash_flow_category": "operating",
+            "role_keys": []
         },
         {
             "code": "420300",
@@ -640,7 +738,8 @@
             "parent_code": "420000",
             "normal_balance": "cr",
             "is_contra": false,
-            "cash_flow_category": "operating"
+            "cash_flow_category": "operating",
+            "role_keys": []
         },
         {
             "code": "420400",
@@ -649,7 +748,8 @@
             "parent_code": "420000",
             "normal_balance": "cr",
             "is_contra": false,
-            "cash_flow_category": "operating"
+            "cash_flow_category": "operating",
+            "role_keys": []
         },
         {
             "code": "500000",
@@ -658,7 +758,8 @@
             "parent_code": null,
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": null
+            "cash_flow_category": null,
+            "role_keys": []
         },
         {
             "code": "510000",
@@ -667,7 +768,8 @@
             "parent_code": "500000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "operating"
+            "cash_flow_category": "operating",
+            "role_keys": []
         },
         {
             "code": "510100",
@@ -676,7 +778,10 @@
             "parent_code": "510000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "operating"
+            "cash_flow_category": "operating",
+            "role_keys": [
+                "direct_materials_expense"
+            ]
         },
         {
             "code": "510200",
@@ -685,7 +790,8 @@
             "parent_code": "510000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "operating"
+            "cash_flow_category": "operating",
+            "role_keys": []
         },
         {
             "code": "510300",
@@ -694,7 +800,8 @@
             "parent_code": "510000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "operating"
+            "cash_flow_category": "operating",
+            "role_keys": []
         },
         {
             "code": "510400",
@@ -703,7 +810,8 @@
             "parent_code": "510000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "operating"
+            "cash_flow_category": "operating",
+            "role_keys": []
         },
         {
             "code": "510500",
@@ -712,7 +820,8 @@
             "parent_code": "510000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "operating"
+            "cash_flow_category": "operating",
+            "role_keys": []
         },
         {
             "code": "510600",
@@ -721,7 +830,8 @@
             "parent_code": "510000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "operating"
+            "cash_flow_category": "operating",
+            "role_keys": []
         },
         {
             "code": "520000",
@@ -730,7 +840,8 @@
             "parent_code": "500000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "operating"
+            "cash_flow_category": "operating",
+            "role_keys": []
         },
         {
             "code": "520100",
@@ -739,7 +850,12 @@
             "parent_code": "520000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "operating"
+            "cash_flow_category": "operating",
+            "role_keys": [
+                "direct_labour_expense",
+                "payroll_labour_expense",
+                "wages_expense"
+            ]
         },
         {
             "code": "520200",
@@ -748,7 +864,8 @@
             "parent_code": "520000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "operating"
+            "cash_flow_category": "operating",
+            "role_keys": []
         },
         {
             "code": "520300",
@@ -757,7 +874,10 @@
             "parent_code": "520000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "operating"
+            "cash_flow_category": "operating",
+            "role_keys": [
+                "employer_nssf_expense"
+            ]
         },
         {
             "code": "520400",
@@ -766,7 +886,10 @@
             "parent_code": "520000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "operating"
+            "cash_flow_category": "operating",
+            "role_keys": [
+                "other_employer_payroll_expense"
+            ]
         },
         {
             "code": "530000",
@@ -775,7 +898,8 @@
             "parent_code": "500000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "operating"
+            "cash_flow_category": "operating",
+            "role_keys": []
         },
         {
             "code": "530100",
@@ -784,7 +908,8 @@
             "parent_code": "530000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "operating"
+            "cash_flow_category": "operating",
+            "role_keys": []
         },
         {
             "code": "530200",
@@ -793,7 +918,8 @@
             "parent_code": "530000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "operating"
+            "cash_flow_category": "operating",
+            "role_keys": []
         },
         {
             "code": "530300",
@@ -802,7 +928,8 @@
             "parent_code": "530000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "operating"
+            "cash_flow_category": "operating",
+            "role_keys": []
         },
         {
             "code": "530400",
@@ -811,7 +938,8 @@
             "parent_code": "530000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "operating"
+            "cash_flow_category": "operating",
+            "role_keys": []
         },
         {
             "code": "530500",
@@ -820,7 +948,8 @@
             "parent_code": "530000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "operating"
+            "cash_flow_category": "operating",
+            "role_keys": []
         },
         {
             "code": "540000",
@@ -829,7 +958,8 @@
             "parent_code": "500000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "operating"
+            "cash_flow_category": "operating",
+            "role_keys": []
         },
         {
             "code": "540100",
@@ -838,7 +968,8 @@
             "parent_code": "540000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "operating"
+            "cash_flow_category": "operating",
+            "role_keys": []
         },
         {
             "code": "540200",
@@ -847,7 +978,8 @@
             "parent_code": "540000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "operating"
+            "cash_flow_category": "operating",
+            "role_keys": []
         },
         {
             "code": "540300",
@@ -856,7 +988,8 @@
             "parent_code": "540000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "operating"
+            "cash_flow_category": "operating",
+            "role_keys": []
         },
         {
             "code": "540400",
@@ -865,7 +998,8 @@
             "parent_code": "540000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "operating"
+            "cash_flow_category": "operating",
+            "role_keys": []
         },
         {
             "code": "540500",
@@ -874,7 +1008,10 @@
             "parent_code": "540000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "non-cash"
+            "cash_flow_category": "non-cash",
+            "role_keys": [
+                "depreciation_expense"
+            ]
         },
         {
             "code": "550000",
@@ -883,7 +1020,8 @@
             "parent_code": "500000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "operating"
+            "cash_flow_category": "operating",
+            "role_keys": []
         },
         {
             "code": "550100",
@@ -892,7 +1030,10 @@
             "parent_code": "550000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "operating"
+            "cash_flow_category": "operating",
+            "role_keys": [
+                "material_usage_variance"
+            ]
         },
         {
             "code": "550200",
@@ -901,7 +1042,10 @@
             "parent_code": "550000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "operating"
+            "cash_flow_category": "operating",
+            "role_keys": [
+                "labour_efficiency_variance"
+            ]
         },
         {
             "code": "550300",
@@ -910,7 +1054,10 @@
             "parent_code": "550000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "operating"
+            "cash_flow_category": "operating",
+            "role_keys": [
+                "overhead_variance"
+            ]
         },
         {
             "code": "550400",
@@ -919,7 +1066,10 @@
             "parent_code": "550000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "operating"
+            "cash_flow_category": "operating",
+            "role_keys": [
+                "manufacturing_overhead_control"
+            ]
         },
         {
             "code": "550500",
@@ -928,7 +1078,8 @@
             "parent_code": "550000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "operating"
+            "cash_flow_category": "operating",
+            "role_keys": []
         },
         {
             "code": "550600",
@@ -937,7 +1088,8 @@
             "parent_code": "550000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "operating"
+            "cash_flow_category": "operating",
+            "role_keys": []
         },
         {
             "code": "550700",
@@ -946,7 +1098,8 @@
             "parent_code": "550000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "operating"
+            "cash_flow_category": "operating",
+            "role_keys": []
         },
         {
             "code": "550900",
@@ -955,7 +1108,8 @@
             "parent_code": "550000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "operating"
+            "cash_flow_category": "operating",
+            "role_keys": []
         },
         {
             "code": "600000",
@@ -964,7 +1118,8 @@
             "parent_code": null,
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": null
+            "cash_flow_category": null,
+            "role_keys": []
         },
         {
             "code": "610000",
@@ -973,7 +1128,8 @@
             "parent_code": "600000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "operating"
+            "cash_flow_category": "operating",
+            "role_keys": []
         },
         {
             "code": "620000",
@@ -982,7 +1138,8 @@
             "parent_code": "600000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "operating"
+            "cash_flow_category": "operating",
+            "role_keys": []
         },
         {
             "code": "630000",
@@ -991,7 +1148,8 @@
             "parent_code": "600000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "operating"
+            "cash_flow_category": "operating",
+            "role_keys": []
         },
         {
             "code": "640000",
@@ -1000,7 +1158,10 @@
             "parent_code": "600000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "non-cash"
+            "cash_flow_category": "non-cash",
+            "role_keys": [
+                "depreciation_expense"
+            ]
         },
         {
             "code": "650000",
@@ -1009,7 +1170,8 @@
             "parent_code": "600000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "operating"
+            "cash_flow_category": "operating",
+            "role_keys": []
         },
         {
             "code": "660000",
@@ -1018,7 +1180,8 @@
             "parent_code": "600000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "operating"
+            "cash_flow_category": "operating",
+            "role_keys": []
         },
         {
             "code": "660100",
@@ -1027,7 +1190,8 @@
             "parent_code": "660000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "operating"
+            "cash_flow_category": "operating",
+            "role_keys": []
         },
         {
             "code": "660200",
@@ -1036,7 +1200,8 @@
             "parent_code": "660000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "operating"
+            "cash_flow_category": "operating",
+            "role_keys": []
         },
         {
             "code": "660300",
@@ -1045,7 +1210,8 @@
             "parent_code": "660000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "operating"
+            "cash_flow_category": "operating",
+            "role_keys": []
         },
         {
             "code": "660400",
@@ -1054,7 +1220,8 @@
             "parent_code": "660000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "operating"
+            "cash_flow_category": "operating",
+            "role_keys": []
         },
         {
             "code": "660500",
@@ -1063,7 +1230,8 @@
             "parent_code": "660000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "operating"
+            "cash_flow_category": "operating",
+            "role_keys": []
         },
         {
             "code": "660600",
@@ -1072,7 +1240,8 @@
             "parent_code": "660000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "operating"
+            "cash_flow_category": "operating",
+            "role_keys": []
         },
         {
             "code": "660700",
@@ -1081,7 +1250,8 @@
             "parent_code": "660000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "operating"
+            "cash_flow_category": "operating",
+            "role_keys": []
         },
         {
             "code": "660800",
@@ -1090,7 +1260,8 @@
             "parent_code": "660000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "operating"
+            "cash_flow_category": "operating",
+            "role_keys": []
         },
         {
             "code": "660900",
@@ -1099,7 +1270,8 @@
             "parent_code": "660000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "operating"
+            "cash_flow_category": "operating",
+            "role_keys": []
         },
         {
             "code": "661000",
@@ -1108,7 +1280,8 @@
             "parent_code": "660000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "operating"
+            "cash_flow_category": "operating",
+            "role_keys": []
         },
         {
             "code": "670000",
@@ -1117,7 +1290,8 @@
             "parent_code": "600000",
             "normal_balance": "dr",
             "is_contra": false,
-            "cash_flow_category": "operating"
+            "cash_flow_category": "operating",
+            "role_keys": []
         }
     ]
 }

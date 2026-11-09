@@ -14,40 +14,40 @@ pub struct AccountRoleContext {
 pub enum AccountRole {
     AccountsReceivable,
     AccountsPayable,
-
     SalesRevenue,
     CostOfGoodsSold,
-
     CashAtHand,
     CashAtBank,
-
     RawMaterialsInventory,
     WorkInProgress,
     FinishedGoodsInventory,
     MerchandiseInventory,
     InventoryAdjustments,
-
     InputVat,
     OutputVat,
-
     DirectMaterialsExpense,
     DirectLabourExpense,
     WagesExpense,
     WagesPayable,
-
     ManufacturingOverheadControl,
     ManufacturingOverheadApplied,
     MaterialUsageVariance,
     LabourEfficiencyVariance,
     OverheadVariance,
-
     FixedAssetsCost,
     AccumulatedDepreciation,
     DepreciationExpense,
-
     ShareCapital,
     RetainedEarnings,
     DividendsPayable,
+    PayrollLabourExpense,
+    PayrollNetPayable,
+    PayePayable,
+    EmployeeNssfPayable,
+    EmployerNssfPayable,
+    EmployerNssfExpense,
+    OtherPayrollDeductionsPayable,
+    OtherEmployerPayrollExpense,
 }
 
 impl AccountRole {
@@ -80,6 +80,14 @@ impl AccountRole {
         Self::ShareCapital,
         Self::RetainedEarnings,
         Self::DividendsPayable,
+        Self::PayrollLabourExpense,
+        Self::PayrollNetPayable,
+        Self::PayePayable,
+        Self::EmployeeNssfPayable,
+        Self::EmployerNssfPayable,
+        Self::EmployerNssfExpense,
+        Self::OtherPayrollDeductionsPayable,
+        Self::OtherEmployerPayrollExpense,
     ];
 
     pub const fn key(self) -> &'static str {
@@ -112,6 +120,14 @@ impl AccountRole {
             Self::ShareCapital => "share_capital",
             Self::RetainedEarnings => "retained_earnings",
             Self::DividendsPayable => "dividends_payable",
+            Self::PayrollLabourExpense => "payroll_labour_expense",
+            Self::PayrollNetPayable => "payroll_net_payable",
+            Self::PayePayable => "paye_payable",
+            Self::EmployeeNssfPayable => "employee_nssf_payable",
+            Self::EmployerNssfPayable => "employer_nssf_payable",
+            Self::EmployerNssfExpense => "employer_nssf_expense",
+            Self::OtherPayrollDeductionsPayable => "other_payroll_deductions_payable",
+            Self::OtherEmployerPayrollExpense => "other_employer_payroll_expense",
         }
     }
 
@@ -119,60 +135,48 @@ impl AccountRole {
         Self::ALL.iter().copied().find(|role| role.key() == key)
     }
 
-    /// Candidate names used by the automatic discovery process.
-    ///
-    /// These are suggestions, not account codes or UUIDs.
     fn aliases(self) -> &'static [&'static str] {
         match self {
             Self::AccountsReceivable => &["accounts receivable", "trade receivables", "debtors"],
             Self::AccountsPayable => &["accounts payable", "trade payables", "creditors"],
-            Self::SalesRevenue => &["sales revenue", "sales", "revenue from sales"],
-            Self::CostOfGoodsSold => &["cost of goods sold", "cost of sales"],
+            Self::SalesRevenue => &["sales revenue", "sales", "sales of manufactured goods"],
+            Self::CostOfGoodsSold => &["cost of goods sold", "cost of sales", "cogs"],
             Self::CashAtHand => &["cash on hand", "cash in hand", "cash at hand"],
-            Self::CashAtBank => &["bank", "bank accounts"],
-            Self::RawMaterialsInventory => &[
-                "raw materials inventory",
-                "raw material inventory",
-                "raw materials",
-            ],
+            Self::CashAtBank => &["bank accounts", "bank", "cash at bank"],
+            Self::RawMaterialsInventory => &["raw materials inventory", "raw materials"],
             Self::WorkInProgress => &["work in progress", "work in progress wip", "wip"],
             Self::FinishedGoodsInventory => &["finished goods inventory", "finished goods"],
             Self::MerchandiseInventory => &["merchandise inventory", "trading inventory"],
             Self::InventoryAdjustments => &["inventory adjustments", "inventory adjustment"],
             Self::InputVat => &["input vat", "vat input", "recoverable vat"],
-            Self::OutputVat => &["output vat", "vat output", "vat payable"],
-            Self::DirectMaterialsExpense => {
-                &["direct materials expense", "direct material expense"]
-            }
-            Self::DirectLabourExpense => &[
-                "direct labour expense",
-                "direct labor expense",
-                "direct labour",
-                "direct labor",
-            ],
-            Self::WagesExpense => &["wages expense", "salary expense", "salaries and wages"],
-            Self::WagesPayable => &["wages payable", "salaries payable"],
+            Self::OutputVat => &["output vat", "vat output", "sales tax payable"],
+            Self::DirectMaterialsExpense => &["direct materials", "raw materials purchases"],
+            Self::DirectLabourExpense => &["direct labour", "direct labor", "factory wages"],
+            Self::WagesExpense => &["wages expense", "factory wages", "salaries and wages"],
+            Self::WagesPayable => &["wages payable", "accrued wages", "salaries payable"],
             Self::ManufacturingOverheadControl => {
-                &["manufacturing overhead control", "factory overhead control"]
+                &["manufacturing overhead control", "overhead variance control"]
             }
-            Self::ManufacturingOverheadApplied => {
-                &["manufacturing overhead applied", "applied factory overhead"]
-            }
-            Self::MaterialUsageVariance => &["material usage variance", "materials usage variance"],
+            Self::ManufacturingOverheadApplied => &["manufacturing overhead applied"],
+            Self::MaterialUsageVariance => &["material usage variance"],
             Self::LabourEfficiencyVariance => {
                 &["labour efficiency variance", "labor efficiency variance"]
             }
-            Self::OverheadVariance => &["overhead variance", "manufacturing overhead variance"],
-            Self::FixedAssetsCost => &[
-                "fixed assets",
-                "property plant and equipment",
-                "property plant equipment",
-            ],
+            Self::OverheadVariance => &["overhead variance"],
+            Self::FixedAssetsCost => &["machinery equipment", "property plant equipment"],
             Self::AccumulatedDepreciation => &["accumulated depreciation"],
-            Self::DepreciationExpense => &["depreciation expense"],
-            Self::ShareCapital => &["share capital", "ordinary share capital"],
-            Self::RetainedEarnings => &["retained earnings", "retained profits"],
-            Self::DividendsPayable => &["dividends payable", "dividend payable"],
+            Self::DepreciationExpense => &["depreciation expense", "depreciation office"],
+            Self::ShareCapital => &["share capital", "owners capital", "owner capital"],
+            Self::RetainedEarnings => &["retained earnings"],
+            Self::DividendsPayable => &["dividends payable"],
+            Self::PayrollLabourExpense => &["factory wages", "payroll expense"],
+            Self::PayrollNetPayable => &["accrued wages", "payroll payable", "net wages payable"],
+            Self::PayePayable => &["taxes payable", "paye payable", "income tax payable"],
+            Self::EmployeeNssfPayable => &["social security", "nssf payable"],
+            Self::EmployerNssfPayable => &["social security", "employer nssf payable"],
+            Self::EmployerNssfExpense => &["payroll taxes factory", "payroll taxes - factory"],
+            Self::OtherPayrollDeductionsPayable => &["payroll taxes payable", "accrued expenses"],
+            Self::OtherEmployerPayrollExpense => &["labor benefits", "labour benefits"],
         }
     }
 
@@ -192,7 +196,12 @@ impl AccountRole {
             Self::AccountsPayable
             | Self::OutputVat
             | Self::WagesPayable
-            | Self::DividendsPayable => &["liability"],
+            | Self::DividendsPayable
+            | Self::PayrollNetPayable
+            | Self::PayePayable
+            | Self::EmployeeNssfPayable
+            | Self::EmployerNssfPayable
+            | Self::OtherPayrollDeductionsPayable => &["liability"],
 
             Self::SalesRevenue => &["income"],
 
@@ -206,30 +215,23 @@ impl AccountRole {
             | Self::MaterialUsageVariance
             | Self::LabourEfficiencyVariance
             | Self::OverheadVariance
-            | Self::DepreciationExpense => &["expense"],
+            | Self::DepreciationExpense
+            | Self::PayrollLabourExpense
+            | Self::EmployerNssfExpense
+            | Self::OtherEmployerPayrollExpense => &["expense"],
 
             Self::ShareCapital | Self::RetainedEarnings => &["equity"],
         }
     }
 
-    /// Cash and bank accounts may be operational choices.
-    /// Do not guess a universal default when multiple accounts may exist.
     fn requires_context(self) -> bool {
-        match self {
-            Self::CashAtHand => true,
-            Self::CashAtBank => true,
-            _ => false,
-        }
+        matches!(self, Self::CashAtHand | Self::CashAtBank)
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct ResolvedAccount {
     pub uuid: Uuid,
-    // pub code: String,
-    // pub name: String,
-    // pub category: String,
-    // pub normal_balance: String,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -241,13 +243,10 @@ pub struct AccountRoleResolver {
 pub enum AccountRoleError {
     #[error("Database error while resolving account roles: {0}")]
     Database(#[from] sqlx::Error),
-
     #[error("No account is configured for role '{0}'")]
     MissingMapping(String),
-
     #[error("Invalid account-role mapping: {0}")]
     InvalidMapping(String),
-
     #[error("Unknown persisted account role '{0}'")]
     UnknownRole(String),
 }
@@ -265,70 +264,116 @@ struct AccountCandidate {
     code: String,
     name: String,
     category: String,
-    // normal_balance: String,
 }
 
 fn normalize_name(value: &str) -> String {
     value
         .chars()
-        .filter(|character| character.is_ascii_alphanumeric())
+        .filter(|c| c.is_ascii_alphanumeric())
         .flat_map(char::to_lowercase)
         .collect()
 }
 
 impl AccountRoleResolver {
-    /// Discover safe defaults from the existing tenant CoA.
-    ///
-    /// Only a single, eligible, exact-name candidate is mapped.
-    /// Existing manual mappings are never overwritten.
+    pub async fn seed_from_template_roles(
+        pool: &PgPool,
+        entries: &[(String, Vec<String>)],
+    ) -> Result<MappingDiscoveryReport, AccountRoleError> {
+        let mut report = MappingDiscoveryReport::default();
+        for (code, role_keys) in entries {
+            if role_keys.is_empty() {
+                continue;
+            }
+            let account_uuid: Option<Uuid> = sqlx::query_scalar(
+                r#"
+                SELECT uuid FROM accounting.accounts
+                WHERE code = $1 AND is_active = TRUE AND is_postable = TRUE
+                "#,
+            )
+            .bind(code)
+            .fetch_optional(pool)
+            .await?;
+
+            let Some(account_uuid) = account_uuid else {
+                for key in role_keys {
+                    report.missing.push(format!("{key}@{code}"));
+                }
+                continue;
+            };
+
+            for key in role_keys {
+                let Some(role) = AccountRole::from_key(key) else {
+                    report.missing.push(key.clone());
+                    continue;
+                };
+                let result = sqlx::query(
+                    r#"
+                    INSERT INTO accounting.account_role_mappings (
+                        role_key, context_key, account_uuid, mapping_source, is_active
+                    )
+                    VALUES ($1, 'default', $2, 'seed', TRUE)
+                    ON CONFLICT (role_key, context_key) DO NOTHING
+                    "#,
+                )
+                .bind(role.key())
+                .bind(account_uuid)
+                .execute(pool)
+                .await?;
+                if result.rows_affected() == 1 {
+                    report.inserted += 1;
+                    tracing::info!(role = role.key(), account_code = %code, "Seeded account role from CoA template");
+                }
+            }
+        }
+        Ok(report)
+    }
+
     pub async fn discover_and_seed_defaults(
         pool: &PgPool,
     ) -> Result<MappingDiscoveryReport, AccountRoleError> {
         let rows = sqlx::query(
             r#"
-            SELECT uuid, code, name, category
-            FROM accounting.accounts
-            WHERE is_active = TRUE
-              AND is_postable = TRUE
-            ORDER BY code
+            SELECT uuid, code, name, category FROM accounting.accounts
+            WHERE is_active = TRUE AND is_postable = TRUE ORDER BY code
             "#,
         )
         .fetch_all(pool)
         .await?;
 
         let mut candidates = Vec::with_capacity(rows.len());
-
         for row in rows {
             candidates.push(AccountCandidate {
                 uuid: row.try_get("uuid")?,
                 code: row.try_get("code")?,
                 name: row.try_get("name")?,
                 category: row.try_get("category")?,
-                // normal_balance: row.try_get("normal_balance")?,
             });
         }
 
         let mut report = MappingDiscoveryReport::default();
-
         for role in AccountRole::ALL.iter().copied() {
+            let existing: Option<Uuid> = sqlx::query_scalar(
+                r#"
+                SELECT account_uuid FROM accounting.account_role_mappings
+                WHERE role_key = $1 AND context_key = 'default' AND is_active
+                "#,
+            )
+            .bind(role.key())
+            .fetch_optional(pool)
+            .await?;
+            if existing.is_some() {
+                continue;
+            }
             if role.requires_context() {
                 continue;
             }
 
-            let aliases: Vec<String> = role
-                .aliases()
-                .iter()
-                .map(|name| normalize_name(name))
-                .collect();
-
+            let aliases: Vec<String> = role.aliases().iter().map(|n| normalize_name(n)).collect();
             let matches: Vec<&AccountCandidate> = candidates
                 .iter()
-                .filter(|account| {
-                    role.allowed_categories()
-                        .contains(&account.category.as_str())
-                })
-                .filter(|account| {
-                    let name = normalize_name(&account.name);
+                .filter(|a| role.allowed_categories().contains(&a.category.as_str()))
+                .filter(|a| {
+                    let name = normalize_name(&a.name);
                     aliases.iter().any(|alias| alias == &name)
                 })
                 .collect();
@@ -337,129 +382,59 @@ impl AccountRoleResolver {
                 [account] => {
                     let result = sqlx::query(
                         r#"
-						INSERT INTO accounting.account_role_mappings (
-						    role_key,
-						    context_key,
-						    account_uuid,
-						    mapping_source,
-						    is_active
-						)
-						VALUES ($1, $2, $3, 'discovery', TRUE)
-						ON CONFLICT (role_key, context_key)
-						DO NOTHING
-					"#,
+                        INSERT INTO accounting.account_role_mappings (
+                            role_key, context_key, account_uuid, mapping_source, is_active
+                        )
+                        VALUES ($1, 'default', $2, 'discovery', TRUE)
+                        ON CONFLICT (role_key, context_key) DO NOTHING
+                        "#,
                     )
                     .bind(role.key())
-                    .bind("default")
                     .bind(account.uuid)
                     .execute(pool)
                     .await?;
-
                     if result.rows_affected() == 1 {
                         report.inserted += 1;
-
-                        tracing::info!(
-                            role = role.key(),
-                            account_code = %account.code,
-                            account_name = %account.name,
-                            "Automatically configured account role"
-                        );
                     }
                 }
-
-                [] => {
-                    report.missing.push(role.key().to_string());
-                }
-
-                _ => {
-                    report.ambiguous.push(role.key().to_string());
-
-                    tracing::warn!(
-                        role = role.key(),
-                        candidates = matches.len(),
-                        "Account-role discovery skipped an ambiguous mapping"
-                    );
-                }
+                [] => report.missing.push(role.key().to_string()),
+                _ => report.ambiguous.push(role.key().to_string()),
             }
         }
-
         Ok(report)
     }
 
-    /// Load validated mappings into the in-memory HashMap.
     pub async fn load(pool: &PgPool) -> Result<Self, AccountRoleError> {
         let rows = sqlx::query(
             r#"
-            SELECT
-                m.role_key,
-                a.uuid AS account_uuid,
-				m.context_key,
-                a.code,
-                a.name,
-                a.category,
-                a.normal_balance,
-                a.is_active,
-                a.is_postable
-            FROM accounting.account_role_mappings AS m
-            JOIN accounting.accounts AS a
-              ON a.uuid = m.account_uuid
-            WHERE m.is_active = TRUE
-            ORDER BY m.role_key
+            SELECT m.role_key, m.context_key, a.uuid AS account_uuid, a.category
+            FROM accounting.account_role_mappings m
+            JOIN accounting.accounts a ON a.uuid = m.account_uuid
+            WHERE m.is_active = TRUE AND a.is_active = TRUE AND a.is_postable = TRUE
             "#,
         )
         .fetch_all(pool)
         .await?;
 
-        let mut accounts = HashMap::with_capacity(rows.len());
-
+        let mut accounts = HashMap::new();
         for row in rows {
-            let key: String = row.try_get("role_key")?;
+            let role_key: String = row.try_get("role_key")?;
             let context_key: String = row.try_get("context_key")?;
-
-            let role = AccountRole::from_key(&key)
-                .ok_or_else(|| AccountRoleError::UnknownRole(key.clone()))?;
-
-            let uuid: Uuid = row.try_get("account_uuid")?;
-            let code: String = row.try_get("code")?;
-            let _name: String = row.try_get("name")?;
+            let account_uuid: Uuid = row.try_get("account_uuid")?;
             let category: String = row.try_get("category")?;
-            let _normal_balance: String = row.try_get("normal_balance")?;
-            let is_active: bool = row.try_get("is_active")?;
-            let is_postable: bool = row.try_get("is_postable")?;
-
-            if !is_active {
-                return Err(AccountRoleError::InvalidMapping(format!(
-                    "'{}' maps to inactive account '{}'",
-                    key, code
-                )));
-            }
-
-            if !is_postable {
-                return Err(AccountRoleError::InvalidMapping(format!(
-                    "'{}' maps to non-posting account '{}'",
-                    key, code
-                )));
-            }
-
+            let Some(role) = AccountRole::from_key(&role_key) else {
+                return Err(AccountRoleError::UnknownRole(role_key));
+            };
             if !role.allowed_categories().contains(&category.as_str()) {
                 return Err(AccountRoleError::InvalidMapping(format!(
-                    "'{}' maps to account '{}' with incompatible category '{}'",
-                    key, code, category
+                    "role '{role_key}' mapped to incompatible category '{category}'"
                 )));
             }
-
             accounts.insert(
                 AccountRoleContext { role, context_key },
-                ResolvedAccount {
-                    uuid,
-                    // code,
-                    // name,
-                    // category,
-                    // normal_balance,
-                },
+                ResolvedAccount { uuid: account_uuid },
             );
         }
-
         Ok(Self { accounts })
     }
 
@@ -468,25 +443,15 @@ impl AccountRoleResolver {
         role: AccountRole,
         context: &str,
     ) -> Result<&ResolvedAccount, AccountRoleError> {
-        let key = AccountRoleContext {
-            role,
-            context_key: context.to_string(),
-        };
-
         self.accounts
-            .get(&key)
-            .ok_or_else(|| AccountRoleError::MissingMapping(format!("{}:{}", role.key(), context)))
+            .get(&AccountRoleContext {
+                role,
+                context_key: context.to_string(),
+            })
+            .ok_or_else(|| AccountRoleError::MissingMapping(role.key().to_string()))
     }
 
     pub fn resolve_default(&self, role: AccountRole) -> Result<&ResolvedAccount, AccountRoleError> {
         self.resolve(role, "default")
     }
-
-    /*pub fn resolve_uuid(
-            &self,
-        role: AccountRole,
-        context: &str,
-    ) -> Result<Uuid, AccountRoleError> {
-        Ok(self.resolve(role, context)?.uuid)
-    }*/
 }

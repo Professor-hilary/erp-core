@@ -339,9 +339,9 @@ pub struct SettleEmployees {
     pub payment_date: NaiveDate,
     pub payment_reference: Option<String>,
     /// Bank / cash account to credit when settling net wages
-    pub cash_account_uuid: Uuid,
-    /// Payroll payable account (must match what was credited at accrual)
-    pub payroll_payable_uuid: Uuid,
+    pub cash_account_uuid: Option<Uuid>,
+    /// Optional — resolved from payroll_net_payable when omitted
+    pub payroll_payable_uuid: Option<Uuid>,
 }
 
 // =============================================================================
