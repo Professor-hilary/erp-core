@@ -11,15 +11,6 @@ fn ok(status: reqwest::StatusCode) -> bool {
     status.is_success() || status.as_u16() == 201
 }
 
-fn acct(ctx: &TestContext, codes: &[&str]) -> Result<String, String> {
-    for c in codes {
-        if ctx.account_uuid(c).is_some() {
-            return Ok(c.to_string());
-        }
-    }
-    // Still return the first preferred code — post may create clearer errors
-    Ok(codes[0].to_string())
-}
 
 fn find_item<'a>(inv: &'a serde_json::Value, sku: &str) -> Result<&'a serde_json::Value, String> {
     inv["data"]
@@ -428,21 +419,14 @@ async fn manufacturing_flow() -> E2eResult<()> {
     // =========================================================================
     // 6. Bulk issue materials (BOM explode → Dr WIP / Cr RM on leaves only)
     // =========================================================================
-    let wip = acct(&ctx, &["110702"])?;
-    let raw = acct(&ctx, &["110701"])?;
-    let labor_payable = acct(&ctx, &["210300"])?;
-    let oh_control = acct(&ctx, &["550400"])?;
-    let cash_or_ap = acct(&ctx, &["210100"])?;
-
+    // Account codes resolved server-side from account roles (no client UUID bag).
     let (s, body) = ctx
         .client
         .post(
             "/api/manufacturing/apply/direct/material",
             json!({
                 "warehouse_serial_id": warehouse_serial,
-                "production_order_uuid": po_uuid,
-                "wip_account_code": wip,
-                "raw_mat_account_code": raw
+                "production_order_uuid": po_uuid
             }),
         )
         .await
@@ -459,8 +443,6 @@ async fn manufacturing_flow() -> E2eResult<()> {
             "/api/manufacturing/apply/direct/labor",
             json!({
                 "production_order_uuid": po_uuid,
-                "labor_account_code": labor_payable,
-                "wip_account_code": wip,
                 "reference": "DL-ASSY-FINISH-10-CargoMule"
             }),
         )
@@ -481,8 +463,6 @@ async fn manufacturing_flow() -> E2eResult<()> {
             json!({
                 "production_order": order_no,
                 "base_hours": "10",
-                "wip_account": wip,
-                "overhead_control_account": oh_control,
                 "allocation_base": "DirectLaborHours"
             }),
         )
@@ -501,8 +481,6 @@ async fn manufacturing_flow() -> E2eResult<()> {
             json!({
                 "production_order_uuid": po_uuid,
                 "base_amount": "140000",
-                "payable_or_cash": cash_or_ap,
-                "overhead_control_account": oh_control,
                 "allocation_base": "DirectLaborHours",
                 "reference": "ACT-OH-JAN-UTILITIES"
             }),
@@ -532,25 +510,13 @@ async fn manufacturing_flow() -> E2eResult<()> {
 
     // 10. Complete production (Dr FG / Cr WIP + variance accounts)
     // =========================================================================
-    let fg_acct = acct(&ctx, &["110703"])?;
-    let mat_var = acct(&ctx, &["550100"])?;
-    let lab_var = acct(&ctx, &["550200"])?;
-    let moh_var = acct(&ctx, &["550300"])?;
-    let control = acct(&ctx, &["550400"])?;
-
     let (s, body) = ctx
         .client
         .post(
             "/api/manufacturing/complete-production",
             json!({
                 "production_order_uuid": po_uuid,
-                "completed_quantity": "10",
-                "wip_account_code": wip,
-                "fg_account_code": fg_acct,
-                "mfg_mat_var_code": mat_var,
-                "mfg_lab_var_code": lab_var,
-                "mfg_moh_var_code": moh_var,
-                "control_code": control
+                "completed_quantity": "10"
             }),
         )
         .await

@@ -555,16 +555,9 @@ async fn payroll_full_lifecycle() -> E2eResult<()> {
         assert_reasonable_payroll_amounts(slip);
     }
 
+    // Accounts resolved from CoA role_keys / account-role mappings
     let post_body = json!({
-        "payrun_serial_id": serial,
-        "labor_expense_id": accounts.labor,
-        "income_tax_id": accounts.paye,
-        "employee_social_security_id": accounts.nssf_ee,
-        "employer_social_security_id": accounts.nssf_er,
-        "employer_social_security_expense_id": accounts.nssf_er_expense,
-        "payroll_payable": accounts.payable,
-        "other_deductions_payable_id": accounts.other_deductions,
-        "other_employer_cost_expense_id": accounts.other_employer
+        "payrun_serial_id": serial
     });
 
     let (s, body) = ctx
@@ -591,9 +584,7 @@ async fn payroll_full_lifecycle() -> E2eResult<()> {
             json!({
                 "payrun_uuid": payrun_uuid,
                 "payment_date": "2026-07-05",
-                "payment_reference": "E2E-JUNE-NET",
-                "cash_account_uuid": accounts.cash,
-                "payroll_payable_uuid": accounts.payable
+                "payment_reference": "E2E-JUNE-NET"
             }),
         )
         .await
