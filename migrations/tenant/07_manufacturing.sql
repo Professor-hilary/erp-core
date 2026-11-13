@@ -374,11 +374,9 @@ BEGIN
     v_applied_amount := ROUND(p_activity_amount * v_rate, 2);
 
     -- Get account UUIDs (adjust codes if needed)
-    SELECT uuid INTO STRICT v_wip_account_uuid
-        FROM accounting.accounts WHERE code = p_wip_account;
+    v_wip_account_uuid := accounting.resolve_account_ref(p_wip_account);
 
-    SELECT uuid INTO STRICT v_overhead_control_uuid
-        FROM accounting.accounts WHERE code = p_overhead_control_code;
+    v_overhead_control_uuid := accounting.resolve_account_ref(p_overhead_control_code);
 
     -- Journal entry: Dr WIP, Cr Applied Overhead
     v_txn_serial_id := accounting.post_transaction(
@@ -400,7 +398,7 @@ BEGIN
                 'memo', format(
                     'Applied overhead to production order %s - base %s x rate %s',
                     p_production_order, p_activity_amount, v_rate
-                )
+				)
             )
         )
     );
@@ -427,11 +425,12 @@ BEGIN
     -- Update order if needed (optional)
     UPDATE manufacturing.production_orders
     SET updated_at = now()
-   	WHERE uuid = v_order.uuid;
+    WHERE uuid = v_order.uuid;
 
     RETURN v_application;
 END;
 $$;
+
 -- EXAMPLE
 -- SELECT manufacturing.apply_overhead_to_order(
 --     order_number, 10 (labor hours), 'WIP CODE', 'MOH_CTRL', user_uuid
@@ -458,13 +457,9 @@ DECLARE
     v_order                 manufacturing.production_orders%ROWTYPE;
 BEGIN
     -- GET account UUIDs
-    SELECT uuid INTO STRICT v_credit_account_uuid
-    FROM accounting.accounts
-    WHERE code = p_credit_account_code;
+    v_credit_account_uuid := accounting.resolve_account_ref(p_credit_account_code);
 
-    SELECT uuid INTO STRICT v_control_account_uuid
-    FROM accounting.accounts
-    WHERE code = p_overhead_control_code;
+    v_control_account_uuid := accounting.resolve_account_ref(p_overhead_control_code);
 
     -- Get current production order
     SELECT * INTO STRICT v_order FROM manufacturing.production_orders WHERE uuid = p_production_order_uuid;
@@ -517,6 +512,7 @@ BEGIN
     RETURN v_application;
 END;
 $$;
+
 -- EXAMPLE
 -- SELECT manufacturing.record_actual_overhead(
 --     order_uuid, 100, 'AP/CASH CODE', 'MOH-CTRL', 'electricity', user_uuid
@@ -544,7 +540,7 @@ DECLARE
 
     v_wip_account_uuid   uuid;
     v_labor_account_uuid uuid;
-    v_base_quantity 		 numeric;
+    v_base_quantity          numeric;
 
     v_txn_serial         bigint;
     v_application        manufacturing.cost_applications%ROWTYPE;
@@ -574,13 +570,13 @@ BEGIN
 
     IF v_routing_uuid IS NULL THEN
         RAISE EXCEPTION 'No active routing found for product %',
-        	v_order.product_item_uuid;
+            v_order.product_item_uuid;
     END IF;
 
-	-- Prevent division by zero
-	IF v_base_quantity IS NULL OR v_base_quantity = 0 THEN
-    	v_base_quantity := 1;
-	END IF;
+    -- Prevent division by zero
+    IF v_base_quantity IS NULL OR v_base_quantity = 0 THEN
+        v_base_quantity := 1;
+    END IF;
 
     -- Loop operations
     FOR rec IN
@@ -594,11 +590,11 @@ BEGIN
         -- Time in hours
         /*v_time_hours := (rec.run_time_minutes * (v_order.quantity_ordered / v_base_quantity))) / 60.0;*/
 
-		v_time_hours := (
-        	COALESCE(rec.setup_time_minutes, 0) + (
-				COALESCE(rec.run_time_minutes, 0) * v_order.quantity_ordered / v_base_quantity
-        	)
-		) / 60.0;
+        v_time_hours := (
+            COALESCE(rec.setup_time_minutes, 0) + (
+                COALESCE(rec.run_time_minutes, 0) * v_order.quantity_ordered / v_base_quantity
+            )
+        ) / 60.0;
 
         v_total_hours := v_total_hours + v_time_hours;
 
@@ -610,13 +606,9 @@ BEGIN
     v_total_labor_cost := ROUND(v_total_labor_cost, 2);
 
     -- Accounts
-    SELECT uuid INTO STRICT v_wip_account_uuid
-    FROM accounting.accounts
-    WHERE code = p_wip_account_code;
+    v_wip_account_uuid := accounting.resolve_account_ref(p_wip_account_code);
 
-    SELECT uuid INTO STRICT v_labor_account_uuid
-    FROM accounting.accounts
-    WHERE code = p_labor_account_code;
+    v_labor_account_uuid := accounting.resolve_account_ref(p_labor_account_code);
 
     -- Post GL
     v_txn_serial := accounting.post_transaction(
@@ -720,9 +712,9 @@ BEGIN
     v_std_total := ROUND(p_completed_quantity * v_std_unit_cost, 2);
 
     -- 3. Get uuid for wip, fg and control accounts
-    SELECT uuid INTO STRICT v_wip_uuid FROM accounting.accounts WHERE code = p_wip_account;
-    SELECT uuid INTO STRICT v_fg_uuid  FROM accounting.accounts WHERE code = p_fg_account;
-    SELECT uuid INTO STRICT v_woh_uuid  FROM accounting.accounts WHERE code = p_control_account;
+    v_wip_uuid := accounting.resolve_account_ref(p_wip_account);
+    v_fg_uuid := accounting.resolve_account_ref(p_fg_account);
+    v_woh_uuid := accounting.resolve_account_ref(p_control_account);
 
     -- 4. Move overhead from control → WIP
     PERFORM manufacturing.transfer_applied_overhead_to_wip(
@@ -880,10 +872,11 @@ BEGIN
     SET updated_at = now()
     WHERE uuid = p_order_uuid;
 
-	RAISE NOTICE 'Transferred % applied overhead to WIP for order % (txn serial %s)',
-		v_applied_total, p_order_uuid, v_txn_serial;
+    RAISE NOTICE 'Transferred % applied overhead to WIP for order % (txn serial %s)',
+        v_applied_total, p_order_uuid, v_txn_serial;
 END;
 $$;
+
 
 -- ====================================================================================
 -- Record Standard vs Actual Variance
@@ -976,10 +969,10 @@ BEGIN
     v_oh_var  := v_act_oh  - v_app_oh;
 
     -- Get variance accounts (add these codes to your chart of accounts)
-    -- SELECT uuid INTO STRICT v_wip_uuid     FROM accounting.accounts WHERE code = v_wip_code;
-    SELECT uuid INTO STRICT v_mat_var_uuid FROM accounting.accounts WHERE code = v_mat_var_code;
-    SELECT uuid INTO STRICT v_lab_var_uuid FROM accounting.accounts WHERE code = v_lab_var_code;
-    SELECT uuid INTO STRICT v_oh_var_uuid  FROM accounting.accounts WHERE code = v_moh_var_code;
+    -- v_wip_uuid := accounting.resolve_account_ref(v_wip_code);
+    v_mat_var_uuid := accounting.resolve_account_ref(v_mat_var_code);
+    v_lab_var_uuid := accounting.resolve_account_ref(v_lab_var_code);
+    v_oh_var_uuid := accounting.resolve_account_ref(v_moh_var_code);
 
     -- Post material variance (unfavorable → debit variance, credit WIP)
     IF ABS(v_mat_var) > 0.01 THEN
@@ -1314,224 +1307,6 @@ BEGIN
     RETURN v_issue_row;
 END;
 $$;
-
-
-/*CREATE OR REPLACE FUNCTION manufacturing.issue_material_from_bom(
-    p_production_order_uuid uuid,
-    p_warehouse_serial      bigint,
-    p_raw_materials_code    text,
-    p_work_in_progress_code text,
-    p_user_uuid             uuid
-)
-RETURNS TABLE (
-    component_item_uuid uuid,
-    required_qty        numeric,
-    issued_qty          numeric,
-    remaining_qty       numeric,
-    material_status     text
-)
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    rec             RECORD;
-    v_remaining_qty numeric(18, 6);
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM manufacturing.production_order_materials
-        WHERE production_order_uuid = p_production_order_uuid
-    ) THEN
-        RAISE EXCEPTION
-            'No production_order_materials for order % — BOM explode produced no leaf components',
-            p_production_order_uuid;
-    END IF;
-
-    FOR rec IN
-        SELECT pom.*, i.serial_id
-        FROM manufacturing.production_order_materials pom
-        JOIN inventory.items i
-            ON i.uuid = pom.component_item_uuid
-        WHERE pom.production_order_uuid = p_production_order_uuid
-    LOOP
-        v_remaining_qty := rec.required_qty - rec.issued_qty;
-
-        IF v_remaining_qty <= 0 THEN
-            CONTINUE;
-        END IF;
-
-        BEGIN
-            PERFORM manufacturing.issue_material_to_order(
-                rec.serial_id,
-                p_warehouse_serial,
-                v_remaining_qty,
-                p_production_order_uuid,
-                COALESCE(
-                    (SELECT uuid FROM accounting.accounts WHERE code = p_raw_materials_code),
-                    (SELECT uuid FROM accounting.accounts WHERE uuid::text = p_raw_materials_code)
-                ),
-                COALESCE(
-                    (SELECT uuid FROM accounting.accounts WHERE code = p_work_in_progress_code),
-                    (SELECT uuid FROM accounting.accounts WHERE uuid::text = p_work_in_progress_code)
-                ),
-                p_user_uuid
-            );
-
-            UPDATE manufacturing.production_order_materials pom
-            SET issued_qty = pom.issued_qty + v_remaining_qty,
-                status     = 'FullyIssued'
-            WHERE pom.uuid = rec.uuid;
-
-        EXCEPTION
-            WHEN OTHERS THEN
-                RAISE EXCEPTION
-                    'Failed issuing item serial % for order %: %',
-                    rec.serial_id, p_production_order_uuid, SQLERRM;
-        END;
-    END LOOP;
-
-    UPDATE manufacturing.production_orders po
-    SET materials_status = CASE
-        WHEN NOT EXISTS (
-            SELECT 1
-            FROM manufacturing.production_order_materials pom
-            WHERE pom.production_order_uuid = po.uuid
-              AND pom.status <> 'FullyIssued'
-        ) THEN 'Complete'
-        ELSE 'Partial'
-    END,
-    updated_at = now()
-    WHERE po.uuid = p_production_order_uuid;
-
-    -- If every line failed (stock, warehouse, …) surface the failure instead of a silent 201.
-    IF NOT EXISTS (
-        SELECT 1
-        FROM manufacturing.production_order_materials pom
-        WHERE pom.production_order_uuid = p_production_order_uuid
-          AND pom.issued_qty > 0
-    ) THEN
-        RAISE EXCEPTION
-            'No materials issued for production order % — check stock, warehouse and order materials',
-            p_production_order_uuid;
-    END IF;
-
-    -- Materials issued ⇒ production has started.
-    UPDATE manufacturing.production_orders po
-    SET status = 'In Progress',
-        updated_at = now()
-    WHERE po.uuid = p_production_order_uuid
-      AND po.status IN ('Planned', 'In Progress');
-
-    RETURN QUERY
-    SELECT
-        pom.component_item_uuid,
-        pom.required_qty,
-        pom.issued_qty,
-        (pom.required_qty - pom.issued_qty),
-        pom.status
-    FROM manufacturing.production_order_materials pom
-    WHERE pom.production_order_uuid = p_production_order_uuid;
-END;
-$$;
-
--- Prepare RM for production, deplete inventory, update materials issued table
-CREATE OR REPLACE FUNCTION manufacturing.issue_material_to_order(
-    p_item_serial_id        bigint, -- Serial of raw maaterial inventory item
-    p_warehouse_serial      bigint, -- Serial of warehouse for the raw material
-    p_quantity              numeric(18,4), -- Quantity to be issued for prod
-    p_production_order_uuid uuid,
-	v_raw_mat_uuid			uuid,    -- p_raw_materials_code    text,
-	v_wip_uuid				uuid,    -- p_work_in_progress_code text,
-    p_user_uuid             uuid
-) RETURNS manufacturing.material_issues -- Return actual issued material
-LANGUAGE plpgsql
-AS $$
-DECLARE
-    v_order         manufacturing.production_orders%ROWTYPE;
-    v_item          inventory.items%ROWTYPE;
-    v_warehouse     inventory.warehouses%ROWTYPE;
-    v_total_cost    numeric(18,4);
-    v_unit_cost     numeric(18,4);
-    v_issue_row     manufacturing.material_issues%ROWTYPE;
-    v_movement_uuid uuid;
-    -- v_wip_uuid      uuid;
-    -- v_raw_mat_uuid  uuid;
-    v_txn_serial    bigint;
-BEGIN
-    -- 1. Lock & validate production order
-    SELECT * INTO STRICT v_order
-    FROM manufacturing.production_orders
-    WHERE uuid = p_production_order_uuid
-    FOR UPDATE;
-
-    IF v_order.status NOT IN ('Planned', 'In Progress') THEN
-        RAISE EXCEPTION 'Production order must be Planned or In Progress to issue materials';
-    END IF;
-
-    -- 2. Validate item and warehouse
-    SELECT * INTO STRICT v_item
-    FROM inventory.items WHERE serial_id = p_item_serial_id;
-
-    SELECT * INTO STRICT v_warehouse
-    FROM inventory.warehouses WHERE serial_id = p_warehouse_serial;
-
-    -- Get uuids for WIP and RM
-    -- SELECT uuid INTO v_wip_uuid     FROM accounting.accounts WHERE code = p_work_in_progress_code;
-    -- SELECT uuid INTO v_raw_mat_uuid FROM accounting.accounts WHERE code = p_raw_materials_code;
-
-    -- 3. Deplete inventory (call your existing function)
-    -- deplete_inventory returns a total value of inventory
-    SELECT * INTO v_total_cost
-    FROM inventory.deplete_inventory(
-        p_item_serial_id, p_warehouse_serial, p_quantity, 'PRODUCTION', v_order.serial_id,
-        p_user_uuid, NULL, NULL
-    );
-
-    -- 4. Calculate unit cost safely
-    v_unit_cost := CASE WHEN p_quantity > 0 THEN v_total_cost / p_quantity ELSE 0 END;
-
-    -- 5. Insert into material_issues
-    INSERT INTO manufacturing.material_issues(
-        production_order_uuid, stock_item_id, stock_item_name, warehouse_uuid, quantity, unit_cost, issued_at
-    ) VALUES (
-        p_production_order_uuid, v_item.serial_id, v_item.name, v_warehouse.uuid, p_quantity, v_unit_cost, now()
-    ) RETURNING * INTO v_issue_row;
-
-    -- Update cost application table with the value of the materials
-    INSERT INTO manufacturing.cost_applications(
-        production_order_uuid, type, amount, applied_at, reference,
-        source_account, destination_account
-    ) VALUES (
-        p_production_order_uuid, 'DirectMaterial', v_total_cost, now(),
-        format('Material issue: %s units of item %s', p_quantity, v_item.name),
-        v_raw_mat_uuid, v_wip_uuid
-    );
-
-    -- 6. Update production order status
-    UPDATE manufacturing.production_orders
-    SET status = 'In Progress', updated_at = now()
-    WHERE uuid = p_production_order_uuid;
-
-    -- 7. Create a journal for RM > WIP
-    v_txn_serial := accounting.post_transaction(
-        v_order.order_number || '-MAT-' || p_item_serial_id::text,
-        'Material To Work In Progress',
-        p_user_uuid,
-        'manufacturing',
-        CURRENT_DATE,
-        jsonb_build_array(
-            jsonb_build_object(
-                'account_ref', v_wip_uuid, 'debit', v_total_cost, 'credit', 0,
-                'memo', format('Material issue on order %s',v_order.order_number)
-            ),
-            jsonb_build_object(
-                'account_ref', v_raw_mat_uuid, 'debit', 0, 'credit', v_total_cost,
-                'memo', format('Offset to WIP - order %s',v_order.order_number)
-            )
-        )
-    );
-
-    RETURN v_issue_row;
-END;
-$$;*/
 
 CREATE OR REPLACE PROCEDURE manufacturing.close_period_overhead(
     p_period_start          date,

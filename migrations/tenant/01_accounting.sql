@@ -197,6 +197,33 @@ CREATE TABLE IF NOT EXISTS accounting.cash_flow_mapping (
 
 COMMENT ON TABLE accounting.cash_flow_mapping IS 'Maps system modules to IAS 7 cash flow categories';
 
+-- Resolve account refs by code OR uuid (role resolver passes uuid text)
+CREATE OR REPLACE FUNCTION accounting.resolve_account_ref(p_ref text)
+RETURNS uuid
+LANGUAGE plpgsql
+STABLE
+AS $$
+DECLARE
+    v_uuid uuid;
+BEGIN
+    IF p_ref IS NULL OR btrim(p_ref) = '' THEN
+        RAISE EXCEPTION 'Account reference is empty';
+    END IF;
+
+    SELECT a.uuid INTO v_uuid
+    FROM accounting.accounts a
+    WHERE a.is_active
+      AND (a.code = p_ref OR a.uuid::text = p_ref)
+    LIMIT 1;
+
+    IF v_uuid IS NULL THEN
+        RAISE EXCEPTION 'Account not found for reference: %', p_ref;
+    END IF;
+
+    RETURN v_uuid;
+END;
+$$;
+
 -- Fixed accounting.post_transaction function:
 CREATE OR REPLACE FUNCTION accounting.post_transaction(
     p_reference TEXT,
