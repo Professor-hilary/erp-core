@@ -120,6 +120,7 @@ fn first_employee(ctx: &TestContext) -> Result<Uuid, String> {
         .ok_or_else(|| "no employee uuid in ctx".into())
 }
 
+#[allow(dead_code)]
 struct PayrollAccounts {
     labor: Uuid,
     paye: Uuid,

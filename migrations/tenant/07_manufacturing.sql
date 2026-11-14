@@ -705,6 +705,15 @@ BEGIN
         RAISE EXCEPTION 'Order must be In Progress to complete';
     END IF;
 
+    IF p_completed_quantity IS NULL OR p_completed_quantity <= 0 THEN
+        RAISE EXCEPTION 'Completed quantity must be positive';
+    END IF;
+    IF p_completed_quantity > (v_order.quantity_ordered - v_order.quantity_completed) THEN
+        RAISE EXCEPTION 'Completed quantity % exceeds remaining order quantity %',
+            p_completed_quantity,
+            v_order.quantity_ordered - v_order.quantity_completed;
+    END IF;
+
     SELECT * INTO v_product FROM inventory.items WHERE uuid = v_order.product_item_uuid;
 
     -- 2. Standard unit cost => must come from your calculate_standard_cost or enhanced version
@@ -716,10 +725,8 @@ BEGIN
     v_fg_uuid := accounting.resolve_account_ref(p_fg_account);
     v_woh_uuid := accounting.resolve_account_ref(p_control_account);
 
-    -- 4. Move overhead from control → WIP
-    PERFORM manufacturing.transfer_applied_overhead_to_wip(
-        p_order_uuid, v_wip_uuid, v_woh_uuid, p_user, p_completion_date
-    );
+    -- Applied overhead is already in WIP when apply_overhead_to_order runs
+    -- (Dr WIP / Cr MOH control). Do NOT transfer again at completion.
 
     -- 5. Update order status to completed
     v_new_completed := v_order.quantity_completed + p_completed_quantity;
@@ -786,7 +793,12 @@ BEGIN
         );
     ELSIF v_product.valuation_method = 'WAVG' THEN
         INSERT INTO inventory.wavg_warehouse (item_uuid, warehouse_uuid, total_quantity, total_cost)
-        VALUES (v_product.uuid, v_warehouse_account, p_completed_quantity, v_std_total)
+        VALUES (
+            v_product.uuid,
+            (SELECT uuid FROM inventory.warehouses WHERE serial_id = v_product.warehouse_serial),
+            p_completed_quantity,
+            v_std_total
+        )
         ON CONFLICT (item_uuid, warehouse_uuid) DO UPDATE SET
             total_quantity = inventory.wavg_warehouse.total_quantity + p_completed_quantity,
             total_cost     = inventory.wavg_warehouse.total_cost     + (p_completed_quantity * v_std_unit_cost),
@@ -811,69 +823,18 @@ CREATE OR REPLACE FUNCTION manufacturing.transfer_applied_overhead_to_wip(
     p_wip_account_uuid  uuid,
     p_overhead_control  uuid,
     p_user              uuid,
-    p_completion_date   date
-)RETURNS void
+    p_completion_date   date DEFAULT CURRENT_DATE
+)
+RETURNS void
 LANGUAGE plpgsql
 AS $$
-DECLARE
-    v_applied_total numeric(18,2) := 0;
-    v_txn_serial    bigint;
 BEGIN
-    -- 1. Calculate total applied overhead for this order so far
-    SELECT COALESCE(SUM(amount), 0)
-    INTO v_applied_total
-    FROM manufacturing.cost_applications
-    WHERE production_order_uuid = p_order_uuid AND type = 'AppliedOverhead';
-
-    IF v_applied_total <= 0 THEN
-        RAISE NOTICE 'No applied overhead found for order %. Nothing to transfer.', p_order_uuid;
-        RETURN;
-    END IF;
-
-    -- Post the transfer journal entry
-    -- Dr WIP           (add applied OH to WIP)
-    -- Cr MOH Control   (remove the credit that was sitting there)
-
-    -- 2. Journal to transfer to wip value from control account for overheads
-    v_txn_serial := accounting.post_transaction(
-        'OH-TRF-' || p_order_uuid::text || '-' || to_char(p_completion_date, 'YYYYMMDD'),
-        'Posting Manufacturing Overhead to WIP',
-        p_user,
-        'manufacturing',
-        CURRENT_DATE,
-        jsonb_build_array(
-            jsonb_build_object(
-                'account_ref', p_wip_account_uuid, 'debit', v_applied_total, 'credit', 0,
-                'memo', format('Applied overhead to production order')
-            ),
-            jsonb_build_object(
-                'account_ref', p_overhead_control, 'debit', 0, 'credit', v_applied_total,
-                'memo', format('Applied overhead to production order')
-            )
-        )
-    );
-
-    -- Record the application
-    INSERT INTO manufacturing.cost_applications (
-        production_order_uuid, type, amount, reference, source_account,
-        destination_account, applied_at
-    ) VALUES (
-        p_order_uuid,
-        'AppliedOverhead',
-        v_applied_total,
-        format('Transferred applied OH to WIP at completion (txn serial %s)', v_txn_serial),
-        p_overhead_control,
-        p_wip_account_uuid,
-        now()
-    );
-
-    -- Update order if needed (optional)
-    UPDATE manufacturing.production_orders
-    SET updated_at = now()
-    WHERE uuid = p_order_uuid;
-
-    RAISE NOTICE 'Transferred % applied overhead to WIP for order % (txn serial %s)',
-        v_applied_total, p_order_uuid, v_txn_serial;
+    -- apply_overhead_to_order already posts Dr WIP / Cr MOH control (AppliedOverhead).
+    -- Re-posting at completion would double WIP and OH control. Kept as no-op for callers.
+    RAISE NOTICE
+        'transfer_applied_overhead_to_wip skipped for order % — overhead already applied to WIP',
+        p_order_uuid;
+    RETURN;
 END;
 $$;
 
@@ -1340,7 +1301,7 @@ BEGIN
 
     SELECT COALESCE(SUM(amount), 0) INTO v_applied
     FROM manufacturing.cost_applications
-    WHERE type = 'Overhead'
+    WHERE type = 'AppliedOverhead'
       AND applied_at::date BETWEEN p_period_start AND p_period_end;
 
     v_balance := v_actual - v_applied;
@@ -1350,8 +1311,8 @@ BEGIN
         RETURN;
     END IF;
 
-    SELECT uuid INTO STRICT v_moh_uuid FROM accounting.accounts WHERE code = p_oh_control_code;
-    SELECT uuid INTO STRICT v_var_uuid FROM accounting.accounts WHERE code = p_oh_variance_code;
+    v_moh_uuid := accounting.resolve_account_ref(p_oh_control_code);
+    v_var_uuid := accounting.resolve_account_ref(p_oh_variance_code);
 
     -- 2. Materiality check
     v_is_material := ABS(v_balance) >= p_materiality_threshold;
@@ -1440,9 +1401,9 @@ BEGIN
     END IF;
 
     -- Get account UUIDs (fail fast if missing)
-    SELECT uuid INTO STRICT v_wip_account_uuid  FROM accounting.accounts WHERE code = p_wip_code;
-    SELECT uuid INTO STRICT v_fg_account_uuid   FROM accounting.accounts WHERE code = p_fg_code;
-    SELECT uuid INTO STRICT v_cogs_account_uuid FROM accounting.accounts WHERE code = p_cogs_code;
+    v_wip_account_uuid := accounting.resolve_account_ref(p_wip_code);
+    v_fg_account_uuid := accounting.resolve_account_ref(p_fg_code);
+    v_cogs_account_uuid := accounting.resolve_account_ref(p_cogs_code);
 
     -- Lock relevant GL accounts to prevent concurrent changes (conservative but safe)
     PERFORM 1 FROM accounting.transaction_entries
@@ -1558,50 +1519,49 @@ $$;
 -- ============================================================================
 
 CREATE OR REPLACE VIEW manufacturing.order_cost_summary AS
+WITH mat AS (
+    SELECT production_order_uuid, COALESCE(SUM(total_cost), 0) AS actual_material
+    FROM manufacturing.material_issues
+    GROUP BY production_order_uuid
+),
+ca AS (
+    SELECT
+        production_order_uuid,
+        COALESCE(SUM(amount) FILTER (WHERE type = 'DirectLabor'), 0) AS actual_labor,
+        COALESCE(SUM(amount) FILTER (WHERE type = 'AppliedOverhead'), 0) AS applied_overhead,
+        COALESCE(SUM(amount) FILTER (WHERE type = 'ActualOverhead'), 0) AS actual_overhead
+    FROM manufacturing.cost_applications
+    GROUP BY production_order_uuid
+)
 SELECT
     po.order_number,
-    i.name as product_name,
+    i.name AS product_name,
     po.quantity_ordered,
     po.quantity_completed,
     po.status,
-    -- Actual costs
-    COALESCE(SUM(mi.total_cost), 0) as actual_material,
-    COALESCE(
-        SUM(
-            CASE
-                WHEN ca.type = 'DirectLabor' THEN ca.amount
-            END
-        ),
-        0
-    ) as actual_labor,
-    COALESCE(
-        SUM(
-            CASE
-                WHEN ca.type = 'Overhead' THEN ca.amount
-            END
-        ),
-        0
-    ) as applied_overhead,
-    -- Variances
+    COALESCE(mat.actual_material, 0) AS actual_material,
+    COALESCE(ca.actual_labor, 0) AS actual_labor,
+    COALESCE(ca.applied_overhead, 0) AS applied_overhead,
+    COALESCE(ca.actual_overhead, 0) AS actual_overhead,
     po.material_usage_variance,
     po.labor_efficiency_variance,
+    po.overhead_variance,
     (
-        po.material_usage_variance + po.labor_efficiency_variance
-    ) as total_variance,
-    -- Unit cost
+        COALESCE(po.material_usage_variance, 0)
+        + COALESCE(po.labor_efficiency_variance, 0)
+        + COALESCE(po.overhead_variance, 0)
+    ) AS total_variance,
     (
-        COALESCE(SUM(mi.total_cost), 0) + COALESCE(SUM(ca.amount), 0)
-    ) / NULLIF(po.quantity_completed, 0) as actual_unit_cost,
-    i.standard_cost as standard_unit_cost
+        COALESCE(mat.actual_material, 0)
+        + COALESCE(ca.actual_labor, 0)
+        + COALESCE(ca.applied_overhead, 0)
+    ) / NULLIF(po.quantity_completed, 0) AS actual_unit_cost,
+    i.standard_cost AS standard_unit_cost
 FROM manufacturing.production_orders po
-    JOIN inventory.items i ON i.uuid = po.product_item_uuid
-    LEFT JOIN manufacturing.material_issues mi ON mi.production_order_uuid = po.uuid
-    LEFT JOIN manufacturing.cost_applications ca ON ca.production_order_uuid = po.uuid
-GROUP BY
-    po.uuid,
-    i.uuid,
-    po.material_usage_variance,
-    po.labor_efficiency_variance;
+JOIN inventory.items i ON i.uuid = po.product_item_uuid
+LEFT JOIN mat ON mat.production_order_uuid = po.uuid
+LEFT JOIN ca ON ca.production_order_uuid = po.uuid;
+
 
 -- NOTES:
 -----------------------------------------------------------------------------------------------
