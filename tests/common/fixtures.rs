@@ -502,7 +502,7 @@ pub const RMS: &[RmSpec] = &[
         unit: "pc",
         standard_cost: "220000",
         unit_price: "220000",
-        qty_buy: "10",
+        qty_buy: "20",
     },
     RmSpec {
         sku: "SENS-US",

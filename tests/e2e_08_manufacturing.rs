@@ -671,11 +671,21 @@ async fn manufacturing_partial_ops_cert() -> E2eResult<()> {
     let fg = find_item(&inv, "FG-CARGO-MULE")
         .map_err(|e| format!("{e} — run manufacturing_flow first"))?;
     let fg_uuid = extract_uuid(fg, &["uuid"]).map_err(|e| e.to_string())?;
-    let warehouse_serial = fg
+
+	let rm_anchor = find_item(&inv, RMS[0].sku)
+	    .map_err(|e| format!("RM warehouse anchor missing: {e}"))?;
+
+    let warehouse_serial = rm_anchor //fg
         .get("warehouse_serial")
         .and_then(|v| v.as_i64())
-        .or_else(|| fg.get("warehouse_serial_id").and_then(|v| v.as_i64()))
-        .unwrap_or(1);
+        .or_else(|| {
+			rm_anchor
+	            .get("warehouse_serial_id")
+	            .and_then(|v| v.as_i64())
+			// fg.get("warehouse_serial_id").and_then(|v| v.as_i64())
+		})
+		.ok_or("Could not resolve raw-material warehouse serial")?;
+        // .unwrap_or(1);
 
     let order_no = format!("PO-PART-{}", chrono::Utc::now().timestamp_millis());
     let (s, body) = ctx
