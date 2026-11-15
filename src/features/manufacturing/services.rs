@@ -274,6 +274,7 @@ impl ManufacturingService {
         let dto = CompleteProductionOrderDto {
             production_order_uuid: dto.production_order_uuid,
             completed_quantity: dto.completed_quantity,
+            fg_warehouse_serial: dto.fg_warehouse_serial,
             wip_account_code: Some(Self::role_ref(
                 &resolver, AccountRole::WorkInProgress, dto.wip_account_code,
             )?),

@@ -626,9 +626,12 @@ async fn manufacturing_flow() -> E2eResult<()> {
         .await
         .map_err(|e| e.to_string())?;
     assert!(ok(s), "list inv after complete: {s}");
+    let fg_uuid_str = fg_uuid.to_string();
     if let Some(fg) = inv["data"].as_array().and_then(|a| {
-        a.iter().find(|i| i["sku"].as_str() == Some("FG-CARGO-MULE")
-            || i["uuid"].as_str() == Some(&fg_uuid))
+        a.iter().find(|i| {
+            i["sku"].as_str() == Some("FG-CARGO-MULE")
+                || i["uuid"].as_str() == Some(fg_uuid_str.as_str())
+        })
     }) {
         let q = dec(fg.get("quantity_on_hand").unwrap_or(&fg["quantity"].clone()));
         // quantity field names vary; only assert if present
