@@ -44,14 +44,101 @@ pub fn router() -> Router<Arc<AppState>> {
             post(raw_material_issuance_route),
         )
         .route("/apply/direct/labor", post(http_direct_labor_route))
+        .route("/labour-allocation/create", post(create_labour_allocation_route))
+        .route("/labour-allocation/post", post(post_labour_allocation_route))
         // .route("/apply/indirect/labor", post(http_indirect_labor_route))
         .route("/apply/overhead/actual", post(actual_overhead_route))
         .route("/apply/overhead/applied", post(applied_overhead_route))
         .route("/start-production", post(start_order_route))
+        .route("/operation/ensure", post(ensure_operations_route))
+        .route("/operation/list/{order_uuid}", get(list_operations_route))
+        .route("/operation/start", post(start_operation_route))
+        .route("/operation/complete", post(complete_operation_route))
+        .route("/scrap-rework", post(scrap_rework_route))
+        .route("/quality-inspection", post(quality_inspection_route))
         .route("/complete-production", post(complete_order_route))
         .route("/create/bom", post(create_bom_route))
         .route("/get/bom/{uuid}", get(get_bom_route))
         .route("/default-product/{uuid}", get(default_bom_route))
+}
+
+
+async fn ensure_operations_route(
+    State(_state): State<Arc<AppState>>,
+    Extension(user): Extension<AuthenticatedTenant>,
+    AppJson(payload): AppJson<EnsureOperationsDto>,
+) -> Result<Response, AppError> {
+    let repo = ManufacturingRepo::new(user.tenant_pool);
+    let service = ManufacturingService::new(repo);
+    match service.ensure_operation_executions(payload).await {
+        Ok(n) => Ok(ApiResponse::success(n, "Operation executions ensured")),
+        Err(e) => Err(internal_error(e)),
+    }
+}
+
+async fn list_operations_route(
+    State(_state): State<Arc<AppState>>,
+    Extension(user): Extension<AuthenticatedTenant>,
+    axum::extract::Path(order_uuid): axum::extract::Path<Uuid>,
+) -> Result<Response, AppError> {
+    let repo = ManufacturingRepo::new(user.tenant_pool);
+    let service = ManufacturingService::new(repo);
+    match service.list_operation_executions(order_uuid).await {
+        Ok(rows) => Ok(ApiResponse::success(rows, "Operation executions")),
+        Err(e) => Err(internal_error(e)),
+    }
+}
+
+async fn start_operation_route(
+    State(_state): State<Arc<AppState>>,
+    Extension(user): Extension<AuthenticatedTenant>,
+    AppJson(payload): AppJson<StartOperationDto>,
+) -> Result<Response, AppError> {
+    let repo = ManufacturingRepo::new(user.tenant_pool);
+    let service = ManufacturingService::new(repo);
+    match service.start_operation(payload).await {
+        Ok(row) => Ok(ApiResponse::success(row, "Operation started")),
+        Err(e) => Err(internal_error(e)),
+    }
+}
+
+async fn complete_operation_route(
+    State(_state): State<Arc<AppState>>,
+    Extension(user): Extension<AuthenticatedTenant>,
+    AppJson(payload): AppJson<CompleteOperationDto>,
+) -> Result<Response, AppError> {
+    let repo = ManufacturingRepo::new(user.tenant_pool);
+    let service = ManufacturingService::new(repo);
+    match service.complete_operation(payload).await {
+        Ok(row) => Ok(ApiResponse::success(row, "Operation completed")),
+        Err(e) => Err(internal_error(e)),
+    }
+}
+
+async fn scrap_rework_route(
+    State(_state): State<Arc<AppState>>,
+    Extension(user): Extension<AuthenticatedTenant>,
+    AppJson(payload): AppJson<RecordScrapReworkDto>,
+) -> Result<Response, AppError> {
+    let repo = ManufacturingRepo::new(user.tenant_pool);
+    let service = ManufacturingService::new(repo);
+    match service.record_scrap_rework(payload, user.user_id).await {
+        Ok(row) => Ok(ApiResponse::created(row, "Scrap/rework recorded")),
+        Err(e) => Err(internal_error(e)),
+    }
+}
+
+async fn quality_inspection_route(
+    State(_state): State<Arc<AppState>>,
+    Extension(user): Extension<AuthenticatedTenant>,
+    AppJson(payload): AppJson<RecordQualityInspectionDto>,
+) -> Result<Response, AppError> {
+    let repo = ManufacturingRepo::new(user.tenant_pool);
+    let service = ManufacturingService::new(repo);
+    match service.record_quality_inspection(payload, user.user_id).await {
+        Ok(row) => Ok(ApiResponse::created(row, "Quality inspection recorded")),
+        Err(e) => Err(internal_error(e)),
+    }
 }
 
 ///# POST /manufacturing/create/bom
@@ -247,6 +334,34 @@ async fn applied_overhead_route(
 
     match service.apply_rated_overhead(payload, user.user_id).await {
         Ok(result) => Ok(ApiResponse::created(result, "Applied Overhead Applied")),
+        Err(e) => Err(internal_error(e)),
+    }
+}
+
+/// POST /manufacturing/labour-allocation/create
+async fn create_labour_allocation_route(
+    State(_state): State<Arc<AppState>>,
+    Extension(user): Extension<AuthenticatedTenant>,
+    AppJson(payload): AppJson<CreateLabourAllocationDto>,
+) -> Result<Response, AppError> {
+    let repo = ManufacturingRepo::new(user.tenant_pool);
+    let service = ManufacturingService::new(repo);
+    match service.create_labour_allocation(payload, user.user_id).await {
+        Ok(result) => Ok(ApiResponse::created(result, "Labour allocation created")),
+        Err(e) => Err(internal_error(e)),
+    }
+}
+
+/// POST /manufacturing/labour-allocation/post
+async fn post_labour_allocation_route(
+    State(_state): State<Arc<AppState>>,
+    Extension(user): Extension<AuthenticatedTenant>,
+    AppJson(payload): AppJson<PostLabourAllocationDto>,
+) -> Result<Response, AppError> {
+    let repo = ManufacturingRepo::new(user.tenant_pool);
+    let service = ManufacturingService::new(repo);
+    match service.post_labour_allocation(payload, user.user_id).await {
+        Ok(result) => Ok(ApiResponse::created(result, "Labour allocation posted")),
         Err(e) => Err(internal_error(e)),
     }
 }

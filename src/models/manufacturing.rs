@@ -19,6 +19,10 @@ pub struct ProductionOrder {
     pub start_date: Option<NaiveDate>,
     pub expected_completion_date: Option<NaiveDate>,
     pub actual_completion_date: Option<NaiveDate>,
+    pub bom_header_uuid: Option<Uuid>,
+    pub routing_uuid: Option<Uuid>,
+    pub standard_unit_cost: Option<BigDecimal>,
+    pub fg_warehouse_serial: Option<i64>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -230,6 +234,9 @@ pub struct StartProductionOrderDto {
 pub struct CompleteProductionOrderDto {
     pub production_order_uuid: Uuid,
     pub completed_quantity: Option<BigDecimal>,
+    /// Optional FG destination warehouse serial; falls back to order pin then product default
+    #[serde(default)]
+    pub fg_warehouse_serial: Option<i64>,
     #[serde(default)]
     pub wip_account_code: Option<String>,
     #[serde(default)]
@@ -378,3 +385,173 @@ pub struct CreateBomLineDto {
 //     pub is_phantom: bool,
 //     pub source_bom_uuid: Uuid,
 // }
+
+
+/// Draft or posted actual labour allocation (time / payroll), distinct from routing-applied labour.
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+pub struct LabourAllocation {
+    pub uuid: Uuid,
+    pub production_order_uuid: Uuid,
+    pub labour_class: String, // Direct | Indirect
+    pub hours: BigDecimal,
+    pub rate: BigDecimal,
+    pub amount: BigDecimal,
+    pub work_center_code: Option<String>,
+    pub employee_uuid: Option<Uuid>,
+    pub source: String, // Manual | Payroll | TimeEntry
+    pub source_ref: Option<String>,
+    pub memo: Option<String>,
+    pub status: String,
+    pub cost_application_uuid: Option<Uuid>,
+    pub posted_at: Option<DateTime<Utc>>,
+    pub created_by: Option<Uuid>,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CreateLabourAllocationDto {
+    pub production_order_uuid: Uuid,
+    /// Direct | Indirect
+    pub labour_class: String,
+    pub hours: BigDecimal,
+    pub rate: BigDecimal,
+    #[serde(default)]
+    pub work_center_code: Option<String>,
+    #[serde(default)]
+    pub employee_uuid: Option<Uuid>,
+    /// Manual | Payroll | TimeEntry
+    #[serde(default)]
+    pub source: Option<String>,
+    #[serde(default)]
+    pub source_ref: Option<String>,
+    #[serde(default)]
+    pub memo: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct PostLabourAllocationDto {
+    pub allocation_uuid: Uuid,
+    #[serde(default)]
+    pub wip_account_code: Option<String>,
+    #[serde(default)]
+    pub wages_account_code: Option<String>,
+    /// Required for Indirect when charging OH control instead of WIP
+    #[serde(default)]
+    pub overhead_control_account: Option<String>,
+}
+
+
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+pub struct OperationExecution {
+    pub uuid: Uuid,
+    pub production_order_uuid: Uuid,
+    pub routing_operation_uuid: Option<Uuid>,
+    pub sequence: Option<i16>,
+    pub operation_name: String,
+    pub work_center_code: Option<String>,
+    pub status: String,
+    pub qty_started: Option<BigDecimal>,
+    pub qty_completed: Option<BigDecimal>,
+    pub qty_scrapped: Option<BigDecimal>,
+    pub qty_reworked: Option<BigDecimal>,
+    pub setup_minutes_actual: Option<BigDecimal>,
+    pub run_minutes_actual: Option<BigDecimal>,
+    pub machine_minutes_actual: Option<BigDecimal>,
+    pub started_at: Option<DateTime<Utc>>,
+    pub completed_at: Option<DateTime<Utc>>,
+    pub operator_uuid: Option<Uuid>,
+    pub notes: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct EnsureOperationsDto {
+    pub production_order_uuid: Uuid,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct StartOperationDto {
+    pub execution_uuid: Uuid,
+    #[serde(default)]
+    pub qty_started: Option<BigDecimal>,
+    #[serde(default)]
+    pub operator_uuid: Option<Uuid>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CompleteOperationDto {
+    pub execution_uuid: Uuid,
+    pub qty_completed: BigDecimal,
+    #[serde(default)]
+    pub qty_scrapped: Option<BigDecimal>,
+    #[serde(default)]
+    pub setup_minutes_actual: Option<BigDecimal>,
+    #[serde(default)]
+    pub run_minutes_actual: Option<BigDecimal>,
+    #[serde(default)]
+    pub machine_minutes_actual: Option<BigDecimal>,
+    #[serde(default)]
+    pub operator_uuid: Option<Uuid>,
+    #[serde(default)]
+    pub notes: Option<String>,
+}
+
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+pub struct ScrapReworkEvent {
+    pub uuid: Uuid,
+    pub production_order_uuid: Uuid,
+    pub operation_execution_uuid: Option<Uuid>,
+    pub event_type: String,
+    pub quantity: BigDecimal,
+    pub reason_code: Option<String>,
+    pub reason_text: Option<String>,
+    pub disposition: Option<String>,
+    pub recorded_by: Option<Uuid>,
+    pub recorded_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct RecordScrapReworkDto {
+    pub production_order_uuid: Uuid,
+    pub event_type: String,
+    pub quantity: BigDecimal,
+    #[serde(default)]
+    pub operation_execution_uuid: Option<Uuid>,
+    #[serde(default)]
+    pub reason_code: Option<String>,
+    #[serde(default)]
+    pub reason_text: Option<String>,
+    #[serde(default)]
+    pub disposition: Option<String>,
+}
+
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+pub struct QualityInspection {
+    pub uuid: Uuid,
+    pub production_order_uuid: Uuid,
+    pub operation_execution_uuid: Option<Uuid>,
+    pub inspection_type: String,
+    pub qty_inspected: BigDecimal,
+    pub qty_passed: BigDecimal,
+    pub qty_failed: BigDecimal,
+    pub result: String,
+    pub inspector_uuid: Option<Uuid>,
+    pub notes: Option<String>,
+    pub inspected_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct RecordQualityInspectionDto {
+    pub production_order_uuid: Uuid,
+    pub qty_inspected: BigDecimal,
+    pub qty_passed: BigDecimal,
+    pub qty_failed: BigDecimal,
+    pub result: String,
+    #[serde(default)]
+    pub inspection_type: Option<String>,
+    #[serde(default)]
+    pub operation_execution_uuid: Option<Uuid>,
+    #[serde(default)]
+    pub notes: Option<String>,
+}

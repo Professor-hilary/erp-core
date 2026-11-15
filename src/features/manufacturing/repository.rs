@@ -24,12 +24,40 @@ impl ManufacturingRepo {
         &self,
         dto: CreateProductionOrderDto,
     ) -> Result<ProductionOrder, AppError> {
+        let mut tx = self.pool.begin().await?;
+
+        // Pin default active BOM + routing and freeze standard unit cost at release
         let order = sqlx::query_as::<_, ProductionOrder>(
             r#"
+            WITH pinned AS (
+                SELECT
+                    (SELECT bh.uuid
+                     FROM manufacturing.bom_headers bh
+                     WHERE bh.product_item_uuid = $2
+                       AND bh.is_active
+                     ORDER BY bh.is_default DESC, bh.created_at DESC
+                     LIMIT 1) AS bom_uuid,
+                    (SELECT r.uuid
+                     FROM manufacturing.routings r
+                     WHERE r.product_item_uuid = $2
+                       AND r.status = 'active'
+                     ORDER BY r.is_default DESC, r.created_at DESC
+                     LIMIT 1) AS routing_uuid
+            )
             INSERT INTO manufacturing.production_orders(
                 order_number, product_item_uuid, quantity_ordered, start_date,
-                expected_completion_date, status
-            ) VALUES ($1, $2, $3, $4, $5, 'Planned')
+                expected_completion_date, status,
+                bom_header_uuid, routing_uuid, standard_unit_cost
+            )
+            SELECT
+                $1, $2, $3, $4, $5, 'Planned',
+                pinned.bom_uuid,
+                pinned.routing_uuid,
+                CASE WHEN pinned.bom_uuid IS NOT NULL
+                     THEN manufacturing.calculate_standard_cost($2, COALESCE($4, CURRENT_DATE))
+                     ELSE NULL
+                END
+            FROM pinned
             RETURNING *
             "#,
         )
@@ -38,10 +66,18 @@ impl ManufacturingRepo {
         .bind(&dto.quantity_ordered)
         .bind(dto.start_date)
         .bind(dto.expected_completion_date)
-        .fetch_one(&self.pool)
+        .fetch_one(&mut *tx)
         .await?;
 
-        // Multi-level: explode default BOM to leaves and aggregate quantities
+        if order.bom_header_uuid.is_none() {
+            tx.rollback().await.ok();
+            return Err(AppError::Unprocessable(format!(
+                "No active BOM for product {} — cannot release production order",
+                dto.product_item_uuid
+            )));
+        }
+
+        // Explode the *pinned* BOM (not a later default)
         sqlx::query(
             r#"
             INSERT INTO manufacturing.production_order_materials(
@@ -49,22 +85,19 @@ impl ManufacturingRepo {
             )
             SELECT
                 p.uuid,
-                NULL,                          -- no single top-level line after explosion
+                NULL,
                 e.component_item_uuid,
                 SUM(e.quantity_required)
             FROM manufacturing.production_orders p
-            JOIN manufacturing.bom_headers bh
-              ON bh.product_item_uuid = p.product_item_uuid
-             AND bh.is_active
-             AND bh.is_default = true
-            CROSS JOIN LATERAL manufacturing.explode_bom(bh.uuid, p.quantity_ordered) e
+            CROSS JOIN LATERAL manufacturing.explode_bom(p.bom_header_uuid, p.quantity_ordered) e
             WHERE p.uuid = $1
               AND e.is_leaf = true
+              AND COALESCE(e.is_phantom, false) = false
             GROUP BY p.uuid, e.component_item_uuid
             "#,
         )
         .bind(order.uuid)
-        .execute(&self.pool)
+        .execute(&mut *tx)
         .await?;
 
         let n: i64 = sqlx::query_scalar(
@@ -75,15 +108,17 @@ impl ManufacturingRepo {
             "#,
         )
         .bind(order.uuid)
-        .fetch_one(&self.pool)
+        .fetch_one(&mut *tx)
         .await?;
         if n == 0 {
+            tx.rollback().await.ok();
             return Err(AppError::Unprocessable(format!(
-                "Production order {} has no leaf materials — ensure a default active BOM exists for the product",
+                "Production order {} has no leaf materials after BOM explode",
                 order.uuid
             )));
         }
 
+        tx.commit().await?;
         Ok(order)
     }
 
@@ -377,6 +412,164 @@ impl ManufacturingRepo {
     }
 
     // =============================== Labor Application ============================
+    pub async fn create_labour_allocation(
+        &self,
+        dto: CreateLabourAllocationDto,
+        user_uuid: Uuid,
+    ) -> Result<LabourAllocation, AppError> {
+        let row = sqlx::query_as::<_, LabourAllocation>(
+            r#"
+            SELECT * FROM manufacturing.create_labour_allocation(
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
+            )
+            "#,
+        )
+        .bind(dto.production_order_uuid)
+        .bind(&dto.labour_class)
+        .bind(&dto.hours)
+        .bind(&dto.rate)
+        .bind(dto.work_center_code.as_deref())
+        .bind(dto.employee_uuid)
+        .bind(dto.source.as_deref().unwrap_or("Manual"))
+        .bind(dto.source_ref.as_deref())
+        .bind(dto.memo.as_deref())
+        .bind(user_uuid)
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(row)
+    }
+
+    pub async fn post_labour_allocation(
+        &self,
+        dto: PostLabourAllocationDto,
+        user_uuid: Uuid,
+    ) -> Result<CostApplication, AppError> {
+        let row = sqlx::query_as::<_, CostApplication>(
+            r#"
+            SELECT * FROM manufacturing.post_labour_allocation(
+                $1, $2, $3, $4, $5
+            )
+            "#,
+        )
+        .bind(dto.allocation_uuid)
+        .bind(user_uuid)
+        .bind(dto.wip_account_code.as_deref().unwrap_or(""))
+        .bind(dto.wages_account_code.as_deref().unwrap_or(""))
+        .bind(dto.overhead_control_account.as_deref())
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(row)
+    }
+
+
+    pub async fn ensure_operation_executions(
+        &self,
+        order_uuid: Uuid,
+    ) -> Result<i32, AppError> {
+        let n: i32 = sqlx::query_scalar(
+            "SELECT manufacturing.ensure_operation_executions($1)",
+        )
+        .bind(order_uuid)
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(n)
+    }
+
+    pub async fn list_operation_executions(
+        &self,
+        order_uuid: Uuid,
+    ) -> Result<Vec<OperationExecution>, AppError> {
+        let rows = sqlx::query_as::<_, OperationExecution>(
+            r#"
+            SELECT * FROM manufacturing.operation_executions
+            WHERE production_order_uuid = $1
+            ORDER BY sequence NULLS LAST, created_at
+            "#,
+        )
+        .bind(order_uuid)
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows)
+    }
+
+    pub async fn start_operation(
+        &self,
+        dto: StartOperationDto,
+    ) -> Result<OperationExecution, AppError> {
+        let row = sqlx::query_as::<_, OperationExecution>(
+            "SELECT * FROM manufacturing.start_operation($1, $2, $3)",
+        )
+        .bind(dto.execution_uuid)
+        .bind(dto.qty_started)
+        .bind(dto.operator_uuid)
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(row)
+    }
+
+    pub async fn complete_operation(
+        &self,
+        dto: CompleteOperationDto,
+    ) -> Result<OperationExecution, AppError> {
+        let row = sqlx::query_as::<_, OperationExecution>(
+            "SELECT * FROM manufacturing.complete_operation($1, $2, $3, $4, $5, $6, $7, $8)",
+        )
+        .bind(dto.execution_uuid)
+        .bind(&dto.qty_completed)
+        .bind(dto.qty_scrapped)
+        .bind(dto.setup_minutes_actual)
+        .bind(dto.run_minutes_actual)
+        .bind(dto.machine_minutes_actual)
+        .bind(dto.operator_uuid)
+        .bind(dto.notes.as_deref())
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(row)
+    }
+
+    pub async fn record_scrap_rework(
+        &self,
+        dto: RecordScrapReworkDto,
+        user_uuid: Uuid,
+    ) -> Result<ScrapReworkEvent, AppError> {
+        let row = sqlx::query_as::<_, ScrapReworkEvent>(
+            "SELECT * FROM manufacturing.record_scrap_rework($1, $2, $3, $4, $5, $6, $7, $8)",
+        )
+        .bind(dto.production_order_uuid)
+        .bind(&dto.event_type)
+        .bind(&dto.quantity)
+        .bind(dto.operation_execution_uuid)
+        .bind(dto.reason_code.as_deref())
+        .bind(dto.reason_text.as_deref())
+        .bind(dto.disposition.as_deref())
+        .bind(user_uuid)
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(row)
+    }
+
+    pub async fn record_quality_inspection(
+        &self,
+        dto: RecordQualityInspectionDto,
+        user_uuid: Uuid,
+    ) -> Result<QualityInspection, AppError> {
+        let row = sqlx::query_as::<_, QualityInspection>(
+            "SELECT * FROM manufacturing.record_quality_inspection($1, $2, $3, $4, $5, $6, $7, $8, $9)",
+        )
+        .bind(dto.production_order_uuid)
+        .bind(&dto.qty_inspected)
+        .bind(&dto.qty_passed)
+        .bind(&dto.qty_failed)
+        .bind(&dto.result)
+        .bind(dto.inspection_type.as_deref().unwrap_or("InProcess"))
+        .bind(dto.operation_execution_uuid)
+        .bind(user_uuid)
+        .bind(dto.notes.as_deref())
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(row)
+    }
+
     pub async fn apply_direct_labor(
         &self,
         dto: ApplyDirectLaborDto,
@@ -489,7 +682,7 @@ impl ManufacturingRepo {
         let _gl_txn: Uuid = sqlx::query_scalar(
             r#"
         SELECT manufacturing.complete_production_order(
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_DATE
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_DATE, $10
         )
         "#,
         )
@@ -502,6 +695,7 @@ impl ManufacturingRepo {
         .bind(dto.mfg_mat_var_code.as_deref().unwrap_or(""))
         .bind(dto.mfg_lab_var_code.as_deref().unwrap_or(""))
         .bind(dto.mfg_moh_var_code.as_deref().unwrap_or(""))
+        .bind(dto.fg_warehouse_serial)
         .fetch_one(&self.pool)
         .await?;
 

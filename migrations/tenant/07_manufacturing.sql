@@ -44,6 +44,11 @@ CREATE table if not exists manufacturing.production_orders (
         )
     ),
     gl_transaction_uuid uuid, -- link to posted entries
+    -- Spec pinned at release (FKs added after bom/routing tables exist)
+    bom_header_uuid uuid,
+    routing_uuid uuid,
+    standard_unit_cost numeric(18, 4),
+    fg_warehouse_serial bigint, -- finished-goods destination; null → product.warehouse_serial
     created_at timestamptz DEFAULT now(),
     updated_at timestamptz DEFAULT now()
 );
@@ -77,8 +82,13 @@ CREATE TABLE IF NOT EXISTS manufacturing.bom_headers (
     created_by uuid,
     created_at timestamptz DEFAULT now(),
     updated_at timestamptz DEFAULT now(),
-    CONSTRAINT bom_product_unique_active UNIQUE (product_item_uuid) DEFERRABLE INITIALLY DEFERRED -- only one active/default per product (optional constraint)
+    CONSTRAINT bom_headers_product_revision_unique UNIQUE (product_item_uuid, revision)
 );
+-- At most one default active BOM per product
+CREATE UNIQUE INDEX IF NOT EXISTS bom_one_default_active_per_product
+    ON manufacturing.bom_headers (product_item_uuid)
+    WHERE is_default = true AND is_active = true;
+
 
 CREATE TABLE IF NOT EXISTS manufacturing.bom_lines (
     uuid uuid DEFAULT uuidv7 () PRIMARY KEY,
@@ -107,6 +117,7 @@ CREATE TABLE manufacturing.production_order_materials (
     component_item_uuid uuid NOT NULL REFERENCES inventory.items (uuid),
     required_qty numeric(18, 6) NOT NULL,
     issued_qty numeric(18, 6) DEFAULT 0,
+    preferred_warehouse_serial bigint, -- optional per-line source WH; null → item default then bulk default
     status text DEFAULT 'Pending' CHECK (
         status IN (
             'Pending',
@@ -146,10 +157,12 @@ CREATE table if not exists manufacturing.cost_applications (
     production_order_uuid uuid NOT NULL,
     type text CHECK (
         type IN (
-            'DirectLabor',
+            'DirectLabor',      -- routing-applied (standard) labour
+            'ActualLabor',      -- time/payroll-approved actual direct labour
+            'IndirectLabor',    -- indirect labour charged to production/OH
             'DirectMaterial',
-            'AppliedOverhead',
-            'ActualOverhead'
+            'AppliedOverhead',  -- predetermined OH applied to WIP
+            'ActualOverhead'    -- actual OH expenditure recognised
         )
     ),
     amount numeric(18, 2) NOT NULL,
@@ -157,8 +170,34 @@ CREATE table if not exists manufacturing.cost_applications (
     destination_account uuid,
     applied_at timestamptz DEFAULT now(),
     reference text,
-    CONSTRAINT fk_applications_order FOREIGN KEY (production_order_uuid) REFERENCES manufacturing.production_orders (uuid)
+    
+CONSTRAINT fk_applications_order FOREIGN KEY (production_order_uuid) REFERENCES manufacturing.production_orders (uuid)
 );
+
+-- Approved labour time / cost allocations (actual labour, distinct from routing-applied)
+CREATE TABLE IF NOT EXISTS manufacturing.labour_allocations (
+    uuid uuid DEFAULT uuidv7() PRIMARY KEY,
+    production_order_uuid uuid NOT NULL REFERENCES manufacturing.production_orders (uuid) ON DELETE CASCADE,
+    labour_class text NOT NULL CHECK (labour_class IN ('Direct', 'Indirect')),
+    hours numeric(18, 4) NOT NULL CHECK (hours > 0),
+    rate numeric(18, 4) NOT NULL CHECK (rate >= 0),
+    amount numeric(18, 2) GENERATED ALWAYS AS (ROUND(hours * rate, 2)) STORED,
+    work_center_code text,
+    employee_uuid uuid,              -- optional link to hr.employees
+    source text NOT NULL DEFAULT 'Manual'
+        CHECK (source IN ('Manual', 'Payroll', 'TimeEntry')),
+    source_ref text,                 -- payslip uuid, timesheet id, etc.
+    memo text,
+    status text NOT NULL DEFAULT 'Draft'
+        CHECK (status IN ('Draft', 'Posted', 'Reversed')),
+    cost_application_uuid uuid,
+    posted_at timestamptz,
+    created_by uuid,
+    created_at timestamptz DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_labour_alloc_order
+    ON manufacturing.labour_allocations (production_order_uuid);
+
 
 -- Completions (WIP → Finished Goods)
 CREATE TABLE if not exists manufacturing.completions (
@@ -243,16 +282,31 @@ CREATE TABLE IF NOT EXISTS manufacturing.routings (
     created_at timestamptz DEFAULT now()
 );
 
+-- Production order pins (after BOM / routing tables exist)
+DO $$ BEGIN
+    ALTER TABLE manufacturing.production_orders
+        ADD CONSTRAINT fk_po_bom_header
+        FOREIGN KEY (bom_header_uuid) REFERENCES manufacturing.bom_headers (uuid);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+DO $$ BEGIN
+    ALTER TABLE manufacturing.production_orders
+        ADD CONSTRAINT fk_po_routing
+        FOREIGN KEY (routing_uuid) REFERENCES manufacturing.routings (uuid);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
 CREATE TABLE IF NOT EXISTS manufacturing.routing_operations (
     uuid uuid DEFAULT uuidv7 () PRIMARY KEY,
     routing_uuid uuid REFERENCES manufacturing.routings (uuid) ON DELETE CASCADE,
-    sequence smallint NOT NULL UNIQUE,
+    sequence smallint NOT NULL,
     operation_name TEXT NOT NULL,
     work_center text REFERENCES manufacturing.work_centers (code),
     description text,
     setup_time_minutes numeric(12, 2) NOT NULL,
     run_time_minutes numeric(18, 2) NOT NULL,
-    created_at timestamptz DEFAULT now()
+    created_at timestamptz DEFAULT now(),
+    UNIQUE (routing_uuid, sequence)
 );
 
 -- ============================================================================
@@ -260,7 +314,8 @@ CREATE TABLE IF NOT EXISTS manufacturing.routing_operations (
 -- ============================================================================
 
 CREATE OR REPLACE FUNCTION manufacturing.calculate_standard_cost(
-    p_item_uuid uuid
+    p_item_uuid uuid,
+    p_costing_date date DEFAULT CURRENT_DATE
 )
 RETURNS numeric(18,4)
 LANGUAGE plpgsql
@@ -269,73 +324,73 @@ DECLARE
     v_material_cost numeric := 0;
     v_labor_cost    numeric := 0;
     v_overhead_cost numeric := 0;
-
     v_bom_uuid uuid;
     v_routing_uuid uuid;
+    v_base_quantity numeric := 1;
 BEGIN
-    --======================= PICK BOM ============================
     SELECT bh.uuid
     INTO v_bom_uuid
     FROM manufacturing.bom_headers bh
     WHERE bh.product_item_uuid = p_item_uuid
       AND bh.is_active
-    ORDER BY bh.is_default
+    ORDER BY bh.is_default DESC, bh.created_at DESC
     LIMIT 1;
 
-    --===================== MATERIAL STANDARD COST =======================
     IF v_bom_uuid IS NOT NULL THEN
-        -- Material part becomes:
-		SELECT COALESCE(SUM(e.quantity_required * i.standard_cost), 0)
-		INTO v_material_cost
-		FROM manufacturing.explode_bom(v_bom_uuid, 1) e
-		JOIN inventory.items i ON i.uuid = e.component_item_uuid
-		WHERE e.is_leaf = true;          -- only purchased / non-BOM leaves
+        SELECT COALESCE(SUM(e.quantity_required * COALESCE(i.standard_cost, 0)), 0)
+        INTO v_material_cost
+        FROM manufacturing.explode_bom(v_bom_uuid, 1) e
+        JOIN inventory.items i ON i.uuid = e.component_item_uuid
+        WHERE e.is_leaf = true
+          AND COALESCE(e.is_phantom, false) = false;
     END IF;
 
-    --======================= LABOR STANDARD COST ========================
-    -- Pick routing for product of current production order
-    SELECT r.uuid
-    INTO v_routing_uuid
+    SELECT r.uuid, COALESCE(NULLIF(r.base_quantity, 0), 1)
+    INTO v_routing_uuid, v_base_quantity
     FROM manufacturing.routings r
     WHERE r.product_item_uuid = p_item_uuid
       AND r.status = 'active'
     ORDER BY r.is_default DESC, r.created_at DESC
     LIMIT 1;
 
-    -- Determine direct labor using routing and work station rates
     IF v_routing_uuid IS NOT NULL THEN
         SELECT COALESCE(SUM(
             (
-				COALESCE(ro.setup_time_minutes, 0) + COALESCE(ro.run_time_minutes, 0)
-			) / 60.0 * wc.labor_rate
+                COALESCE(ro.setup_time_minutes, 0) / v_base_quantity
+              + COALESCE(ro.run_time_minutes, 0) / v_base_quantity
+            ) / 60.0 * wc.labor_rate
         ), 0)
         INTO v_labor_cost
         FROM manufacturing.routing_operations ro
-        JOIN manufacturing.work_centers wc
-            ON wc.code = ro.work_center
+        JOIN manufacturing.work_centers wc ON wc.code = ro.work_center
         WHERE ro.routing_uuid = v_routing_uuid;
-    END IF;
 
-    --===================== OVERHEAD STANDARD COST =======================
-    IF v_routing_uuid IS NOT NULL THEN
         SELECT COALESCE(SUM(
-            ((ro.setup_time_minutes + ro.run_time_minutes) / 60.0) * ohr.rate
+            (
+                COALESCE(ro.setup_time_minutes, 0) / v_base_quantity
+              + COALESCE(ro.run_time_minutes, 0) / v_base_quantity
+            ) / 60.0 * ohr.rate
         ), 0)
         INTO v_overhead_cost
         FROM manufacturing.routing_operations ro
-        JOIN manufacturing.work_centers wc
-            ON wc.code = ro.work_center
-        JOIN manufacturing.overhead_rates ohr
-            ON ohr.allocation_base = wc.allocation_base
-           AND (ohr.department_code IS NULL OR ohr.department_code = wc.department_code)
-           AND ohr.is_active = true
-           AND CURRENT_DATE BETWEEN ohr.period_start AND ohr.period_end
+        JOIN manufacturing.work_centers wc ON wc.code = ro.work_center
+        JOIN LATERAL (
+            SELECT rate
+            FROM manufacturing.overhead_rates ohr
+            WHERE ohr.is_active
+              AND ohr.allocation_base = wc.allocation_base
+              AND (ohr.department_code IS NULL OR ohr.department_code = wc.department_code)
+              AND p_costing_date BETWEEN ohr.period_start AND ohr.period_end
+            ORDER BY ohr.period_start DESC, ohr.created_at DESC
+            LIMIT 1
+        ) ohr ON true
         WHERE ro.routing_uuid = v_routing_uuid;
     END IF;
 
-    RETURN v_material_cost + v_labor_cost + v_overhead_cost;
+    RETURN ROUND(v_material_cost + v_labor_cost + v_overhead_cost, 4);
 END;
 $$;
+
 
 -- Helper Function: Apply Overhead to a Production Order
 CREATE OR REPLACE FUNCTION manufacturing.apply_overhead_to_order(
@@ -360,15 +415,21 @@ BEGIN
     -- Get current production order
     SELECT * INTO STRICT v_order FROM manufacturing.production_orders WHERE order_number = p_production_order;
 
-    -- Find current applicable rate (latest or matching period)
-    SELECT rate INTO STRICT v_rate
+    -- Rate must cover order start_date (else today)
+    SELECT rate INTO v_rate
     FROM manufacturing.overhead_rates
-    WHERE is_active AND allocation_base = p_allocation_rate
+    WHERE is_active
+      AND allocation_base = p_allocation_rate
+      AND COALESCE(v_order.start_date, CURRENT_DATE)
+          BETWEEN period_start AND period_end
     ORDER BY period_start DESC, created_at DESC
     LIMIT 1;
 
     IF v_rate IS NULL THEN
-        RAISE EXCEPTION 'No active predetermined overhead rate found for current date';
+        RAISE EXCEPTION
+            'No active predetermined overhead rate for base % covering date %',
+            p_allocation_rate,
+            COALESCE(v_order.start_date, CURRENT_DATE);
     END IF;
 
     v_applied_amount := ROUND(p_activity_amount * v_rate, 2);
@@ -521,6 +582,214 @@ $$;
 --     CR ACC PAYABLE      100
 
 -- Function for both direct (tied to routing and peoduction order)
+CREATE OR REPLACE FUNCTION manufacturing.routing_labour_for_qty(
+    p_product_item_uuid uuid,
+    p_qty numeric
+)
+RETURNS TABLE (
+    total_hours numeric,
+    total_cost  numeric
+)
+LANGUAGE plpgsql
+STABLE
+AS $$
+DECLARE
+    v_routing_uuid uuid;
+    v_base_quantity numeric := 1;
+BEGIN
+    SELECT r.uuid, COALESCE(NULLIF(r.base_quantity, 0), 1)
+    INTO v_routing_uuid, v_base_quantity
+    FROM manufacturing.routings r
+    WHERE r.product_item_uuid = p_product_item_uuid
+      AND r.status = 'active'
+    ORDER BY r.is_default DESC, r.created_at DESC
+    LIMIT 1;
+
+    IF v_routing_uuid IS NULL OR p_qty IS NULL OR p_qty <= 0 THEN
+        total_hours := 0;
+        total_cost := 0;
+        RETURN NEXT;
+        RETURN;
+    END IF;
+
+    SELECT
+        COALESCE(SUM(
+            (
+                COALESCE(ro.setup_time_minutes, 0)
+              + COALESCE(ro.run_time_minutes, 0) * (p_qty / v_base_quantity)
+            ) / 60.0
+        ), 0),
+        COALESCE(SUM(
+            (
+                COALESCE(ro.setup_time_minutes, 0)
+              + COALESCE(ro.run_time_minutes, 0) * (p_qty / v_base_quantity)
+            ) / 60.0 * wc.labor_rate
+        ), 0)
+    INTO total_hours, total_cost
+    FROM manufacturing.routing_operations ro
+    JOIN manufacturing.work_centers wc ON wc.code = ro.work_center
+    WHERE ro.routing_uuid = v_routing_uuid;
+
+    RETURN NEXT;
+END;
+$$;
+
+
+-- Post approved actual labour (Direct → WIP; Indirect → OH control or WIP per flag)
+CREATE OR REPLACE FUNCTION manufacturing.post_labour_allocation(
+    p_allocation_uuid   uuid,
+    p_user              uuid,
+    p_wip_account       text,
+    p_wages_account     text,
+    p_oh_control_account text DEFAULT NULL  -- required for Indirect if not posting to WIP
+) RETURNS manufacturing.cost_applications
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_alloc     manufacturing.labour_allocations%ROWTYPE;
+    v_order     manufacturing.production_orders%ROWTYPE;
+    v_wip       uuid;
+    v_wages     uuid;
+    v_oh        uuid;
+    v_dest      uuid;
+    v_type      text;
+    v_txn       bigint;
+    v_app       manufacturing.cost_applications%ROWTYPE;
+BEGIN
+    SELECT * INTO STRICT v_alloc
+    FROM manufacturing.labour_allocations
+    WHERE uuid = p_allocation_uuid
+    FOR UPDATE;
+
+    IF v_alloc.status <> 'Draft' THEN
+        RAISE EXCEPTION 'Labour allocation % is not Draft (status=%)', p_allocation_uuid, v_alloc.status;
+    END IF;
+
+    SELECT * INTO STRICT v_order
+    FROM manufacturing.production_orders
+    WHERE uuid = v_alloc.production_order_uuid;
+
+    IF v_order.status NOT IN ('Planned', 'In Progress') THEN
+        RAISE EXCEPTION 'Order must be Planned or In Progress to post labour';
+    END IF;
+
+    v_wip := accounting.resolve_account_ref(p_wip_account);
+    v_wages := accounting.resolve_account_ref(p_wages_account);
+
+    IF v_alloc.labour_class = 'Direct' THEN
+        v_type := 'ActualLabor';
+        v_dest := v_wip;
+    ELSE
+        v_type := 'IndirectLabor';
+        IF p_oh_control_account IS NULL OR btrim(p_oh_control_account) = '' THEN
+            -- Indirect absorbed into WIP when no OH control supplied
+            v_dest := v_wip;
+        ELSE
+            v_oh := accounting.resolve_account_ref(p_oh_control_account);
+            v_dest := v_oh;
+        END IF;
+    END IF;
+
+    v_txn := accounting.post_transaction(
+        v_order.order_number || '-LAB-' || v_alloc.uuid::text,
+        format(
+            '%s labour %s hrs @ %s (%s)',
+            v_alloc.labour_class, v_alloc.hours, v_alloc.rate, COALESCE(v_alloc.source, 'Manual')
+        ),
+        p_user,
+        'manufacturing',
+        CURRENT_DATE,
+        jsonb_build_array(
+            jsonb_build_object(
+                'account_ref', v_dest, 'debit', v_alloc.amount, 'credit', 0,
+                'memo', COALESCE(v_alloc.memo, 'Labour allocation')
+            ),
+            jsonb_build_object(
+                'account_ref', v_wages, 'debit', 0, 'credit', v_alloc.amount,
+                'memo', format('Wages payable - %s labour', v_alloc.labour_class)
+            )
+        )
+    );
+
+    INSERT INTO manufacturing.cost_applications (
+        production_order_uuid, type, amount, reference, source_account,
+        destination_account, applied_at
+    ) VALUES (
+        v_alloc.production_order_uuid,
+        v_type,
+        v_alloc.amount,
+        format('Labour alloc %s source=%s ref=%s', v_alloc.uuid, v_alloc.source, COALESCE(v_alloc.source_ref, '')),
+        v_wages,
+        v_dest,
+        now()
+    )
+    RETURNING * INTO v_app;
+
+    UPDATE manufacturing.labour_allocations
+    SET status = 'Posted',
+        cost_application_uuid = v_app.uuid,
+        posted_at = now()
+    WHERE uuid = p_allocation_uuid;
+
+    UPDATE manufacturing.production_orders
+    SET status = CASE WHEN status = 'Planned' THEN 'In Progress' ELSE status END,
+        updated_at = now()
+    WHERE uuid = v_alloc.production_order_uuid;
+
+    RETURN v_app;
+END;
+$$;
+
+-- Create draft labour allocation (actual hours/rate)
+CREATE OR REPLACE FUNCTION manufacturing.create_labour_allocation(
+    p_production_order_uuid uuid,
+    p_labour_class          text,
+    p_hours                 numeric,
+    p_rate                  numeric,
+    p_work_center_code      text DEFAULT NULL,
+    p_employee_uuid         uuid DEFAULT NULL,
+    p_source                text DEFAULT 'Manual',
+    p_source_ref            text DEFAULT NULL,
+    p_memo                  text DEFAULT NULL,
+    p_created_by            uuid DEFAULT NULL
+) RETURNS manufacturing.labour_allocations
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_row manufacturing.labour_allocations%ROWTYPE;
+BEGIN
+    IF p_labour_class NOT IN ('Direct', 'Indirect') THEN
+        RAISE EXCEPTION 'labour_class must be Direct or Indirect';
+    END IF;
+    IF p_hours IS NULL OR p_hours <= 0 THEN
+        RAISE EXCEPTION 'hours must be positive';
+    END IF;
+    IF p_rate IS NULL OR p_rate < 0 THEN
+        RAISE EXCEPTION 'rate must be non-negative';
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1 FROM manufacturing.production_orders
+        WHERE uuid = p_production_order_uuid
+          AND status IN ('Planned', 'In Progress')
+    ) THEN
+        RAISE EXCEPTION 'Production order not found or not open for labour';
+    END IF;
+
+    INSERT INTO manufacturing.labour_allocations (
+        production_order_uuid, labour_class, hours, rate, work_center_code,
+        employee_uuid, source, source_ref, memo, created_by
+    ) VALUES (
+        p_production_order_uuid, p_labour_class, p_hours, p_rate, p_work_center_code,
+        p_employee_uuid, COALESCE(p_source, 'Manual'), p_source_ref, p_memo, p_created_by
+    )
+    RETURNING * INTO v_row;
+
+    RETURN v_row;
+END;
+$$;
+
+-- Routing-based APPLIED labour (standard hours × WC rate). For actual hours use labour_allocations.
 CREATE OR REPLACE FUNCTION manufacturing.apply_direct_labor_from_routing(
     p_production_order_uuid uuid,
     p_user                  uuid,
@@ -553,13 +822,16 @@ BEGIN
     FROM manufacturing.production_orders
     WHERE uuid = p_production_order_uuid;
 
-    -- Get routing (latest active)
-    SELECT r.uuid INTO v_routing_uuid
-    FROM manufacturing.routings r
-    WHERE r.product_item_uuid = v_order.product_item_uuid
-      AND r.status = 'active'
-    ORDER BY r.effective_date DESC
-    LIMIT 1;
+    -- Prefer routing pinned on the order at release
+    v_routing_uuid := v_order.routing_uuid;
+    IF v_routing_uuid IS NULL THEN
+        SELECT r.uuid INTO v_routing_uuid
+        FROM manufacturing.routings r
+        WHERE r.product_item_uuid = v_order.product_item_uuid
+          AND r.status = 'active'
+        ORDER BY r.is_default DESC, r.created_at DESC
+        LIMIT 1;
+    END IF;
 
     -- Get base quantity for time computation (latest active)
     SELECT r.base_quantity INTO v_base_quantity
@@ -683,7 +955,8 @@ CREATE OR REPLACE FUNCTION manufacturing.complete_production_order(
     p_mfg_mat_var_account   text,
     p_mfg_lab_var_account   text,
     p_mfg_moh_var_account   text,
-    p_completion_date       date  DEFAULT CURRENT_DATE
+    p_completion_date       date  DEFAULT CURRENT_DATE,
+    p_fg_warehouse_serial   bigint DEFAULT NULL
 ) RETURNS uuid
 LANGUAGE plpgsql
 AS $$
@@ -716,8 +989,14 @@ BEGIN
 
     SELECT * INTO v_product FROM inventory.items WHERE uuid = v_order.product_item_uuid;
 
+    -- FG destination: explicit param → order pin → product default
+    -- (declared via nested block by using a simple subselect in movements)
+
     -- 2. Standard unit cost => must come from your calculate_standard_cost or enhanced version
-    v_std_unit_cost := manufacturing.calculate_standard_cost(v_product.uuid);  -- fix this function!
+    v_std_unit_cost := COALESCE(
+        v_order.standard_unit_cost,
+        manufacturing.calculate_standard_cost(v_product.uuid, COALESCE(v_order.start_date, CURRENT_DATE))
+    );
     v_std_total := ROUND(p_completed_quantity * v_std_unit_cost, 2);
 
     -- 3. Get uuid for wip, fg and control accounts
@@ -762,7 +1041,9 @@ BEGIN
         quantity, unit_cost, direction, gl_transaction_uuid, movement_date
     ) VALUES (
         v_product.uuid,
-        (SELECT uuid FROM inventory.warehouses WHERE serial_id = v_product.warehouse_serial),
+        (SELECT uuid FROM inventory.warehouses WHERE serial_id = COALESCE(
+            p_fg_warehouse_serial, v_order.fg_warehouse_serial, v_product.warehouse_serial
+        )),
         'PROD_COMPLETION',
         'production',
         v_order.serial_id,
@@ -787,7 +1068,9 @@ BEGIN
             received_date, original_quantity, original_cost_per_unit, remaining_quantity
         ) VALUES (
             v_product.uuid,
-            (SELECT uuid FROM inventory.warehouses WHERE serial_id = v_product.warehouse_serial),
+            (SELECT uuid FROM inventory.warehouses WHERE serial_id = COALESCE(
+            p_fg_warehouse_serial, v_order.fg_warehouse_serial, v_product.warehouse_serial
+        )),
             'PROD_COMPLETION', v_order.serial_id,
             p_completion_date, p_completed_quantity, v_std_unit_cost, p_completed_quantity
         );
@@ -795,7 +1078,9 @@ BEGIN
         INSERT INTO inventory.wavg_warehouse (item_uuid, warehouse_uuid, total_quantity, total_cost)
         VALUES (
             v_product.uuid,
-            (SELECT uuid FROM inventory.warehouses WHERE serial_id = v_product.warehouse_serial),
+            (SELECT uuid FROM inventory.warehouses WHERE serial_id = COALESCE(
+            p_fg_warehouse_serial, v_order.fg_warehouse_serial, v_product.warehouse_serial
+        )),
             p_completed_quantity,
             v_std_total
         )
@@ -888,10 +1173,16 @@ BEGIN
     FROM manufacturing.material_issues
     WHERE production_order_uuid = p_order_uuid;
 
-    -- Direct labor from cost applications table
+    -- Actual labour if posted; else fall back to routing-applied DirectLabor
     SELECT COALESCE(SUM(amount), 0) INTO v_act_lab
     FROM manufacturing.cost_applications
-    WHERE production_order_uuid = p_order_uuid AND type = 'DirectLabor';
+    WHERE production_order_uuid = p_order_uuid AND type = 'ActualLabor';
+
+    IF v_act_lab = 0 THEN
+        SELECT COALESCE(SUM(amount), 0) INTO v_act_lab
+        FROM manufacturing.cost_applications
+        WHERE production_order_uuid = p_order_uuid AND type = 'DirectLabor';
+    END IF;
 
     -- Overhead costs expensed e.g. bills and renumerations from cost applications
     SELECT COALESCE(SUM(amount), 0) INTO v_act_oh
@@ -903,26 +1194,46 @@ BEGIN
     FROM manufacturing.cost_applications
     WHERE production_order_uuid = p_order_uuid AND type = 'AppliedOverhead';
 
-    -- Standards for completed quantity
-    SELECT COALESCE(SUM(bl.quantity_per * comp.standard_cost * v_completed_qty), 0)
+    -- Standard material: pinned BOM on order, else current default
+    SELECT COALESCE(SUM(e.quantity_required * COALESCE(i.standard_cost, 0)), 0)
     INTO v_std_mat
-    FROM manufacturing.bom_headers bh
-    JOIN manufacturing.bom_lines bl ON bl.bom_header_uuid = bh.uuid
-    JOIN inventory.items comp ON comp.uuid = bl.component_item_uuid
-    WHERE bh.product_item_uuid = v_order.product_item_uuid
-      AND bh.is_active AND bh.is_default;
+    FROM manufacturing.explode_bom(
+        COALESCE(
+            v_order.bom_header_uuid,
+            (
+                SELECT bh.uuid FROM manufacturing.bom_headers bh
+                WHERE bh.product_item_uuid = v_order.product_item_uuid
+                  AND bh.is_active
+                ORDER BY bh.is_default DESC, bh.created_at DESC
+                LIMIT 1
+            )
+        ),
+        v_completed_qty
+    ) e
+    JOIN inventory.items i ON i.uuid = e.component_item_uuid
+    WHERE e.is_leaf = true
+      AND COALESCE(e.is_phantom, false) = false;
 
-    -- Direct Labor costs from production routing operations table based on work center rates
-    SELECT COALESCE(SUM(
-        (((ro.setup_time_minutes + ro.run_time_minutes) / 60) * v_completed_qty) * wc.labor_rate), 0
-    )
-    INTO v_std_lab
-    FROM manufacturing.routings r
-    JOIN manufacturing.routing_operations ro ON ro.routing_uuid = r.uuid
-    JOIN manufacturing.work_centers wc ON wc.code = ro.work_center
-    WHERE r.product_item_uuid = v_order.product_item_uuid
-      AND r.status = 'active'
-      AND r.is_default;
+    -- Standard labour: pinned routing when present
+    IF v_order.routing_uuid IS NOT NULL THEN
+        SELECT COALESCE(SUM(
+            (
+                COALESCE(ro.setup_time_minutes, 0)
+              + COALESCE(ro.run_time_minutes, 0) * (
+                    v_completed_qty / COALESCE(NULLIF(r.base_quantity, 0), 1)
+                )
+            ) / 60.0 * wc.labor_rate
+        ), 0)
+        INTO v_std_lab
+        FROM manufacturing.routings r
+        JOIN manufacturing.routing_operations ro ON ro.routing_uuid = r.uuid
+        JOIN manufacturing.work_centers wc ON wc.code = ro.work_center
+        WHERE r.uuid = v_order.routing_uuid;
+    ELSE
+        SELECT COALESCE(rl.total_cost, 0)
+        INTO v_std_lab
+        FROM manufacturing.routing_labour_for_qty(v_order.product_item_uuid, v_completed_qty) rl;
+    END IF;
 
     -- Variances
     v_mat_var := v_act_mat - v_std_mat;
@@ -1054,7 +1365,7 @@ $$;
 
 CREATE OR REPLACE FUNCTION manufacturing.issue_material_from_bom(
     p_production_order_uuid uuid,
-    p_warehouse_serial      bigint,
+    p_warehouse_serial      bigint, -- fallback WH when line/item has none
     p_raw_materials_code    text,
     p_work_in_progress_code text,
     p_user_uuid             uuid
@@ -1071,6 +1382,10 @@ AS $$
 DECLARE
     rec             RECORD;
     v_remaining_qty numeric(18, 6);
+    v_wh_serial     bigint;
+    v_raw_uuid      uuid;
+    v_wip_uuid      uuid;
+    v_any_issued    boolean := false;
 BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM manufacturing.production_order_materials
@@ -1081,87 +1396,51 @@ BEGIN
             p_production_order_uuid;
     END IF;
 
+    v_raw_uuid := accounting.resolve_account_ref(p_raw_materials_code);
+    v_wip_uuid := accounting.resolve_account_ref(p_work_in_progress_code);
+
     FOR rec IN
-        SELECT pom.*, i.serial_id
+        SELECT pom.*, i.serial_id, i.warehouse_serial AS item_wh
         FROM manufacturing.production_order_materials pom
-        JOIN inventory.items i
-            ON i.uuid = pom.component_item_uuid
+        JOIN inventory.items i ON i.uuid = pom.component_item_uuid
         WHERE pom.production_order_uuid = p_production_order_uuid
+        ORDER BY i.serial_id
     LOOP
         v_remaining_qty := rec.required_qty - rec.issued_qty;
-
         IF v_remaining_qty <= 0 THEN
             CONTINUE;
         END IF;
 
-        BEGIN
-            PERFORM manufacturing.issue_material_to_order(
-                rec.serial_id,
-                p_warehouse_serial,
-                v_remaining_qty,
-                p_production_order_uuid,
-                COALESCE(
-                    (SELECT uuid FROM accounting.accounts WHERE code = p_raw_materials_code),
-                    (SELECT uuid FROM accounting.accounts WHERE uuid::text = p_raw_materials_code)
-                ),
-                COALESCE(
-                    (SELECT uuid FROM accounting.accounts WHERE code = p_work_in_progress_code),
-                    (SELECT uuid FROM accounting.accounts WHERE uuid::text = p_work_in_progress_code)
-                ),
-                p_user_uuid
-            );
+        v_wh_serial := COALESCE(rec.preferred_warehouse_serial, rec.item_wh, p_warehouse_serial);
+        IF v_wh_serial IS NULL THEN
+            RAISE EXCEPTION 'No warehouse for component serial % on order %',
+                rec.serial_id, p_production_order_uuid;
+        END IF;
 
-            UPDATE manufacturing.production_order_materials pom
-            SET issued_qty = pom.issued_qty + v_remaining_qty,
-                status     = 'FullyIssued'
-            WHERE pom.uuid = rec.uuid;
-
-        EXCEPTION
-            WHEN OTHERS THEN
-                RAISE EXCEPTION
-                    'Failed issuing item serial % for order %: %',
-                    rec.serial_id, p_production_order_uuid, SQLERRM;
-        END;
+        PERFORM manufacturing.issue_material_to_order(
+            rec.serial_id,
+            v_wh_serial,
+            v_remaining_qty,
+            p_production_order_uuid,
+            v_raw_uuid,
+            v_wip_uuid,
+            p_user_uuid
+        );
+        v_any_issued := true;
     END LOOP;
 
-    UPDATE manufacturing.production_orders po
-    SET materials_status = CASE
-        WHEN NOT EXISTS (
-            SELECT 1
-            FROM manufacturing.production_order_materials pom
-            WHERE pom.production_order_uuid = po.uuid
-              AND pom.status <> 'FullyIssued'
-        ) THEN 'Complete'
-        ELSE 'Partial'
-    END,
-    updated_at = now()
-    WHERE po.uuid = p_production_order_uuid;
-
-    -- If every line failed (stock, warehouse, …) surface the failure instead of a silent 201.
-    IF NOT EXISTS (
-        SELECT 1
-        FROM manufacturing.production_order_materials pom
-        WHERE pom.production_order_uuid = p_production_order_uuid
-          AND pom.issued_qty > 0
-    ) THEN
+    IF NOT v_any_issued THEN
         RAISE EXCEPTION
             'No materials issued for production order % — check stock, warehouse and order materials',
             p_production_order_uuid;
     END IF;
-
-    -- Materials issued ⇒ production has started.
-    UPDATE manufacturing.production_orders po
-    SET status = 'In Progress',
-        updated_at = now()
-    WHERE po.uuid = p_production_order_uuid
-      AND po.status IN ('Planned', 'In Progress');
 
     RETURN QUERY
     SELECT
         pom.component_item_uuid,
         pom.required_qty,
         pom.issued_qty,
-        (pom.required_qty - pom.issued_qty),
+        pom.required_qty - pom.issued_qty,
         pom.status
     FROM manufacturing.production_order_materials pom
     WHERE pom.production_order_uuid = p_production_order_uuid;
@@ -1170,14 +1449,14 @@ $$;
 
 
 CREATE OR REPLACE FUNCTION manufacturing.issue_material_to_order(
-    p_item_serial_id        bigint, -- Serial of raw maaterial inventory item
-    p_warehouse_serial      bigint, -- Serial of warehouse for the raw material
-    p_quantity              numeric(18,4), -- Quantity to be issued for prod
+    p_item_serial_id        bigint,
+    p_warehouse_serial      bigint,
+    p_quantity              numeric(18,4),
     p_production_order_uuid uuid,
-        v_raw_mat_uuid                  uuid,    -- p_raw_materials_code    text,
-        v_wip_uuid                              uuid,    -- p_work_in_progress_code text,
+    p_raw_mat_uuid          uuid,
+    p_wip_uuid              uuid,
     p_user_uuid             uuid
-) RETURNS manufacturing.material_issues -- Return actual issued material
+) RETURNS manufacturing.material_issues
 LANGUAGE plpgsql
 AS $$
 DECLARE
@@ -1187,12 +1466,15 @@ DECLARE
     v_total_cost    numeric(18,4);
     v_unit_cost     numeric(18,4);
     v_issue_row     manufacturing.material_issues%ROWTYPE;
-    v_movement_uuid uuid;
-    -- v_wip_uuid      uuid;
-    -- v_raw_mat_uuid  uuid;
     v_txn_serial    bigint;
+    v_remaining     numeric(18,6);
+    v_pom_uuid      uuid;
+    v_new_issued    numeric(18,6);
 BEGIN
-    -- 1. Lock & validate production order
+    IF p_quantity IS NULL OR p_quantity <= 0 THEN
+        RAISE EXCEPTION 'Issue quantity must be positive';
+    END IF;
+
     SELECT * INTO STRICT v_order
     FROM manufacturing.production_orders
     WHERE uuid = p_production_order_uuid
@@ -1202,65 +1484,98 @@ BEGIN
         RAISE EXCEPTION 'Production order must be Planned or In Progress to issue materials';
     END IF;
 
-    -- 2. Validate item and warehouse
     SELECT * INTO STRICT v_item
     FROM inventory.items WHERE serial_id = p_item_serial_id;
 
     SELECT * INTO STRICT v_warehouse
     FROM inventory.warehouses WHERE serial_id = p_warehouse_serial;
 
-    -- Get uuids for WIP and RM
-    -- SELECT uuid INTO v_wip_uuid     FROM accounting.accounts WHERE code = p_work_in_progress_code;
-    -- SELECT uuid INTO v_raw_mat_uuid FROM accounting.accounts WHERE code = p_raw_materials_code;
+    -- Cap to remaining requirement when line exists
+    SELECT pom.uuid, pom.required_qty - pom.issued_qty
+    INTO v_pom_uuid, v_remaining
+    FROM manufacturing.production_order_materials pom
+    WHERE pom.production_order_uuid = p_production_order_uuid
+      AND pom.component_item_uuid = v_item.uuid;
 
-    -- 3. Deplete inventory (call your existing function)
-    -- deplete_inventory returns a total value of inventory
+    IF v_pom_uuid IS NOT NULL THEN
+        IF v_remaining <= 0 THEN
+            RAISE EXCEPTION 'No remaining material requirement for item % on order %',
+                v_item.sku, v_order.order_number;
+        END IF;
+        IF p_quantity > v_remaining THEN
+            RAISE EXCEPTION 'Issue qty % exceeds remaining requirement % for item %',
+                p_quantity, v_remaining, v_item.sku;
+        END IF;
+    END IF;
+
     SELECT * INTO v_total_cost
     FROM inventory.deplete_inventory(
         p_item_serial_id, p_warehouse_serial, p_quantity, 'PRODUCTION', v_order.serial_id,
         p_user_uuid, NULL, NULL
     );
 
-    -- 4. Calculate unit cost safely
     v_unit_cost := CASE WHEN p_quantity > 0 THEN v_total_cost / p_quantity ELSE 0 END;
 
-    -- 5. Insert into material_issues
     INSERT INTO manufacturing.material_issues(
         production_order_uuid, stock_item_id, stock_item_name, warehouse_uuid, quantity, unit_cost, issued_at
     ) VALUES (
         p_production_order_uuid, v_item.serial_id, v_item.name, v_warehouse.uuid, p_quantity, v_unit_cost, now()
     ) RETURNING * INTO v_issue_row;
 
-    -- Update cost application table with the value of the materials
     INSERT INTO manufacturing.cost_applications(
         production_order_uuid, type, amount, applied_at, reference,
         source_account, destination_account
     ) VALUES (
         p_production_order_uuid, 'DirectMaterial', v_total_cost, now(),
         format('Material issue: %s units of item %s', p_quantity, v_item.name),
-        v_raw_mat_uuid, v_wip_uuid
+        p_raw_mat_uuid, p_wip_uuid
     );
 
-    -- 6. Update production order status
+    -- Keep requirement tracker in sync (single-item and bulk share this path)
+    IF v_pom_uuid IS NOT NULL THEN
+        UPDATE manufacturing.production_order_materials pom
+        SET issued_qty = pom.issued_qty + p_quantity,
+            status = CASE
+                WHEN pom.issued_qty + p_quantity >= pom.required_qty THEN 'FullyIssued'
+                WHEN pom.issued_qty + p_quantity > 0 THEN 'PartiallyIssued'
+                ELSE 'Pending'
+            END
+        WHERE pom.uuid = v_pom_uuid;
+    END IF;
+
     UPDATE manufacturing.production_orders
-    SET status = 'In Progress', updated_at = now()
+    SET status = CASE WHEN status = 'Planned' THEN 'In Progress' ELSE status END,
+        materials_status = CASE
+            WHEN NOT EXISTS (
+                SELECT 1 FROM manufacturing.production_order_materials
+                WHERE production_order_uuid = p_production_order_uuid
+                  AND status <> 'FullyIssued'
+            ) THEN 'Complete'
+            WHEN EXISTS (
+                SELECT 1 FROM manufacturing.production_order_materials
+                WHERE production_order_uuid = p_production_order_uuid
+                  AND issued_qty > 0
+            ) THEN 'Partial'
+            ELSE 'Pending'
+        END,
+        updated_at = now()
     WHERE uuid = p_production_order_uuid;
 
-    -- 7. Create a journal for RM > WIP
+    -- Unique ref per issue event (repeat issues of same item allowed)
     v_txn_serial := accounting.post_transaction(
-        v_order.order_number || '-MAT-' || p_item_serial_id::text,
+        v_order.order_number || '-MAT-' || v_issue_row.uuid::text,
         'Material To Work In Progress',
         p_user_uuid,
         'manufacturing',
         CURRENT_DATE,
         jsonb_build_array(
             jsonb_build_object(
-                'account_ref', v_wip_uuid, 'debit', v_total_cost, 'credit', 0,
-                'memo', format('Material issue on order %s',v_order.order_number)
+                'account_ref', p_wip_uuid, 'debit', v_total_cost, 'credit', 0,
+                'memo', format('Material issue on order %s', v_order.order_number)
             ),
             jsonb_build_object(
-                'account_ref', v_raw_mat_uuid, 'debit', 0, 'credit', v_total_cost,
-                'memo', format('Offset to WIP - order %s',v_order.order_number)
+                'account_ref', p_raw_mat_uuid, 'debit', 0, 'credit', v_total_cost,
+                'memo', format('Offset to WIP - order %s', v_order.order_number)
             )
         )
     );
@@ -1527,7 +1842,9 @@ WITH mat AS (
 ca AS (
     SELECT
         production_order_uuid,
-        COALESCE(SUM(amount) FILTER (WHERE type = 'DirectLabor'), 0) AS actual_labor,
+        COALESCE(SUM(amount) FILTER (WHERE type = 'ActualLabor'), 0) AS actual_labor,
+        COALESCE(SUM(amount) FILTER (WHERE type = 'DirectLabor'), 0) AS applied_labor,
+        COALESCE(SUM(amount) FILTER (WHERE type = 'IndirectLabor'), 0) AS indirect_labor,
         COALESCE(SUM(amount) FILTER (WHERE type = 'AppliedOverhead'), 0) AS applied_overhead,
         COALESCE(SUM(amount) FILTER (WHERE type = 'ActualOverhead'), 0) AS actual_overhead
     FROM manufacturing.cost_applications
@@ -1541,6 +1858,8 @@ SELECT
     po.status,
     COALESCE(mat.actual_material, 0) AS actual_material,
     COALESCE(ca.actual_labor, 0) AS actual_labor,
+    COALESCE(ca.applied_labor, 0) AS applied_labor,
+    COALESCE(ca.indirect_labor, 0) AS indirect_labor,
     COALESCE(ca.applied_overhead, 0) AS applied_overhead,
     COALESCE(ca.actual_overhead, 0) AS actual_overhead,
     po.material_usage_variance,
@@ -1553,7 +1872,7 @@ SELECT
     ) AS total_variance,
     (
         COALESCE(mat.actual_material, 0)
-        + COALESCE(ca.actual_labor, 0)
+        + COALESCE(NULLIF(ca.actual_labor, 0), ca.applied_labor, 0)
         + COALESCE(ca.applied_overhead, 0)
     ) / NULLIF(po.quantity_completed, 0) AS actual_unit_cost,
     i.standard_cost AS standard_unit_cost
@@ -1605,3 +1924,355 @@ LEFT JOIN ca ON ca.production_order_uuid = po.uuid;
 -- ALTER Table cost_applications add constraint cost_applications_type_check check(type in (
 --     'DirectLabor', 'Overhead', 'DirectMaterial', 'ActualOverview'
 -- ));
+
+
+-- Material reservation / shortage visibility (required vs on-hand at preferred/default WH)
+CREATE OR REPLACE VIEW manufacturing.v_order_material_availability AS
+SELECT
+    po.uuid AS production_order_uuid,
+    po.order_number,
+    po.status AS order_status,
+    pom.component_item_uuid,
+    i.sku,
+    i.name AS component_name,
+    pom.required_qty,
+    pom.issued_qty,
+    pom.required_qty - pom.issued_qty AS remaining_qty,
+    pom.status AS material_status,
+    COALESCE(pom.preferred_warehouse_serial, i.warehouse_serial) AS warehouse_serial,
+    w.uuid AS warehouse_uuid,
+    COALESCE(inventory.get_quantity_on_hand(i.uuid, w.uuid), 0) AS qty_on_hand,
+    GREATEST(
+        0,
+        (pom.required_qty - pom.issued_qty)
+        - COALESCE(inventory.get_quantity_on_hand(i.uuid, w.uuid), 0)
+    ) AS short_qty
+FROM manufacturing.production_orders po
+JOIN manufacturing.production_order_materials pom ON pom.production_order_uuid = po.uuid
+JOIN inventory.items i ON i.uuid = pom.component_item_uuid
+LEFT JOIN inventory.warehouses w
+  ON w.serial_id = COALESCE(pom.preferred_warehouse_serial, i.warehouse_serial)
+WHERE po.status IN ('Planned', 'In Progress');
+
+
+-- ============================================================================
+-- STAGE 6: Operation execution, scrap/rework, QC, light capacity
+-- ============================================================================
+
+-- Per-routing operation sequence (for existing DBs that still have global UNIQUE on sequence)
+DO $$ BEGIN
+    ALTER TABLE manufacturing.routing_operations DROP CONSTRAINT IF EXISTS routing_operations_sequence_key;
+EXCEPTION WHEN undefined_object THEN NULL;
+END $$;
+DO $$ BEGIN
+    ALTER TABLE manufacturing.routing_operations
+        ADD CONSTRAINT routing_operations_routing_seq_unique UNIQUE (routing_uuid, sequence);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+    ALTER TABLE manufacturing.work_centers ADD COLUMN IF NOT EXISTS capacity_hours_per_day numeric(12,2);
+    ALTER TABLE manufacturing.work_centers ADD COLUMN IF NOT EXISTS capacity_hours_per_week numeric(12,2);
+EXCEPTION WHEN others THEN NULL;
+END $$;
+
+CREATE TABLE IF NOT EXISTS manufacturing.operation_executions (
+    uuid uuid DEFAULT uuidv7() PRIMARY KEY,
+    production_order_uuid uuid NOT NULL REFERENCES manufacturing.production_orders (uuid) ON DELETE CASCADE,
+    routing_operation_uuid uuid REFERENCES manufacturing.routing_operations (uuid),
+    sequence smallint,
+    operation_name text NOT NULL,
+    work_center_code text,
+    status text NOT NULL DEFAULT 'Pending'
+        CHECK (status IN ('Pending', 'InProgress', 'Completed', 'Skipped')),
+    qty_started numeric(18,4) DEFAULT 0,
+    qty_completed numeric(18,4) DEFAULT 0,
+    qty_scrapped numeric(18,4) DEFAULT 0,
+    qty_reworked numeric(18,4) DEFAULT 0,
+    setup_minutes_actual numeric(18,4) DEFAULT 0,
+    run_minutes_actual numeric(18,4) DEFAULT 0,
+    machine_minutes_actual numeric(18,4) DEFAULT 0,
+    started_at timestamptz,
+    completed_at timestamptz,
+    operator_uuid uuid,
+    notes text,
+    created_at timestamptz DEFAULT now(),
+    updated_at timestamptz DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_op_exec_order
+    ON manufacturing.operation_executions (production_order_uuid);
+
+CREATE TABLE IF NOT EXISTS manufacturing.scrap_rework_events (
+    uuid uuid DEFAULT uuidv7() PRIMARY KEY,
+    production_order_uuid uuid NOT NULL REFERENCES manufacturing.production_orders (uuid) ON DELETE CASCADE,
+    operation_execution_uuid uuid REFERENCES manufacturing.operation_executions (uuid),
+    event_type text NOT NULL CHECK (event_type IN ('Scrap', 'Rework', 'Reject')),
+    quantity numeric(18,4) NOT NULL CHECK (quantity > 0),
+    reason_code text,
+    reason_text text,
+    disposition text CHECK (disposition IN ('Scrap', 'Rework', 'ReturnToStock', 'Hold')),
+    recorded_by uuid,
+    recorded_at timestamptz DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS manufacturing.quality_inspections (
+    uuid uuid DEFAULT uuidv7() PRIMARY KEY,
+    production_order_uuid uuid NOT NULL REFERENCES manufacturing.production_orders (uuid) ON DELETE CASCADE,
+    operation_execution_uuid uuid REFERENCES manufacturing.operation_executions (uuid),
+    inspection_type text NOT NULL DEFAULT 'InProcess'
+        CHECK (inspection_type IN ('Incoming', 'InProcess', 'Final')),
+    qty_inspected numeric(18,4) NOT NULL CHECK (qty_inspected > 0),
+    qty_passed numeric(18,4) NOT NULL DEFAULT 0,
+    qty_failed numeric(18,4) NOT NULL DEFAULT 0,
+    result text NOT NULL CHECK (result IN ('Pass', 'Fail', 'Conditional')),
+    inspector_uuid uuid,
+    notes text,
+    inspected_at timestamptz DEFAULT now(),
+    CONSTRAINT qi_qty_check CHECK (qty_passed + qty_failed <= qty_inspected)
+);
+
+-- Seed operation executions from pinned (or default) routing when order starts / on demand
+CREATE OR REPLACE FUNCTION manufacturing.ensure_operation_executions(
+    p_order_uuid uuid
+) RETURNS integer
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_order manufacturing.production_orders%ROWTYPE;
+    v_routing uuid;
+    v_count int := 0;
+BEGIN
+    SELECT * INTO STRICT v_order FROM manufacturing.production_orders WHERE uuid = p_order_uuid;
+    v_routing := v_order.routing_uuid;
+    IF v_routing IS NULL THEN
+        SELECT r.uuid INTO v_routing
+        FROM manufacturing.routings r
+        WHERE r.product_item_uuid = v_order.product_item_uuid AND r.status = 'active'
+        ORDER BY r.is_default DESC, r.created_at DESC
+        LIMIT 1;
+    END IF;
+    IF v_routing IS NULL THEN
+        RETURN 0;
+    END IF;
+
+    INSERT INTO manufacturing.operation_executions (
+        production_order_uuid, routing_operation_uuid, sequence, operation_name, work_center_code, status
+    )
+    SELECT
+        p_order_uuid, ro.uuid, ro.sequence, ro.operation_name, ro.work_center, 'Pending'
+    FROM manufacturing.routing_operations ro
+    WHERE ro.routing_uuid = v_routing
+      AND NOT EXISTS (
+          SELECT 1 FROM manufacturing.operation_executions oe
+          WHERE oe.production_order_uuid = p_order_uuid
+            AND oe.routing_operation_uuid = ro.uuid
+      )
+    ORDER BY ro.sequence;
+
+    GET DIAGNOSTICS v_count = ROW_COUNT;
+    RETURN v_count;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION manufacturing.start_operation(
+    p_execution_uuid uuid,
+    p_qty_started numeric DEFAULT NULL,
+    p_operator_uuid uuid DEFAULT NULL
+) RETURNS manufacturing.operation_executions
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_row manufacturing.operation_executions%ROWTYPE;
+    v_order manufacturing.production_orders%ROWTYPE;
+BEGIN
+    SELECT * INTO STRICT v_row FROM manufacturing.operation_executions
+    WHERE uuid = p_execution_uuid FOR UPDATE;
+
+    SELECT * INTO STRICT v_order FROM manufacturing.production_orders
+    WHERE uuid = v_row.production_order_uuid;
+
+    IF v_order.status NOT IN ('Planned', 'In Progress') THEN
+        RAISE EXCEPTION 'Order must be open to start an operation';
+    END IF;
+    IF v_row.status NOT IN ('Pending', 'InProgress') THEN
+        RAISE EXCEPTION 'Operation execution % cannot start from status %', p_execution_uuid, v_row.status;
+    END IF;
+
+    UPDATE manufacturing.operation_executions
+    SET status = 'InProgress',
+        started_at = COALESCE(started_at, now()),
+        qty_started = COALESCE(p_qty_started, qty_started, v_order.quantity_ordered),
+        operator_uuid = COALESCE(p_operator_uuid, operator_uuid),
+        updated_at = now()
+    WHERE uuid = p_execution_uuid
+    RETURNING * INTO v_row;
+
+    UPDATE manufacturing.production_orders
+    SET status = CASE WHEN status = 'Planned' THEN 'In Progress' ELSE status END,
+        updated_at = now()
+    WHERE uuid = v_row.production_order_uuid;
+
+    RETURN v_row;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION manufacturing.complete_operation(
+    p_execution_uuid uuid,
+    p_qty_completed numeric,
+    p_qty_scrapped numeric DEFAULT 0,
+    p_setup_minutes_actual numeric DEFAULT NULL,
+    p_run_minutes_actual numeric DEFAULT NULL,
+    p_machine_minutes_actual numeric DEFAULT NULL,
+    p_operator_uuid uuid DEFAULT NULL,
+    p_notes text DEFAULT NULL
+) RETURNS manufacturing.operation_executions
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_row manufacturing.operation_executions%ROWTYPE;
+BEGIN
+    SELECT * INTO STRICT v_row FROM manufacturing.operation_executions
+    WHERE uuid = p_execution_uuid FOR UPDATE;
+
+    IF v_row.status NOT IN ('Pending', 'InProgress') THEN
+        RAISE EXCEPTION 'Operation % is not open (status=%)', p_execution_uuid, v_row.status;
+    END IF;
+    IF p_qty_completed IS NULL OR p_qty_completed < 0 THEN
+        RAISE EXCEPTION 'qty_completed must be non-negative';
+    END IF;
+
+    UPDATE manufacturing.operation_executions
+    SET status = 'Completed',
+        qty_completed = p_qty_completed,
+        qty_scrapped = COALESCE(p_qty_scrapped, 0),
+        setup_minutes_actual = COALESCE(p_setup_minutes_actual, setup_minutes_actual),
+        run_minutes_actual = COALESCE(p_run_minutes_actual, run_minutes_actual),
+        machine_minutes_actual = COALESCE(p_machine_minutes_actual, machine_minutes_actual),
+        operator_uuid = COALESCE(p_operator_uuid, operator_uuid),
+        notes = COALESCE(p_notes, notes),
+        started_at = COALESCE(started_at, now()),
+        completed_at = now(),
+        updated_at = now()
+    WHERE uuid = p_execution_uuid
+    RETURNING * INTO v_row;
+
+    IF COALESCE(p_qty_scrapped, 0) > 0 THEN
+        INSERT INTO manufacturing.scrap_rework_events (
+            production_order_uuid, operation_execution_uuid, event_type, quantity, disposition
+        ) VALUES (
+            v_row.production_order_uuid, v_row.uuid, 'Scrap', p_qty_scrapped, 'Scrap'
+        );
+    END IF;
+
+    RETURN v_row;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION manufacturing.record_scrap_rework(
+    p_production_order_uuid uuid,
+    p_event_type text,
+    p_quantity numeric,
+    p_operation_execution_uuid uuid DEFAULT NULL,
+    p_reason_code text DEFAULT NULL,
+    p_reason_text text DEFAULT NULL,
+    p_disposition text DEFAULT NULL,
+    p_recorded_by uuid DEFAULT NULL
+) RETURNS manufacturing.scrap_rework_events
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_row manufacturing.scrap_rework_events%ROWTYPE;
+    v_disp text;
+BEGIN
+    IF p_event_type NOT IN ('Scrap', 'Rework', 'Reject') THEN
+        RAISE EXCEPTION 'event_type must be Scrap, Rework or Reject';
+    END IF;
+    IF p_quantity IS NULL OR p_quantity <= 0 THEN
+        RAISE EXCEPTION 'quantity must be positive';
+    END IF;
+
+    v_disp := COALESCE(p_disposition, CASE p_event_type
+        WHEN 'Rework' THEN 'Rework'
+        WHEN 'Reject' THEN 'Hold'
+        ELSE 'Scrap'
+    END);
+
+    INSERT INTO manufacturing.scrap_rework_events (
+        production_order_uuid, operation_execution_uuid, event_type, quantity,
+        reason_code, reason_text, disposition, recorded_by
+    ) VALUES (
+        p_production_order_uuid, p_operation_execution_uuid, p_event_type, p_quantity,
+        p_reason_code, p_reason_text, v_disp, p_recorded_by
+    )
+    RETURNING * INTO v_row;
+
+    IF p_operation_execution_uuid IS NOT NULL AND p_event_type = 'Scrap' THEN
+        UPDATE manufacturing.operation_executions
+        SET qty_scrapped = qty_scrapped + p_quantity, updated_at = now()
+        WHERE uuid = p_operation_execution_uuid;
+    ELSIF p_operation_execution_uuid IS NOT NULL AND p_event_type = 'Rework' THEN
+        UPDATE manufacturing.operation_executions
+        SET qty_reworked = qty_reworked + p_quantity, updated_at = now()
+        WHERE uuid = p_operation_execution_uuid;
+    END IF;
+
+    RETURN v_row;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION manufacturing.record_quality_inspection(
+    p_production_order_uuid uuid,
+    p_qty_inspected numeric,
+    p_qty_passed numeric,
+    p_qty_failed numeric,
+    p_result text,
+    p_inspection_type text DEFAULT 'InProcess',
+    p_operation_execution_uuid uuid DEFAULT NULL,
+    p_inspector_uuid uuid DEFAULT NULL,
+    p_notes text DEFAULT NULL
+) RETURNS manufacturing.quality_inspections
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_row manufacturing.quality_inspections%ROWTYPE;
+BEGIN
+    IF p_result NOT IN ('Pass', 'Fail', 'Conditional') THEN
+        RAISE EXCEPTION 'result must be Pass, Fail or Conditional';
+    END IF;
+    IF p_qty_inspected IS NULL OR p_qty_inspected <= 0 THEN
+        RAISE EXCEPTION 'qty_inspected must be positive';
+    END IF;
+    IF COALESCE(p_qty_passed,0) + COALESCE(p_qty_failed,0) > p_qty_inspected THEN
+        RAISE EXCEPTION 'passed + failed cannot exceed inspected';
+    END IF;
+
+    INSERT INTO manufacturing.quality_inspections (
+        production_order_uuid, operation_execution_uuid, inspection_type,
+        qty_inspected, qty_passed, qty_failed, result, inspector_uuid, notes
+    ) VALUES (
+        p_production_order_uuid, p_operation_execution_uuid, COALESCE(p_inspection_type, 'InProcess'),
+        p_qty_inspected, COALESCE(p_qty_passed, 0), COALESCE(p_qty_failed, 0),
+        p_result, p_inspector_uuid, p_notes
+    )
+    RETURNING * INTO v_row;
+
+    RETURN v_row;
+END;
+$$;
+
+-- Work-centre load vs capacity (open executions + actual minutes)
+CREATE OR REPLACE VIEW manufacturing.v_work_center_load AS
+SELECT
+    wc.code AS work_center_code,
+    wc.name,
+    wc.capacity_hours_per_day,
+    wc.capacity_hours_per_week,
+    COUNT(oe.uuid) FILTER (WHERE oe.status = 'InProgress') AS ops_in_progress,
+    COUNT(oe.uuid) FILTER (WHERE oe.status IN ('Pending', 'InProgress')) AS ops_open,
+    COALESCE(SUM(oe.run_minutes_actual + oe.setup_minutes_actual) FILTER (WHERE oe.status = 'Completed'), 0) / 60.0
+        AS completed_labour_hours,
+    COALESCE(SUM(oe.machine_minutes_actual) FILTER (WHERE oe.status = 'Completed'), 0) / 60.0
+        AS completed_machine_hours
+FROM manufacturing.work_centers wc
+LEFT JOIN manufacturing.operation_executions oe ON oe.work_center_code = wc.code
+GROUP BY wc.code, wc.name, wc.capacity_hours_per_day, wc.capacity_hours_per_week;

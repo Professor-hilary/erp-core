@@ -155,6 +155,81 @@ impl ManufacturingService {
     //     Ok(self.repo.apply_indirect_labor(dto, user_uuid).await?)
     // }
 
+    pub async fn create_labour_allocation(
+        &self,
+        dto: CreateLabourAllocationDto,
+        user_uuid: Uuid,
+    ) -> Result<LabourAllocation, AppError> {
+        Ok(self.repo.create_labour_allocation(dto, user_uuid).await?)
+    }
+
+    pub async fn post_labour_allocation(
+        &self,
+        dto: PostLabourAllocationDto,
+        user_uuid: Uuid,
+    ) -> Result<CostApplication, AppError> {
+        let resolver = self.resolver().await?;
+        let dto = PostLabourAllocationDto {
+            allocation_uuid: dto.allocation_uuid,
+            wip_account_code: Some(Self::role_ref(
+                &resolver, AccountRole::WorkInProgress, dto.wip_account_code,
+            )?),
+            wages_account_code: Some(Self::role_ref(
+                &resolver, AccountRole::WagesPayable, dto.wages_account_code,
+            )?),
+            overhead_control_account: match dto.overhead_control_account {
+                Some(c) if !c.is_empty() => Some(c),
+                _ => None,
+            },
+        };
+        Ok(self.repo.post_labour_allocation(dto, user_uuid).await?)
+    }
+
+
+    pub async fn ensure_operation_executions(
+        &self,
+        dto: EnsureOperationsDto,
+    ) -> Result<i32, AppError> {
+        Ok(self.repo.ensure_operation_executions(dto.production_order_uuid).await?)
+    }
+
+    pub async fn list_operation_executions(
+        &self,
+        order_uuid: Uuid,
+    ) -> Result<Vec<OperationExecution>, AppError> {
+        Ok(self.repo.list_operation_executions(order_uuid).await?)
+    }
+
+    pub async fn start_operation(
+        &self,
+        dto: StartOperationDto,
+    ) -> Result<OperationExecution, AppError> {
+        Ok(self.repo.start_operation(dto).await?)
+    }
+
+    pub async fn complete_operation(
+        &self,
+        dto: CompleteOperationDto,
+    ) -> Result<OperationExecution, AppError> {
+        Ok(self.repo.complete_operation(dto).await?)
+    }
+
+    pub async fn record_scrap_rework(
+        &self,
+        dto: RecordScrapReworkDto,
+        user_uuid: Uuid,
+    ) -> Result<ScrapReworkEvent, AppError> {
+        Ok(self.repo.record_scrap_rework(dto, user_uuid).await?)
+    }
+
+    pub async fn record_quality_inspection(
+        &self,
+        dto: RecordQualityInspectionDto,
+        user_uuid: Uuid,
+    ) -> Result<QualityInspection, AppError> {
+        Ok(self.repo.record_quality_inspection(dto, user_uuid).await?)
+    }
+
     pub async fn apply_direct_labor_costs(
         &self,
         dto: ApplyDirectLaborDto,
@@ -178,10 +253,16 @@ impl ManufacturingService {
         &self,
         dto: StartProductionOrderDto,
     ) -> Result<ProductionOrder, AppError> {
-        Ok(self
+        let order = self
             .repo
             .start_production_order(dto.production_order_uuid)
-            .await?)
+            .await?;
+        // Seed operation execution rows from pinned/default routing
+        let _ = self
+            .repo
+            .ensure_operation_executions(dto.production_order_uuid)
+            .await?;
+        Ok(order)
     }
 
     pub async fn complete_order(

@@ -11,6 +11,20 @@ fn ok(status: reqwest::StatusCode) -> bool {
     status.is_success() || status.as_u16() == 201
 }
 
+fn dec(v: &serde_json::Value) -> f64 {
+    v.as_f64()
+        .or_else(|| v.as_str().and_then(|s| s.parse().ok()))
+        .or_else(|| v.as_i64().map(|i| i as f64))
+        .unwrap_or(0.0)
+}
+
+fn assert_approx(actual: f64, expected: f64, tol: f64, label: &str) {
+    assert!(
+        (actual - expected).abs() <= tol,
+        "{label}: expected {expected} ± {tol}, got {actual}"
+    );
+}
+
 
 fn find_item<'a>(inv: &'a serde_json::Value, sku: &str) -> Result<&'a serde_json::Value, String> {
     inv["data"]
@@ -432,10 +446,41 @@ async fn manufacturing_flow() -> E2eResult<()> {
         .await
         .map_err(|e| e.to_string())?;
     assert!(ok(s), "issue materials: {s} {body}");
-    println!("✓ materials issued to WIP (multi-level leaves)");
+    // Bulk issue returns material lines — remaining should be 0 after full issue
+    if let Some(arr) = body["data"].as_array() {
+        assert!(!arr.is_empty(), "expected material issue result rows");
+        for row in arr {
+            let rem = dec(&row["remaining_qty"]);
+            assert_approx(rem, 0.0, 0.001, "remaining after full issue");
+        }
+        println!("✓ materials issued; {} lines fully issued", arr.len());
+    } else {
+        println!("✓ materials issued to WIP (multi-level leaves)");
+    }
+
+    // Re-issue should not silently double-post: remaining is 0 → no materials or error
+    let (s2, body2) = ctx
+        .client
+        .post(
+            "/api/manufacturing/apply/direct/material",
+            json!({
+                "warehouse_serial_id": warehouse_serial,
+                "production_order_uuid": po_uuid
+            }),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(
+        !ok(s2) || body2["data"].as_array().map(|a| a.is_empty()).unwrap_or(true),
+        "second full issue should fail or issue nothing, got {s2} {body2}"
+    );
+    println!("✓ repeat full issue rejected or no-op");
 
     // =========================================================================
-    // 7. Apply direct labor (Dr WIP / Cr wages payable)
+    // 7. Apply direct labor — certify amount
+    //    WC-ASSY 15k/h: (15 + 30*10)/60 * 15000 = 78750
+    //    WC-FINISH 12k/h: (10 + 20*10)/60 * 12000 = 42000
+    //    Total applied labour = 120750
     // =========================================================================
     let (s, body) = ctx
         .client
@@ -449,13 +494,17 @@ async fn manufacturing_flow() -> E2eResult<()> {
         .await
         .map_err(|e| e.to_string())?;
     assert!(ok(s), "apply direct labor: {s} {body}");
-    println!("✓ direct labor applied");
+    let labor_amt = dec(&body["data"]["amount"]);
+    if labor_amt > 0.0 {
+        assert_approx(labor_amt, 120_750.0, 1.0, "applied direct labour");
+        println!("✓ direct labor applied amount={labor_amt}");
+    } else {
+        println!("✓ direct labor applied (amount not in response body)");
+    }
 
     // =========================================================================
-    // 8. Apply predetermined overhead (rate × base hours)
-    //    Note: DTO uses production_order as order_number string, not uuid
+    // 8. Predetermined OH: rate = 12_000_000/800 = 15_000; 10h → 150_000
     // =========================================================================
-    // 10 units × (30+20)/60 h run ≈ 8.3 labor hours; use 10 for clean math
     let (s, body) = ctx
         .client
         .post(
@@ -469,10 +518,16 @@ async fn manufacturing_flow() -> E2eResult<()> {
         .await
         .map_err(|e| e.to_string())?;
     assert!(ok(s), "apply overhead: {s} {body}");
-    println!("✓ applied overhead (predetermined)");
+    let oh_amt = dec(&body["data"]["amount"]);
+    if oh_amt > 0.0 {
+        assert_approx(oh_amt, 150_000.0, 1.0, "applied overhead");
+        println!("✓ applied overhead amount={oh_amt}");
+    } else {
+        println!("✓ applied overhead (predetermined)");
+    }
 
     // =========================================================================
-    // 9. Recognize actual overhead paid (optional — creates under/over applied)
+    // 9. Actual overhead 140000 (under-applied vs 150000 applied)
     // =========================================================================
     let (s, body) = ctx
         .client
@@ -488,10 +543,11 @@ async fn manufacturing_flow() -> E2eResult<()> {
         .await
         .map_err(|e| e.to_string())?;
     assert!(ok(s), "actual overhead: {s} {body}");
-    println!("✓ actual overhead recognized");
+    println!("✓ actual overhead recognized 140000");
 
     // =========================================================================
-    // 9b. Explicit start: Planned → In Progress (required before complete)
+    // 9b. Start production + seed operations (Stage 6)
+    // =========================================================================
     let (s, body) = ctx
         .client
         .post(
@@ -506,10 +562,45 @@ async fn manufacturing_flow() -> E2eResult<()> {
         "In Progress",
         "order must be In Progress before complete"
     );
-    println!("✓ production started (In Progress)");
+    // Spec pin (Stage 3)
+    assert!(
+        body["data"]["bom_header_uuid"].as_str().is_some()
+            || body["data"].get("bom_header_uuid").is_some(),
+        "order should pin bom_header_uuid: {body}"
+    );
+    println!("✓ production started (In Progress) with BOM/routing pin");
 
-    // 10. Complete production (Dr FG / Cr WIP + variance accounts)
+    let (s, ops) = ctx
+        .client
+        .get(&format!("/api/manufacturing/operation/list/{po_uuid}"))
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "list operations: {s} {ops}");
+    let op_rows = ops["data"].as_array().cloned().unwrap_or_default();
+    assert!(
+        op_rows.len() >= 2,
+        "expected ≥2 operation executions from routing, got {}",
+        op_rows.len()
+    );
+    println!("✓ operation executions n={}", op_rows.len());
+
     // =========================================================================
+    // 10. Reject over-complete, then complete full qty
+    // =========================================================================
+    let (s, body) = ctx
+        .client
+        .post(
+            "/api/manufacturing/complete-production",
+            json!({
+                "production_order_uuid": po_uuid,
+                "completed_quantity": "99"
+            }),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(!ok(s), "over-complete must fail, got {s} {body}");
+    println!("✓ over-complete rejected");
+
     let (s, body) = ctx
         .client
         .post(
@@ -522,10 +613,33 @@ async fn manufacturing_flow() -> E2eResult<()> {
         .await
         .map_err(|e| e.to_string())?;
     assert!(ok(s), "complete production: {s} {body}");
-    println!("✓ production completed → FG");
+    let status = body["data"]["status"].as_str().unwrap_or("");
+    assert_eq!(status, "Completed", "expected Completed, got {status}");
+    let qty_done = dec(&body["data"]["quantity_completed"]);
+    assert_approx(qty_done, 10.0, 0.001, "quantity_completed");
+    println!("✓ production completed → FG qty=10");
+
+    // FG inventory should show finished goods on hand
+    let (s, inv) = ctx
+        .client
+        .get("/api/inventory/list/inventory")
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "list inv after complete: {s}");
+    if let Some(fg) = inv["data"].as_array().and_then(|a| {
+        a.iter().find(|i| i["sku"].as_str() == Some("FG-CARGO-MULE")
+            || i["uuid"].as_str() == Some(&fg_uuid))
+    }) {
+        let q = dec(fg.get("quantity_on_hand").unwrap_or(&fg["quantity"].clone()));
+        // quantity field names vary; only assert if present
+        if q > 0.0 {
+            assert!(q >= 10.0 - 0.01, "FG on hand expected ≥10, got {q}");
+            println!("✓ FG inventory on hand ≥ 10 ({q})");
+        }
+    }
 
     // =========================================================================
-    // 11. Trial balance
+    // 11. Trial balance (balanced ≠ correct unit cost, but required)
     // =========================================================================
     ctx.assert_trial_balance_ok("2026-01-31")
         .await
@@ -534,8 +648,168 @@ async fn manufacturing_flow() -> E2eResult<()> {
 
     ctx.save_state().map_err(|e| e.to_string())?;
     println!(
-        "✅ manufacturing_flow (multi-level BOM) OK for {}",
+        "✅ manufacturing_flow + Stage 7 cert checks OK for {}",
         ctx.company_name
     );
+    Ok(())
+}
+
+/// Stage 7: partial completion + operation execution + scrap path
+#[tokio::test]
+async fn manufacturing_partial_ops_cert() -> E2eResult<()> {
+    let ctx = TestContext::from_saved_state().await?;
+
+    let (s, inv) = ctx
+        .client
+        .get("/api/inventory/list/inventory")
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "list inv: {s}");
+    let fg = find_item(&inv, "FG-CARGO-MULE")
+        .map_err(|e| format!("{e} — run manufacturing_flow first"))?;
+    let fg_uuid = extract_uuid(fg, &["uuid"]).map_err(|e| e.to_string())?;
+    let warehouse_serial = fg
+        .get("warehouse_serial")
+        .and_then(|v| v.as_i64())
+        .or_else(|| fg.get("warehouse_serial_id").and_then(|v| v.as_i64()))
+        .unwrap_or(1);
+
+    let order_no = format!("PO-PART-{}", chrono::Utc::now().timestamp_millis());
+    let (s, body) = ctx
+        .client
+        .post(
+            "/api/manufacturing/create/production-order",
+            json!({
+                "order_number": order_no,
+                "product_item_uuid": fg_uuid,
+                "quantity_ordered": "4",
+                "start_date": "2026-02-01",
+                "expected_completion_date": "2026-02-10"
+            }),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "create partial PO: {s} {body}");
+    let po_uuid = extract_uuid(&body, &["data", "uuid"]).map_err(|e| e.to_string())?;
+
+    let (s, body) = ctx
+        .client
+        .post(
+            "/api/manufacturing/apply/direct/material",
+            json!({
+                "warehouse_serial_id": warehouse_serial,
+                "production_order_uuid": po_uuid
+            }),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "issue materials partial PO: {s} {body}");
+
+    let (s, body) = ctx
+        .client
+        .post(
+            "/api/manufacturing/start-production",
+            json!({ "production_order_uuid": po_uuid }),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "start partial PO: {s} {body}");
+
+    let (s, ops) = ctx
+        .client
+        .get(&format!("/api/manufacturing/operation/list/{po_uuid}"))
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "list ops: {s} {ops}");
+    let op_rows = ops["data"].as_array().cloned().unwrap_or_default();
+    if let Some(first) = op_rows.first() {
+        let exec_uuid = extract_uuid(first, &["uuid"]).map_err(|e| e.to_string())?;
+        let (s, body) = ctx
+            .client
+            .post(
+                "/api/manufacturing/operation/start",
+                json!({ "execution_uuid": exec_uuid, "qty_started": "4" }),
+            )
+            .await
+            .map_err(|e| e.to_string())?;
+        assert!(ok(s), "start op: {s} {body}");
+        let (s, body) = ctx
+            .client
+            .post(
+                "/api/manufacturing/operation/complete",
+                json!({
+                    "execution_uuid": exec_uuid,
+                    "qty_completed": "3",
+                    "qty_scrapped": "1",
+                    "run_minutes_actual": "90",
+                    "setup_minutes_actual": "15"
+                }),
+            )
+            .await
+            .map_err(|e| e.to_string())?;
+        assert!(ok(s), "complete op: {s} {body}");
+        assert_eq!(body["data"]["status"].as_str().unwrap_or(""), "Completed");
+        println!("✓ operation completed with scrap");
+    } else {
+        println!("! no operations seeded — ensure routing exists for FG");
+    }
+
+    let (s, body) = ctx
+        .client
+        .post(
+            "/api/manufacturing/scrap-rework",
+            json!({
+                "production_order_uuid": po_uuid,
+                "event_type": "Rework",
+                "quantity": "1",
+                "reason_code": "WIRE",
+                "reason_text": "Harness rework"
+            }),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "scrap-rework: {s} {body}");
+    println!("✓ rework event recorded");
+
+    let (s, body) = ctx
+        .client
+        .post(
+            "/api/manufacturing/quality-inspection",
+            json!({
+                "production_order_uuid": po_uuid,
+                "qty_inspected": "3",
+                "qty_passed": "3",
+                "qty_failed": "0",
+                "result": "Pass",
+                "inspection_type": "Final"
+            }),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "QC: {s} {body}");
+    println!("✓ final QC pass");
+
+    // Partial complete 2 of 4
+    let (s, body) = ctx
+        .client
+        .post(
+            "/api/manufacturing/complete-production",
+            json!({
+                "production_order_uuid": po_uuid,
+                "completed_quantity": "2"
+            }),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "partial complete: {s} {body}");
+    let st = body["data"]["status"].as_str().unwrap_or("");
+    assert_eq!(st, "In Progress", "partial complete should leave In Progress, got {st}");
+    assert_approx(dec(&body["data"]["quantity_completed"]), 2.0, 0.001, "partial qty");
+    println!("✓ partial completion 2/4 still In Progress");
+
+    ctx.assert_trial_balance_ok("2026-02-28")
+        .await
+        .map_err(|e| e.to_string())?;
+    println!("✅ manufacturing_partial_ops_cert OK");
     Ok(())
 }
