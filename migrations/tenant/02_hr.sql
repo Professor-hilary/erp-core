@@ -581,3 +581,81 @@ LEFT JOIN hr.employee_lifecycle lc ON lc.employee_uuid = e.uuid
 JOIN hr.offboarding_tasks t ON t.employee_uuid = e.uuid
 WHERE e.status IN ('Notice', 'Terminated')
 GROUP BY 1,2,3,4,5;
+
+
+-- ============================================================================
+-- Attendance (presence) — distinct from manufacturing time booking
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS hr.attendance_entries (
+    uuid uuid DEFAULT uuidv7() PRIMARY KEY,
+    employee_uuid uuid NOT NULL REFERENCES hr.employees(uuid) ON DELETE CASCADE,
+    work_date date NOT NULL,
+    status text NOT NULL DEFAULT 'Present'
+        CHECK (status IN ('Present', 'Absent', 'HalfDay', 'Leave', 'Holiday', 'Other')),
+    clock_in timestamptz,
+    clock_out timestamptz,
+    break_minutes numeric(10,2) NOT NULL DEFAULT 0,
+    hours_present numeric(18,4),
+    source text NOT NULL DEFAULT 'Manual'
+        CHECK (source IN ('Manual', 'Biometric', 'Import', 'System')),
+    notes text,
+    created_by uuid,
+    created_at timestamptz DEFAULT now(),
+    UNIQUE (employee_uuid, work_date)
+);
+CREATE INDEX IF NOT EXISTS idx_attendance_date ON hr.attendance_entries (work_date);
+CREATE INDEX IF NOT EXISTS idx_attendance_employee ON hr.attendance_entries (employee_uuid);
+
+CREATE OR REPLACE FUNCTION hr.upsert_attendance(
+    p_employee_uuid uuid,
+    p_work_date date,
+    p_status text DEFAULT 'Present',
+    p_clock_in timestamptz DEFAULT NULL,
+    p_clock_out timestamptz DEFAULT NULL,
+    p_break_minutes numeric DEFAULT 0,
+    p_hours_present numeric DEFAULT NULL,
+    p_source text DEFAULT 'Manual',
+    p_notes text DEFAULT NULL,
+    p_created_by uuid DEFAULT NULL
+) RETURNS hr.attendance_entries
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_hours numeric(18,4);
+    v_row hr.attendance_entries%ROWTYPE;
+BEGIN
+    v_hours := p_hours_present;
+    IF v_hours IS NULL AND p_clock_in IS NOT NULL AND p_clock_out IS NOT NULL THEN
+        v_hours := EXTRACT(EPOCH FROM (p_clock_out - p_clock_in)) / 3600.0
+                   - COALESCE(p_break_minutes, 0) / 60.0;
+    END IF;
+    IF v_hours IS NULL AND p_status = 'Present' THEN
+        v_hours := 8; -- default shift assumption
+    END IF;
+    IF v_hours IS NULL AND p_status = 'HalfDay' THEN
+        v_hours := 4;
+    END IF;
+    IF p_status IN ('Absent', 'Leave', 'Holiday') THEN
+        v_hours := COALESCE(v_hours, 0);
+    END IF;
+
+    INSERT INTO hr.attendance_entries (
+        employee_uuid, work_date, status, clock_in, clock_out,
+        break_minutes, hours_present, source, notes, created_by
+    ) VALUES (
+        p_employee_uuid, p_work_date, COALESCE(p_status, 'Present'),
+        p_clock_in, p_clock_out, COALESCE(p_break_minutes, 0),
+        v_hours, COALESCE(p_source, 'Manual'), p_notes, p_created_by
+    )
+    ON CONFLICT (employee_uuid, work_date) DO UPDATE SET
+        status = EXCLUDED.status,
+        clock_in = COALESCE(EXCLUDED.clock_in, hr.attendance_entries.clock_in),
+        clock_out = COALESCE(EXCLUDED.clock_out, hr.attendance_entries.clock_out),
+        break_minutes = EXCLUDED.break_minutes,
+        hours_present = EXCLUDED.hours_present,
+        source = EXCLUDED.source,
+        notes = COALESCE(EXCLUDED.notes, hr.attendance_entries.notes)
+    RETURNING * INTO v_row;
+    RETURN v_row;
+END;
+$$;

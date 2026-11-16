@@ -412,6 +412,479 @@ impl ManufacturingRepo {
     }
 
     // =============================== Labor Application ============================
+
+    pub async fn create_labour_category(
+        &self,
+        dto: CreateLabourCategoryDto,
+    ) -> Result<LabourCategory, AppError> {
+        let row = sqlx::query_as::<_, LabourCategory>(
+            r#"
+            INSERT INTO manufacturing.labour_categories (code, name, description)
+            VALUES ($1, $2, $3)
+            RETURNING *
+            "#,
+        )
+        .bind(&dto.code)
+        .bind(&dto.name)
+        .bind(dto.description.as_deref())
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(row)
+    }
+
+    pub async fn list_labour_categories(&self) -> Result<Vec<LabourCategory>, AppError> {
+        let rows = sqlx::query_as::<_, LabourCategory>(
+            "SELECT * FROM manufacturing.labour_categories WHERE is_active ORDER BY code",
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows)
+    }
+
+    pub async fn create_labour_rate(
+        &self,
+        dto: CreateLabourRateDto,
+    ) -> Result<LabourRate, AppError> {
+        let row = sqlx::query_as::<_, LabourRate>(
+            r#"
+            INSERT INTO manufacturing.labour_rates (
+                labour_category_uuid, employee_uuid, work_center_code,
+                rate_kind, hourly_rate, effective_from, effective_to, notes
+            ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+            RETURNING *
+            "#,
+        )
+        .bind(dto.labour_category_uuid)
+        .bind(dto.employee_uuid)
+        .bind(dto.work_center_code.as_deref())
+        .bind(&dto.rate_kind)
+        .bind(&dto.hourly_rate)
+        .bind(dto.effective_from)
+        .bind(dto.effective_to)
+        .bind(dto.notes.as_deref())
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(row)
+    }
+
+    pub async fn create_labour_time_entry(
+        &self,
+        dto: CreateLabourTimeEntryDto,
+        user_uuid: Uuid,
+    ) -> Result<LabourTimeEntry, AppError> {
+        let row = sqlx::query_as::<_, LabourTimeEntry>(
+            r#"
+            SELECT * FROM manufacturing.create_labour_time_entry(
+                $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15
+            )
+            "#,
+        )
+        .bind(dto.employee_uuid)
+        .bind(dto.work_date)
+        .bind(dto.hours)
+        .bind(dto.activity_type.as_deref().unwrap_or("Direct"))
+        .bind(dto.production_order_uuid)
+        .bind(dto.operation_execution_uuid)
+        .bind(dto.work_center_code.as_deref())
+        .bind(dto.labour_category_uuid)
+        .bind(dto.start_time)
+        .bind(dto.end_time)
+        .bind(dto.break_minutes)
+        .bind(dto.quantity_completed)
+        .bind(dto.quantity_scrapped)
+        .bind(dto.memo.as_deref())
+        .bind(user_uuid)
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(row)
+    }
+
+    pub async fn submit_labour_time_entry(
+        &self,
+        entry_uuid: Uuid,
+    ) -> Result<LabourTimeEntry, AppError> {
+        let row = sqlx::query_as::<_, LabourTimeEntry>(
+            "SELECT * FROM manufacturing.submit_labour_time_entry($1)",
+        )
+        .bind(entry_uuid)
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(row)
+    }
+
+    pub async fn approve_labour_time_entry(
+        &self,
+        dto: ApproveLabourTimeEntryDto,
+        approver: Uuid,
+    ) -> Result<LabourTimeEntry, AppError> {
+        let row = sqlx::query_as::<_, LabourTimeEntry>(
+            "SELECT * FROM manufacturing.approve_labour_time_entry($1, $2, $3)",
+        )
+        .bind(dto.entry_uuid)
+        .bind(approver)
+        .bind(dto.hourly_rate)
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(row)
+    }
+
+    pub async fn reject_labour_time_entry(
+        &self,
+        dto: RejectLabourTimeEntryDto,
+    ) -> Result<LabourTimeEntry, AppError> {
+        let row = sqlx::query_as::<_, LabourTimeEntry>(
+            "SELECT * FROM manufacturing.reject_labour_time_entry($1, $2)",
+        )
+        .bind(dto.entry_uuid)
+        .bind(dto.reason.as_deref())
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(row)
+    }
+
+    pub async fn post_labour_time_entry(
+        &self,
+        dto: PostLabourTimeEntryDto,
+        user_uuid: Uuid,
+    ) -> Result<CostApplication, AppError> {
+        let row = sqlx::query_as::<_, CostApplication>(
+            "SELECT * FROM manufacturing.post_labour_time_entry($1,$2,$3,$4,$5)",
+        )
+        .bind(dto.entry_uuid)
+        .bind(user_uuid)
+        .bind(dto.wip_account_code.as_deref().unwrap_or(""))
+        .bind(dto.wages_account_code.as_deref().unwrap_or(""))
+        .bind(dto.overhead_control_account.as_deref())
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(row)
+    }
+
+    pub async fn draft_time_from_operation(
+        &self,
+        dto: DraftTimeFromOperationDto,
+        user_uuid: Uuid,
+    ) -> Result<LabourTimeEntry, AppError> {
+        let row = sqlx::query_as::<_, LabourTimeEntry>(
+            "SELECT * FROM manufacturing.draft_time_entry_from_operation($1,$2,$3)",
+        )
+        .bind(dto.execution_uuid)
+        .bind(dto.employee_uuid)
+        .bind(user_uuid)
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(row)
+    }
+
+    pub async fn list_labour_time_entries_for_order(
+        &self,
+        order_uuid: Uuid,
+    ) -> Result<Vec<LabourTimeEntry>, AppError> {
+        let rows = sqlx::query_as::<_, LabourTimeEntry>(
+            r#"
+            SELECT * FROM manufacturing.labour_time_entries
+            WHERE production_order_uuid = $1
+            ORDER BY work_date, created_at
+            "#,
+        )
+        .bind(order_uuid)
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows)
+    }
+
+
+
+
+
+    pub async fn create_team_time_entries(
+        &self,
+        dto: CreateTeamTimeEntriesDto,
+        user_uuid: Uuid,
+    ) -> Result<Vec<LabourTimeEntry>, AppError> {
+        let rows = sqlx::query_as::<_, LabourTimeEntry>(
+            r#"
+            SELECT * FROM manufacturing.create_team_time_entries(
+                $1,$2,$3,$4,$5,$6,$7,$8,$9,$10
+            )
+            "#,
+        )
+        .bind(&dto.employee_uuids)
+        .bind(dto.work_date)
+        .bind(&dto.hours)
+        .bind(dto.activity_type.as_deref().unwrap_or("Direct"))
+        .bind(dto.production_order_uuid)
+        .bind(dto.operation_execution_uuid)
+        .bind(dto.work_center_code.as_deref())
+        .bind(dto.labour_category_uuid)
+        .bind(dto.memo.as_deref())
+        .bind(user_uuid)
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows)
+    }
+
+    pub async fn bulk_submit_time_entries(
+        &self,
+        entry_uuids: &[Uuid],
+    ) -> Result<i32, AppError> {
+        let n: (i32,) = sqlx::query_as(
+            "SELECT manufacturing.bulk_submit_time_entries($1)",
+        )
+        .bind(entry_uuids)
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(n.0)
+    }
+
+    pub async fn bulk_approve_time_entries(
+        &self,
+        entry_uuids: &[Uuid],
+        approver: Uuid,
+        hourly_rate: Option<BigDecimal>,
+    ) -> Result<i32, AppError> {
+        let n: (i32,) = sqlx::query_as(
+            "SELECT manufacturing.bulk_approve_time_entries($1,$2,$3)",
+        )
+        .bind(entry_uuids)
+        .bind(approver)
+        .bind(hourly_rate)
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(n.0)
+    }
+
+    pub async fn bulk_post_time_entries(
+        &self,
+        dto: BulkTimeEntryIdsDto,
+        user_uuid: Uuid,
+    ) -> Result<i32, AppError> {
+        let n: (i32,) = sqlx::query_as(
+            "SELECT manufacturing.bulk_post_time_entries($1,$2,$3,$4,$5)",
+        )
+        .bind(&dto.entry_uuids)
+        .bind(user_uuid)
+        .bind(dto.wip_account_code.as_deref().unwrap_or(""))
+        .bind(dto.wages_account_code.as_deref().unwrap_or(""))
+        .bind(dto.overhead_control_account.as_deref())
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(n.0)
+    }
+
+    pub async fn allocate_payrun_labour(
+        &self,
+        dto: AllocatePayrunLabourDto,
+        user_uuid: Uuid,
+    ) -> Result<Vec<PayrunLabourAllocationRow>, AppError> {
+        let rows = sqlx::query_as::<_, PayrunLabourAllocationRow>(
+            r#"
+            SELECT * FROM manufacturing.allocate_payrun_labour_to_orders(
+                $1,$2,$3,$4,$5
+            )
+            "#,
+        )
+        .bind(dto.payrun_uuid)
+        .bind(user_uuid)
+        .bind(dto.wip_account_code.as_deref().unwrap_or(""))
+        .bind(dto.labour_clearing_account.as_deref().unwrap_or(""))
+        .bind(dto.cost_basis.as_deref().unwrap_or("employer_cost"))
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows)
+    }
+
+    pub async fn draft_time_from_order_ops(
+        &self,
+        order_uuid: Uuid,
+        user_uuid: Uuid,
+    ) -> Result<Vec<LabourTimeEntry>, AppError> {
+        let rows = sqlx::query_as::<_, LabourTimeEntry>(
+            "SELECT * FROM manufacturing.draft_time_entries_from_order_ops($1,$2)",
+        )
+        .bind(order_uuid)
+        .bind(user_uuid)
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows)
+    }
+
+    pub async fn upsert_attendance(
+        &self,
+        dto: UpsertAttendanceDto,
+        user_uuid: Uuid,
+    ) -> Result<AttendanceEntry, AppError> {
+        let row = sqlx::query_as::<_, AttendanceEntry>(
+            r#"
+            SELECT * FROM hr.upsert_attendance(
+                $1,$2,$3,$4,$5,$6,$7,$8,$9,$10
+            )
+            "#,
+        )
+        .bind(dto.employee_uuid)
+        .bind(dto.work_date)
+        .bind(dto.status.as_deref().unwrap_or("Present"))
+        .bind(dto.clock_in)
+        .bind(dto.clock_out)
+        .bind(dto.break_minutes)
+        .bind(dto.hours_present)
+        .bind(dto.source.as_deref().unwrap_or("Manual"))
+        .bind(dto.notes.as_deref())
+        .bind(user_uuid)
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(row)
+    }
+
+    pub async fn labour_hours_reconciliation(
+        &self,
+        employee_uuid: Option<Uuid>,
+    ) -> Result<Vec<LabourHoursReconciliation>, AppError> {
+        let rows = if let Some(id) = employee_uuid {
+            sqlx::query_as::<_, LabourHoursReconciliation>(
+                "SELECT * FROM manufacturing.v_labour_hours_reconciliation WHERE employee_uuid = $1 ORDER BY work_date",
+            )
+            .bind(id)
+            .fetch_all(&self.pool)
+            .await?
+        } else {
+            sqlx::query_as::<_, LabourHoursReconciliation>(
+                "SELECT * FROM manufacturing.v_labour_hours_reconciliation ORDER BY work_date DESC LIMIT 500",
+            )
+            .fetch_all(&self.pool)
+            .await?
+        };
+        Ok(rows)
+    }
+
+    pub async fn labour_hours_reconciliation_period(
+        &self,
+    ) -> Result<Vec<LabourHoursReconciliationPeriod>, AppError> {
+        let rows = sqlx::query_as::<_, LabourHoursReconciliationPeriod>(
+            "SELECT * FROM manufacturing.v_labour_hours_reconciliation_period ORDER BY month_start DESC, employee_uuid",
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows)
+    }
+
+    pub async fn allocate_payslip_labour(
+        &self,
+        dto: AllocatePayslipLabourDto,
+        user_uuid: Uuid,
+    ) -> Result<Vec<PayslipLabourAllocationRow>, AppError> {
+        let rows = sqlx::query_as::<_, PayslipLabourAllocationRow>(
+            r#"
+            SELECT * FROM manufacturing.allocate_payslip_labour_to_orders(
+                $1, $2, $3, $4, $5
+            )
+            "#,
+        )
+        .bind(dto.payslip_uuid)
+        .bind(user_uuid)
+        .bind(dto.wip_account_code.as_deref().unwrap_or(""))
+        .bind(dto.labour_clearing_account.as_deref().unwrap_or(""))
+        .bind(dto.cost_basis.as_deref().unwrap_or("employer_cost"))
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows)
+    }
+
+    pub async fn labour_productivity_by_order(
+        &self,
+        order_uuid: Option<Uuid>,
+    ) -> Result<Vec<LabourProductivityByOrder>, AppError> {
+        let rows = if let Some(id) = order_uuid {
+            sqlx::query_as::<_, LabourProductivityByOrder>(
+                "SELECT * FROM manufacturing.v_labour_productivity_by_order WHERE production_order_uuid = $1",
+            )
+            .bind(id)
+            .fetch_all(&self.pool)
+            .await?
+        } else {
+            sqlx::query_as::<_, LabourProductivityByOrder>(
+                "SELECT * FROM manufacturing.v_labour_productivity_by_order ORDER BY order_number",
+            )
+            .fetch_all(&self.pool)
+            .await?
+        };
+        Ok(rows)
+    }
+
+    pub async fn labour_by_employee(
+        &self,
+    ) -> Result<Vec<LabourByEmployee>, AppError> {
+        let rows = sqlx::query_as::<_, LabourByEmployee>(
+            "SELECT * FROM manufacturing.v_labour_by_employee ORDER BY month_start DESC, employee_uuid",
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows)
+    }
+
+    pub async fn labour_by_work_center(
+        &self,
+    ) -> Result<Vec<LabourByWorkCenter>, AppError> {
+        let rows = sqlx::query_as::<_, LabourByWorkCenter>(
+            "SELECT * FROM manufacturing.v_labour_by_work_center ORDER BY month_start DESC, work_center_code",
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows)
+    }
+
+    pub async fn operation_efficiency(
+        &self,
+        order_uuid: Option<Uuid>,
+    ) -> Result<Vec<OperationEfficiency>, AppError> {
+        let rows = if let Some(id) = order_uuid {
+            sqlx::query_as::<_, OperationEfficiency>(
+                "SELECT * FROM manufacturing.v_operation_efficiency WHERE production_order_uuid = $1",
+            )
+            .bind(id)
+            .fetch_all(&self.pool)
+            .await?
+        } else {
+            sqlx::query_as::<_, OperationEfficiency>(
+                "SELECT * FROM manufacturing.v_operation_efficiency ORDER BY order_number, sequence",
+            )
+            .fetch_all(&self.pool)
+            .await?
+        };
+        Ok(rows)
+    }
+
+    pub async fn compute_labour_variances(
+        &self,
+        order_uuid: Uuid,
+        as_of: Option<chrono::NaiveDate>,
+    ) -> Result<LabourVariance, AppError> {
+        let row = sqlx::query_as::<_, LabourVariance>(
+            "SELECT * FROM manufacturing.compute_labour_variances($1, COALESCE($2, CURRENT_DATE))",
+        )
+        .bind(order_uuid)
+        .bind(as_of)
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(row)
+    }
+
+    pub async fn production_order_labour_summary(
+        &self,
+        order_uuid: Uuid,
+    ) -> Result<ProductionOrderLabourSummary, AppError> {
+        let row = sqlx::query_as::<_, ProductionOrderLabourSummary>(
+            r#"
+            SELECT * FROM manufacturing.v_production_order_labour
+            WHERE production_order_uuid = $1
+            "#,
+        )
+        .bind(order_uuid)
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(row)
+    }
+
     pub async fn create_labour_allocation(
         &self,
         dto: CreateLabourAllocationDto,

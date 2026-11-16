@@ -155,6 +155,243 @@ impl ManufacturingService {
     //     Ok(self.repo.apply_indirect_labor(dto, user_uuid).await?)
     // }
 
+
+    pub async fn create_labour_category(
+        &self,
+        dto: CreateLabourCategoryDto,
+    ) -> Result<LabourCategory, AppError> {
+        Ok(self.repo.create_labour_category(dto).await?)
+    }
+
+    pub async fn list_labour_categories(&self) -> Result<Vec<LabourCategory>, AppError> {
+        Ok(self.repo.list_labour_categories().await?)
+    }
+
+    pub async fn create_labour_rate(
+        &self,
+        dto: CreateLabourRateDto,
+    ) -> Result<LabourRate, AppError> {
+        Ok(self.repo.create_labour_rate(dto).await?)
+    }
+
+    pub async fn create_labour_time_entry(
+        &self,
+        dto: CreateLabourTimeEntryDto,
+        user_uuid: Uuid,
+    ) -> Result<LabourTimeEntry, AppError> {
+        Ok(self.repo.create_labour_time_entry(dto, user_uuid).await?)
+    }
+
+    pub async fn submit_labour_time_entry(
+        &self,
+        entry_uuid: Uuid,
+    ) -> Result<LabourTimeEntry, AppError> {
+        Ok(self.repo.submit_labour_time_entry(entry_uuid).await?)
+    }
+
+    pub async fn approve_labour_time_entry(
+        &self,
+        dto: ApproveLabourTimeEntryDto,
+        approver: Uuid,
+    ) -> Result<LabourTimeEntry, AppError> {
+        Ok(self.repo.approve_labour_time_entry(dto, approver).await?)
+    }
+
+    pub async fn reject_labour_time_entry(
+        &self,
+        dto: RejectLabourTimeEntryDto,
+    ) -> Result<LabourTimeEntry, AppError> {
+        Ok(self.repo.reject_labour_time_entry(dto).await?)
+    }
+
+    pub async fn post_labour_time_entry(
+        &self,
+        dto: PostLabourTimeEntryDto,
+        user_uuid: Uuid,
+    ) -> Result<CostApplication, AppError> {
+        let resolver = self.resolver().await?;
+        let dto = PostLabourTimeEntryDto {
+            entry_uuid: dto.entry_uuid,
+            wip_account_code: Some(Self::role_ref(
+                &resolver, AccountRole::WorkInProgress, dto.wip_account_code,
+            )?),
+            wages_account_code: Some(Self::role_ref(
+                &resolver, AccountRole::WagesPayable, dto.wages_account_code,
+            )?),
+            overhead_control_account: dto.overhead_control_account.filter(|s| !s.is_empty()),
+        };
+        Ok(self.repo.post_labour_time_entry(dto, user_uuid).await?)
+    }
+
+    pub async fn draft_time_from_operation(
+        &self,
+        dto: DraftTimeFromOperationDto,
+        user_uuid: Uuid,
+    ) -> Result<LabourTimeEntry, AppError> {
+        Ok(self.repo.draft_time_from_operation(dto, user_uuid).await?)
+    }
+
+    pub async fn list_labour_time_entries_for_order(
+        &self,
+        order_uuid: Uuid,
+    ) -> Result<Vec<LabourTimeEntry>, AppError> {
+        Ok(self.repo.list_labour_time_entries_for_order(order_uuid).await?)
+    }
+
+
+
+
+
+    pub async fn create_team_time_entries(
+        &self,
+        dto: CreateTeamTimeEntriesDto,
+        user_uuid: Uuid,
+    ) -> Result<Vec<LabourTimeEntry>, AppError> {
+        Ok(self.repo.create_team_time_entries(dto, user_uuid).await?)
+    }
+
+    pub async fn bulk_submit_time_entries(
+        &self,
+        entry_uuids: Vec<Uuid>,
+    ) -> Result<i32, AppError> {
+        Ok(self.repo.bulk_submit_time_entries(&entry_uuids).await?)
+    }
+
+    pub async fn bulk_approve_time_entries(
+        &self,
+        dto: BulkTimeEntryIdsDto,
+        approver: Uuid,
+    ) -> Result<i32, AppError> {
+        Ok(self
+            .repo
+            .bulk_approve_time_entries(&dto.entry_uuids, approver, dto.hourly_rate)
+            .await?)
+    }
+
+    pub async fn bulk_post_time_entries(
+        &self,
+        dto: BulkTimeEntryIdsDto,
+        user_uuid: Uuid,
+    ) -> Result<i32, AppError> {
+        let resolver = self.resolver().await?;
+        let dto = BulkTimeEntryIdsDto {
+            entry_uuids: dto.entry_uuids,
+            hourly_rate: dto.hourly_rate,
+            wip_account_code: Some(Self::role_ref(
+                &resolver, AccountRole::WorkInProgress, dto.wip_account_code,
+            )?),
+            wages_account_code: Some(Self::role_ref(
+                &resolver, AccountRole::WagesPayable, dto.wages_account_code,
+            )?),
+            overhead_control_account: dto.overhead_control_account,
+        };
+        Ok(self.repo.bulk_post_time_entries(dto, user_uuid).await?)
+    }
+
+    pub async fn allocate_payrun_labour(
+        &self,
+        dto: AllocatePayrunLabourDto,
+        user_uuid: Uuid,
+    ) -> Result<Vec<PayrunLabourAllocationRow>, AppError> {
+        let resolver = self.resolver().await?;
+        let dto = AllocatePayrunLabourDto {
+            payrun_uuid: dto.payrun_uuid,
+            wip_account_code: Some(Self::role_ref(
+                &resolver, AccountRole::WorkInProgress, dto.wip_account_code,
+            )?),
+            labour_clearing_account: Some(Self::role_ref(
+                &resolver, AccountRole::WagesPayable, dto.labour_clearing_account,
+            )?),
+            cost_basis: dto.cost_basis,
+        };
+        Ok(self.repo.allocate_payrun_labour(dto, user_uuid).await?)
+    }
+
+    pub async fn draft_time_from_order_ops(
+        &self,
+        order_uuid: Uuid,
+        user_uuid: Uuid,
+    ) -> Result<Vec<LabourTimeEntry>, AppError> {
+        Ok(self.repo.draft_time_from_order_ops(order_uuid, user_uuid).await?)
+    }
+
+    pub async fn upsert_attendance(
+        &self,
+        dto: UpsertAttendanceDto,
+        user_uuid: Uuid,
+    ) -> Result<AttendanceEntry, AppError> {
+        Ok(self.repo.upsert_attendance(dto, user_uuid).await?)
+    }
+
+    pub async fn labour_hours_reconciliation(
+        &self,
+        employee_uuid: Option<Uuid>,
+    ) -> Result<Vec<LabourHoursReconciliation>, AppError> {
+        Ok(self.repo.labour_hours_reconciliation(employee_uuid).await?)
+    }
+
+    pub async fn labour_hours_reconciliation_period(
+        &self,
+    ) -> Result<Vec<LabourHoursReconciliationPeriod>, AppError> {
+        Ok(self.repo.labour_hours_reconciliation_period().await?)
+    }
+
+    pub async fn allocate_payslip_labour(
+        &self,
+        dto: AllocatePayslipLabourDto,
+        user_uuid: Uuid,
+    ) -> Result<Vec<PayslipLabourAllocationRow>, AppError> {
+        let resolver = self.resolver().await?;
+        let dto = AllocatePayslipLabourDto {
+            payslip_uuid: dto.payslip_uuid,
+            wip_account_code: Some(Self::role_ref(
+                &resolver, AccountRole::WorkInProgress, dto.wip_account_code,
+            )?),
+            labour_clearing_account: Some(Self::role_ref(
+                &resolver, AccountRole::WagesPayable, dto.labour_clearing_account,
+            )?),
+            cost_basis: dto.cost_basis,
+        };
+        Ok(self.repo.allocate_payslip_labour(dto, user_uuid).await?)
+    }
+
+    pub async fn labour_productivity_by_order(
+        &self,
+        order_uuid: Option<Uuid>,
+    ) -> Result<Vec<LabourProductivityByOrder>, AppError> {
+        Ok(self.repo.labour_productivity_by_order(order_uuid).await?)
+    }
+
+    pub async fn labour_by_employee(&self) -> Result<Vec<LabourByEmployee>, AppError> {
+        Ok(self.repo.labour_by_employee().await?)
+    }
+
+    pub async fn labour_by_work_center(&self) -> Result<Vec<LabourByWorkCenter>, AppError> {
+        Ok(self.repo.labour_by_work_center().await?)
+    }
+
+    pub async fn operation_efficiency(
+        &self,
+        order_uuid: Option<Uuid>,
+    ) -> Result<Vec<OperationEfficiency>, AppError> {
+        Ok(self.repo.operation_efficiency(order_uuid).await?)
+    }
+
+    pub async fn compute_labour_variances(
+        &self,
+        order_uuid: Uuid,
+        as_of: Option<chrono::NaiveDate>,
+    ) -> Result<LabourVariance, AppError> {
+        Ok(self.repo.compute_labour_variances(order_uuid, as_of).await?)
+    }
+
+    pub async fn production_order_labour_summary(
+        &self,
+        order_uuid: Uuid,
+    ) -> Result<ProductionOrderLabourSummary, AppError> {
+        Ok(self.repo.production_order_labour_summary(order_uuid).await?)
+    }
+
     pub async fn create_labour_allocation(
         &self,
         dto: CreateLabourAllocationDto,

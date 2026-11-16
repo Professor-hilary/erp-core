@@ -555,3 +555,375 @@ pub struct RecordQualityInspectionDto {
     #[serde(default)]
     pub notes: Option<String>,
 }
+
+
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+pub struct LabourCategory {
+    pub uuid: Uuid,
+    pub code: String,
+    pub name: String,
+    pub description: Option<String>,
+    pub is_active: bool,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CreateLabourCategoryDto {
+    pub code: String,
+    pub name: String,
+    #[serde(default)]
+    pub description: Option<String>,
+}
+
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+pub struct LabourRate {
+    pub uuid: Uuid,
+    pub labour_category_uuid: Option<Uuid>,
+    pub employee_uuid: Option<Uuid>,
+    pub work_center_code: Option<String>,
+    pub rate_kind: String, // Standard | Actual
+    pub hourly_rate: BigDecimal,
+    pub effective_from: chrono::NaiveDate,
+    pub effective_to: Option<chrono::NaiveDate>,
+    pub currency_code: Option<String>,
+    pub notes: Option<String>,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CreateLabourRateDto {
+    #[serde(default)]
+    pub labour_category_uuid: Option<Uuid>,
+    #[serde(default)]
+    pub employee_uuid: Option<Uuid>,
+    #[serde(default)]
+    pub work_center_code: Option<String>,
+    /// Standard | Actual
+    pub rate_kind: String,
+    pub hourly_rate: BigDecimal,
+    pub effective_from: chrono::NaiveDate,
+    #[serde(default)]
+    pub effective_to: Option<chrono::NaiveDate>,
+    #[serde(default)]
+    pub notes: Option<String>,
+}
+
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+pub struct LabourTimeEntry {
+    pub uuid: Uuid,
+    pub employee_uuid: Uuid,
+    pub production_order_uuid: Option<Uuid>,
+    pub operation_execution_uuid: Option<Uuid>,
+    pub work_center_code: Option<String>,
+    pub labour_category_uuid: Option<Uuid>,
+    pub work_date: chrono::NaiveDate,
+    pub start_time: Option<DateTime<Utc>>,
+    pub end_time: Option<DateTime<Utc>>,
+    pub break_minutes: BigDecimal,
+    pub hours: Option<BigDecimal>,
+    pub activity_type: String,
+    pub quantity_completed: Option<BigDecimal>,
+    pub quantity_scrapped: Option<BigDecimal>,
+    pub status: String,
+    pub hourly_rate: Option<BigDecimal>,
+    pub amount: Option<BigDecimal>,
+    pub memo: Option<String>,
+    pub submitted_at: Option<DateTime<Utc>>,
+    pub approved_at: Option<DateTime<Utc>>,
+    pub approved_by: Option<Uuid>,
+    pub rejection_reason: Option<String>,
+    pub labour_allocation_uuid: Option<Uuid>,
+    pub created_by: Option<Uuid>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CreateLabourTimeEntryDto {
+    pub employee_uuid: Uuid,
+    pub work_date: chrono::NaiveDate,
+    #[serde(default)]
+    pub hours: Option<BigDecimal>,
+    #[serde(default)]
+    pub activity_type: Option<String>,
+    #[serde(default)]
+    pub production_order_uuid: Option<Uuid>,
+    #[serde(default)]
+    pub operation_execution_uuid: Option<Uuid>,
+    #[serde(default)]
+    pub work_center_code: Option<String>,
+    #[serde(default)]
+    pub labour_category_uuid: Option<Uuid>,
+    #[serde(default)]
+    pub start_time: Option<DateTime<Utc>>,
+    #[serde(default)]
+    pub end_time: Option<DateTime<Utc>>,
+    #[serde(default)]
+    pub break_minutes: Option<BigDecimal>,
+    #[serde(default)]
+    pub quantity_completed: Option<BigDecimal>,
+    #[serde(default)]
+    pub quantity_scrapped: Option<BigDecimal>,
+    #[serde(default)]
+    pub memo: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ApproveLabourTimeEntryDto {
+    pub entry_uuid: Uuid,
+    #[serde(default)]
+    pub hourly_rate: Option<BigDecimal>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct RejectLabourTimeEntryDto {
+    pub entry_uuid: Uuid,
+    #[serde(default)]
+    pub reason: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct PostLabourTimeEntryDto {
+    pub entry_uuid: Uuid,
+    #[serde(default)]
+    pub wip_account_code: Option<String>,
+    #[serde(default)]
+    pub wages_account_code: Option<String>,
+    #[serde(default)]
+    pub overhead_control_account: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct DraftTimeFromOperationDto {
+    pub execution_uuid: Uuid,
+    #[serde(default)]
+    pub employee_uuid: Option<Uuid>,
+}
+
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+pub struct ProductionOrderLabourSummary {
+    pub production_order_uuid: Uuid,
+    pub order_number: String,
+    pub order_status: Option<String>,
+    pub applied_labour: BigDecimal,
+    pub actual_labour: BigDecimal,
+    pub indirect_labour: BigDecimal,
+    pub actual_direct_hours: BigDecimal,
+    pub open_timesheet_hours: BigDecimal,
+    pub labour_cost_variance: BigDecimal,
+    pub standard_hours: Option<BigDecimal>,
+    pub variance_actual_hours: Option<BigDecimal>,
+    pub standard_rate: Option<BigDecimal>,
+    pub actual_rate: Option<BigDecimal>,
+    pub rate_variance: Option<BigDecimal>,
+    pub efficiency_variance: Option<BigDecimal>,
+    pub last_computed_total_variance: Option<BigDecimal>,
+}
+
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+pub struct LabourVariance {
+    pub uuid: Uuid,
+    pub production_order_uuid: Uuid,
+    pub as_of_date: chrono::NaiveDate,
+    pub standard_hours: BigDecimal,
+    pub actual_hours: BigDecimal,
+    pub standard_rate: BigDecimal,
+    pub actual_rate: BigDecimal,
+    pub applied_labour_cost: BigDecimal,
+    pub actual_labour_cost: BigDecimal,
+    pub rate_variance: BigDecimal,
+    pub efficiency_variance: BigDecimal,
+    pub total_variance: BigDecimal,
+    pub posted: bool,
+    pub cost_application_uuid: Option<Uuid>,
+    pub notes: Option<String>,
+    pub created_at: DateTime<Utc>,
+}
+
+
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+pub struct LabourProductivityByOrder {
+    pub production_order_uuid: Uuid,
+    pub order_number: String,
+    pub status: Option<String>,
+    pub quantity_ordered: Option<BigDecimal>,
+    pub quantity_completed: Option<BigDecimal>,
+    pub direct_hours: BigDecimal,
+    pub non_productive_hours: BigDecimal,
+    pub timesheet_cost: BigDecimal,
+    pub units_per_direct_hour: Option<BigDecimal>,
+    pub actual_labour_cost_per_unit: Option<BigDecimal>,
+}
+
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+pub struct LabourByEmployee {
+    pub employee_uuid: Uuid,
+    pub month_start: chrono::NaiveDate,
+    pub posted_hours: BigDecimal,
+    pub productive_hours: BigDecimal,
+    pub non_productive_hours: BigDecimal,
+    pub posted_cost: BigDecimal,
+    pub utilisation_pct: Option<BigDecimal>,
+}
+
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+pub struct LabourByWorkCenter {
+    pub work_center_code: String,
+    pub month_start: chrono::NaiveDate,
+    pub posted_entries: i64,
+    pub posted_hours: BigDecimal,
+    pub posted_cost: BigDecimal,
+    pub qty_completed: BigDecimal,
+}
+
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+pub struct OperationEfficiency {
+    pub execution_uuid: Uuid,
+    pub production_order_uuid: Uuid,
+    pub order_number: Option<String>,
+    pub sequence: Option<i16>,
+    pub operation_name: Option<String>,
+    pub work_center_code: Option<String>,
+    pub status: Option<String>,
+    pub actual_minutes: BigDecimal,
+    pub standard_minutes: Option<BigDecimal>,
+    pub efficiency_pct: Option<BigDecimal>,
+}
+
+
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+pub struct AttendanceEntry {
+    pub uuid: Uuid,
+    pub employee_uuid: Uuid,
+    pub work_date: chrono::NaiveDate,
+    pub status: String,
+    pub clock_in: Option<DateTime<Utc>>,
+    pub clock_out: Option<DateTime<Utc>>,
+    pub break_minutes: BigDecimal,
+    pub hours_present: Option<BigDecimal>,
+    pub source: String,
+    pub notes: Option<String>,
+    pub created_by: Option<Uuid>,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct UpsertAttendanceDto {
+    pub employee_uuid: Uuid,
+    pub work_date: chrono::NaiveDate,
+    #[serde(default)]
+    pub status: Option<String>,
+    #[serde(default)]
+    pub clock_in: Option<DateTime<Utc>>,
+    #[serde(default)]
+    pub clock_out: Option<DateTime<Utc>>,
+    #[serde(default)]
+    pub break_minutes: Option<BigDecimal>,
+    #[serde(default)]
+    pub hours_present: Option<BigDecimal>,
+    #[serde(default)]
+    pub source: Option<String>,
+    #[serde(default)]
+    pub notes: Option<String>,
+}
+
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+pub struct LabourHoursReconciliation {
+    pub employee_uuid: Uuid,
+    pub work_date: chrono::NaiveDate,
+    pub attendance_hours: BigDecimal,
+    pub booked_hours: BigDecimal,
+    pub productive_hours: BigDecimal,
+    pub unallocated_hours: BigDecimal,
+    pub booking_coverage_pct: Option<BigDecimal>,
+}
+
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+pub struct LabourHoursReconciliationPeriod {
+    pub employee_uuid: Uuid,
+    pub month_start: chrono::NaiveDate,
+    pub attendance_hours: BigDecimal,
+    pub booked_hours: BigDecimal,
+    pub productive_hours: BigDecimal,
+    pub unallocated_hours: BigDecimal,
+    pub booking_coverage_pct: Option<BigDecimal>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct AllocatePayslipLabourDto {
+    pub payslip_uuid: Uuid,
+    #[serde(default)]
+    pub wip_account_code: Option<String>,
+    #[serde(default)]
+    pub labour_clearing_account: Option<String>,
+    /// employer_cost | gross | basic
+    #[serde(default)]
+    pub cost_basis: Option<String>,
+}
+
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+pub struct PayslipLabourAllocationRow {
+    pub production_order_uuid: Uuid,
+    pub allocated_amount: BigDecimal,
+    pub hours_share: BigDecimal,
+    pub cost_application_uuid: Uuid,
+}
+
+
+#[derive(Debug, Deserialize)]
+pub struct CreateTeamTimeEntriesDto {
+    pub employee_uuids: Vec<Uuid>,
+    pub work_date: chrono::NaiveDate,
+    pub hours: BigDecimal,
+    #[serde(default)]
+    pub activity_type: Option<String>,
+    #[serde(default)]
+    pub production_order_uuid: Option<Uuid>,
+    #[serde(default)]
+    pub operation_execution_uuid: Option<Uuid>,
+    #[serde(default)]
+    pub work_center_code: Option<String>,
+    #[serde(default)]
+    pub labour_category_uuid: Option<Uuid>,
+    #[serde(default)]
+    pub memo: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct BulkTimeEntryIdsDto {
+    pub entry_uuids: Vec<Uuid>,
+    #[serde(default)]
+    pub hourly_rate: Option<BigDecimal>,
+    #[serde(default)]
+    pub wip_account_code: Option<String>,
+    #[serde(default)]
+    pub wages_account_code: Option<String>,
+    #[serde(default)]
+    pub overhead_control_account: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct AllocatePayrunLabourDto {
+    pub payrun_uuid: Uuid,
+    #[serde(default)]
+    pub wip_account_code: Option<String>,
+    #[serde(default)]
+    pub labour_clearing_account: Option<String>,
+    #[serde(default)]
+    pub cost_basis: Option<String>,
+}
+
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+pub struct PayrunLabourAllocationRow {
+    pub payslip_uuid: Uuid,
+    pub production_order_uuid: Option<Uuid>,
+    pub allocated_amount: BigDecimal,
+    pub hours_share: BigDecimal,
+    pub cost_application_uuid: Option<Uuid>,
+    pub status: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct DraftTimeFromOrderDto {
+    pub production_order_uuid: Uuid,
+}
