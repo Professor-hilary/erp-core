@@ -2860,7 +2860,7 @@ BEGIN
         v_std_hours, v_act_hours, v_std_rate, v_act_rate,
         v_app_cost, v_act_cost,
         v_rate_var, v_eff_var, v_tot,
-        format('SH=%.4f AH=%.4f SR=%.4f AR=%.4f', v_std_hours, v_act_hours, v_std_rate, v_act_rate)
+        format('SH=%s AH=%s SR=%s AR=%s', v_std_hours, v_act_hours, v_std_rate, v_act_rate)
     )
     RETURNING * INTO v_row;
 
