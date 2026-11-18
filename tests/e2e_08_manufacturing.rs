@@ -1181,3 +1181,170 @@ async fn manufacturing_labour_std_only_no_false_actual() -> E2eResult<()> {
     println!("✓ std-only applied={applied} actual={actual} (no false actual)");
     Ok(())
 }
+
+
+/// Standard applied + actual timesheet on the SAME order — exact variance.
+/// Applied (routing qty 10) = 120,750; actual = 9h × 15,000 = 135,000; variance = 14,250 U.
+#[tokio::test]
+async fn manufacturing_labour_std_plus_actual_cert() -> E2eResult<()> {
+    let ctx = TestContext::from_saved_state().await?;
+
+    let (s, emps) = ctx
+        .client
+        .get("/api/workforce/list/employees")
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "list employees: {s}");
+    let emp_rows = emps["data"].as_array().cloned().unwrap_or_default();
+    assert!(emp_rows.len() >= 1, "need an employee");
+    let emp1 = extract_uuid(&emp_rows[0], &["uuid"]).map_err(|e| e.to_string())?;
+
+    let (s, inv) = ctx
+        .client
+        .get("/api/inventory/list/inventory")
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "list inv: {s}");
+    let fg = find_item(&inv, "FG-CARGO-MULE").map_err(|e| e.to_string())?;
+    let fg_uuid = extract_uuid(fg, &["uuid"]).map_err(|e| e.to_string())?;
+
+    let order_no = format!("PO-STD-ACT-{}", chrono::Utc::now().timestamp_millis());
+    let (s, body) = ctx
+        .client
+        .post(
+            "/api/manufacturing/create/production-order",
+            json!({
+                "order_number": order_no,
+                "product_item_uuid": fg_uuid,
+                "quantity_ordered": "10",
+                "start_date": "2026-02-10",
+                "expected_completion_date": "2026-02-20"
+            }),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "create PO: {s} {body}");
+    let po_uuid = extract_uuid(&body, &["data", "uuid"]).map_err(|e| e.to_string())?;
+
+    let (s, body) = ctx
+        .client
+        .post(
+            "/api/manufacturing/apply/direct/labor",
+            json!({ "production_order_uuid": po_uuid }),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "apply labor: {s} {body}");
+
+    let (s, sum0) = ctx
+        .client
+        .get(&format!("/api/manufacturing/labour/summary/{po_uuid}"))
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "summary after apply: {s} {sum0}");
+    let applied = dec(sum0["data"].get("applied_labour").unwrap_or(&json!(0)));
+    assert_approx(applied, 120_750.0, 1.0, "applied labour qty10 routing");
+    println!("✓ applied labour={applied}");
+
+    let (s, cats) = ctx
+        .client
+        .get("/api/manufacturing/labour/categories")
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "categories: {s}");
+    let cat_uuid = cats["data"]
+        .as_array()
+        .and_then(|a| {
+            a.iter()
+                .find(|c| c["code"].as_str() == Some("ASSY"))
+                .and_then(|c| c["uuid"].as_str())
+        })
+        .map(|s| s.to_string());
+
+    if let Some(ref cu) = cat_uuid {
+        let _ = ctx
+            .client
+            .post(
+                "/api/manufacturing/labour/rates",
+                json!({
+                    "labour_category_uuid": cu,
+                    "rate_kind": "Actual",
+                    "hourly_rate": "15000",
+                    "effective_from": "2026-01-01"
+                }),
+            )
+            .await;
+    }
+
+    let (s, body) = ctx
+        .client
+        .post(
+            "/api/manufacturing/timesheet/team",
+            json!({
+                "employee_uuids": [emp1],
+                "work_date": "2026-02-12",
+                "hours": "9",
+                "activity_type": "Direct",
+                "production_order_uuid": po_uuid,
+                "work_center_code": "WC-ASSY",
+                "labour_category_uuid": cat_uuid,
+                "memo": "std+actual cert 9h"
+            }),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "timesheet: {s} {body}");
+    let entries = body["data"].as_array().cloned().unwrap_or_default();
+    let entry_ids: Vec<_> = entries
+        .iter()
+        .filter_map(|e| e["uuid"].as_str().map(|s| s.to_string()))
+        .collect();
+    assert!(!entry_ids.is_empty(), "expected timesheet entry");
+
+    for path in [
+        "/api/manufacturing/timesheet/bulk-submit",
+        "/api/manufacturing/timesheet/bulk-approve",
+        "/api/manufacturing/timesheet/bulk-post",
+    ] {
+        let (s, body) = ctx
+            .client
+            .post(path, json!({ "entry_uuids": entry_ids }))
+            .await
+            .map_err(|e| e.to_string())?;
+        assert!(ok(s), "{path}: {s} {body}");
+    }
+    println!("✓ actual labour posted 9h × 15000 = 135000");
+
+    let (s, sum) = ctx
+        .client
+        .get(&format!("/api/manufacturing/labour/summary/{po_uuid}"))
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "summary: {s} {sum}");
+    let applied = dec(sum["data"].get("applied_labour").unwrap_or(&json!(0)));
+    let actual = dec(sum["data"].get("actual_labour").unwrap_or(&json!(0)));
+    let cost_var = dec(sum["data"].get("labour_cost_variance").unwrap_or(&json!(0)));
+    assert_approx(applied, 120_750.0, 1.0, "applied still 120750");
+    assert_approx(actual, 135_000.0, 1.0, "actual 9h×15k");
+    assert_approx(cost_var, 14_250.0, 1.0, "unfavourable variance 14250");
+    println!("✓ std+actual applied={applied} actual={actual} variance={cost_var}");
+
+    let (s, var) = ctx
+        .client
+        .post(
+            &format!("/api/manufacturing/labour/variances/{po_uuid}"),
+            json!({}),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "compute variances: {s} {var}");
+    let act_h = dec(var["data"].get("actual_hours").unwrap_or(&json!(0)));
+    assert_approx(act_h, 9.0, 0.05, "variance actual_hours");
+    println!("✓ labour variance rows actual_hours={act_h}");
+
+    ctx.assert_trial_balance_ok("2026-02-28")
+        .await
+        .map_err(|e| e.to_string())?;
+    println!("✅ manufacturing_labour_std_plus_actual_cert OK");
+    Ok(())
+}
