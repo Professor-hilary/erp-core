@@ -1173,16 +1173,10 @@ BEGIN
     FROM manufacturing.material_issues
     WHERE production_order_uuid = p_order_uuid;
 
-    -- Actual labour if posted; else fall back to routing-applied DirectLabor
+    -- Actual labour only from ActualLabor (never invent from applied DirectLabor)
     SELECT COALESCE(SUM(amount), 0) INTO v_act_lab
     FROM manufacturing.cost_applications
     WHERE production_order_uuid = p_order_uuid AND type = 'ActualLabor';
-
-    IF v_act_lab = 0 THEN
-        SELECT COALESCE(SUM(amount), 0) INTO v_act_lab
-        FROM manufacturing.cost_applications
-        WHERE production_order_uuid = p_order_uuid AND type = 'DirectLabor';
-    END IF;
 
     -- Overhead costs expensed e.g. bills and renumerations from cost applications
     SELECT COALESCE(SUM(amount), 0) INTO v_act_oh
@@ -2405,13 +2399,7 @@ BEGIN
         LIMIT 1;
         IF v_rate IS NOT NULL THEN RETURN v_rate; END IF;
 
-        -- Fall back to work centre labor_rate for Actual if no labour_rates row
-        IF p_rate_kind = 'Actual' THEN
-            SELECT labor_rate INTO v_rate
-            FROM manufacturing.work_centers
-            WHERE code = p_work_center_code;
-            IF v_rate IS NOT NULL THEN RETURN v_rate; END IF;
-        END IF;
+        -- No WC labor_rate fallback for Actual (planning rate must not masquerade as actual)
     END IF;
 
     RETURN NULL;
@@ -3023,13 +3011,7 @@ BEGIN
         IF v_rate IS NOT NULL THEN RETURN v_rate; END IF;
     END IF;
 
-    IF p_rate_kind = 'Actual' AND p_work_center_code IS NOT NULL THEN
-        SELECT labor_rate INTO v_rate
-        FROM manufacturing.work_centers
-        WHERE code = p_work_center_code;
-        IF v_rate IS NOT NULL THEN RETURN v_rate; END IF;
-    END IF;
-
+    -- No WC labor_rate fallback for Actual
     RETURN NULL;
 END;
 $$;
@@ -3510,6 +3492,444 @@ BEGIN
             -- skip ops without operator / hours
             CONTINUE;
         END;
+    END LOOP;
+END;
+$$;
+
+
+-- ============================================================================
+-- STAGE: LABOUR ACCOUNTING INTEGRITY  (base: 0decd86)
+-- Standard costing: routing DirectLabor capitalises WIP; timesheet ActualLabor is
+-- analytical when applied already exists (no second WIP debit). Payslip path skips
+-- if ActualLabor already present. Variance never treats DirectLabor as actual.
+-- ============================================================================
+
+CREATE OR REPLACE FUNCTION manufacturing.post_labour_allocation(
+    p_allocation_uuid    uuid,
+    p_user               uuid,
+    p_wip_account        text,
+    p_wages_account      text,
+    p_oh_control_account text DEFAULT NULL
+) RETURNS manufacturing.cost_applications
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_alloc     manufacturing.labour_allocations%ROWTYPE;
+    v_order     manufacturing.production_orders%ROWTYPE;
+    v_wip       uuid;
+    v_wages     uuid;
+    v_oh        uuid;
+    v_dest      uuid;
+    v_type      text;
+    v_txn       bigint;
+    v_app       manufacturing.cost_applications%ROWTYPE;
+    v_applied   numeric(18,2) := 0;
+    v_gl_amount numeric(18,2);
+    v_memo      text;
+BEGIN
+    SELECT * INTO STRICT v_alloc
+    FROM manufacturing.labour_allocations
+    WHERE uuid = p_allocation_uuid
+    FOR UPDATE;
+
+    IF v_alloc.status <> 'Draft' THEN
+        RAISE EXCEPTION 'Labour allocation % is not Draft (status=%)', p_allocation_uuid, v_alloc.status;
+    END IF;
+
+    SELECT * INTO STRICT v_order
+    FROM manufacturing.production_orders
+    WHERE uuid = v_alloc.production_order_uuid;
+
+    IF v_order.status NOT IN ('Planned', 'In Progress') THEN
+        RAISE EXCEPTION 'Order must be Planned or In Progress to post labour';
+    END IF;
+
+    v_wip := accounting.resolve_account_ref(p_wip_account);
+    v_wages := accounting.resolve_account_ref(p_wages_account);
+
+    SELECT COALESCE(SUM(amount), 0) INTO v_applied
+    FROM manufacturing.cost_applications
+    WHERE production_order_uuid = v_alloc.production_order_uuid
+      AND type = 'DirectLabor';
+
+    IF v_alloc.labour_class = 'Direct' THEN
+        v_type := 'ActualLabor';
+        v_dest := v_wip;
+        IF v_alloc.source IN ('TimeEntry', 'Manual') AND v_applied > 0 THEN
+            v_gl_amount := 0;
+            v_memo := format(
+                'Actual labour memo (no WIP debit; applied=%s already capitalised) %s hrs @ %s',
+                v_applied, v_alloc.hours, v_alloc.rate
+            );
+        ELSE
+            v_gl_amount := v_alloc.amount;
+            v_memo := COALESCE(v_alloc.memo, 'Labour allocation');
+        END IF;
+    ELSE
+        v_type := 'IndirectLabor';
+        IF p_oh_control_account IS NULL OR btrim(p_oh_control_account) = '' THEN
+            RAISE EXCEPTION
+                'Indirect labour requires overhead_control_account';
+        END IF;
+        v_oh := accounting.resolve_account_ref(p_oh_control_account);
+        v_dest := v_oh;
+        v_gl_amount := v_alloc.amount;
+        v_memo := COALESCE(v_alloc.memo, 'Indirect labour to OH control');
+    END IF;
+
+    IF v_gl_amount > 0 THEN
+        v_txn := accounting.post_transaction(
+            v_order.order_number || '-LAB-' || v_alloc.uuid::text,
+            format(
+                '%s labour %s hrs @ %s (%s)',
+                v_alloc.labour_class, v_alloc.hours, v_alloc.rate, COALESCE(v_alloc.source, 'Manual')
+            ),
+            p_user,
+            'manufacturing',
+            CURRENT_DATE,
+            jsonb_build_array(
+                jsonb_build_object(
+                    'account_ref', v_dest, 'debit', v_gl_amount, 'credit', 0,
+                    'memo', v_memo
+                ),
+                jsonb_build_object(
+                    'account_ref', v_wages, 'debit', 0, 'credit', v_gl_amount,
+                    'memo', format('Wages clearing - %s labour', v_alloc.labour_class)
+                )
+            )
+        );
+    END IF;
+
+    INSERT INTO manufacturing.cost_applications (
+        production_order_uuid, type, amount, reference, source_account,
+        destination_account, applied_at
+    ) VALUES (
+        v_alloc.production_order_uuid,
+        v_type,
+        v_alloc.amount,
+        COALESCE(v_alloc.source_ref, v_alloc.uuid::text),
+        v_wages,
+        v_dest,
+        now()
+    )
+    RETURNING * INTO v_app;
+
+    UPDATE manufacturing.labour_allocations
+    SET status = 'Posted',
+        cost_application_uuid = v_app.uuid,
+        posted_at = now()
+    WHERE uuid = p_allocation_uuid;
+
+    RETURN v_app;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION manufacturing.create_labour_time_entry(
+    p_employee_uuid uuid,
+    p_work_date date,
+    p_hours numeric DEFAULT NULL,
+    p_activity_type text DEFAULT 'Direct',
+    p_production_order_uuid uuid DEFAULT NULL,
+    p_operation_execution_uuid uuid DEFAULT NULL,
+    p_work_center_code text DEFAULT NULL,
+    p_labour_category_uuid uuid DEFAULT NULL,
+    p_start_time timestamptz DEFAULT NULL,
+    p_end_time timestamptz DEFAULT NULL,
+    p_break_minutes numeric DEFAULT 0,
+    p_quantity_completed numeric DEFAULT 0,
+    p_quantity_scrapped numeric DEFAULT 0,
+    p_memo text DEFAULT NULL,
+    p_created_by uuid DEFAULT NULL
+) RETURNS manufacturing.labour_time_entries
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_hours numeric(18, 4);
+    v_row manufacturing.labour_time_entries%ROWTYPE;
+    v_op manufacturing.operation_executions%ROWTYPE;
+BEGIN
+    IF p_activity_type NOT IN ('Direct', 'Indirect', 'Setup', 'Rework', 'Idle', 'Training', 'Other') THEN
+        RAISE EXCEPTION 'Invalid activity_type %', p_activity_type;
+    END IF;
+    IF COALESCE(p_break_minutes, 0) < 0 THEN
+        RAISE EXCEPTION 'break_minutes cannot be negative';
+    END IF;
+    IF p_start_time IS NOT NULL AND p_end_time IS NOT NULL AND p_end_time <= p_start_time THEN
+        RAISE EXCEPTION 'end_time must be after start_time';
+    END IF;
+
+    v_hours := p_hours;
+    IF v_hours IS NULL AND p_start_time IS NOT NULL AND p_end_time IS NOT NULL THEN
+        v_hours := EXTRACT(EPOCH FROM (p_end_time - p_start_time)) / 3600.0
+                   - COALESCE(p_break_minutes, 0) / 60.0;
+    END IF;
+    IF v_hours IS NULL OR v_hours <= 0 THEN
+        RAISE EXCEPTION 'hours must be positive (provide hours or start/end)';
+    END IF;
+
+    IF p_activity_type IN ('Direct', 'Setup', 'Rework', 'Indirect', 'Idle', 'Training', 'Other')
+       AND p_production_order_uuid IS NULL THEN
+        RAISE EXCEPTION
+            'production_order_uuid required for activity_type % (department OH pools not yet implemented)',
+            p_activity_type;
+    END IF;
+
+    IF p_operation_execution_uuid IS NOT NULL THEN
+        SELECT * INTO STRICT v_op
+        FROM manufacturing.operation_executions
+        WHERE uuid = p_operation_execution_uuid;
+        IF p_production_order_uuid IS NOT NULL
+           AND v_op.production_order_uuid IS DISTINCT FROM p_production_order_uuid THEN
+            RAISE EXCEPTION 'operation_execution % does not belong to production order %',
+                p_operation_execution_uuid, p_production_order_uuid;
+        END IF;
+        IF p_production_order_uuid IS NULL THEN
+            p_production_order_uuid := v_op.production_order_uuid;
+        END IF;
+    END IF;
+
+    INSERT INTO manufacturing.labour_time_entries (
+        employee_uuid, production_order_uuid, operation_execution_uuid,
+        work_center_code, labour_category_uuid, work_date,
+        start_time, end_time, break_minutes, hours, activity_type,
+        quantity_completed, quantity_scrapped, memo, created_by
+    ) VALUES (
+        p_employee_uuid, p_production_order_uuid, p_operation_execution_uuid,
+        p_work_center_code, p_labour_category_uuid, p_work_date,
+        p_start_time, p_end_time, COALESCE(p_break_minutes, 0), v_hours, p_activity_type,
+        COALESCE(p_quantity_completed, 0), COALESCE(p_quantity_scrapped, 0),
+        p_memo, p_created_by
+    )
+    RETURNING * INTO v_row;
+    RETURN v_row;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION manufacturing.draft_time_entry_from_operation(
+    p_execution_uuid uuid,
+    p_employee_uuid uuid DEFAULT NULL,
+    p_created_by uuid DEFAULT NULL
+) RETURNS manufacturing.labour_time_entries
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_oe manufacturing.operation_executions%ROWTYPE;
+    v_emp uuid;
+    v_hours numeric(18, 4);
+    v_existing manufacturing.labour_time_entries%ROWTYPE;
+BEGIN
+    SELECT * INTO STRICT v_oe
+    FROM manufacturing.operation_executions
+    WHERE uuid = p_execution_uuid;
+
+    IF v_oe.status <> 'Completed' THEN
+        RAISE EXCEPTION 'Operation must be Completed to draft time entry';
+    END IF;
+
+    SELECT * INTO v_existing
+    FROM manufacturing.labour_time_entries
+    WHERE operation_execution_uuid = p_execution_uuid
+      AND status <> 'Rejected'
+    ORDER BY created_at
+    LIMIT 1;
+    IF FOUND THEN
+        RETURN v_existing;
+    END IF;
+
+    v_emp := COALESCE(p_employee_uuid, v_oe.operator_uuid);
+    IF v_emp IS NULL THEN
+        RAISE EXCEPTION 'employee_uuid or operation operator_uuid required';
+    END IF;
+
+    v_hours := (COALESCE(v_oe.setup_minutes_actual, 0) + COALESCE(v_oe.run_minutes_actual, 0)) / 60.0;
+    IF v_hours <= 0 THEN
+        RAISE EXCEPTION 'Operation has no actual setup/run minutes';
+    END IF;
+
+    RETURN manufacturing.create_labour_time_entry(
+        v_emp,
+        COALESCE(v_oe.completed_at::date, CURRENT_DATE),
+        v_hours,
+        'Direct',
+        v_oe.production_order_uuid,
+        v_oe.uuid,
+        v_oe.work_center_code,
+        NULL,
+        v_oe.started_at,
+        v_oe.completed_at,
+        0,
+        COALESCE(v_oe.qty_completed, 0),
+        COALESCE(v_oe.qty_scrapped, 0),
+        format('Auto from op %s', COALESCE(v_oe.operation_name, v_oe.uuid::text)),
+        p_created_by
+    );
+END;
+$$;
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_lte_operation_active
+    ON manufacturing.labour_time_entries (operation_execution_uuid)
+    WHERE operation_execution_uuid IS NOT NULL AND status <> 'Rejected';
+
+CREATE OR REPLACE VIEW manufacturing.v_production_order_labour AS
+SELECT
+    po.uuid AS production_order_uuid,
+    po.order_number,
+    po.status AS order_status,
+    COALESCE(ca.applied_labour, 0) AS applied_labour,
+    COALESCE(ca.actual_labour, 0) AS actual_labour,
+    COALESCE(ca.indirect_labour, 0) AS indirect_labour,
+    COALESCE(lte.actual_direct_hours, 0) AS actual_direct_hours,
+    COALESCE(lte.open_timesheet_hours, 0) AS open_timesheet_hours,
+    COALESCE(ca.actual_labour, 0) - COALESCE(ca.applied_labour, 0) AS labour_cost_variance,
+    lv.standard_hours,
+    lv.actual_hours AS variance_actual_hours,
+    lv.standard_rate,
+    lv.actual_rate,
+    lv.rate_variance,
+    lv.efficiency_variance,
+    lv.total_variance AS last_computed_total_variance
+FROM manufacturing.production_orders po
+LEFT JOIN LATERAL (
+    SELECT
+        SUM(amount) FILTER (WHERE type = 'DirectLabor') AS applied_labour,
+        SUM(amount) FILTER (WHERE type = 'ActualLabor') AS actual_labour,
+        SUM(amount) FILTER (WHERE type = 'IndirectLabor') AS indirect_labour
+    FROM manufacturing.cost_applications
+    WHERE production_order_uuid = po.uuid
+) ca ON true
+LEFT JOIN LATERAL (
+    SELECT
+        SUM(hours) FILTER (
+            WHERE status = 'Posted' AND activity_type IN ('Direct', 'Setup', 'Rework')
+        ) AS actual_direct_hours,
+        SUM(hours) FILTER (
+            WHERE status IN ('Draft', 'Submitted', 'Approved')
+        ) AS open_timesheet_hours
+    FROM manufacturing.labour_time_entries
+    WHERE production_order_uuid = po.uuid
+) lte ON true
+LEFT JOIN LATERAL (
+    SELECT *
+    FROM manufacturing.labour_variances
+    WHERE production_order_uuid = po.uuid
+    ORDER BY created_at DESC
+    LIMIT 1
+) lv ON true;
+
+CREATE OR REPLACE FUNCTION manufacturing.allocate_payslip_labour_to_orders(
+    p_payslip_uuid uuid,
+    p_user uuid,
+    p_wip_account text,
+    p_labour_clearing_account text,
+    p_cost_basis text DEFAULT 'employer_cost'
+) RETURNS TABLE (
+    production_order_uuid uuid,
+    allocated_amount numeric,
+    hours_share numeric,
+    cost_application_uuid uuid
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_ps payroll.payslips%ROWTYPE;
+    v_pr payroll.payruns%ROWTYPE;
+    v_total_hours numeric(18,4);
+    v_pool numeric(18,2);
+    rec RECORD;
+    v_amt numeric(18,2);
+    v_alloc manufacturing.labour_allocations%ROWTYPE;
+    v_app manufacturing.cost_applications%ROWTYPE;
+    v_applied numeric(18,2);
+    v_existing_actual numeric(18,2);
+    v_residual numeric(18,2);
+BEGIN
+    SELECT * INTO STRICT v_ps FROM payroll.payslips WHERE uuid = p_payslip_uuid;
+    SELECT * INTO STRICT v_pr FROM payroll.payruns WHERE uuid = v_ps.payrun_uuid;
+
+    v_pool := CASE lower(COALESCE(p_cost_basis, 'employer_cost'))
+        WHEN 'basic' THEN COALESCE(v_ps.basic_pay, 0)
+        WHEN 'gross' THEN COALESCE(v_ps.gross_pay, 0)
+        ELSE COALESCE(NULLIF(v_ps.employer_cost_total, 0), v_ps.gross_pay, 0)
+    END;
+
+    IF v_pool IS NULL OR v_pool <= 0 THEN
+        RAISE EXCEPTION 'Payslip % has no cost pool to allocate', p_payslip_uuid;
+    END IF;
+
+    SELECT COALESCE(SUM(hours), 0) INTO v_total_hours
+    FROM manufacturing.labour_time_entries
+    WHERE employee_uuid = v_ps.employee_uuid
+      AND status = 'Posted'
+      AND activity_type IN ('Direct', 'Setup', 'Rework')
+      AND work_date BETWEEN v_pr.pay_period_start AND v_pr.pay_period_end
+      AND production_order_uuid IS NOT NULL;
+
+    IF v_total_hours <= 0 THEN
+        RAISE EXCEPTION
+            'No posted productive timesheet hours for employee % in % – %',
+            v_ps.employee_uuid, v_pr.pay_period_start, v_pr.pay_period_end;
+    END IF;
+
+    FOR rec IN
+        SELECT production_order_uuid, SUM(hours) AS hrs
+        FROM manufacturing.labour_time_entries
+        WHERE employee_uuid = v_ps.employee_uuid
+          AND status = 'Posted'
+          AND activity_type IN ('Direct', 'Setup', 'Rework')
+          AND work_date BETWEEN v_pr.pay_period_start AND v_pr.pay_period_end
+          AND production_order_uuid IS NOT NULL
+        GROUP BY production_order_uuid
+    LOOP
+        v_amt := ROUND(v_pool * (rec.hrs / v_total_hours), 2);
+
+        SELECT COALESCE(SUM(amount), 0) INTO v_existing_actual
+        FROM manufacturing.cost_applications
+        WHERE production_order_uuid = rec.production_order_uuid
+          AND type = 'ActualLabor';
+
+        IF v_existing_actual > 0 THEN
+            CONTINUE; -- timesheet already supplied ActualLabor for this order
+        END IF;
+
+        SELECT COALESCE(SUM(amount), 0) INTO v_applied
+        FROM manufacturing.cost_applications
+        WHERE production_order_uuid = rec.production_order_uuid
+          AND type = 'DirectLabor';
+
+        v_residual := v_amt;
+        IF v_applied > 0 THEN
+            v_residual := GREATEST(v_amt - ROUND(v_applied * (rec.hrs / v_total_hours), 2), 0);
+        END IF;
+        IF v_residual <= 0 THEN
+            CONTINUE;
+        END IF;
+
+        INSERT INTO manufacturing.labour_allocations (
+            production_order_uuid, labour_class, hours, rate,
+            employee_uuid, source, source_ref, memo, created_by, status
+        ) VALUES (
+            rec.production_order_uuid,
+            'Direct',
+            rec.hrs,
+            CASE WHEN rec.hrs > 0 THEN ROUND(v_residual / rec.hrs, 4) ELSE 0 END,
+            v_ps.employee_uuid,
+            'Payroll',
+            p_payslip_uuid::text,
+            format('Payslip allocation %s basis=%s residual=%s', p_payslip_uuid, p_cost_basis, v_residual),
+            p_user,
+            'Draft'
+        )
+        RETURNING * INTO v_alloc;
+
+        v_app := manufacturing.post_labour_allocation(
+            v_alloc.uuid, p_user, p_wip_account, p_labour_clearing_account, NULL
+        );
+
+        production_order_uuid := rec.production_order_uuid;
+        allocated_amount := v_app.amount;
+        hours_share := rec.hrs;
+        cost_application_uuid := v_app.uuid;
+        RETURN NEXT;
     END LOOP;
 END;
 $$;

@@ -1097,12 +1097,11 @@ async fn manufacturing_labour_actual_path() -> E2eResult<()> {
         .map_err(|e| e.to_string())?;
     assert!(ok(s), "labour summary: {s} {sum}");
     let actual_lab = dec(sum["data"].get("actual_labour").unwrap_or(&json!(0)));
-    assert!(
-        actual_lab > 0.0,
-        "actual_labour should be > 0 after timesheet post, got {actual_lab}"
-    );
-    // 2 employees × 4h × 15000 = 120_000 if ASSY rate applied
-    println!("✓ labour summary actual_labour={actual_lab}");
+    // 2 employees × 4h × 15000 = 120_000
+    assert_approx(actual_lab, 120_000.0, 1.0, "actual_labour from timesheets");
+    let applied_lab = dec(sum["data"].get("applied_labour").unwrap_or(&json!(0)));
+    assert_approx(applied_lab, 0.0, 0.01, "applied_labour on timesheet-only PO");
+    println!("✓ labour summary actual_labour={actual_lab} applied_labour={applied_lab}");
 
     let (s, prod) = ctx
         .client
