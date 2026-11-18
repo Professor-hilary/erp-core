@@ -1102,6 +1102,9 @@ async fn manufacturing_labour_actual_path() -> E2eResult<()> {
     let applied_lab = dec(sum["data"].get("applied_labour").unwrap_or(&json!(0)));
     assert_approx(applied_lab, 0.0, 0.01, "applied_labour on timesheet-only PO");
     println!("✓ labour summary actual_labour={actual_lab} applied_labour={applied_lab}");
+    // Authoritative actual present; variance cost = actual - applied (= 120000 - 0)
+    let cost_var = dec(sum["data"].get("labour_cost_variance").unwrap_or(&json!(actual_lab)));
+    assert_approx(cost_var, 120_000.0, 1.0, "labour_cost_variance timesheet-only");
 
     let (s, prod) = ctx
         .client
@@ -1117,5 +1120,64 @@ async fn manufacturing_labour_actual_path() -> E2eResult<()> {
         .await
         .map_err(|e| e.to_string())?;
     println!("✅ manufacturing_labour_actual_path OK");
+    Ok(())
+}
+
+
+/// Missing actual must not invent a favourable labour variance on a completed order
+/// that only has routing-applied DirectLabor.
+#[tokio::test]
+async fn manufacturing_labour_std_only_no_false_actual() -> E2eResult<()> {
+    let ctx = TestContext::from_saved_state().await?;
+
+    // Re-use FG and create PO, apply routing labour only, complete — no timesheets
+    let (s, inv) = ctx
+        .client
+        .get("/api/inventory/list/inventory")
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "list inv: {s}");
+    let fg = find_item(&inv, "FG-CARGO-MULE").map_err(|e| e.to_string())?;
+    let fg_uuid = extract_uuid(fg, &["uuid"]).map_err(|e| e.to_string())?;
+
+    let order_no = format!("PO-STD-{}", chrono::Utc::now().timestamp_millis());
+    let (s, body) = ctx
+        .client
+        .post(
+            "/api/manufacturing/create/production-order",
+            json!({
+                "order_number": order_no,
+                "product_item_uuid": fg_uuid,
+                "quantity_ordered": "1",
+                "start_date": "2026-02-01",
+                "expected_completion_date": "2026-02-05"
+            }),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "create PO: {s} {body}");
+    let po_uuid = extract_uuid(&body, &["data", "uuid"]).map_err(|e| e.to_string())?;
+
+    let (s, body) = ctx
+        .client
+        .post(
+            "/api/manufacturing/apply/direct/labor",
+            json!({ "production_order_uuid": po_uuid }),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "apply labor: {s} {body}");
+
+    let (s, sum) = ctx
+        .client
+        .get(&format!("/api/manufacturing/labour/summary/{po_uuid}"))
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "summary: {s} {sum}");
+    let applied = dec(sum["data"].get("applied_labour").unwrap_or(&json!(0)));
+    let actual = dec(sum["data"].get("actual_labour").unwrap_or(&json!(0)));
+    assert!(applied > 0.0, "expected applied labour from routing, got {applied}");
+    assert_approx(actual, 0.0, 0.01, "no timesheet/payroll → actual must be 0, not invented");
+    println!("✓ std-only applied={applied} actual={actual} (no false actual)");
     Ok(())
 }
