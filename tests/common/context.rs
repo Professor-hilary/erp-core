@@ -556,6 +556,146 @@ impl TestContext {
 
         Ok(())
     }
+		
+	async fn complete_employee_setup(
+	    &self,
+	    employee_uuid: Uuid,
+	    key: &str,
+	    hire_date: &str,
+	    department_uuid: Option<Uuid>,
+	    job_title_uuid: Option<Uuid>,
+	    bank_account_number: String,
+	    date_of_birth: &str,
+	    tax_id: String,
+	    social_security_number: String,
+	) -> Result<()> {
+	    // 1. Payment profile
+	    let (status, body) = self.client.put(
+	        &format!(
+	            "/api/workforce/employees/{employee_uuid}/payment-profile"
+	        ),
+	        json!({
+	            "bank_name": "Stanbic",
+	            "bank_account_number": bank_account_number,
+	            "payment_method": "Bank Transfer",
+	            "currency_code": "UGX"
+	        }),
+	    ).await?;
+
+	    if !status.is_success() {
+	        anyhow::bail!(
+	            "{key}: payment profile failed: {status} {body}"
+	        );
+	    }
+
+	    // 2. Statutory profile
+	    let (status, body) = self.client.put(
+	        &format!(
+	            "/api/workforce/employees/{employee_uuid}/statutory-profile"
+	        ),
+	        json!({
+	            "tax_residency": "RESIDENT",
+	            "nssf_covered": true,
+	            "nssf_exempt": false,
+	            "date_of_birth": date_of_birth,
+	            "tax_id": tax_id,
+	            "social_security_number": social_security_number
+	        }),
+	    ).await?;
+
+	    if !status.is_success() {
+	        anyhow::bail!(
+	            "{key}: statutory profile failed: {status} {body}"
+	        );
+	    }
+
+	    // 3. Employment contract
+	    let (status, body) = self.client.post(
+	        "/api/workforce/contracts",
+	        json!({
+	            "employee_uuid": employee_uuid,
+	            "contract_type": "Permanent",
+	            "start_date": hire_date,
+	            "job_title_uuid": job_title_uuid,
+	            "department_uuid": department_uuid,
+	            "basic_salary": "1500000",
+	            "pay_frequency": "Monthly",
+	            "employment_type": "Full-time",
+	            "status": "Active"
+	        }),
+	    ).await?;
+
+	    if !status.is_success() {
+	        anyhow::bail!(
+	            "{key}: employment contract failed: {status} {body}"
+	        );
+	    }
+
+	    // 4. Retrieve onboarding tasks
+	    let (status, tasks) = self.client.get(
+	        &format!(
+	            "/api/workforce/employees/{employee_uuid}/onboarding-tasks"
+	        ),
+	    ).await?;
+
+	    if !status.is_success() {
+	        anyhow::bail!(
+	            "{key}: retrieving onboarding tasks failed: {status} {tasks}"
+	        );
+	    }
+
+	    let task_list = tasks["data"]
+	        .as_array()
+	        .ok_or_else(|| anyhow::anyhow!(
+	            "{key}: onboarding response did not contain a task array"
+	        ))?;
+
+	    // 5. Complete every onboarding task
+	    for task in task_list {
+	        let task_uuid = task["uuid"]
+	            .as_str()
+	            .ok_or_else(|| anyhow::anyhow!(
+	                "{key}: onboarding task has no UUID"
+	            ))?;
+
+	        if task["is_done"].as_bool() == Some(true) {
+	            continue;
+	        }
+
+	        let (status, body) = self.client.post(
+	            &format!(
+	                "/api/workforce/onboarding-tasks/{task_uuid}/complete"
+	            ),
+	            json!({
+	                "notes": "Completed during E2E employee setup"
+	            }),
+	        ).await?;
+
+	        if !status.is_success() {
+	            anyhow::bail!(
+	                "{key}: completing onboarding task {task_uuid} failed: \
+	                {status} {body}"
+	            );
+	        }
+	    }
+
+	    // 6. Complete the employee lifecycle
+	    let (status, body) = self.client.post(
+	        &format!(
+	            "/api/workforce/employees/{employee_uuid}/complete-onboarding"
+	        ),
+	        json!({}),
+	    ).await?;
+
+	    if !status.is_success() {
+	        anyhow::bail!(
+	            "{key}: employee activation failed: {status} {body}"
+	        );
+	    }
+
+	    Ok(())
+	}
+
 
     /// Capital parties: owners, shareholders, lenders (people + institutions).
     pub async fn seed_capital_parties(&mut self) -> Result<()> {
