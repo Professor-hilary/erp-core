@@ -1,5 +1,6 @@
 mod common;
 
+use common::fixtures;
 use common::{E2eResult, TestContext, client::extract_uuid};
 use serde_json::json;
 
@@ -322,6 +323,42 @@ async fn debt_facility_lifecycle() -> E2eResult<()> {
     println!("✓ trial balance OK after debt lifecycle");
 
     ctx.save_state().map_err(|e| e.to_string())?;
+
+    // Volume: additional term facilities (commit only — full lifecycle remains on FAC-TERM-001)
+    for i in 2..=fixtures::SCALE_FACILITIES {
+        let code = format!("FAC-TERM-{i:03}");
+        let (s, body) = ctx
+            .client
+            .post(
+                "/api/capital/facilities",
+                json!({
+                    "facility_code": code,
+                    "facility_name": format!("Term Facility {i:03}"),
+                    "facility_type": "TERM_LOAN",
+                    "agent_id": lender_id,
+                    "currency_id": ugx,
+                    "committed_amount": format!("{}", 10_000_000 * i as i64),
+                    "interest_type": "FIXED",
+                    "base_rate_index": null,
+                    "margin_bps": "1000",
+                    "day_count_convention": "ACT/365",
+                    "payment_frequency": "QUARTERLY",
+                    "amortization_type": "AMORTIZING",
+                    "effective_date": "2026-01-10",
+                    "maturity_date": "2029-01-10",
+                    "commitment_fee_bps": "50",
+                    "collateral_required": false,
+                    "is_secured": false,
+                    "ranking": "SENIOR",
+                    "status": "active"
+                }),
+            )
+            .await
+            .map_err(|e| e.to_string())?;
+        assert!(ok(s) || s.as_u16() == 409, "facility {code}: {s} {body}");
+    }
+    println!("✓ facilities seeded toward {}", fixtures::SCALE_FACILITIES);
+
     println!("✅ debt_facility_lifecycle OK for {}", ctx.company_name);
     Ok(())
 }

@@ -4,7 +4,7 @@
 mod common;
 
 use common::client::extract_uuid;
-use common::fixtures::{FG_CARGO_MULE, RMS, SA_CTRL_CORE, SA_PROP_GROUND};
+use common::fixtures::{self, FG_CARGO_MULE, RMS, SA_CTRL_CORE, SA_PROP_GROUND};
 use common::{E2eResult, TestContext};
 use serde_json::{Value, json};
 
@@ -294,6 +294,79 @@ async fn inventory_master_data() -> E2eResult<()> {
     println!("✓ get item FG-CARGO-MULE");
 
     ctx.save_state().map_err(|e| e.to_string())?;
+
+    // -------------------------------------------------------------------------
+    // Bulk catalog: modules (L1) + extra RMs toward 100-component class products
+    // -------------------------------------------------------------------------
+    let cat_sa = cat_uuids.get("SA").unwrap();
+    let cat_elec = cat_uuids.get("RAW-ELEC").unwrap();
+    let cat_mech = cat_uuids.get("RAW-MECH").unwrap();
+    for i in 1..=fixtures::SCALE_MODULES {
+        let sku = format!("MOD-PWR-{i:02}");
+        let (s, body) = ctx
+            .client
+            .post(
+                "/api/inventory/create/item",
+                json!({
+                    "sku": sku,
+                    "name": format!("Power Module {i:02}"),
+                    "warehouse_serial": wh_rm,
+                    "category_uuid": cat_sa,
+                    "unit": "pc",
+                    "selling_price": "0",
+                    "standard_cost": "250000",
+                    "track_quantity": true,
+                    "reorder_level": "2",
+                    "asset_account": inv_rm,
+                    "cogs_account": cogs,
+                    "income_account": income
+                }),
+            )
+            .await
+            .map_err(|e| e.to_string())?;
+        assert!(ok(s) || s.as_u16() == 409 || s.as_u16() == 400, "module {sku}: {s} {body}");
+    }
+    for i in 1..=fixtures::SCALE_BULK_RMS {
+        let sku = format!("RM-BULK-{i:03}");
+        let cost = 5000 + (i as i64 * 137) % 90000;
+        let cat = if i % 2 == 0 { cat_elec } else { cat_mech };
+        let (s, body) = ctx
+            .client
+            .post(
+                "/api/inventory/create/item",
+                json!({
+                    "sku": sku,
+                    "name": format!("Bulk Raw {i:03}"),
+                    "warehouse_serial": wh_rm,
+                    "category_uuid": cat,
+                    "unit": "pc",
+                    "selling_price": "0",
+                    "standard_cost": cost.to_string(),
+                    "track_quantity": true,
+                    "reorder_level": "10",
+                    "asset_account": inv_rm,
+                    "cogs_account": cogs,
+                    "income_account": income
+                }),
+            )
+            .await
+            .map_err(|e| e.to_string())?;
+        assert!(ok(s) || s.as_u16() == 409 || s.as_u16() == 400, "bulk rm {sku}: {s} {body}");
+    }
+    let (s, body) = ctx
+        .client
+        .get("/api/inventory/list/inventory")
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "list inventory after bulk: {s}");
+    let n_all = body["data"].as_array().map(|a| a.len()).unwrap_or(0);
+    assert!(
+        n_all >= RMS.len() + 3 + fixtures::SCALE_MODULES,
+        "expected expanded catalog ≥{}, got {n_all}",
+        RMS.len() + 3 + fixtures::SCALE_MODULES
+    );
+    println!("✓ bulk catalog modules={} rms+ ≥{} total_items={n_all}", fixtures::SCALE_MODULES, fixtures::SCALE_BULK_RMS);
+
     println!("✅ inventory_master_data OK for {}", ctx.company_name);
     Ok(())
 }

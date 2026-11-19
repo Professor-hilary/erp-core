@@ -488,6 +488,72 @@ impl TestContext {
             }
         }
 
+        // Bulk employees (scale) — payroll-ready Active path
+        let hero_emp = self.employees.len();
+        for i in 1..=fixtures::SCALE_EMPLOYEES {
+            if self.employees.len() >= fixtures::SCALE_EMPLOYEES {
+                break;
+            }
+            let key = format!("bulk_emp_{i:03}");
+            let (status, value) = self
+                .client
+                .post(
+                    "/api/workforce/create/employee",
+                    json!({
+                        "first_name": format!("Worker{i}"),
+                        "last_name": format!("Batch{i}"),
+                        "email": format!("bulk.emp.{i:03}@test.local"),
+                        "phone_number": format!("+25670{:07}", 100000 + i),
+                        "hire_date": "2025-06-01",
+                        "department_uuid": default_dept,
+                        "job_title_uuid": default_title,
+                        "employment_type": "Full-time",
+                        "pay_frequency": "Monthly"
+                    }),
+                )
+                .await?;
+            if !(status.is_success() || status.as_u16() == 201) {
+                continue;
+            }
+            let Ok(emp_id) = extract_uuid(&value, &["data", "uuid"]) else { continue };
+            self.employees.insert(key.clone(), emp_id);
+            let _ = self
+                .client
+                .put(
+                    &format!("/api/workforce/employees/{emp_id}/payment-profile"),
+                    json!({
+                        "bank_name": "Stanbic",
+                        "bank_account_number": format!("BULK-{i:04}"),
+                        "payment_method": "Bank Transfer",
+                        "currency_code": "UGX"
+                    }),
+                )
+                .await?;
+            let _ = self
+                .client
+                .put(
+                    &format!("/api/workforce/employees/{emp_id}/statutory-profile"),
+                    json!({
+                        "date_of_birth": "1992-03-15",
+                        "tax_id": format!("TIN-B{i:05}"),
+                        "social_security_number": format!("NSSF-B{i:05}"),
+                        "is_resident": true
+                    }),
+                )
+                .await?;
+            let _ = self
+                .client
+                .post(
+                    &format!("/api/workforce/employees/{emp_id}/complete-onboarding"),
+                    json!({}),
+                )
+                .await?;
+        }
+        eprintln!(
+            "workforce seed: hero_employees≈{hero_emp} total_employees={}",
+            self.employees.len()
+        );
+
         Ok(())
     }
 
@@ -547,6 +613,57 @@ impl TestContext {
         Ok(())
     }
 
+
+        // Bulk investors / shareholders / lenders for volume testing
+        for i in 1..=fixtures::SCALE_INVESTORS {
+            let _ = self
+                .client
+                .post(
+                    "/api/capital/party",
+                    json!({
+                        "legal_name": format!("Bulk Investor {i:03} Ltd"),
+                        "short_name": format!("INV-{i:03}"),
+                        "party_type": "INVESTOR",
+                        "role": "investor",
+                        "country_code": "UG",
+                        "is_related_party": false
+                    }),
+                )
+                .await?;
+        }
+        for i in 1..=fixtures::SCALE_OWNERS_SHAREHOLDERS {
+            let _ = self
+                .client
+                .post(
+                    "/api/capital/party",
+                    json!({
+                        "legal_name": format!("Shareholder {i:03}"),
+                        "short_name": format!("SH-{i:03}"),
+                        "party_type": "SHAREHOLDER",
+                        "role": "shareholder",
+                        "country_code": "UG",
+                        "is_related_party": i <= 3
+                    }),
+                )
+                .await?;
+        }
+        for i in 1..=fixtures::SCALE_LENDERS {
+            let _ = self
+                .client
+                .post(
+                    "/api/capital/party",
+                    json!({
+                        "legal_name": format!("Bulk Lender Bank {i:02}"),
+                        "short_name": format!("LEND-{i:02}"),
+                        "party_type": "LENDER",
+                        "role": "lender",
+                        "country_code": "UG",
+                        "is_related_party": false
+                    }),
+                )
+                .await?;
+        }
+
     /// Vendors (suppliers) + customers from institutions.
     pub async fn seed_trading_partners(&mut self) -> Result<()> {
         for inst in fixtures::INSTITUTIONS
@@ -595,6 +712,59 @@ impl TestContext {
                 }
             }
         }
+
+        for i in 1..=fixtures::SCALE_SUPPLIERS {
+            let code = format!("sup_bulk_{i:03}");
+            if self.vendors.contains_key(&code) {
+                continue;
+            }
+            let (status, value) = self
+                .client
+                .post(
+                    "/api/procurement/create/vendor",
+                    json!({
+                        "name": format!("Bulk Supplier {i:03}"),
+                        "code": code,
+                        "email": format!("sup.bulk.{i:03}@test.local"),
+                        "phone": null,
+                        "credit_limit": "25000000"
+                    }),
+                )
+                .await?;
+            if status.is_success() || status.as_u16() == 201 {
+                if let Ok(id) = extract_uuid(&value, &["data", "uuid"]) {
+                    self.vendors.insert(code, id);
+                }
+            }
+        }
+        for i in 1..=fixtures::SCALE_CUSTOMERS {
+            let code = format!("cust_bulk_{i:03}");
+            if self.customers.contains_key(&code) {
+                continue;
+            }
+            let (status, value) = self
+                .client
+                .post(
+                    "/api/sales/create/customer",
+                    json!({
+                        "name": format!("Bulk Customer {i:03}"),
+                        "code": code,
+                        "email": format!("cust.bulk.{i:03}@test.local"),
+                        "credit_limit": "15000000"
+                    }),
+                )
+                .await?;
+            if status.is_success() || status.as_u16() == 201 {
+                if let Ok(id) = extract_uuid(&value, &["data", "uuid"]) {
+                    self.customers.insert(code, id);
+                }
+            }
+        }
+        eprintln!(
+            "trading partners: vendors={} customers={}",
+            self.vendors.len(),
+            self.customers.len()
+        );
         Ok(())
     }
 

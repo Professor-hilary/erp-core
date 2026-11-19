@@ -98,12 +98,42 @@ async fn seed_all_stakeholders_and_institutions() -> E2eResult<()> {
 
     assert!(ctx.currency_id("UGX").is_some(), "UGX must be seeded");
 
+    // Volume scale (hero fixtures + bulk)
+    assert!(
+        ctx.employees.len() >= fixtures::SCALE_EMPLOYEES,
+        "expected ≥{} employees, got {}",
+        fixtures::SCALE_EMPLOYEES,
+        ctx.employees.len()
+    );
+    assert!(
+        ctx.vendors.len() >= fixtures::SCALE_SUPPLIERS,
+        "expected ≥{} vendors, got {}",
+        fixtures::SCALE_SUPPLIERS,
+        ctx.vendors.len()
+    );
+    assert!(
+        ctx.customers.len() >= fixtures::SCALE_CUSTOMERS,
+        "expected ≥{} customers, got {}",
+        fixtures::SCALE_CUSTOMERS,
+        ctx.customers.len()
+    );
+
+    let (s, parties) = ctx.client.get("/api/capital/party").await?;
+    assert!(ok(s), "list parties: {s}");
+    let n_parties = parties["data"].as_array().map(|a| a.len()).unwrap_or(0);
+    assert!(
+        n_parties >= fixtures::SCALE_INVESTORS,
+        "expected ≥{} capital parties, got {n_parties}",
+        fixtures::SCALE_INVESTORS
+    );
+
     println!(
-        "✓ {} — employees={} vendors={} customers={} currencies n={}",
+        "✓ {} — employees={} vendors={} customers={} parties={} currencies n={}",
         ctx.company_name,
         ctx.employees.len(),
         ctx.vendors.len(),
         ctx.customers.len(),
+        n_parties,
         ctx.currencies.len()
     );
     Ok(())

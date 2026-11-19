@@ -536,3 +536,25 @@ pub const FG_CARGO_MULE: &str = "FG-CARGO-MULE";
 pub const SA_CTRL_CORE: &str = "SA-CTRL-CORE";
 #[allow(dead_code)]
 pub const SA_PROP_GROUND: &str = "SA-PROP-GROUND";
+
+
+// ---------------------------------------------------------------------------
+// Volume scale for e2e "data warehouse" (procedural bulk on top of hero fixtures)
+// ---------------------------------------------------------------------------
+pub const SCALE_CUSTOMERS: usize = 50;
+pub const SCALE_SUPPLIERS: usize = 30;
+pub const SCALE_INVESTORS: usize = 30;
+pub const SCALE_OWNERS_SHAREHOLDERS: usize = 30;
+pub const SCALE_EMPLOYEES: usize = 40;
+pub const SCALE_LENDERS: usize = 10;
+pub const SCALE_FACILITIES: usize = 10;
+pub const SCALE_EQUITY_ISSUES: usize = 10;
+pub const SCALE_BULK_RMS: usize = 80;
+pub const SCALE_MODULES: usize = 12;
+pub const SCALE_INVOICE_LINES: usize = 20;
+
+pub fn scaled_qty_buy(base: &str) -> String {
+    base.parse::<i64>()
+        .map(|n| (n * 5).to_string())
+        .unwrap_or_else(|_| base.to_string())
+}
