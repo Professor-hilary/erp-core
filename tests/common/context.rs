@@ -610,9 +610,6 @@ impl TestContext {
                 )
                 .await?;
         }
-        Ok(())
-    }
-
 
         // Bulk investors / shareholders / lenders for volume testing
         for i in 1..=fixtures::SCALE_INVESTORS {
@@ -663,6 +660,9 @@ impl TestContext {
                 )
                 .await?;
         }
+	
+		Ok(())
+	}
 
     /// Vendors (suppliers) + customers from institutions.
     pub async fn seed_trading_partners(&mut self) -> Result<()> {
