@@ -3,7 +3,7 @@ mod common;
 use common::{
     E2eResult, TestContext,
     client::extract_uuid,
-    fixtures::{FG_CARGO_MULE, RMS, SA_CTRL_CORE, SA_PROP_GROUND},
+    fixtures::{self, FG_CARGO_MULE, RMS, SA_CTRL_CORE, SA_PROP_GROUND},
 };
 use serde_json::json;
 
@@ -1346,5 +1346,380 @@ async fn manufacturing_labour_std_plus_actual_cert() -> E2eResult<()> {
         .await
         .map_err(|e| e.to_string())?;
     println!("✅ manufacturing_labour_std_plus_actual_cert OK");
+    Ok(())
+}
+
+
+/// 4-level BOM volume: RM-BULK → MOD-PWR → CMP-DEEP → FG-DEEP-VOLUME.
+/// Proves explode_bom + bulk issue across ≥40 leaf lines without changing CargoMule certs.
+#[tokio::test]
+async fn manufacturing_deep_bom_volume() -> E2eResult<()> {
+    let ctx = TestContext::from_saved_state().await?;
+
+    let (s, inv) = ctx
+        .client
+        .get("/api/inventory/list/inventory")
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "list inv: {s}");
+    let rows = inv["data"].as_array().cloned().unwrap_or_default();
+
+    let mut bulk_rms: Vec<(String, String)> = Vec::new();
+    for i in 1..=(fixtures::SCALE_MFG_MODULES * fixtures::SCALE_MFG_LEAVES_PER_MODULE) {
+        let sku = format!("RM-BULK-{i:03}");
+        if let Some(row) = rows.iter().find(|r| r["sku"].as_str() == Some(&sku)) {
+            let u = extract_uuid(row, &["uuid"]).map_err(|e| e.to_string())?;
+            bulk_rms.push((sku, u.to_string()));
+        }
+    }
+    assert!(
+        bulk_rms.len() >= fixtures::SCALE_MFG_MODULES * fixtures::SCALE_MFG_LEAVES_PER_MODULE,
+        "need bulk RMs from e2e_03 scale seed, got {}",
+        bulk_rms.len()
+    );
+
+    let mut modules: Vec<(String, String)> = Vec::new();
+    for i in 1..=fixtures::SCALE_MFG_MODULES {
+        let sku = format!("MOD-PWR-{i:02}");
+        if let Some(row) = rows.iter().find(|r| r["sku"].as_str() == Some(&sku)) {
+            let u = extract_uuid(row, &["uuid"]).map_err(|e| e.to_string())?;
+            modules.push((sku, u.to_string()));
+        }
+    }
+    assert_eq!(
+        modules.len(),
+        fixtures::SCALE_MFG_MODULES,
+        "need modules from e2e_03"
+    );
+
+    for i in 3..=fixtures::SCALE_MFG_WORK_CENTERS {
+        let code = format!("WC-VOL-{i:02}");
+        let (s, body) = ctx
+            .client
+            .post(
+                "/api/manufacturing/create/routing/workcenter",
+                json!({
+                    "code": code,
+                    "name": format!("Volume Cell {i}"),
+                    "labor_rate": "10000",
+                    "allocation_base": "DirectLaborHours",
+                    "department_code": "Production"
+                }),
+            )
+            .await
+            .map_err(|e| e.to_string())?;
+        assert!(ok(s) || s.as_u16() == 409 || s.as_u16() == 400, "wc {code}: {s} {body}");
+    }
+    println!("✓ work centres toward {}", fixtures::SCALE_MFG_WORK_CENTERS);
+
+    let mut module_bom_uuids: Vec<String> = Vec::new();
+    for (mi, (mod_sku, mod_uuid)) in modules.iter().enumerate() {
+        let start = mi * fixtures::SCALE_MFG_LEAVES_PER_MODULE;
+        let leaf_slice = &bulk_rms[start..start + fixtures::SCALE_MFG_LEAVES_PER_MODULE];
+        let lines: Vec<_> = leaf_slice
+            .iter()
+            .enumerate()
+            .map(|(li, (_sku, uuid))| {
+                json!({
+                    "line_number": li + 1,
+                    "component_item_uuid": uuid,
+                    "quantity_per": "1",
+                    "uom": "pc",
+                    "scrap_factor": "1.0",
+                    "is_phantom": false
+                })
+            })
+            .collect();
+        let (s, body) = ctx
+            .client
+            .post(
+                "/api/manufacturing/create/bom",
+                json!({
+                    "header": {
+                        "bom_code": format!("BOM-{mod_sku}-v1"),
+                        "product_item_uuid": mod_uuid,
+                        "description": format!("Module BOM {mod_sku}"),
+                        "revision": "1",
+                        "is_default": true,
+                        "is_active": true
+                    },
+                    "lines": lines
+                }),
+            )
+            .await
+            .map_err(|e| e.to_string())?;
+        assert!(ok(s), "module BOM {mod_sku}: {s} {body}");
+        let bom_u = extract_uuid(&body, &["data", "header", "uuid"])
+            .or_else(|_| extract_uuid(&body, &["data", "uuid"]))
+            .map_err(|e| e.to_string())?;
+        module_bom_uuids.push(bom_u.to_string());
+    }
+    println!("✓ L1 module BOMs n={}", module_bom_uuids.len());
+
+    let mut component_uuids: Vec<String> = Vec::new();
+    let mut component_bom_uuids: Vec<String> = Vec::new();
+    for i in 1..=fixtures::SCALE_MFG_COMPONENTS {
+        let sku = format!("CMP-DEEP-{i:02}");
+        let row = rows
+            .iter()
+            .find(|r| r["sku"].as_str() == Some(sku.as_str()))
+            .ok_or_else(|| format!("{sku} missing — run e2e_03"))?;
+        let cmp_uuid = extract_uuid(row, &["uuid"]).map_err(|e| e.to_string())?;
+        component_uuids.push(cmp_uuid.to_string());
+
+        let m0 = &modules[(i - 1) * 2];
+        let m1 = &modules[(i - 1) * 2 + 1];
+        let (s, body) = ctx
+            .client
+            .post(
+                "/api/manufacturing/create/bom",
+                json!({
+                    "header": {
+                        "bom_code": format!("BOM-{sku}-v1"),
+                        "product_item_uuid": cmp_uuid,
+                        "description": format!("Component BOM {sku}"),
+                        "revision": "1",
+                        "is_default": true,
+                        "is_active": true
+                    },
+                    "lines": [
+                        {
+                            "line_number": 1,
+                            "component_item_uuid": m0.1,
+                            "quantity_per": "1",
+                            "uom": "pc",
+                            "scrap_factor": "1.0",
+                            "is_phantom": false
+                        },
+                        {
+                            "line_number": 2,
+                            "component_item_uuid": m1.1,
+                            "quantity_per": "1",
+                            "uom": "pc",
+                            "scrap_factor": "1.0",
+                            "is_phantom": false
+                        }
+                    ]
+                }),
+            )
+            .await
+            .map_err(|e| e.to_string())?;
+        assert!(ok(s), "component BOM {sku}: {s} {body}");
+        let bom_u = extract_uuid(&body, &["data", "header", "uuid"])
+            .or_else(|_| extract_uuid(&body, &["data", "uuid"]))
+            .map_err(|e| e.to_string())?;
+        component_bom_uuids.push(bom_u.to_string());
+    }
+    println!("✓ L2 component BOMs n={}", component_bom_uuids.len());
+
+    let fg_row = rows
+        .iter()
+        .find(|r| r["sku"].as_str() == Some(fixtures::FG_DEEP_VOLUME))
+        .ok_or("FG-DEEP-VOLUME missing — run e2e_03")?;
+    let fg_uuid = extract_uuid(fg_row, &["uuid"]).map_err(|e| e.to_string())?;
+
+    let fg_lines: Vec<_> = component_uuids
+        .iter()
+        .enumerate()
+        .map(|(i, cu)| {
+            json!({
+                "line_number": i + 1,
+                "component_item_uuid": cu,
+                "quantity_per": "1",
+                "uom": "pc",
+                "scrap_factor": "1.0",
+                "child_bom_uuid": component_bom_uuids[i],
+                "is_phantom": false
+            })
+        })
+        .collect();
+    let (s, body) = ctx
+        .client
+        .post(
+            "/api/manufacturing/create/bom",
+            json!({
+                "header": {
+                    "bom_code": "BOM-FG-DEEP-VOLUME-v1",
+                    "product_item_uuid": fg_uuid,
+                    "description": "4-level deep volume FG",
+                    "revision": "1",
+                    "is_default": true,
+                    "is_active": true
+                },
+                "lines": fg_lines
+            }),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "FG deep BOM: {s} {body}");
+    println!("✓ L3 FG-DEEP-VOLUME BOM");
+
+    let (s, body) = ctx
+        .client
+        .post(
+            "/api/manufacturing/create/routing/header",
+            json!({
+                "product_item_uuid": fg_uuid,
+                "routing_code": "RT-DEEP-VOLUME-v1",
+                "notes": "Deep volume routing",
+                "version": "1",
+                "base_quantity": 1,
+                "effective_date": "2026-01-01",
+                "status": "active",
+                "is_default": true
+            }),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "routing: {s} {body}");
+    let routing_uuid = extract_uuid(&body, &["data", "uuid"]).map_err(|e| e.to_string())?;
+    for (seq, (wc, setup, run)) in [
+        ("WC-ASSY", "20", "45"),
+        ("WC-FINISH", "10", "30"),
+        ("WC-VOL-03", "15", "20"),
+    ]
+    .iter()
+    .enumerate()
+    {
+        let (s, body) = ctx
+            .client
+            .post(
+                "/api/manufacturing/create/routing/operation",
+                json!({
+                    "routing_uuid": routing_uuid,
+                    "sequence_no": (seq + 1) * 10,
+                    "operation_code": format!("OP-{}", (seq + 1) * 10),
+                    "operation_name": format!("Deep op {}", seq + 1),
+                    "work_center": wc,
+                    "setup_time_minutes": setup,
+                    "run_time_minutes": run
+                }),
+            )
+            .await
+            .map_err(|e| e.to_string())?;
+        assert!(ok(s) || s.as_u16() == 409, "op: {s} {body}");
+    }
+    println!("✓ deep routing ops");
+
+    let vendor_uuid = *ctx
+        .vendors
+        .values()
+        .next()
+        .ok_or("need vendor — run e2e_02")?;
+    let (s, inv2) = ctx
+        .client
+        .get("/api/inventory/list/inventory")
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "list inv for serials: {s}");
+    let inv_rows = inv2["data"].as_array().cloned().unwrap_or_default();
+    let mut bill_items = Vec::new();
+    for (sku, _uuid) in &bulk_rms {
+        let row = inv_rows
+            .iter()
+            .find(|i| i["sku"].as_str() == Some(sku.as_str()))
+            .ok_or_else(|| format!("missing {sku}"))?;
+        let stock_item_id = row["serial_id"]
+            .as_i64()
+            .ok_or_else(|| format!("serial_id missing for {sku}"))?;
+        bill_items.push(json!({
+            "stock_item_id": stock_item_id,
+            "description": sku,
+            "quantity": "20",
+            "unit_price": "10000",
+            "tax_rate": "18"
+        }));
+    }
+    let (s, body) = ctx
+        .client
+        .post(
+            "/api/procurement/create/purchase",
+            json!({
+                "bill_number": format!("BILL-DEEP-{}", chrono::Utc::now().timestamp_millis()),
+                "vendor_uuid": vendor_uuid,
+                "bill_date": "2026-02-01",
+                "due_date": "2026-02-28",
+                "reference": "PO-DEEP-BOM-RM",
+                "settlement_type": "credit",
+                "payment_status": "unpaid",
+                "items": bill_items
+            }),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "create deep purchase: {s} {body}");
+    let bill_serial = body["data"]["serial_id"]
+        .as_i64()
+        .ok_or("bill serial_id missing")?;
+    let (s, body) = ctx
+        .client
+        .post(
+            "/api/procurement/post/credit/purchase",
+            json!({
+                "bill_serial_id": bill_serial,
+                "vat_tax_account": "110800",
+                "payables_account": "210100",
+                "cash_account": null
+            }),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "post deep purchase: {s} {body}");
+    println!("✓ purchased {} bulk RM lines for deep BOM", bulk_rms.len());
+
+    let order_no = format!("PO-DEEP-{}", chrono::Utc::now().timestamp_millis());
+    let (s, body) = ctx
+        .client
+        .post(
+            "/api/manufacturing/create/production-order",
+            json!({
+                "order_number": order_no,
+                "product_item_uuid": fg_uuid,
+                "quantity_ordered": "2",
+                "start_date": "2026-02-05",
+                "expected_completion_date": "2026-02-25"
+            }),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "create deep PO: {s} {body}");
+    let po_uuid = extract_uuid(&body, &["data", "uuid"]).map_err(|e| e.to_string())?;
+    println!("✓ deep PO {order_no}");
+
+    let (s, body) = ctx
+        .client
+        .post(
+            "/api/manufacturing/apply/direct/material",
+            json!({
+                "warehouse_serial_id": 1,
+                "production_order_uuid": po_uuid
+            }),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "issue deep materials: {s} {body}");
+    let n_lines = body["data"].as_array().map(|a| a.len()).unwrap_or(0);
+    let min_leaves = fixtures::SCALE_MFG_MODULES * fixtures::SCALE_MFG_LEAVES_PER_MODULE;
+    assert!(
+        n_lines >= min_leaves,
+        "expected ≥{min_leaves} exploded leaf issue lines, got {n_lines}"
+    );
+    println!("✓ deep BOM issue lines={n_lines} (4-level explode)");
+
+    let (s, body) = ctx
+        .client
+        .post(
+            "/api/manufacturing/apply/direct/labor",
+            json!({ "production_order_uuid": po_uuid }),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "apply labor deep: {s} {body}");
+    println!("✓ deep routing labour applied");
+
+    ctx.assert_trial_balance_ok("2026-02-28")
+        .await
+        .map_err(|e| e.to_string())?;
+    println!("✅ manufacturing_deep_bom_volume OK — 4 levels, {n_lines} leaf issues");
     Ok(())
 }

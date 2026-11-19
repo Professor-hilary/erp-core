@@ -367,6 +367,57 @@ async fn inventory_master_data() -> E2eResult<()> {
     );
     println!("✓ bulk catalog modules={} rms+ ≥{} total_items={n_all}", fixtures::SCALE_MODULES, fixtures::SCALE_BULK_RMS);
 
+    // Deep manufacturing shells (used by e2e_08 manufacturing_deep_bom_volume)
+    let cat_fg = cat_uuids.get("FG").unwrap();
+    for i in 1..=fixtures::SCALE_MFG_COMPONENTS {
+        let sku = format!("CMP-DEEP-{i:02}");
+        let (s, body) = ctx
+            .client
+            .post(
+                "/api/inventory/create/item",
+                json!({
+                    "sku": sku,
+                    "name": format!("Deep Component {i:02}"),
+                    "warehouse_serial": wh_rm,
+                    "category_uuid": cat_sa,
+                    "unit": "pc",
+                    "selling_price": "0",
+                    "standard_cost": "500000",
+                    "track_quantity": true,
+                    "reorder_level": "1",
+                    "asset_account": inv_rm,
+                    "cogs_account": cogs,
+                    "income_account": income
+                }),
+            )
+            .await
+            .map_err(|e| e.to_string())?;
+        assert!(ok(s) || s.as_u16() == 409 || s.as_u16() == 400, "cmp {sku}: {s} {body}");
+    }
+    let (s, body) = ctx
+        .client
+        .post(
+            "/api/inventory/create/item",
+            json!({
+                "sku": fixtures::FG_DEEP_VOLUME,
+                "name": "Deep volume multi-level FG",
+                "warehouse_serial": wh_fg,
+                "category_uuid": cat_fg,
+                "unit": "pc",
+                "selling_price": "5000000",
+                "standard_cost": "0",
+                "track_quantity": true,
+                "reorder_level": "1",
+                "asset_account": inv_rm,
+                "cogs_account": cogs,
+                "income_account": income
+            }),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s) || s.as_u16() == 409 || s.as_u16() == 400, "FG-DEEP-VOLUME: {s} {body}");
+    println!("✓ deep manufacturing shells CMP×{} + {}", fixtures::SCALE_MFG_COMPONENTS, fixtures::FG_DEEP_VOLUME);
+
     println!("✅ inventory_master_data OK for {}", ctx.company_name);
     Ok(())
 }

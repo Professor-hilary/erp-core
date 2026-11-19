@@ -558,3 +558,10 @@ pub fn scaled_qty_buy(base: &str) -> String {
         .map(|n| (n * 5).to_string())
         .unwrap_or_else(|_| base.to_string())
 }
+
+/// Deep BOM volume test (4 levels: RM → module → component → FG)
+pub const SCALE_MFG_MODULES: usize = 8;
+pub const SCALE_MFG_COMPONENTS: usize = 4;
+pub const SCALE_MFG_LEAVES_PER_MODULE: usize = 5;
+pub const SCALE_MFG_WORK_CENTERS: usize = 6;
+pub const FG_DEEP_VOLUME: &str = "FG-DEEP-VOLUME";
