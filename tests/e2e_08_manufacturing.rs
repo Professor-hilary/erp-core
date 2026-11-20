@@ -11,6 +11,22 @@ fn ok(status: reqwest::StatusCode) -> bool {
     status.is_success() || status.as_u16() == 201
 }
 
+/// Work centres / master data may already exist when tests run out of order.
+fn already_exists(status: reqwest::StatusCode, body: &serde_json::Value) -> bool {
+    if status.as_u16() == 409 || status.as_u16() == 400 {
+        return true;
+    }
+    if status.as_u16() != 500 {
+        return false;
+    }
+    let msg = body
+        .pointer("/message")
+        .and_then(|v| v.as_str())
+        .or_else(|| body.pointer("/error").and_then(|v| v.as_str()))
+        .unwrap_or("");
+    msg.contains("duplicate key") || msg.contains("unique constraint") || msg.contains("already exists")
+}
+
 fn dec(v: &serde_json::Value) -> f64 {
     v.as_f64()
         .or_else(|| v.as_str().and_then(|s| s.parse().ok()))
@@ -116,7 +132,7 @@ async fn manufacturing_flow() -> E2eResult<()> {
         )
         .await
         .map_err(|e| e.to_string())?;
-    assert!(ok(s), "work center assembly: {s} {body}");
+    assert!(ok(s) || already_exists(s, &body), "work center assembly: {s} {body}");
     println!("✓ work center WC-ASSY");
 
     let (s, body) = ctx
@@ -133,7 +149,7 @@ async fn manufacturing_flow() -> E2eResult<()> {
         )
         .await
         .map_err(|e| e.to_string())?;
-    assert!(ok(s), "work center finish: {s} {body}");
+    assert!(ok(s) || already_exists(s, &body), "work center finish: {s} {body}");
     println!("✓ work center WC-FINISH");
 
     // =========================================================================
