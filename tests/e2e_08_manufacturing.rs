@@ -1587,10 +1587,10 @@ async fn manufacturing_deep_bom_volume() -> E2eResult<()> {
                 "/api/manufacturing/create/routing/operation",
                 json!({
                     "routing_uuid": routing_uuid,
-                    "sequence_no": (seq + 1) * 10,
-                    "operation_code": format!("OP-{}", (seq + 1) * 10),
+                    "sequence": (seq + 1) * 10,
                     "operation_name": format!("Deep op {}", seq + 1),
                     "work_center": wc,
+                    "description": format!("Volume routing step {}", seq + 1),
                     "setup_time_minutes": setup,
                     "run_time_minutes": run
                 }),
