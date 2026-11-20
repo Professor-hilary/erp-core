@@ -1392,25 +1392,36 @@ async fn manufacturing_deep_bom_volume() -> E2eResult<()> {
         "need modules from e2e_03"
     );
 
-    for i in 3..=fixtures::SCALE_MFG_WORK_CENTERS {
-        let code = format!("WC-VOL-{i:02}");
+    // Self-contained: deep_bom may run before manufacturing_flow alphabetically
+    for (code, name, rate, base) in [
+        ("WC-ASSY", "Assembly Bench", "15000", "DirectLaborHours"),
+        ("WC-FINISH", "Finishing Station", "12000", "MachineHours"),
+        ("WC-VOL-03", "Volume Cell 3", "10000", "DirectLaborHours"),
+        ("WC-VOL-04", "Volume Cell 4", "10000", "DirectLaborHours"),
+        ("WC-VOL-05", "Volume Cell 5", "10000", "DirectLaborHours"),
+        ("WC-VOL-06", "Volume Cell 6", "10000", "DirectLaborHours"),
+    ] {
         let (s, body) = ctx
             .client
             .post(
                 "/api/manufacturing/create/routing/workcenter",
                 json!({
                     "code": code,
-                    "name": format!("Volume Cell {i}"),
-                    "labor_rate": "10000",
-                    "allocation_base": "DirectLaborHours",
+                    "name": name,
+                    "labor_rate": rate,
+                    "allocation_base": base,
                     "department_code": "Production"
                 }),
             )
             .await
             .map_err(|e| e.to_string())?;
-        assert!(ok(s) || s.as_u16() == 409 || s.as_u16() == 400, "wc {code}: {s} {body}");
+        // 409/400 if manufacturing_flow already created ASSY/FINISH
+        assert!(
+            ok(s) || s.as_u16() == 409 || s.as_u16() == 400,
+            "wc {code}: {s} {body}"
+        );
     }
-    println!("✓ work centres toward {}", fixtures::SCALE_MFG_WORK_CENTERS);
+    println!("✓ work centres ASSY/FINISH + volume toward {}", fixtures::SCALE_MFG_WORK_CENTERS);
 
     let mut module_bom_uuids: Vec<String> = Vec::new();
     for (mi, (mod_sku, mod_uuid)) in modules.iter().enumerate() {
