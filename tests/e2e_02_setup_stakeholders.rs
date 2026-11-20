@@ -28,12 +28,13 @@ async fn seed_all_stakeholders_and_institutions() -> E2eResult<()> {
     let emps = v["data"].as_array().cloned().unwrap_or_default();
     assert!(!emps.is_empty(), "expected employees after seed");
 
-    // Sample employee is Active + has contract
+    // Prefer a hero employee (bulk HashMap order is nondeterministic)
     let sample = ctx
         .employees
-        .values()
-        .next()
+        .get("emp_alice")
+        .or_else(|| ctx.employees.get("ceo_hilary"))
         .copied()
+        .or_else(|| ctx.employees.values().next().copied())
         .ok_or("no employee uuid in ctx")?;
     let (s, body) = ctx
         .client

@@ -539,20 +539,33 @@ pub const SA_PROP_GROUND: &str = "SA-PROP-GROUND";
 
 
 // ---------------------------------------------------------------------------
+#[allow(dead_code)] // referenced from selected e2e crates only
 // Volume scale for e2e "data warehouse" (procedural bulk on top of hero fixtures)
 // ---------------------------------------------------------------------------
+#[allow(dead_code)]
 pub const SCALE_CUSTOMERS: usize = 50;
+#[allow(dead_code)]
 pub const SCALE_SUPPLIERS: usize = 30;
+#[allow(dead_code)]
 pub const SCALE_INVESTORS: usize = 30;
+#[allow(dead_code)]
 pub const SCALE_OWNERS_SHAREHOLDERS: usize = 30;
+#[allow(dead_code)]
 pub const SCALE_EMPLOYEES: usize = 40;
+#[allow(dead_code)]
 pub const SCALE_LENDERS: usize = 10;
+#[allow(dead_code)]
 pub const SCALE_FACILITIES: usize = 10;
+#[allow(dead_code)]
 pub const SCALE_EQUITY_ISSUES: usize = 10;
+#[allow(dead_code)]
 pub const SCALE_BULK_RMS: usize = 80;
+#[allow(dead_code)]
 pub const SCALE_MODULES: usize = 12;
+#[allow(dead_code)]
 pub const SCALE_INVOICE_LINES: usize = 20;
 
+#[allow(dead_code)]
 pub fn scaled_qty_buy(base: &str) -> String {
     base.parse::<i64>()
         .map(|n| (n * 5).to_string())
@@ -560,8 +573,13 @@ pub fn scaled_qty_buy(base: &str) -> String {
 }
 
 /// Deep BOM volume test (4 levels: RM → module → component → FG)
+#[allow(dead_code)]
 pub const SCALE_MFG_MODULES: usize = 8;
+#[allow(dead_code)]
 pub const SCALE_MFG_COMPONENTS: usize = 4;
+#[allow(dead_code)]
 pub const SCALE_MFG_LEAVES_PER_MODULE: usize = 5;
+#[allow(dead_code)]
 pub const SCALE_MFG_WORK_CENTERS: usize = 6;
+#[allow(dead_code)]
 pub const FG_DEEP_VOLUME: &str = "FG-DEEP-VOLUME";

@@ -488,7 +488,7 @@ impl TestContext {
             }
         }
 
-        // Bulk employees (scale) — payroll-ready Active path
+        // Bulk employees (scale) — same full path as heroes: contract + tasks → Active
         let hero_emp = self.employees.len();
         for i in 1..=fixtures::SCALE_EMPLOYEES {
             if self.employees.len() >= fixtures::SCALE_EMPLOYEES {
@@ -513,41 +513,25 @@ impl TestContext {
                 )
                 .await?;
             if !(status.is_success() || status.as_u16() == 201) {
+                eprintln!("bulk employee create failed {key}: {status} {value}");
                 continue;
             }
-            let Ok(emp_id) = extract_uuid(&value, &["data", "uuid"]) else { continue };
+            let Ok(emp_id) = extract_uuid(&value, &["data", "uuid"]) else {
+                continue;
+            };
             self.employees.insert(key.clone(), emp_id);
-            let _ = self
-                .client
-                .put(
-                    &format!("/api/workforce/employees/{emp_id}/payment-profile"),
-                    json!({
-                        "bank_name": "Stanbic",
-                        "bank_account_number": format!("BULK-{i:04}"),
-                        "payment_method": "Bank Transfer",
-                        "currency_code": "UGX"
-                    }),
-                )
-                .await?;
-            let _ = self
-                .client
-                .put(
-                    &format!("/api/workforce/employees/{emp_id}/statutory-profile"),
-                    json!({
-                        "date_of_birth": "1992-03-15",
-                        "tax_id": format!("TIN-B{i:05}"),
-                        "social_security_number": format!("NSSF-B{i:05}"),
-                        "is_resident": true
-                    }),
-                )
-                .await?;
-            let _ = self
-                .client
-                .post(
-                    &format!("/api/workforce/employees/{emp_id}/complete-onboarding"),
-                    json!({}),
-                )
-                .await?;
+            self.complete_employee_setup(
+                emp_id,
+                &key,
+                "2025-06-01",
+                default_dept,
+                default_title,
+                format!("BULK-{i:04}"),
+                "1992-03-15",
+                format!("TIN-B{i:05}"),
+                format!("NSSF-B{i:05}"),
+            )
+            .await?;
         }
         eprintln!(
             "workforce seed: hero_employees≈{hero_emp} total_employees={}",
