@@ -11,7 +11,10 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::{
-    features::payroll::{repository::PostgresPayrollRepo, services::PayrollService},
+    features::{
+        payroll::{repository::PostgresPayrollRepo, services::PayrollService},
+        rbac::{Actor, Module},
+    },
     interface::api::{errors::AppError, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,
     models::payroll::*,
@@ -71,7 +74,10 @@ async fn process_payrun(
     State(_state): State<Arc<AppState>>,
     Path(payrun_id): Path<i64>,
     Extension(user): Extension<AuthenticatedTenant>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Payroll)?;
+    actor.require("payroll.process")?;
     let service = PayrollService::new(PostgresPayrollRepo::new());
     let payrun = service.process_payrun(&user.tenant_pool, payrun_id).await?;
     Ok(ApiResponse::success(payrun, "Payrun processed"))

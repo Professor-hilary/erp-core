@@ -10,6 +10,7 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::{
+    features::rbac::RbacService,
     infrastructure::database::tenant_resolver::get_tenant_pool,
     interface::api::errors::AppError,
     middleware::auth::{AuthenticatedTenant, AuthenticatedUser},
@@ -117,11 +118,21 @@ pub async fn auth_middleware(
         request.extensions_mut().insert(AuthenticatedTenant {
             user_id,
             company_id,
-            tenant_pool: pool,
+            tenant_pool: pool.clone(),
             current_period_start: period.start_date,
             current_period_end: period.end_date,
             period_is_locked: period.is_locked,
         });
+
+        // RBAC: resolve Actor once (Redis → DB). Handlers only hash-lookup.
+        let actor = RbacService::resolve_actor(
+            &pool,
+            &state.authz_cache,
+            user_id,
+            company_id,
+        )
+        .await?;
+        request.extensions_mut().insert(actor);
     } else if !is_company_create && !is_switch_company {
         return Err(AppError::Unauthorized(
             "No company selected. Create or switch to a company first".into(),

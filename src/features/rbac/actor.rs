@@ -1,3 +1,4 @@
+use crate::interface::api::errors::AppError;
 use std::collections::HashSet;
 use uuid::Uuid;
 
@@ -77,19 +78,24 @@ impl Actor {
         self.is_tenant_admin || self.permissions.contains(code)
     }
 
-    pub fn require_module(&self, m: Module) -> Result<(), String> {
+    pub fn require_module(&self, m: Module) -> Result<(), AppError> {
         if self.has_module(m) {
             Ok(())
         } else {
-            Err(format!("Module '{}' not granted", m.as_str()))
+            Err(AppError::Forbidden(format!(
+                "Module '{}' not granted",
+                m.as_str()
+            )))
         }
     }
 
-    pub fn require(&self, permission: &str) -> Result<(), String> {
+    pub fn require(&self, permission: &str) -> Result<(), AppError> {
         if self.has_permission(permission) {
             Ok(())
         } else {
-            Err(format!("Permission '{permission}' denied"))
+            Err(AppError::Forbidden(format!(
+                "Permission '{permission}' denied"
+            )))
         }
     }
 }

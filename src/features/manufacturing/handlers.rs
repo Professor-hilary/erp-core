@@ -1,6 +1,9 @@
 // src/features/accounts/handlers.rs
 use crate::{
-    features::manufacturing::{repository::ManufacturingRepo, services::ManufacturingService},
+    features::{
+        manufacturing::{repository::ManufacturingRepo, services::ManufacturingService},
+        rbac::{Actor, Module},
+    },
     interface::api::{errors::AppError, json_errors::AppJson, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,
     models::manufacturing::*,
@@ -260,8 +263,11 @@ async fn new_routing_operation(
 async fn bulk_raw_material_issuance_route(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
+    Extension(actor): Extension<Actor>,
     AppJson(payload): AppJson<IssueMaterialDto>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Manufacturing)?;
+    actor.require("manufacturing.issue")?;
     let repo: ManufacturingRepo = ManufacturingRepo::new(user.tenant_pool);
     let service: ManufacturingService = ManufacturingService::new(repo);
 
