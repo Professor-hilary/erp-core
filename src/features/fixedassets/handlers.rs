@@ -265,8 +265,8 @@ async fn http_update_asset_book(
     State(_state): State<Arc<AppState>>,
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
-    AppJson(payload): AppJson<CreateAssetBook>,
     Extension(actor): Extension<Actor>,
+    AppJson(payload): AppJson<CreateAssetBook>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::FixedAssets)?;
     actor.require("fixed_assets.manage")?;
