@@ -84,27 +84,39 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             .unwrap_or(60 * 24 * 3600),
     };
 
-    let token_blacklist = match env::var("REDIS_URL") {
-        Ok(url) => match TokenBlacklist::connect(&url).await {
-            Ok(blacklist) => match blacklist.ping().await {
-                Ok(()) => {
-                    tracing::info!("Redis token blacklist connected");
-                    Some(Arc::new(blacklist))
+    let (token_blacklist, authz_cache) = match env::var("REDIS_URL") {
+        Ok(url) => {
+            let blacklist = match TokenBlacklist::connect(&url).await {
+                Ok(blacklist) => match blacklist.ping().await {
+                    Ok(()) => {
+                        tracing::info!("Redis token blacklist connected");
+                        Some(Arc::new(blacklist))
+                    }
+                    Err(error) => {
+                        tracing::error!("Redis connected but ping failed: {error:?}");
+                        return Err(error.into());
+                    }
+                },
+                Err(error) => {
+                    tracing::warn!("Redis unavailable, blacklist disabled: {error:?}");
+                    None
+                }
+            };
+            let authz = match AuthzCache::connect(&url).await {
+                Ok(cache) => {
+                    tracing::info!("Redis authz cache connected");
+                    Some(Arc::new(cache))
                 }
                 Err(error) => {
-                    tracing::error!("Redis connected but ping failed: {error:?}");
-                    // None // soft fail but continue
-                    return Err(error.into()); // Return this to terminate program
+                    tracing::warn!("Redis authz cache disabled: {error:?}");
+                    None
                 }
-            },
-            Err(error) => {
-                tracing::warn!("Redis unavailable, blacklist disabled: {error:?}");
-                None
-            }
-        },
+            };
+            (blacklist, authz)
+        }
         Err(_) => {
-            tracing::warn!("REDIS_URL not set — token blacklist disabled");
-            None
+            tracing::warn!("REDIS_URL not set — token blacklist and authz cache disabled");
+            (None, None)
         }
     };
 
@@ -126,6 +138,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         jwt_config,
         token_blacklist,
         account_role_maps: DashMap::new(),
+        authz_cache,
     });
 
     // --------------------------------------------------

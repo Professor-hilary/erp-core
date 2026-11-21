@@ -7,6 +7,7 @@ use crate::{
         },
         auth::{AuthService, repository::PostgresUserRepo},
         company::repository::{CompanyRepository, PostgresCompanyRepository},
+        rbac::RbacService,
     },
     infrastructure::database::tenant_provisioner::TenantProvisioner,
     interface::api::errors::AppError,
@@ -91,6 +92,11 @@ impl CompanyService {
         repo.assign_user_as_admin(&mut *tx, user_id, company.uuid)
             .await
             .map_err(|_| AppError::Internal("Failed to assign admin role".into()))?;
+
+        // Tenant RBAC: creator is TenantAdmin with all module grants
+        RbacService::bootstrap_admin(&tenant_pool, user_id)
+            .await
+            .map_err(|e| AppError::Internal(format!("Failed to bootstrap tenant RBAC: {e}")))?;
 
         repo.update_status(&mut *tx, company.uuid, "active")
             .await

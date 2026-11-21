@@ -9,6 +9,7 @@ use uuid::Uuid;
 
 use crate::{
     features::accounts::account_roles::AccountRoleResolver,
+    infrastructure::redis_authz::SharedAuthzCache,
     infrastructure::redis_blacklist::SharedBlacklist,
 };
 
@@ -38,6 +39,8 @@ pub struct AppState {
     pub period_cache: Cache<Uuid, PeriodInfo>,
     pub token_blacklist: Option<SharedBlacklist>,
     pub account_role_maps: DashMap<Uuid, Arc<AccountRoleResolver>>,
+    /// Redis-backed Actor cache (None if Redis unavailable — fall back to DB each request).
+    pub authz_cache: Option<SharedAuthzCache>,
 }
 
 // #[derive(Clone, Debug)]

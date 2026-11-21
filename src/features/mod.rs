@@ -8,6 +8,7 @@ pub mod inventory;
 pub mod investment;
 pub mod manufacturing;
 pub mod payroll;
+pub mod rbac;
 pub mod procurement;
 pub mod reports;
 pub mod sales;
