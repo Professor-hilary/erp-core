@@ -39,8 +39,8 @@ pub fn router() -> Router<Arc<AppState>> {
 async fn http_create_vendor(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    AppJson(payload): AppJson<CreateVendor>,
     Extension(actor): Extension<Actor>,
+    AppJson(payload): AppJson<CreateVendor>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::Procurement)?;
     actor.require("procurement.manage")?;
@@ -77,8 +77,8 @@ async fn http_update_vendor(
     State(_state): State<Arc<AppState>>,
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
-    AppJson(payload): AppJson<CreateVendor>,
     Extension(actor): Extension<Actor>,
+    AppJson(payload): AppJson<CreateVendor>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::Procurement)?;
     actor.require("procurement.manage")?;
@@ -109,8 +109,8 @@ async fn http_delete_vendor(
 async fn http_create_bill(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    AppJson(payload): AppJson<CreatePurchase>,
     Extension(actor): Extension<Actor>,
+    AppJson(payload): AppJson<CreatePurchase>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::Procurement)?;
     actor.require("procurement.manage")?;
@@ -124,8 +124,8 @@ async fn http_create_bill(
 async fn http_credit_purchase(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    AppJson(payload): AppJson<PostPurchase>,
     Extension(actor): Extension<Actor>,
+    AppJson(payload): AppJson<PostPurchase>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::Procurement)?;
     actor.require("procurement.manage")?;
@@ -144,8 +144,8 @@ async fn http_credit_purchase(
 async fn http_cash_purchase(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    AppJson(payload): AppJson<PostPurchase>,
     Extension(actor): Extension<Actor>,
+    AppJson(payload): AppJson<PostPurchase>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::Procurement)?;
     actor.require("procurement.manage")?;
@@ -164,8 +164,8 @@ async fn http_cash_purchase(
 async fn http_apply_bill_payment(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    AppJson(payload): AppJson<ApplyPayment>,
     Extension(actor): Extension<Actor>,
+    AppJson(payload): AppJson<ApplyPayment>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::Procurement)?;
     actor.require("procurement.manage")?;

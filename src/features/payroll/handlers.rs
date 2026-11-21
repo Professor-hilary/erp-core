@@ -61,8 +61,8 @@ pub fn router() -> Router<Arc<AppState>> {
 async fn create_payrun(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    Json(payload): Json<CreatePayrun>,
     Extension(actor): Extension<Actor>,
+    Json(payload): Json<CreatePayrun>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::Payroll)?;
     actor.require("payroll.prepare")?;
@@ -89,8 +89,8 @@ async fn process_payrun(
 async fn post_payrun(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    Json(payload): Json<PostPayrun>,
     Extension(actor): Extension<Actor>,
+    Json(payload): Json<PostPayrun>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::Payroll)?;
     actor.require("payroll.process")?;
@@ -148,8 +148,8 @@ async fn list_payslips_for_payrun(
 async fn create_pay_component(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    Json(payload): Json<CreatePayComponent>,
     Extension(actor): Extension<Actor>,
+    Json(payload): Json<CreatePayComponent>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::Payroll)?;
     actor.require("payroll.prepare")?;
@@ -172,8 +172,8 @@ async fn list_pay_components(
 async fn create_component_assignment(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    Json(payload): Json<CreateComponentAssignment>,
     Extension(actor): Extension<Actor>,
+    Json(payload): Json<CreateComponentAssignment>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::Payroll)?;
     actor.require("payroll.prepare")?;
@@ -181,7 +181,10 @@ async fn create_component_assignment(
     let assignment = service
         .create_component_assignment(&user.tenant_pool, &payload)
         .await?;
-    Ok(ApiResponse::created(assignment, "Component assignment created"))
+    Ok(ApiResponse::created(
+        assignment,
+        "Component assignment created",
+    ))
 }
 
 #[derive(Debug, Deserialize)]
@@ -224,8 +227,8 @@ async fn get_payslip_calculation_items(
 async fn settle_employees(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    Json(payload): Json<SettleEmployees>,
     Extension(actor): Extension<Actor>,
+    Json(payload): Json<SettleEmployees>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::Payroll)?;
     actor.require("payroll.settle")?;
@@ -259,14 +262,17 @@ struct CreateRemittancesBody {
 async fn create_statutory_remittances(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    Json(payload): Json<CreateStatutoryRemittance/*CreateRemittancesBody*/>,
     Extension(actor): Extension<Actor>,
+    Json(payload): Json<CreateStatutoryRemittance /*CreateRemittancesBody*/>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::Payroll)?;
     actor.require("payroll.settle")?;
     let service = PayrollService::new(PostgresPayrollRepo::new());
     let rows = service
-        .create_statutory_remittances(&user.tenant_pool, &payload/*.payrun_uuid, payload.due_date*/)
+        .create_statutory_remittances(
+            &user.tenant_pool,
+            &payload, /*.payrun_uuid, payload.due_date*/
+        )
         .await?;
     Ok(ApiResponse::created(rows, "Statutory remittances created"))
 }
@@ -274,8 +280,8 @@ async fn create_statutory_remittances(
 async fn remit_statutory(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    Json(payload): Json<RemitStatutory>,
     Extension(actor): Extension<Actor>,
+    Json(payload): Json<RemitStatutory>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::Payroll)?;
     actor.require("payroll.settle")?;

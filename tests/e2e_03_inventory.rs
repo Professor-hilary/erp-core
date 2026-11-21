@@ -324,7 +324,10 @@ async fn inventory_master_data() -> E2eResult<()> {
             )
             .await
             .map_err(|e| e.to_string())?;
-        assert!(ok(s) || s.as_u16() == 409 || s.as_u16() == 400, "module {sku}: {s} {body}");
+        assert!(
+            ok(s) || s.as_u16() == 409 || s.as_u16() == 400,
+            "module {sku}: {s} {body}"
+        );
     }
     for i in 1..=fixtures::SCALE_BULK_RMS {
         let sku = format!("RM-BULK-{i:03}");
@@ -351,7 +354,10 @@ async fn inventory_master_data() -> E2eResult<()> {
             )
             .await
             .map_err(|e| e.to_string())?;
-        assert!(ok(s) || s.as_u16() == 409 || s.as_u16() == 400, "bulk rm {sku}: {s} {body}");
+        assert!(
+            ok(s) || s.as_u16() == 409 || s.as_u16() == 400,
+            "bulk rm {sku}: {s} {body}"
+        );
     }
     let (s, body) = ctx
         .client
@@ -365,7 +371,11 @@ async fn inventory_master_data() -> E2eResult<()> {
         "expected expanded catalog ≥{}, got {n_all}",
         RMS.len() + 3 + fixtures::SCALE_MODULES
     );
-    println!("✓ bulk catalog modules={} rms+ ≥{} total_items={n_all}", fixtures::SCALE_MODULES, fixtures::SCALE_BULK_RMS);
+    println!(
+        "✓ bulk catalog modules={} rms+ ≥{} total_items={n_all}",
+        fixtures::SCALE_MODULES,
+        fixtures::SCALE_BULK_RMS
+    );
 
     // Deep manufacturing shells (used by e2e_08 manufacturing_deep_bom_volume)
     let cat_fg = cat_uuids.get("FG").unwrap();
@@ -392,7 +402,10 @@ async fn inventory_master_data() -> E2eResult<()> {
             )
             .await
             .map_err(|e| e.to_string())?;
-        assert!(ok(s) || s.as_u16() == 409 || s.as_u16() == 400, "cmp {sku}: {s} {body}");
+        assert!(
+            ok(s) || s.as_u16() == 409 || s.as_u16() == 400,
+            "cmp {sku}: {s} {body}"
+        );
     }
     let (s, body) = ctx
         .client
@@ -415,8 +428,15 @@ async fn inventory_master_data() -> E2eResult<()> {
         )
         .await
         .map_err(|e| e.to_string())?;
-    assert!(ok(s) || s.as_u16() == 409 || s.as_u16() == 400, "FG-DEEP-VOLUME: {s} {body}");
-    println!("✓ deep manufacturing shells CMP×{} + {}", fixtures::SCALE_MFG_COMPONENTS, fixtures::FG_DEEP_VOLUME);
+    assert!(
+        ok(s) || s.as_u16() == 409 || s.as_u16() == 400,
+        "FG-DEEP-VOLUME: {s} {body}"
+    );
+    println!(
+        "✓ deep manufacturing shells CMP×{} + {}",
+        fixtures::SCALE_MFG_COMPONENTS,
+        fixtures::FG_DEEP_VOLUME
+    );
 
     println!("✅ inventory_master_data OK for {}", ctx.company_name);
     Ok(())

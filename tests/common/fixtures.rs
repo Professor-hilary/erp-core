@@ -537,9 +537,9 @@ pub const SA_CTRL_CORE: &str = "SA-CTRL-CORE";
 #[allow(dead_code)]
 pub const SA_PROP_GROUND: &str = "SA-PROP-GROUND";
 
-
 // ---------------------------------------------------------------------------
-#[allow(dead_code)] // referenced from selected e2e crates only
+#[allow(dead_code)]
+// referenced from selected e2e crates only
 // Volume scale for e2e "data warehouse" (procedural bulk on top of hero fixtures)
 // ---------------------------------------------------------------------------
 #[allow(dead_code)]

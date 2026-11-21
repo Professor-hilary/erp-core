@@ -13,10 +13,7 @@ use uuid::Uuid;
 
 use crate::{
     features::{
-        fixedassets::{
-            repository::PostgresFixedAssetRepository,
-            services::FixedAssetService,
-        },
+        fixedassets::{repository::PostgresFixedAssetRepository, services::FixedAssetService},
         rbac::{Actor, Module},
     },
     interface::api::{errors::AppError, json_errors::AppJson, responses::ApiResponse},
@@ -79,8 +76,8 @@ pub fn router() -> Router<Arc<AppState>> {
 async fn http_create_asset(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    AppJson(payload): AppJson<CreateAsset>,
     Extension(actor): Extension<Actor>,
+    AppJson(payload): AppJson<CreateAsset>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::FixedAssets)?;
     actor.require("fixed_assets.manage")?;
@@ -119,8 +116,8 @@ async fn http_update_asset(
     State(_state): State<Arc<AppState>>,
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
-    AppJson(payload): AppJson<CreateAsset>,
     Extension(actor): Extension<Actor>,
+    AppJson(payload): AppJson<CreateAsset>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::FixedAssets)?;
     actor.require("fixed_assets.manage")?;
@@ -135,8 +132,8 @@ async fn http_update_asset(
 async fn http_delete_asset(
     State(_state): State<Arc<AppState>>,
     Path(uuid): Path<Uuid>,
-    Extension(user): Extension<AuthenticatedTenant>,
     Extension(actor): Extension<Actor>,
+    Extension(user): Extension<AuthenticatedTenant>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::FixedAssets)?;
     actor.require("fixed_assets.manage")?;
@@ -151,8 +148,8 @@ async fn http_delete_asset(
 async fn http_create_asset_class(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    AppJson(payload): AppJson<CreateAssetClass>,
     Extension(actor): Extension<Actor>,
+    AppJson(payload): AppJson<CreateAssetClass>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::FixedAssets)?;
     actor.require("fixed_assets.manage")?;
@@ -193,8 +190,8 @@ async fn http_update_asset_class(
     State(_state): State<Arc<AppState>>,
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
-    AppJson(payload): AppJson<CreateAssetClass>,
     Extension(actor): Extension<Actor>,
+    AppJson(payload): AppJson<CreateAssetClass>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::FixedAssets)?;
     actor.require("fixed_assets.manage")?;
@@ -225,8 +222,8 @@ async fn http_delete_asset_class(
 async fn http_create_asset_book(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    AppJson(payload): AppJson<CreateAssetBook>,
     Extension(actor): Extension<Actor>,
+    AppJson(payload): AppJson<CreateAssetBook>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::FixedAssets)?;
     actor.require("fixed_assets.manage")?;
@@ -300,8 +297,8 @@ async fn http_delete_asset_book(
 async fn http_create_asset_cwip(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    AppJson(payload): AppJson<CreateCWIP>,
     Extension(actor): Extension<Actor>,
+    AppJson(payload): AppJson<CreateCWIP>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::FixedAssets)?;
     actor.require("fixed_assets.manage")?;
@@ -349,8 +346,8 @@ async fn http_update_asset_cwip(
     State(_state): State<Arc<AppState>>,
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
-    AppJson(payload): AppJson<CreateCWIP>,
     Extension(actor): Extension<Actor>,
+    AppJson(payload): AppJson<CreateCWIP>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::FixedAssets)?;
     actor.require("fixed_assets.manage")?;
@@ -407,8 +404,8 @@ async fn http_capitalize_cwip(
 async fn http_capitalize_asset(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    AppJson(payload): AppJson<CapitalizeAssetOrCWIP>,
     Extension(actor): Extension<Actor>,
+    AppJson(payload): AppJson<CapitalizeAssetOrCWIP>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::FixedAssets)?;
     actor.require("fixed_assets.manage")?;
@@ -430,8 +427,8 @@ async fn http_capitalize_asset(
 async fn http_compute_depreciation(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    AppJson(payload): AppJson<CreateAssetDepreciation>,
     Extension(actor): Extension<Actor>,
+    AppJson(payload): AppJson<CreateAssetDepreciation>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::FixedAssets)?;
     actor.require("fixed_assets.manage")?;
@@ -456,8 +453,8 @@ pub struct RunDepreciationRequest {
 async fn http_run_depreciation(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    AppJson(payload): AppJson<RunDepreciationRequest>,
     Extension(actor): Extension<Actor>,
+    AppJson(payload): AppJson<RunDepreciationRequest>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::FixedAssets)?;
     actor.require("fixed_assets.manage")?;
@@ -503,8 +500,8 @@ async fn http_post_depr_to_gl(
 async fn http_create_asset_component(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    AppJson(payload): AppJson<CreateAssetComponent>,
     Extension(actor): Extension<Actor>,
+    AppJson(payload): AppJson<CreateAssetComponent>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::FixedAssets)?;
     actor.require("fixed_assets.manage")?;
@@ -546,8 +543,8 @@ async fn http_update_asset_component(
     State(_state): State<Arc<AppState>>,
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
-    AppJson(payload): AppJson<CreateAssetComponent>,
     Extension(actor): Extension<Actor>,
+    AppJson(payload): AppJson<CreateAssetComponent>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::FixedAssets)?;
     actor.require("fixed_assets.manage")?;
@@ -578,8 +575,8 @@ async fn http_delete_asset_component(
 async fn http_create_insurance(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    AppJson(payload): AppJson<CreateAssetInsurance>,
     Extension(actor): Extension<Actor>,
+    AppJson(payload): AppJson<CreateAssetInsurance>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::FixedAssets)?;
     actor.require("fixed_assets.manage")?;
@@ -621,8 +618,8 @@ async fn http_update_insurance(
     State(_state): State<Arc<AppState>>,
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
-    AppJson(payload): AppJson<CreateAssetInsurance>,
     Extension(actor): Extension<Actor>,
+    AppJson(payload): AppJson<CreateAssetInsurance>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::FixedAssets)?;
     actor.require("fixed_assets.manage")?;
@@ -701,8 +698,8 @@ async fn http_transaction_history(
 async fn http_create_maintenance(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    AppJson(payload): AppJson<CreateAssetMaintenance>,
     Extension(actor): Extension<Actor>,
+    AppJson(payload): AppJson<CreateAssetMaintenance>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::FixedAssets)?;
     actor.require("fixed_assets.manage")?;
@@ -744,8 +741,8 @@ async fn http_update_maintenance(
     State(_state): State<Arc<AppState>>,
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
-    AppJson(payload): AppJson<CreateAssetMaintenance>,
     Extension(actor): Extension<Actor>,
+    AppJson(payload): AppJson<CreateAssetMaintenance>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::FixedAssets)?;
     actor.require("fixed_assets.manage")?;
@@ -776,8 +773,8 @@ async fn http_delete_maintenance(
 async fn http_create_revaluation(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    AppJson(payload): AppJson<CreateAssetRevaluation>,
     Extension(actor): Extension<Actor>,
+    AppJson(payload): AppJson<CreateAssetRevaluation>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::FixedAssets)?;
     actor.require("fixed_assets.manage")?;
@@ -805,8 +802,8 @@ async fn http_revaluation_history(
 async fn http_dispose_asset(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    AppJson(payload): AppJson<CreateAssetDisposal>,
     Extension(actor): Extension<Actor>,
+    AppJson(payload): AppJson<CreateAssetDisposal>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::FixedAssets)?;
     actor.require("fixed_assets.manage")?;

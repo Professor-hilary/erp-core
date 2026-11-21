@@ -39,10 +39,10 @@ pub struct PayComponent {
     pub name: String,
     pub component_kind: String,
     pub calc_method: String,
-	pub sequence_no: i16,
-	pub rounding_scale: i16,
-	pub effective_from: Option<NaiveDate>,
-	pub effective_to: Option<NaiveDate>,
+    pub sequence_no: i16,
+    pub rounding_scale: i16,
+    pub effective_from: Option<NaiveDate>,
+    pub effective_to: Option<NaiveDate>,
     pub default_rate: Option<BigDecimal>,
     pub is_taxable: Option<bool>,
     pub affects_social_security: Option<bool>,
@@ -58,14 +58,14 @@ pub struct CreatePayComponent {
     pub component_kind: String,
     pub calc_method: String,
     pub default_rate: Option<BigDecimal>,
-	#[serde(default = "default_component_sequence")]
-	pub sequence_no: i16,
+    #[serde(default = "default_component_sequence")]
+    pub sequence_no: i16,
 
-	#[serde(default = "default_rounding_scale")]
-	pub rounding_scale: i16,
+    #[serde(default = "default_rounding_scale")]
+    pub rounding_scale: i16,
 
-	pub effective_from: Option<NaiveDate>,
-	pub effective_to: Option<NaiveDate>,
+    pub effective_from: Option<NaiveDate>,
+    pub effective_to: Option<NaiveDate>,
     pub is_taxable: Option<bool>,
     pub affects_social_security: Option<bool>,
     pub statutory_role: Option<String>,
@@ -364,8 +364,8 @@ pub struct StatutoryRemittance {
 #[derive(Debug, Deserialize)]
 pub struct CreateStatutoryRemittance {
     pub payrun_uuid: Uuid,
-	/// PAYE | NSSF_EE | NSSF_ER — empty / "*" / "ALL" creates every non-zero liability
-	#[serde(default)]
+    /// PAYE | NSSF_EE | NSSF_ER — empty / "*" / "ALL" creates every non-zero liability
+    #[serde(default)]
     pub statutory_code: String, // PAYE | NSSF_EE | NSSF_ER
     pub due_date: NaiveDate,
 }

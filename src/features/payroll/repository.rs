@@ -1,8 +1,5 @@
 // src/features/payroll/repository.rs
-use crate::{
-    interface::api::errors::AppError,
-    models::payroll::*,
-};
+use crate::{interface::api::errors::AppError, models::payroll::*};
 use async_trait::async_trait;
 use bigdecimal::BigDecimal;
 use chrono::NaiveDate;
@@ -97,7 +94,7 @@ pub trait PayrollRepository: Send + Sync {
     async fn create_statutory_remittances(
         &self,
         pool: &PgPool,
-		remittance: &CreateStatutoryRemittance,
+        remittance: &CreateStatutoryRemittance,
         // payrun_uuid: Uuid,
         // due_date: NaiveDate,
     ) -> Result<Vec<StatutoryRemittance>, AppError>;
@@ -196,9 +193,7 @@ impl PayrollRepository for PostgresPayrollRepo {
             if let Some(items) = &slip.benefits {
                 for item in items {
                     if !["Allowance", "Deduction"].contains(&item.item_type.as_str()) {
-                        return Err(AppError::Unprocessable(
-                            "Invalid payslip item type".into(),
-                        ));
+                        return Err(AppError::Unprocessable("Invalid payslip item type".into()));
                     }
                     sqlx::query(
                         r#"
@@ -258,8 +253,8 @@ impl PayrollRepository for PostgresPayrollRepo {
         payrun_serial_id: i64,
     ) -> Result<Payrun, AppError> {
         use crate::features::payroll::calculation::{
-            calculate_payroll, CalculationMethod, ComponentInput, ComponentKind, EmployeeTaxProfile,
-            PayrollInput, TaxBand,
+            CalculationMethod, ComponentInput, ComponentKind, EmployeeTaxProfile, PayrollInput,
+            TaxBand, calculate_payroll,
         };
         use chrono::Datelike;
 
@@ -358,11 +353,11 @@ impl PayrollRepository for PostgresPayrollRepo {
                 ))
             })?;
 
-			if ctx.employee_uuid != slip.employee_uuid {
-			    return Err(AppError::Unprocessable(
-			        "Payroll context employee mismatch".into(),
-			    ));
-			}
+            if ctx.employee_uuid != slip.employee_uuid {
+                return Err(AppError::Unprocessable(
+                    "Payroll context employee mismatch".into(),
+                ));
+            }
 
             let mut basic_salary = ctx.basic_salary.clone().ok_or_else(|| {
                 AppError::Unprocessable(format!(
@@ -527,7 +522,7 @@ impl PayrollRepository for PostgresPayrollRepo {
                         return Err(AppError::Unprocessable(format!(
                             "Unknown component_kind {}",
                             a.component_kind
-                        )))
+                        )));
                     }
                 };
                 let method = match a.calc_method.as_str() {
@@ -541,7 +536,7 @@ impl PayrollRepository for PostgresPayrollRepo {
                         return Err(AppError::Unprocessable(format!(
                             "Unknown calc_method {}",
                             a.calc_method
-                        )))
+                        )));
                     }
                 };
 
@@ -586,25 +581,25 @@ impl PayrollRepository for PostgresPayrollRepo {
 
             // Leave encashment as taxable earning
             for (idx, enc) in encashments.iter().enumerate() {
-				if enc.days <= BigDecimal::from(0) {
-			        return Err(AppError::Unprocessable(format!(
-			            "Leave encashment {} has non-positive days",
-			            enc.uuid
-			        )));
-			    }
-			    let daily_rate = &enc.amount / &enc.days;
-			    let type_label = enc
-			        .leave_type_code
-			        .as_ref()
-			        .map(|c| format!(" ({c})"))
-			        .unwrap_or_default();
+                if enc.days <= BigDecimal::from(0) {
+                    return Err(AppError::Unprocessable(format!(
+                        "Leave encashment {} has non-positive days",
+                        enc.uuid
+                    )));
+                }
+                let daily_rate = &enc.amount / &enc.days;
+                let type_label = enc
+                    .leave_type_code
+                    .as_ref()
+                    .map(|c| format!(" ({c})"))
+                    .unwrap_or_default();
 
                 components.push(ComponentInput {
                     component_uuid: None,
                     code: format!("LEAVE_ENCASH_{}", idx + 1),
                     name: format!(
                         "Leave encashment{} — {} day(s) @ {}",
-						type_label, enc.days, daily_rate
+                        type_label, enc.days, daily_rate
                     ),
                     kind: ComponentKind::Earning,
                     method: CalculationMethod::Fixed,
@@ -650,35 +645,35 @@ impl PayrollRepository for PostgresPayrollRepo {
                 )));
             }
 
-			let mut last_seq: Option<i16> = None;
-			let mut tax_bands: Vec<TaxBand> = Vec::with_capacity(bands.len());
-			for b in bands {
-			    if let Some(prev) = last_seq {
-			        if b.sequence_no <= prev {
-			            return Err(AppError::Unprocessable(format!(
-			                "PAYE bands out of sequence: {} after {}",
-			                b.sequence_no, prev
-			            )));
-			        }
-			    }
-			    last_seq = Some(b.sequence_no);
-			    tax_bands.push(TaxBand {
-			        lower_bound: b.lower_bound,
-			        upper_bound: b.upper_bound,
-			        base_tax: b.base_tax,
-			        marginal_rate: b.marginal_rate,
-			    });
-			}
-
-            /*let tax_bands: Vec<TaxBand> = bands
-                .into_iter()
-                .map(|b| TaxBand {
+            let mut last_seq: Option<i16> = None;
+            let mut tax_bands: Vec<TaxBand> = Vec::with_capacity(bands.len());
+            for b in bands {
+                if let Some(prev) = last_seq {
+                    if b.sequence_no <= prev {
+                        return Err(AppError::Unprocessable(format!(
+                            "PAYE bands out of sequence: {} after {}",
+                            b.sequence_no, prev
+                        )));
+                    }
+                }
+                last_seq = Some(b.sequence_no);
+                tax_bands.push(TaxBand {
                     lower_bound: b.lower_bound,
                     upper_bound: b.upper_bound,
                     base_tax: b.base_tax,
                     marginal_rate: b.marginal_rate,
-                })
-                .collect();*/
+                });
+            }
+
+            /*let tax_bands: Vec<TaxBand> = bands
+            .into_iter()
+            .map(|b| TaxBand {
+                lower_bound: b.lower_bound,
+                upper_bound: b.upper_bound,
+                base_tax: b.base_tax,
+                marginal_rate: b.marginal_rate,
+            })
+            .collect();*/
 
             // 7. Load NSSF rates
             let nssf: Option<NssfRuleRow> = sqlx::query_as(
@@ -703,23 +698,27 @@ impl PayrollRepository for PostgresPayrollRepo {
             .fetch_optional(&mut *tx)
             .await?;
 
-            let (nssf_employee_rate, nssf_employer_rate, nssf_min_age, nssf_max_age, /*nssf_rule_set_uuid*/) =
-                match nssf {
-                    Some(n) => (
-                        n.employee_rate,
-                        n.employer_rate,
-                        n.minimum_age.map(|a| a as u8),
-                        n.maximum_age.map(|a| a as u8),
-						// Some(n.rule_set_uuid),
-                    ),
-                    None => (
-                        BigDecimal::from(5) / BigDecimal::from(100),
-                        BigDecimal::from(10) / BigDecimal::from(100),
-                        Some(16),
-                        Some(55),
-						// None
-                    ),
-                };
+            let (
+                nssf_employee_rate,
+                nssf_employer_rate,
+                nssf_min_age,
+                nssf_max_age, /*nssf_rule_set_uuid*/
+            ) = match nssf {
+                Some(n) => (
+                    n.employee_rate,
+                    n.employer_rate,
+                    n.minimum_age.map(|a| a as u8),
+                    n.maximum_age.map(|a| a as u8),
+                    // Some(n.rule_set_uuid),
+                ),
+                None => (
+                    BigDecimal::from(5) / BigDecimal::from(100),
+                    BigDecimal::from(10) / BigDecimal::from(100),
+                    Some(16),
+                    Some(55),
+                    // None
+                ),
+            };
 
             // 8. Build calculation input and run the engine
             let input = PayrollInput {
@@ -799,16 +798,26 @@ impl PayrollRepository for PostgresPayrollRepo {
             .await?;
 
             let (prior_taxable, prior_withheld, prior_paye_due, tax_period_uuid) = match &prior {
-                Some(p) => (p.taxable_income.clone(), p.paye_due.clone(), p.paye_withheld.clone(), Some(p.uuid)),
-                None => (BigDecimal::from(0), BigDecimal::from(0), BigDecimal::from(0), None),
+                Some(p) => (
+                    p.taxable_income.clone(),
+                    p.paye_due.clone(),
+                    p.paye_withheld.clone(),
+                    Some(p.uuid),
+                ),
+                None => (
+                    BigDecimal::from(0),
+                    BigDecimal::from(0),
+                    BigDecimal::from(0),
+                    None,
+                ),
             };
 
-			if prior_withheld > &prior_paye_due + BigDecimal::from(1) {
-			    return Err(AppError::Unprocessable(format!(
-			        "Employee {}: tax period inconsistent (withheld {} > due {}). Repair tax period before processing.",
-			        slip.employee_uuid, prior_withheld, prior_paye_due
-			    )));
-			}
+            if prior_withheld > &prior_paye_due + BigDecimal::from(1) {
+                return Err(AppError::Unprocessable(format!(
+                    "Employee {}: tax period inconsistent (withheld {} > due {}). Repair tax period before processing.",
+                    slip.employee_uuid, prior_withheld, prior_paye_due
+                )));
+            }
 
             let cumulative_taxable = &prior_taxable + &result.taxable_earnings;
             let cumulative_paye = crate::features::payroll::calculation::progressive_tax(
@@ -827,10 +836,8 @@ impl PayrollRepository for PostgresPayrollRepo {
             }
             result.paye = period_paye.clone();
             // Recompute net after PAYE adjustment — do NOT clamp; surface the exception
-            result.net_pay = &result.gross_pay
-                - &result.paye
-                - &result.employee_nssf
-                - &result.other_deductions;
+            result.net_pay =
+                &result.gross_pay - &result.paye - &result.employee_nssf - &result.other_deductions;
             if result.net_pay < BigDecimal::from(0) {
                 return Err(AppError::Unprocessable(format!(
                     "Employee {}: negative net pay after cumulative PAYE (gross {}, PAYE {}, NSSF {}, other {}). Correct inputs before processing.",
@@ -894,8 +901,8 @@ impl PayrollRepository for PostgresPayrollRepo {
             .bind(&result.employer_cost_total)
             .bind(&calculation_version)
             .bind(&snapshot)
-			.bind(&ctx.payment_method)
-			.bind(&ctx.bank_account_number)
+            .bind(&ctx.payment_method)
+            .bind(&ctx.bank_account_number)
             .execute(&mut *tx)
             .await?;
 
@@ -1099,26 +1106,25 @@ impl PayrollRepository for PostgresPayrollRepo {
         pool: &PgPool,
         payload: &PostPayrun,
     ) -> Result<(), AppError> {
-        let labor = payload.labor_expense_id.ok_or_else(|| {
-            AppError::Unprocessable("Payroll expense account is required".into())
-        })?;
-        let tax = payload.income_tax_id.ok_or_else(|| {
-            AppError::Unprocessable("PAYE payable account is required".into())
-        })?;
+        let labor = payload
+            .labor_expense_id
+            .ok_or_else(|| AppError::Unprocessable("Payroll expense account is required".into()))?;
+        let tax = payload
+            .income_tax_id
+            .ok_or_else(|| AppError::Unprocessable("PAYE payable account is required".into()))?;
         let employee_nssf = payload.employee_social_security_id.ok_or_else(|| {
             AppError::Unprocessable("Employee NSSF payable account is required".into())
         })?;
         let employer_nssf = payload.employer_social_security_id.ok_or_else(|| {
             AppError::Unprocessable("Employer NSSF payable account is required".into())
         })?;
-        let employer_nssf_expense = payload
-            .employer_social_security_expense_id
-            .ok_or_else(|| {
+        let employer_nssf_expense =
+            payload.employer_social_security_expense_id.ok_or_else(|| {
                 AppError::Unprocessable("Employer NSSF expense account is required".into())
             })?;
-        let payable = payload.payroll_payable.ok_or_else(|| {
-            AppError::Unprocessable("Payroll payable account is required".into())
-        })?;
+        let payable = payload
+            .payroll_payable
+            .ok_or_else(|| AppError::Unprocessable("Payroll payable account is required".into()))?;
 
         let mut tx = pool.begin().await?;
 
@@ -1415,12 +1421,12 @@ impl PayrollRepository for PostgresPayrollRepo {
             ));
         }
 
-        let cash_uuid = payload.cash_account_uuid.ok_or_else(|| {
-            AppError::Unprocessable("cash_account_uuid required".into())
-        })?;
-        let payable_uuid = payload.payroll_payable_uuid.ok_or_else(|| {
-            AppError::Unprocessable("payroll_payable_uuid required".into())
-        })?;
+        let cash_uuid = payload
+            .cash_account_uuid
+            .ok_or_else(|| AppError::Unprocessable("cash_account_uuid required".into()))?;
+        let payable_uuid = payload
+            .payroll_payable_uuid
+            .ok_or_else(|| AppError::Unprocessable("payroll_payable_uuid required".into()))?;
         let lines = serde_json::json!([
             {
                 "account_ref": payable_uuid,
@@ -1443,10 +1449,7 @@ impl PayrollRepository for PostgresPayrollRepo {
             )
             "#,
         )
-        .bind(format!(
-            "Employee settlement payrun {}",
-            payrun.serial_id
-        ))
+        .bind(format!("Employee settlement payrun {}", payrun.serial_id))
         .bind(format!(
             "Settle employees for period {} to {}",
             payrun.pay_period_start, payrun.pay_period_end
@@ -1457,12 +1460,11 @@ impl PayrollRepository for PostgresPayrollRepo {
         .fetch_one(&mut *tx)
         .await?;
 
-        let gl_uuid: Uuid = sqlx::query_scalar(
-            "SELECT uuid FROM accounting.transactions WHERE serial_id = $1",
-        )
-        .bind(txn_serial)
-        .fetch_one(&mut *tx)
-        .await?;
+        let gl_uuid: Uuid =
+            sqlx::query_scalar("SELECT uuid FROM accounting.transactions WHERE serial_id = $1")
+                .bind(txn_serial)
+                .fetch_one(&mut *tx)
+                .await?;
 
         let batch = sqlx::query_as::<_, EmployeePaymentBatch>(
             r#"
@@ -1539,23 +1541,23 @@ impl PayrollRepository for PostgresPayrollRepo {
     async fn create_statutory_remittances(
         &self,
         pool: &PgPool,
-		remittance: &CreateStatutoryRemittance,
+        remittance: &CreateStatutoryRemittance,
         // payrun_uuid: Uuid,
         // due_date: NaiveDate,
     ) -> Result<Vec<StatutoryRemittance>, AppError> {
         let mut tx = pool.begin().await?;
 
-        let payrun: Payrun = sqlx::query_as(
-            "SELECT * FROM payroll.payruns WHERE uuid = $1 FOR UPDATE",
-        )
-        .bind(remittance.payrun_uuid)
-        .fetch_optional(&mut *tx)
-        .await?
-        .ok_or_else(|| AppError::NotFound("Payrun not found".into()))?;
+        let payrun: Payrun =
+            sqlx::query_as("SELECT * FROM payroll.payruns WHERE uuid = $1 FOR UPDATE")
+                .bind(remittance.payrun_uuid)
+                .fetch_optional(&mut *tx)
+                .await?
+                .ok_or_else(|| AppError::NotFound("Payrun not found".into()))?;
 
         if payrun.status != "Posted" {
             return Err(AppError::Unprocessable(
-                "Payrun must be Posted (accrued to GL) before creating statutory remittances".into(),
+                "Payrun must be Posted (accrued to GL) before creating statutory remittances"
+                    .into(),
             ));
         }
 
@@ -1576,21 +1578,18 @@ impl PayrollRepository for PostgresPayrollRepo {
         let (paye, nssf_ee, nssf_er) = totals;
         let mut created = Vec::new();
 
-		let code_filter = remittance.statutory_code.trim().to_uppercase();
-        for (code, amount) in [
-            ("PAYE", paye),
-            ("NSSF_EE", nssf_ee),
-            ("NSSF_ER", nssf_er),
-        ] {
+        let code_filter = remittance.statutory_code.trim().to_uppercase();
+        for (code, amount) in [("PAYE", paye), ("NSSF_EE", nssf_ee), ("NSSF_ER", nssf_er)] {
             if amount <= BigDecimal::from(0) {
                 continue;
             }
-			if !code_filter.is_empty()
-		        && code_filter != "*"
-		        && code_filter != "ALL"
-		        && code_filter != code {
-		        continue;
-		    }
+            if !code_filter.is_empty()
+                && code_filter != "*"
+                && code_filter != "ALL"
+                && code_filter != code
+            {
+                continue;
+            }
             let row = sqlx::query_as::<_, StatutoryRemittance>(
                 r#"
                 INSERT INTO payroll.statutory_remittances (
@@ -1680,12 +1679,11 @@ impl PayrollRepository for PostgresPayrollRepo {
         .fetch_one(&mut *tx)
         .await?;
 
-        let gl_uuid: Uuid = sqlx::query_scalar(
-            "SELECT uuid FROM accounting.transactions WHERE serial_id = $1",
-        )
-        .bind(txn_serial)
-        .fetch_one(&mut *tx)
-        .await?;
+        let gl_uuid: Uuid =
+            sqlx::query_scalar("SELECT uuid FROM accounting.transactions WHERE serial_id = $1")
+                .bind(txn_serial)
+                .fetch_one(&mut *tx)
+                .await?;
 
         let updated = sqlx::query_as::<_, StatutoryRemittance>(
             r#"

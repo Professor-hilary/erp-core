@@ -125,13 +125,8 @@ pub async fn auth_middleware(
         });
 
         // RBAC: resolve Actor once (Redis → DB). Handlers only hash-lookup.
-        let actor = RbacService::resolve_actor(
-            &pool,
-            &state.authz_cache,
-            user_id,
-            company_id,
-        )
-        .await?;
+        let actor =
+            RbacService::resolve_actor(&pool, &state.authz_cache, user_id, company_id).await?;
         request.extensions_mut().insert(actor);
     } else if !is_company_create && !is_switch_company {
         return Err(AppError::Unauthorized(

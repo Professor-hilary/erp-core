@@ -11,8 +11,8 @@ use uuid::Uuid;
 
 use crate::{
     features::{
-        workforce::{repository::PostgresHrRepo, services::HrService},
         rbac::{Actor, Module},
+        workforce::{repository::PostgresHrRepo, services::HrService},
     },
     interface::api::{errors::AppError, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,
@@ -123,8 +123,8 @@ pub struct EmployeeFilter {
 async fn create_department(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    Json(payload): Json<CreateDepartment>,
     Extension(actor): Extension<Actor>,
+    Json(payload): Json<CreateDepartment>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::Workforce)?;
     actor.require("workforce.manage")?;
@@ -137,8 +137,8 @@ async fn create_department(
 async fn create_job_title(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    Json(payload): Json<CreateJobTitle>,
     Extension(actor): Extension<Actor>,
+    Json(payload): Json<CreateJobTitle>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::Workforce)?;
     actor.require("workforce.manage")?;
@@ -192,8 +192,8 @@ async fn update_department(
     State(_state): State<Arc<AppState>>,
     Path(id): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
-    Json(payload): Json<CreateDepartment>,
     Extension(actor): Extension<Actor>,
+    Json(payload): Json<CreateDepartment>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::Workforce)?;
     actor.require("workforce.manage")?;
@@ -207,8 +207,8 @@ async fn update_job_title(
     State(_state): State<Arc<AppState>>,
     Path(id): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
-    Json(payload): Json<CreateJobTitle>,
     Extension(actor): Extension<Actor>,
+    Json(payload): Json<CreateJobTitle>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::Workforce)?;
     actor.require("workforce.manage")?;
@@ -252,8 +252,8 @@ async fn delete_job_title(
 async fn create_employee(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    Json(payload): Json<CreateEmployee>,
     Extension(actor): Extension<Actor>,
+    Json(payload): Json<CreateEmployee>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::Workforce)?;
     actor.require("workforce.manage")?;
@@ -288,8 +288,8 @@ async fn update_employee(
     State(_state): State<Arc<AppState>>,
     Path(id): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
-    Json(payload): Json<UpdateEmployee>,
     Extension(actor): Extension<Actor>,
+    Json(payload): Json<UpdateEmployee>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::Workforce)?;
     actor.require("workforce.manage")?;
@@ -382,8 +382,8 @@ async fn list_employment_events(
 async fn create_contract(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    Json(payload): Json<CreateEmploymentContract>,
     Extension(actor): Extension<Actor>,
+    Json(payload): Json<CreateEmploymentContract>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::Workforce)?;
     actor.require("workforce.manage")?;
@@ -415,8 +415,8 @@ async fn add_amendment(
     State(_state): State<Arc<AppState>>,
     Path(id): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
-    Json(payload): Json<CreateContractAmendment>,
     Extension(actor): Extension<Actor>,
+    Json(payload): Json<CreateContractAmendment>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::Workforce)?;
     actor.require("workforce.manage")?;
@@ -492,8 +492,8 @@ async fn decide_leave_request(
     State(_state): State<Arc<AppState>>,
     Path(id): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
-    Json(payload): Json<DecideLeaveRequest>,
     Extension(actor): Extension<Actor>,
+    Json(payload): Json<DecideLeaveRequest>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::Workforce)?;
     actor.require("workforce.manage")?;
@@ -598,8 +598,8 @@ async fn start_exit(
     State(_state): State<Arc<AppState>>,
     Path(id): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
-    Json(payload): Json<StartExit>,
     Extension(actor): Extension<Actor>,
+    Json(payload): Json<StartExit>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::Workforce)?;
     actor.require("workforce.manage")?;

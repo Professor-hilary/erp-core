@@ -154,9 +154,10 @@ impl AccountRole {
             Self::DirectLabourExpense => &["direct labour", "direct labor", "factory wages"],
             Self::WagesExpense => &["wages expense", "factory wages", "salaries and wages"],
             Self::WagesPayable => &["wages payable", "accrued wages", "salaries payable"],
-            Self::ManufacturingOverheadControl => {
-                &["manufacturing overhead control", "overhead variance control"]
-            }
+            Self::ManufacturingOverheadControl => &[
+                "manufacturing overhead control",
+                "overhead variance control",
+            ],
             Self::ManufacturingOverheadApplied => &["manufacturing overhead applied"],
             Self::MaterialUsageVariance => &["material usage variance"],
             Self::LabourEfficiencyVariance => {
@@ -395,12 +396,12 @@ impl AccountRoleResolver {
                     .await?;
                     if result.rows_affected() == 1 {
                         report.inserted += 1;
-						tracing::info!(
-					        role = role.key(),
-					        account_code = %account.code,
-					        account_name = %account.name,
-					        "Discovery mapped account role"
-					    );
+                        tracing::info!(
+                            role = role.key(),
+                            account_code = %account.code,
+                            account_name = %account.name,
+                            "Discovery mapped account role"
+                        );
                     }
                 }
                 [] => report.missing.push(role.key().to_string()),

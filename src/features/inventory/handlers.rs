@@ -43,8 +43,8 @@ pub fn router() -> Router<Arc<AppState>> {
 async fn http_create_item(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    AppJson(payload): AppJson<CreateItem>,
     Extension(actor): Extension<Actor>,
+    AppJson(payload): AppJson<CreateItem>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::Inventory)?;
     actor.require("inventory.manage")?;
@@ -59,8 +59,8 @@ async fn http_create_item(
 async fn http_create_warehouse(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    AppJson(payload): AppJson<CreateWarehouse>,
     Extension(actor): Extension<Actor>,
+    AppJson(payload): AppJson<CreateWarehouse>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::Inventory)?;
     actor.require("inventory.manage")?;
@@ -75,8 +75,8 @@ async fn http_create_warehouse(
 async fn http_create_item_category(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    AppJson(payload): AppJson<CreateItemCategory>,
     Extension(actor): Extension<Actor>,
+    AppJson(payload): AppJson<CreateItemCategory>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::Inventory)?;
     actor.require("inventory.manage")?;
@@ -165,8 +165,8 @@ async fn http_update_item(
     State(_state): State<Arc<AppState>>,
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
-    AppJson(payload): AppJson<CreateItem>,
     Extension(actor): Extension<Actor>,
+    AppJson(payload): AppJson<CreateItem>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::Inventory)?;
     actor.require("inventory.manage")?;
@@ -182,8 +182,8 @@ async fn http_update_item_category(
     State(_state): State<Arc<AppState>>,
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
-    AppJson(payload): AppJson<CreateItemCategory>,
     Extension(actor): Extension<Actor>,
+    AppJson(payload): AppJson<CreateItemCategory>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::Inventory)?;
     actor.require("inventory.manage")?;
@@ -199,8 +199,8 @@ async fn http_update_warehouse(
     State(_state): State<Arc<AppState>>,
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
-    AppJson(payload): AppJson<CreateWarehouse>,
     Extension(actor): Extension<Actor>,
+    AppJson(payload): AppJson<CreateWarehouse>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::Inventory)?;
     actor.require("inventory.manage")?;
@@ -259,33 +259,3 @@ async fn http_delete_warehouse(
         .await?;
     Ok(ApiResponse::success((), "Warehouse deleted"))
 }
-
-// async fn http_cash_purchase(
-//     State(_state): State<Arc<AppState>>,
-//     Extension(user): Extension<AuthenticatedTenant>,
-//     AppJson(payload): AppJson<CreatePurchase>,
-// ) -> Result<Response, AppError> {
-//     let repo: PostgresInventoryRepo = PostgresInventoryRepo::new();
-//     let service: InventoryService<PostgresInventoryRepo> = InventoryService::new(repo);
-//     let purchase: Purchase = service
-//         .purchase(&user.tenant_pool, user.user_id, &payload)
-//         .await?;
-//     Ok(ApiResponse::success(
-//         purchase,
-//         "Purchase order created, unposted to GL",
-//     ))
-// }
-
-// async fn http_cash_sale(
-//     State(_state): State<Arc<AppState>>,
-//     Extension(user): Extension<AuthenticatedTenant>,
-//     AppJson(payload): AppJson<CreateTurnover>,
-// ) -> Result<Response, AppError> {
-//     let repo: PostgresInventoryRepo = PostgresInventoryRepo::new();
-//     let service: InventoryService<PostgresInventoryRepo> = InventoryService::new(repo);
-//     let purchase: Turnover = service.create_sale(&user.tenant_pool, &payload).await?;
-//     Ok(ApiResponse::success(
-//         purchase,
-//         "Sale order created, unposted to GL",
-//     ))
-// }

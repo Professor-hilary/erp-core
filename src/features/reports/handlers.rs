@@ -12,8 +12,8 @@ use uuid::Uuid;
 
 use crate::{
     features::{
-        rbac::{Actor, Module},
         fixedassets::{repository::PostgresFixedAssetRepository, services::FixedAssetService},
+        rbac::{Actor, Module},
         reports::{
             repository::{ForceReload, PostgresReportRepo},
             services::ReportService,
@@ -155,8 +155,8 @@ async fn http_income(
 async fn http_aging_ap(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    Path(uuid): Path<Uuid>,
     Extension(actor): Extension<Actor>,
+    Path(uuid): Path<Uuid>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::Reports)?;
     actor.require("reports.view")?;
@@ -326,8 +326,8 @@ async fn http_purchases_report(
 async fn refresh_reports_manual(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    Json(payload): Json<ForceReload>,
     Extension(actor): Extension<Actor>,
+    Json(payload): Json<ForceReload>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::Reports)?;
     actor.require("reports.view")?;
@@ -342,8 +342,8 @@ async fn refresh_reports_manual(
 async fn http_trial_balance(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    Query(q): Query<AsOfQuery>,
     Extension(actor): Extension<Actor>,
+    Query(q): Query<AsOfQuery>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::Reports)?;
     actor.require("reports.view")?;
@@ -432,9 +432,9 @@ async fn http_asset_register(
 async fn http_asset_movement_report(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
+    Extension(actor): Extension<Actor>,
     Query(date): Query<(NaiveDate, NaiveDate)>,
     Path(_uuid): Path<Uuid>,
-    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::Reports)?;
     actor.require("reports.view")?;
@@ -452,9 +452,9 @@ async fn http_asset_movement_report(
 async fn http_asset_depreciation_report(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
+    Extension(actor): Extension<Actor>,
     Query(date): Query<(NaiveDate, NaiveDate)>,
     Path(_uuid): Path<Uuid>,
-    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::Reports)?;
     actor.require("reports.view")?;
@@ -472,9 +472,9 @@ async fn http_asset_depreciation_report(
 async fn http_asset_disposal_report(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
+    Extension(actor): Extension<Actor>,
     Query(date): Query<(NaiveDate, NaiveDate)>,
     Path(_uuid): Path<Uuid>,
-    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::Reports)?;
     actor.require("reports.view")?;

@@ -386,7 +386,6 @@ pub struct CreateBomLineDto {
 //     pub source_bom_uuid: Uuid,
 // }
 
-
 /// Draft or posted actual labour allocation (time / payroll), distinct from routing-applied labour.
 #[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
 pub struct LabourAllocation {
@@ -439,7 +438,6 @@ pub struct PostLabourAllocationDto {
     #[serde(default)]
     pub overhead_control_account: Option<String>,
 }
-
 
 #[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
 pub struct OperationExecution {
@@ -555,7 +553,6 @@ pub struct RecordQualityInspectionDto {
     #[serde(default)]
     pub notes: Option<String>,
 }
-
 
 #[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
 pub struct LabourCategory {
@@ -740,7 +737,6 @@ pub struct LabourVariance {
     pub created_at: DateTime<Utc>,
 }
 
-
 #[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
 pub struct LabourProductivityByOrder {
     pub production_order_uuid: Uuid,
@@ -789,7 +785,6 @@ pub struct OperationEfficiency {
     pub standard_minutes: Option<BigDecimal>,
     pub efficiency_pct: Option<BigDecimal>,
 }
-
 
 #[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
 pub struct AttendanceEntry {
@@ -868,7 +863,6 @@ pub struct PayslipLabourAllocationRow {
     pub hours_share: BigDecimal,
     pub cost_application_uuid: Uuid,
 }
-
 
 #[derive(Debug, Deserialize)]
 pub struct CreateTeamTimeEntriesDto {

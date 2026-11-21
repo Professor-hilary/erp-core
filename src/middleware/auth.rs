@@ -1,14 +1,8 @@
-use axum::{
-    extract::FromRequestParts,
-    http::request::Parts,
-};
+use axum::{extract::FromRequestParts, http::request::Parts};
 use chrono::NaiveDate;
 use uuid::Uuid;
 
-use crate::{
-    features::rbac::Actor,
-    interface::api::errors::AppError,
-};
+use crate::{features::rbac::Actor, interface::api::errors::AppError};
 
 #[derive(Debug, Clone)]
 pub struct AuthenticatedUser {

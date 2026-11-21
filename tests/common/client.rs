@@ -84,7 +84,6 @@ impl TestClient {
         Ok((status, v))
     }
 
-
     pub async fn delete(&self, path: &str) -> Result<(StatusCode, Value)> {
         let res = self
             .http

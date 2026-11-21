@@ -18,10 +18,7 @@ fn role_uuid(
         return Ok(id);
     }
     resolver.resolve_default(role).map(|a| a.uuid).map_err(|e| {
-        AppError::Unprocessable(format!(
-            "Account role '{}' is not mapped: {e}",
-            role.key()
-        ))
+        AppError::Unprocessable(format!("Account role '{}' is not mapped: {e}", role.key()))
     })
 }
 
@@ -91,22 +88,22 @@ impl<R: PayrollRepository> PayrollService<R> {
             eligible
                 .into_iter()
                 .map(|employee| {
-					let basic = employee
-				        .basic_salary
-				        .clone()
-				        .unwrap_or_else(|| BigDecimal::from(0));
-					CreatePayslip {
-	                    employee_uuid: employee.employee_uuid,
-	                    gross_pay: BigDecimal::from(0),
-	                    basic_pay: Some(basic),
-	                    tax_deducted: Some(BigDecimal::from(0)),
-	                    social_security: Some(BigDecimal::from(0)),
-	                    employer_social_security: Some(BigDecimal::from(0)),
-	                    other_deductions: Some(BigDecimal::from(0)),
-	                    payment_method: employee.payment_method,
-	                    bank_account: employee.bank_account_number,
-	                    benefits: None,
-					}
+                    let basic = employee
+                        .basic_salary
+                        .clone()
+                        .unwrap_or_else(|| BigDecimal::from(0));
+                    CreatePayslip {
+                        employee_uuid: employee.employee_uuid,
+                        gross_pay: BigDecimal::from(0),
+                        basic_pay: Some(basic),
+                        tax_deducted: Some(BigDecimal::from(0)),
+                        social_security: Some(BigDecimal::from(0)),
+                        employer_social_security: Some(BigDecimal::from(0)),
+                        other_deductions: Some(BigDecimal::from(0)),
+                        payment_method: employee.payment_method,
+                        bank_account: employee.bank_account_number,
+                        benefits: None,
+                    }
                 })
                 .collect()
         } else {
@@ -139,17 +136,47 @@ impl<R: PayrollRepository> PayrollService<R> {
             .map_err(|e| AppError::Internal(format!("Failed to load account roles: {e}")))?;
         let resolved = PostPayrun {
             payrun_serial_id: payload.payrun_serial_id,
-            labor_expense_id: Some(role_uuid(&resolver, AccountRole::PayrollLabourExpense, payload.labor_expense_id)?),
-            income_tax_id: Some(role_uuid(&resolver, AccountRole::PayePayable, payload.income_tax_id)?),
-            employee_social_security_id: Some(role_uuid(&resolver, AccountRole::EmployeeNssfPayable, payload.employee_social_security_id)?),
-            employer_social_security_id: Some(role_uuid(&resolver, AccountRole::EmployerNssfPayable, payload.employer_social_security_id)?),
-            employer_social_security_expense_id: Some(role_uuid(&resolver, AccountRole::EmployerNssfExpense, payload.employer_social_security_expense_id)?),
-            payroll_payable: Some(role_uuid(&resolver, AccountRole::PayrollNetPayable, payload.payroll_payable)?),
+            labor_expense_id: Some(role_uuid(
+                &resolver,
+                AccountRole::PayrollLabourExpense,
+                payload.labor_expense_id,
+            )?),
+            income_tax_id: Some(role_uuid(
+                &resolver,
+                AccountRole::PayePayable,
+                payload.income_tax_id,
+            )?),
+            employee_social_security_id: Some(role_uuid(
+                &resolver,
+                AccountRole::EmployeeNssfPayable,
+                payload.employee_social_security_id,
+            )?),
+            employer_social_security_id: Some(role_uuid(
+                &resolver,
+                AccountRole::EmployerNssfPayable,
+                payload.employer_social_security_id,
+            )?),
+            employer_social_security_expense_id: Some(role_uuid(
+                &resolver,
+                AccountRole::EmployerNssfExpense,
+                payload.employer_social_security_expense_id,
+            )?),
+            payroll_payable: Some(role_uuid(
+                &resolver,
+                AccountRole::PayrollNetPayable,
+                payload.payroll_payable,
+            )?),
             other_deductions_payable_id: payload.other_deductions_payable_id.or_else(|| {
-                resolver.resolve_default(AccountRole::OtherPayrollDeductionsPayable).ok().map(|a| a.uuid)
+                resolver
+                    .resolve_default(AccountRole::OtherPayrollDeductionsPayable)
+                    .ok()
+                    .map(|a| a.uuid)
             }),
             other_employer_cost_expense_id: payload.other_employer_cost_expense_id.or_else(|| {
-                resolver.resolve_default(AccountRole::OtherEmployerPayrollExpense).ok().map(|a| a.uuid)
+                resolver
+                    .resolve_default(AccountRole::OtherEmployerPayrollExpense)
+                    .ok()
+                    .map(|a| a.uuid)
             }),
         };
         self.repo.post_payrun(user_id, pool, &resolved).await
@@ -183,10 +210,7 @@ impl<R: PayrollRepository> PayrollService<R> {
         self.repo.create_pay_component(pool, payload).await
     }
 
-    pub async fn list_pay_components(
-		&self, 
-		pool: &PgPool
-	) -> Result<Vec<PayComponent>, AppError> {
+    pub async fn list_pay_components(&self, pool: &PgPool) -> Result<Vec<PayComponent>, AppError> {
         self.repo.list_pay_components(pool).await
     }
 
@@ -240,7 +264,11 @@ impl<R: PayrollRepository> PayrollService<R> {
         } else {
             role_uuid(&resolver, AccountRole::CashAtHand, None)?
         };
-        let payable = role_uuid(&resolver, AccountRole::PayrollNetPayable, payload.payroll_payable_uuid)?;
+        let payable = role_uuid(
+            &resolver,
+            AccountRole::PayrollNetPayable,
+            payload.payroll_payable_uuid,
+        )?;
         let resolved = SettleEmployees {
             payrun_uuid: payload.payrun_uuid,
             payment_date: payload.payment_date,
@@ -266,12 +294,12 @@ impl<R: PayrollRepository> PayrollService<R> {
     pub async fn create_statutory_remittances(
         &self,
         pool: &PgPool,
-		remittance: &CreateStatutoryRemittance,
+        remittance: &CreateStatutoryRemittance,
         // payrun_uuid: Uuid,
         // due_date: NaiveDate,
     ) -> Result<Vec<StatutoryRemittance>, AppError> {
         self.repo
-            .create_statutory_remittances(pool, remittance/*payrun_uuid, due_date*/)
+            .create_statutory_remittances(pool, remittance /*payrun_uuid, due_date*/)
             .await
     }
 

@@ -9,8 +9,8 @@ use uuid::Uuid;
 
 use crate::{
     features::{
-        sales::{repository::PostgresCustomerRepo, services::CustomerService},
         rbac::{Actor, Module},
+        sales::{repository::PostgresCustomerRepo, services::CustomerService},
     },
     interface::api::{errors::AppError, json_errors::AppJson, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,
@@ -37,8 +37,8 @@ pub fn router() -> Router<Arc<AppState>> {
 async fn http_create_customer(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    Json(payload): Json<CreateCustomer>,
     Extension(actor): Extension<Actor>,
+    Json(payload): Json<CreateCustomer>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::Sales)?;
     actor.require("sales.manage")?;
@@ -53,8 +53,8 @@ async fn http_create_customer(
 async fn http_post_sale(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    AppJson(payload): AppJson<PostTurnover>,
     Extension(actor): Extension<Actor>,
+    AppJson(payload): AppJson<PostTurnover>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::Sales)?;
     actor.require("sales.manage")?;
@@ -91,8 +91,8 @@ async fn http_update_customer(
     State(_state): State<Arc<AppState>>,
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
-    Json(payload): Json<CreateCustomer>,
     Extension(actor): Extension<Actor>,
+    Json(payload): Json<CreateCustomer>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::Sales)?;
     actor.require("sales.manage")?;
@@ -126,8 +126,8 @@ async fn http_delete_customer(
 async fn http_create_invoice(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    Json(payload): Json<CreateTurnover>,
     Extension(actor): Extension<Actor>,
+    Json(payload): Json<CreateTurnover>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::Sales)?;
     actor.require("sales.manage")?;
@@ -143,8 +143,8 @@ async fn http_create_invoice(
 async fn http_post_invoice(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    Json(payload): Json<PostTurnover>,
     Extension(actor): Extension<Actor>,
+    Json(payload): Json<PostTurnover>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::Sales)?;
     actor.require("sales.manage")?;
@@ -159,8 +159,8 @@ async fn http_post_invoice(
 async fn http_apply_invoice_payment(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    Json(payload): Json<ApplyPayment>,
     Extension(actor): Extension<Actor>,
+    Json(payload): Json<ApplyPayment>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::Sales)?;
     actor.require("sales.manage")?;

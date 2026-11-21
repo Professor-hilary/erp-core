@@ -12,8 +12,8 @@ use uuid::Uuid;
 
 use crate::{
     features::{
-        transactions::{repository::PostgresTransactionRepo, services::TransactionService},
         rbac::{Actor, Module},
+        transactions::{repository::PostgresTransactionRepo, services::TransactionService},
     },
     interface::api::{errors::AppError, json_errors::AppJson, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,
@@ -46,8 +46,8 @@ pub fn router() -> Router<Arc<AppState>> {
 async fn create_entry(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    AppJson(payload): AppJson<CreateJournalEntry>,
     Extension(actor): Extension<Actor>,
+    AppJson(payload): AppJson<CreateJournalEntry>,
 ) -> Result<impl IntoResponse, AppError> {
     actor.require_module(Module::Accounting)?;
     actor.require("accounting.post")?;
@@ -118,8 +118,8 @@ async fn update_unposted_entry(
     State(_state): State<Arc<AppState>>,
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
-    AppJson(payload): AppJson<UpdateJournalEntry>,
     Extension(actor): Extension<Actor>,
+    AppJson(payload): AppJson<UpdateJournalEntry>,
 ) -> Result<impl IntoResponse, AppError> {
     actor.require_module(Module::Accounting)?;
     actor.require("accounting.post")?;
@@ -173,8 +173,8 @@ async fn void_entry(
     State(_state): State<Arc<AppState>>,
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
-    AppJson(body): AppJson<serde_json::Value>,
     Extension(actor): Extension<Actor>,
+    AppJson(body): AppJson<serde_json::Value>,
 ) -> Result<impl IntoResponse, AppError> {
     actor.require_module(Module::Accounting)?;
     actor.require("accounting.post")?;

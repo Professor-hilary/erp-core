@@ -195,8 +195,7 @@ pub fn prorate_salary(
     let eligible_days = inclusive_days(overlap_start, overlap_end);
 
     Ok(round_money(
-        &(salary * BigDecimal::from(eligible_days)
-            / BigDecimal::from(period_days)),
+        &(salary * BigDecimal::from(eligible_days) / BigDecimal::from(period_days)),
         2,
     ))
 }
@@ -246,13 +245,11 @@ pub fn progressive_tax(
         .ok_or(PayrollCalculationError::InvalidTaxBands)?;
 
     let taxable_in_band = match &band.upper_bound {
-        Some(upper) => taxable_income.clone().min(upper.clone())
-            - &band.lower_bound,
+        Some(upper) => taxable_income.clone().min(upper.clone()) - &band.lower_bound,
         None => taxable_income - &band.lower_bound,
     };
 
-    let tax = &band.base_tax
-        + (taxable_in_band * &band.marginal_rate);
+    let tax = &band.base_tax + (taxable_in_band * &band.marginal_rate);
 
     Ok(round_money(&tax, 2))
 }
@@ -264,34 +261,25 @@ fn calculate_component(
     taxable_before: &BigDecimal,
 ) -> Result<(BigDecimal, BigDecimal, BigDecimal), PayrollCalculationError> {
     if component.amount < zero() {
-        return Err(
-            PayrollCalculationError::InvalidComponentAmount(
-                component.code.clone(),
-            ),
-        );
+        return Err(PayrollCalculationError::InvalidComponentAmount(
+            component.code.clone(),
+        ));
     }
 
     let (basis, amount) = match component.method {
-        CalculationMethod::Fixed
-        | CalculationMethod::Manual
-        | CalculationMethod::External => (
-            component.amount.clone(),
-            component.amount.clone(),
-        ),
+        CalculationMethod::Fixed | CalculationMethod::Manual | CalculationMethod::External => {
+            (component.amount.clone(), component.amount.clone())
+        }
 
         CalculationMethod::PercentOfBasic => {
             let rate = component.rate.as_ref().ok_or_else(|| {
-                PayrollCalculationError::InvalidComponentRate(
-                    component.code.clone(),
-                )
+                PayrollCalculationError::InvalidComponentRate(component.code.clone())
             })?;
 
             if rate < &zero() {
-                return Err(
-                    PayrollCalculationError::InvalidComponentRate(
-                        component.code.clone(),
-                    ),
-                );
+                return Err(PayrollCalculationError::InvalidComponentRate(
+                    component.code.clone(),
+                ));
             }
 
             (basic.clone(), basic * rate)
@@ -299,17 +287,13 @@ fn calculate_component(
 
         CalculationMethod::PercentOfGross => {
             let rate = component.rate.as_ref().ok_or_else(|| {
-                PayrollCalculationError::InvalidComponentRate(
-                    component.code.clone(),
-                )
+                PayrollCalculationError::InvalidComponentRate(component.code.clone())
             })?;
 
             if rate < &zero() {
-                return Err(
-                    PayrollCalculationError::InvalidComponentRate(
-                        component.code.clone(),
-                    ),
-                );
+                return Err(PayrollCalculationError::InvalidComponentRate(
+                    component.code.clone(),
+                ));
             }
 
             (gross_before.clone(), gross_before * rate)
@@ -317,17 +301,13 @@ fn calculate_component(
 
         CalculationMethod::PercentOfTaxableEarnings => {
             let rate = component.rate.as_ref().ok_or_else(|| {
-                PayrollCalculationError::InvalidComponentRate(
-                    component.code.clone(),
-                )
+                PayrollCalculationError::InvalidComponentRate(component.code.clone())
             })?;
 
             if rate < &zero() {
-                return Err(
-                    PayrollCalculationError::InvalidComponentRate(
-                        component.code.clone(),
-                    ),
-                );
+                return Err(PayrollCalculationError::InvalidComponentRate(
+                    component.code.clone(),
+                ));
             }
 
             (taxable_before.clone(), taxable_before * rate)
@@ -342,9 +322,7 @@ fn calculate_component(
 fn age_at(date_of_birth: NaiveDate, date: NaiveDate) -> i32 {
     let mut age = date.year() - date_of_birth.year();
 
-    if (date.month(), date.day())
-        < (date_of_birth.month(), date_of_birth.day())
-    {
+    if (date.month(), date.day()) < (date_of_birth.month(), date_of_birth.day()) {
         age -= 1;
     }
 
@@ -361,7 +339,8 @@ fn nssf_is_applicable(
         return Ok(false);
     }
 
-    let dob = profile.date_of_birth
+    let dob = profile
+        .date_of_birth
         .ok_or(PayrollCalculationError::MissingDateOfBirth)?;
 
     let age = age_at(dob, period_end);
@@ -377,9 +356,7 @@ fn nssf_is_applicable(
     Ok(true)
 }
 
-pub fn calculate_payroll(
-    input: &PayrollInput,
-) -> Result<PayrollResult, PayrollCalculationError> {
+pub fn calculate_payroll(input: &PayrollInput) -> Result<PayrollResult, PayrollCalculationError> {
     if input.period_end < input.period_start {
         return Err(PayrollCalculationError::InvalidPeriod);
     }
@@ -429,19 +406,12 @@ pub fn calculate_payroll(
         let normalized_code = component.code.trim().to_uppercase();
 
         if normalized_code.is_empty() || !seen.insert(normalized_code) {
-            return Err(
-                PayrollCalculationError::DuplicateComponent(
-                    component.code.clone(),
-                ),
-            );
+            return Err(PayrollCalculationError::DuplicateComponent(
+                component.code.clone(),
+            ));
         }
 
-        let (basis, unrounded, amount) = calculate_component(
-            component,
-            &basic,
-            &gross,
-            &taxable,
-        )?;
+        let (basis, unrounded, amount) = calculate_component(component, &basic, &gross, &taxable)?;
 
         match component.kind {
             ComponentKind::Earning => {
@@ -490,36 +460,24 @@ pub fn calculate_payroll(
     )?;
 
     let employee_nssf = if nssf_applicable {
-        round_money(
-            &(&nssf_base * &input.nssf_employee_rate),
-            2,
-        )
+        round_money(&(&nssf_base * &input.nssf_employee_rate), 2)
     } else {
         zero()
     };
 
     let employer_nssf = if nssf_applicable {
-        round_money(
-            &(&nssf_base * &input.nssf_employer_rate),
-            2,
-        )
+        round_money(&(&nssf_base * &input.nssf_employer_rate), 2)
     } else {
         zero()
     };
 
-    let net_pay = round_money(
-        &(&gross - &paye - &employee_nssf - &deductions),
-        2,
-    );
+    let net_pay = round_money(&(&gross - &paye - &employee_nssf - &deductions), 2);
 
     if net_pay < zero() {
         return Err(PayrollCalculationError::NegativeNetPay);
     }
 
-    let employer_cost_total = round_money(
-        &(&gross + &employer_nssf + &employer_costs),
-        2,
-    );
+    let employer_cost_total = round_money(&(&gross + &employer_nssf + &employer_costs), 2);
 
     Ok(PayrollResult {
         employee_uuid: input.employee_uuid,

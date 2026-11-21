@@ -1,10 +1,10 @@
 use super::actor::Actor;
 use crate::infrastructure::redis_authz::SharedAuthzCache;
 use crate::interface::api::errors::AppError;
+use serde::Deserialize;
 use sqlx::PgPool;
 use std::collections::HashSet;
 use uuid::Uuid;
-use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
 pub struct UpsertMembershipRequest {

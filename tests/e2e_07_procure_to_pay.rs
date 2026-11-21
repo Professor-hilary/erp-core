@@ -1,6 +1,10 @@
 mod common;
 
-use common::{E2eResult, TestContext, client::extract_uuid, fixtures::{self, RMS}};
+use common::{
+    E2eResult, TestContext,
+    client::extract_uuid,
+    fixtures::{self, RMS},
+};
 // FG only if needed
 use serde_json::json;
 
@@ -68,7 +72,8 @@ async fn procure_to_pay() -> E2eResult<()> {
         }));
         println!(
             "✓ bill line {} serial={stock_item_id} qty={}",
-            rm.sku, fixtures::scaled_qty_buy(rm.qty_buy)
+            rm.sku,
+            fixtures::scaled_qty_buy(rm.qty_buy)
         );
     }
     assert!(!bill_items.is_empty(), "no RM lines for purchase bill");

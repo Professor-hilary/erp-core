@@ -1382,7 +1382,8 @@ impl HrRepository for PostgresHrRepo {
 
         if updated.rows_affected() == 0 {
             return Err(AppError::Unprocessable(
-                "No leave balance with sufficient remaining days for this employee/type/year".into(),
+                "No leave balance with sufficient remaining days for this employee/type/year"
+                    .into(),
             ));
         }
 

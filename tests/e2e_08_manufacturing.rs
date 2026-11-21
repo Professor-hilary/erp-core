@@ -24,7 +24,9 @@ fn already_exists(status: reqwest::StatusCode, body: &serde_json::Value) -> bool
         .and_then(|v| v.as_str())
         .or_else(|| body.pointer("/error").and_then(|v| v.as_str()))
         .unwrap_or("");
-    msg.contains("duplicate key") || msg.contains("unique constraint") || msg.contains("already exists")
+    msg.contains("duplicate key")
+        || msg.contains("unique constraint")
+        || msg.contains("already exists")
 }
 
 fn dec(v: &serde_json::Value) -> f64 {
@@ -40,7 +42,6 @@ fn assert_approx(actual: f64, expected: f64, tol: f64, label: &str) {
         "{label}: expected {expected} ± {tol}, got {actual}"
     );
 }
-
 
 fn find_item<'a>(inv: &'a serde_json::Value, sku: &str) -> Result<&'a serde_json::Value, String> {
     inv["data"]
@@ -132,7 +133,10 @@ async fn manufacturing_flow() -> E2eResult<()> {
         )
         .await
         .map_err(|e| e.to_string())?;
-    assert!(ok(s) || already_exists(s, &body), "work center assembly: {s} {body}");
+    assert!(
+        ok(s) || already_exists(s, &body),
+        "work center assembly: {s} {body}"
+    );
     println!("✓ work center WC-ASSY");
 
     let (s, body) = ctx
@@ -149,7 +153,10 @@ async fn manufacturing_flow() -> E2eResult<()> {
         )
         .await
         .map_err(|e| e.to_string())?;
-    assert!(ok(s) || already_exists(s, &body), "work center finish: {s} {body}");
+    assert!(
+        ok(s) || already_exists(s, &body),
+        "work center finish: {s} {body}"
+    );
     println!("✓ work center WC-FINISH");
 
     // =========================================================================
@@ -487,7 +494,11 @@ async fn manufacturing_flow() -> E2eResult<()> {
         .await
         .map_err(|e| e.to_string())?;
     assert!(
-        !ok(s2) || body2["data"].as_array().map(|a| a.is_empty()).unwrap_or(true),
+        !ok(s2)
+            || body2["data"]
+                .as_array()
+                .map(|a| a.is_empty())
+                .unwrap_or(true),
         "second full issue should fail or issue nothing, got {s2} {body2}"
     );
     println!("✓ repeat full issue rejected or no-op");
@@ -649,7 +660,9 @@ async fn manufacturing_flow() -> E2eResult<()> {
                 || i["uuid"].as_str() == Some(fg_uuid_str.as_str())
         })
     }) {
-        let q = dec(fg.get("quantity_on_hand").unwrap_or(&fg["quantity"].clone()));
+        let q = dec(fg
+            .get("quantity_on_hand")
+            .unwrap_or(&fg["quantity"].clone()));
         // quantity field names vary; only assert if present
         if q > 0.0 {
             assert!(q >= 10.0 - 0.01, "FG on hand expected ≥10, got {q}");
@@ -912,8 +925,16 @@ async fn manufacturing_partial_ops_cert() -> E2eResult<()> {
         .map_err(|e| e.to_string())?;
     assert!(ok(s), "partial complete: {s} {body}");
     let st = body["data"]["status"].as_str().unwrap_or("");
-    assert_eq!(st, "In Progress", "partial complete should leave In Progress, got {st}");
-    assert_approx(dec(&body["data"]["quantity_completed"]), 2.0, 0.001, "partial qty");
+    assert_eq!(
+        st, "In Progress",
+        "partial complete should leave In Progress, got {st}"
+    );
+    assert_approx(
+        dec(&body["data"]["quantity_completed"]),
+        2.0,
+        0.001,
+        "partial qty",
+    );
     println!("✓ partial completion 2/4 still In Progress");
 
     ctx.assert_trial_balance_ok("2026-02-28")
@@ -922,7 +943,6 @@ async fn manufacturing_partial_ops_cert() -> E2eResult<()> {
     println!("✅ manufacturing_partial_ops_cert OK");
     Ok(())
 }
-
 
 /// Stage labour: actual timesheet path vs routing-applied labour
 #[tokio::test]
@@ -1116,11 +1136,23 @@ async fn manufacturing_labour_actual_path() -> E2eResult<()> {
     // 2 employees × 4h × 15000 = 120_000
     assert_approx(actual_lab, 120_000.0, 1.0, "actual_labour from timesheets");
     let applied_lab = dec(sum["data"].get("applied_labour").unwrap_or(&json!(0)));
-    assert_approx(applied_lab, 0.0, 0.01, "applied_labour on timesheet-only PO");
+    assert_approx(
+        applied_lab,
+        0.0,
+        0.01,
+        "applied_labour on timesheet-only PO",
+    );
     println!("✓ labour summary actual_labour={actual_lab} applied_labour={applied_lab}");
     // Authoritative actual present; variance cost = actual - applied (= 120000 - 0)
-    let cost_var = dec(sum["data"].get("labour_cost_variance").unwrap_or(&json!(actual_lab)));
-    assert_approx(cost_var, 120_000.0, 1.0, "labour_cost_variance timesheet-only");
+    let cost_var = dec(sum["data"]
+        .get("labour_cost_variance")
+        .unwrap_or(&json!(actual_lab)));
+    assert_approx(
+        cost_var,
+        120_000.0,
+        1.0,
+        "labour_cost_variance timesheet-only",
+    );
 
     let (s, prod) = ctx
         .client
@@ -1138,7 +1170,6 @@ async fn manufacturing_labour_actual_path() -> E2eResult<()> {
     println!("✅ manufacturing_labour_actual_path OK");
     Ok(())
 }
-
 
 /// Missing actual must not invent a favourable labour variance on a completed order
 /// that only has routing-applied DirectLabor.
@@ -1192,12 +1223,19 @@ async fn manufacturing_labour_std_only_no_false_actual() -> E2eResult<()> {
     assert!(ok(s), "summary: {s} {sum}");
     let applied = dec(sum["data"].get("applied_labour").unwrap_or(&json!(0)));
     let actual = dec(sum["data"].get("actual_labour").unwrap_or(&json!(0)));
-    assert!(applied > 0.0, "expected applied labour from routing, got {applied}");
-    assert_approx(actual, 0.0, 0.01, "no timesheet/payroll → actual must be 0, not invented");
+    assert!(
+        applied > 0.0,
+        "expected applied labour from routing, got {applied}"
+    );
+    assert_approx(
+        actual,
+        0.0,
+        0.01,
+        "no timesheet/payroll → actual must be 0, not invented",
+    );
     println!("✓ std-only applied={applied} actual={actual} (no false actual)");
     Ok(())
 }
-
 
 /// Standard applied + actual timesheet on the SAME order — exact variance.
 /// Applied (routing qty 10) = 120,750; actual = 9h × 15,000 = 135,000; variance = 14,250 U.
@@ -1365,7 +1403,6 @@ async fn manufacturing_labour_std_plus_actual_cert() -> E2eResult<()> {
     Ok(())
 }
 
-
 /// 4-level BOM volume: RM-BULK → MOD-PWR → CMP-DEEP → FG-DEEP-VOLUME.
 /// Proves explode_bom + bulk issue across ≥40 leaf lines without changing CargoMule certs.
 #[tokio::test]
@@ -1437,7 +1474,10 @@ async fn manufacturing_deep_bom_volume() -> E2eResult<()> {
             "wc {code}: {s} {body}"
         );
     }
-    println!("✓ work centres ASSY/FINISH + volume toward {}", fixtures::SCALE_MFG_WORK_CENTERS);
+    println!(
+        "✓ work centres ASSY/FINISH + volume toward {}",
+        fixtures::SCALE_MFG_WORK_CENTERS
+    );
 
     let mut module_bom_uuids: Vec<String> = Vec::new();
     for (mi, (mod_sku, mod_uuid)) in modules.iter().enumerate() {

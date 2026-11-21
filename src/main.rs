@@ -17,7 +17,10 @@ use tokio::net::TcpListener;
 use tracing_subscriber::{EnvFilter, fmt, prelude::*};
 
 use crate::{
-    infrastructure::{database::init_master_db::init_master, redis_authz::AuthzCache, redis_blacklist::TokenBlacklist},
+    infrastructure::{
+        database::init_master_db::init_master, redis_authz::AuthzCache,
+        redis_blacklist::TokenBlacklist,
+    },
     state::{AppState, JwtConfig /*TenantConfig*/},
 };
 

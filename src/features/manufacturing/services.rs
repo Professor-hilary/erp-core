@@ -22,7 +22,11 @@ impl ManufacturingService {
             .map_err(|e| AppError::Internal(format!("Failed to load account roles: {e}")))
     }
 
-    fn role_ref(resolver: &AccountRoleResolver, role: AccountRole, override_code: Option<String>) -> Result<String, AppError> {
+    fn role_ref(
+        resolver: &AccountRoleResolver,
+        role: AccountRole,
+        override_code: Option<String>,
+    ) -> Result<String, AppError> {
         if let Some(code) = override_code {
             if !code.is_empty() {
                 return Ok(code);
@@ -31,10 +35,9 @@ impl ManufacturingService {
         resolver
             .resolve_default(role)
             .map(|a| a.uuid.to_string())
-            .map_err(|e| AppError::Unprocessable(format!(
-                "Account role '{}' is not mapped: {e}",
-                role.key()
-            )))
+            .map_err(|e| {
+                AppError::Unprocessable(format!("Account role '{}' is not mapped: {e}", role.key()))
+            })
     }
 
     pub async fn create_order(
@@ -76,10 +79,14 @@ impl ManufacturingService {
             warehouse_serial_id: dto.warehouse_serial_id,
             production_order_uuid: dto.production_order_uuid,
             raw_mat_account_code: Some(Self::role_ref(
-                &resolver, AccountRole::RawMaterialsInventory, dto.raw_mat_account_code,
+                &resolver,
+                AccountRole::RawMaterialsInventory,
+                dto.raw_mat_account_code,
             )?),
             wip_account_code: Some(Self::role_ref(
-                &resolver, AccountRole::WorkInProgress, dto.wip_account_code,
+                &resolver,
+                AccountRole::WorkInProgress,
+                dto.wip_account_code,
             )?),
         };
         Ok(self.repo.issue_material_from_bom(dto, user_uuid).await?)
@@ -113,10 +120,14 @@ impl ManufacturingService {
             base_hours: dto.base_hours,
             allocation_base: dto.allocation_base,
             wip_account: Some(Self::role_ref(
-                &resolver, AccountRole::WorkInProgress, dto.wip_account,
+                &resolver,
+                AccountRole::WorkInProgress,
+                dto.wip_account,
             )?),
             overhead_control_account: Some(Self::role_ref(
-                &resolver, AccountRole::ManufacturingOverheadControl, dto.overhead_control_account,
+                &resolver,
+                AccountRole::ManufacturingOverheadControl,
+                dto.overhead_control_account,
             )?),
         };
         Ok(self.repo.apply_overhead_to_order(dto, user_uuid).await?)
@@ -133,7 +144,10 @@ impl ManufacturingService {
             &resolver,
             AccountRole::CashAtBank,
             dto.payable_or_cash.clone(),
-        ).or_else(|_| Self::role_ref(&resolver, AccountRole::AccountsPayable, dto.payable_or_cash))?;
+        )
+        .or_else(|_| {
+            Self::role_ref(&resolver, AccountRole::AccountsPayable, dto.payable_or_cash)
+        })?;
         let dto = RecognizeOverhead {
             production_order_uuid: dto.production_order_uuid,
             base_amount: dto.base_amount,
@@ -141,7 +155,9 @@ impl ManufacturingService {
             reference: dto.reference,
             payable_or_cash: Some(cash),
             overhead_control_account: Some(Self::role_ref(
-                &resolver, AccountRole::ManufacturingOverheadControl, dto.overhead_control_account,
+                &resolver,
+                AccountRole::ManufacturingOverheadControl,
+                dto.overhead_control_account,
             )?),
         };
         Ok(self.repo.recognize_actual_overhead(dto, user_uuid).await?)
@@ -154,7 +170,6 @@ impl ManufacturingService {
     // ) -> Result<CostApplication, AppError> {
     //     Ok(self.repo.apply_indirect_labor(dto, user_uuid).await?)
     // }
-
 
     pub async fn create_labour_category(
         &self,
@@ -213,10 +228,14 @@ impl ManufacturingService {
         let dto = PostLabourTimeEntryDto {
             entry_uuid: dto.entry_uuid,
             wip_account_code: Some(Self::role_ref(
-                &resolver, AccountRole::WorkInProgress, dto.wip_account_code,
+                &resolver,
+                AccountRole::WorkInProgress,
+                dto.wip_account_code,
             )?),
             wages_account_code: Some(Self::role_ref(
-                &resolver, AccountRole::WagesPayable, dto.wages_account_code,
+                &resolver,
+                AccountRole::WagesPayable,
+                dto.wages_account_code,
             )?),
             overhead_control_account: dto.overhead_control_account.filter(|s| !s.is_empty()),
         };
@@ -235,12 +254,11 @@ impl ManufacturingService {
         &self,
         order_uuid: Uuid,
     ) -> Result<Vec<LabourTimeEntry>, AppError> {
-        Ok(self.repo.list_labour_time_entries_for_order(order_uuid).await?)
+        Ok(self
+            .repo
+            .list_labour_time_entries_for_order(order_uuid)
+            .await?)
     }
-
-
-
-
 
     pub async fn create_team_time_entries(
         &self,
@@ -250,10 +268,7 @@ impl ManufacturingService {
         Ok(self.repo.create_team_time_entries(dto, user_uuid).await?)
     }
 
-    pub async fn bulk_submit_time_entries(
-        &self,
-        entry_uuids: Vec<Uuid>,
-    ) -> Result<i32, AppError> {
+    pub async fn bulk_submit_time_entries(&self, entry_uuids: Vec<Uuid>) -> Result<i32, AppError> {
         Ok(self.repo.bulk_submit_time_entries(&entry_uuids).await?)
     }
 
@@ -278,10 +293,14 @@ impl ManufacturingService {
             entry_uuids: dto.entry_uuids,
             hourly_rate: dto.hourly_rate,
             wip_account_code: Some(Self::role_ref(
-                &resolver, AccountRole::WorkInProgress, dto.wip_account_code,
+                &resolver,
+                AccountRole::WorkInProgress,
+                dto.wip_account_code,
             )?),
             wages_account_code: Some(Self::role_ref(
-                &resolver, AccountRole::WagesPayable, dto.wages_account_code,
+                &resolver,
+                AccountRole::WagesPayable,
+                dto.wages_account_code,
             )?),
             overhead_control_account: dto.overhead_control_account,
         };
@@ -297,10 +316,14 @@ impl ManufacturingService {
         let dto = AllocatePayrunLabourDto {
             payrun_uuid: dto.payrun_uuid,
             wip_account_code: Some(Self::role_ref(
-                &resolver, AccountRole::WorkInProgress, dto.wip_account_code,
+                &resolver,
+                AccountRole::WorkInProgress,
+                dto.wip_account_code,
             )?),
             labour_clearing_account: Some(Self::role_ref(
-                &resolver, AccountRole::WagesPayable, dto.labour_clearing_account,
+                &resolver,
+                AccountRole::WagesPayable,
+                dto.labour_clearing_account,
             )?),
             cost_basis: dto.cost_basis,
         };
@@ -312,7 +335,10 @@ impl ManufacturingService {
         order_uuid: Uuid,
         user_uuid: Uuid,
     ) -> Result<Vec<LabourTimeEntry>, AppError> {
-        Ok(self.repo.draft_time_from_order_ops(order_uuid, user_uuid).await?)
+        Ok(self
+            .repo
+            .draft_time_from_order_ops(order_uuid, user_uuid)
+            .await?)
     }
 
     pub async fn upsert_attendance(
@@ -345,10 +371,14 @@ impl ManufacturingService {
         let dto = AllocatePayslipLabourDto {
             payslip_uuid: dto.payslip_uuid,
             wip_account_code: Some(Self::role_ref(
-                &resolver, AccountRole::WorkInProgress, dto.wip_account_code,
+                &resolver,
+                AccountRole::WorkInProgress,
+                dto.wip_account_code,
             )?),
             labour_clearing_account: Some(Self::role_ref(
-                &resolver, AccountRole::WagesPayable, dto.labour_clearing_account,
+                &resolver,
+                AccountRole::WagesPayable,
+                dto.labour_clearing_account,
             )?),
             cost_basis: dto.cost_basis,
         };
@@ -382,14 +412,20 @@ impl ManufacturingService {
         order_uuid: Uuid,
         as_of: Option<chrono::NaiveDate>,
     ) -> Result<LabourVariance, AppError> {
-        Ok(self.repo.compute_labour_variances(order_uuid, as_of).await?)
+        Ok(self
+            .repo
+            .compute_labour_variances(order_uuid, as_of)
+            .await?)
     }
 
     pub async fn production_order_labour_summary(
         &self,
         order_uuid: Uuid,
     ) -> Result<ProductionOrderLabourSummary, AppError> {
-        Ok(self.repo.production_order_labour_summary(order_uuid).await?)
+        Ok(self
+            .repo
+            .production_order_labour_summary(order_uuid)
+            .await?)
     }
 
     pub async fn create_labour_allocation(
@@ -409,10 +445,14 @@ impl ManufacturingService {
         let dto = PostLabourAllocationDto {
             allocation_uuid: dto.allocation_uuid,
             wip_account_code: Some(Self::role_ref(
-                &resolver, AccountRole::WorkInProgress, dto.wip_account_code,
+                &resolver,
+                AccountRole::WorkInProgress,
+                dto.wip_account_code,
             )?),
             wages_account_code: Some(Self::role_ref(
-                &resolver, AccountRole::WagesPayable, dto.wages_account_code,
+                &resolver,
+                AccountRole::WagesPayable,
+                dto.wages_account_code,
             )?),
             overhead_control_account: match dto.overhead_control_account {
                 Some(c) if !c.is_empty() => Some(c),
@@ -422,12 +462,14 @@ impl ManufacturingService {
         Ok(self.repo.post_labour_allocation(dto, user_uuid).await?)
     }
 
-
     pub async fn ensure_operation_executions(
         &self,
         dto: EnsureOperationsDto,
     ) -> Result<i32, AppError> {
-        Ok(self.repo.ensure_operation_executions(dto.production_order_uuid).await?)
+        Ok(self
+            .repo
+            .ensure_operation_executions(dto.production_order_uuid)
+            .await?)
     }
 
     pub async fn list_operation_executions(
@@ -477,10 +519,14 @@ impl ManufacturingService {
             production_order_uuid: dto.production_order_uuid,
             reference: dto.reference,
             labor_account_code: Some(Self::role_ref(
-                &resolver, AccountRole::WagesPayable, dto.labor_account_code,
+                &resolver,
+                AccountRole::WagesPayable,
+                dto.labor_account_code,
             )?),
             wip_account_code: Some(Self::role_ref(
-                &resolver, AccountRole::WorkInProgress, dto.wip_account_code,
+                &resolver,
+                AccountRole::WorkInProgress,
+                dto.wip_account_code,
             )?),
         };
         Ok(self.repo.apply_direct_labor(dto, user_uuid).await?)
@@ -513,22 +559,34 @@ impl ManufacturingService {
             completed_quantity: dto.completed_quantity,
             fg_warehouse_serial: dto.fg_warehouse_serial,
             wip_account_code: Some(Self::role_ref(
-                &resolver, AccountRole::WorkInProgress, dto.wip_account_code,
+                &resolver,
+                AccountRole::WorkInProgress,
+                dto.wip_account_code,
             )?),
             fg_account_code: Some(Self::role_ref(
-                &resolver, AccountRole::FinishedGoodsInventory, dto.fg_account_code,
+                &resolver,
+                AccountRole::FinishedGoodsInventory,
+                dto.fg_account_code,
             )?),
             mfg_mat_var_code: Some(Self::role_ref(
-                &resolver, AccountRole::MaterialUsageVariance, dto.mfg_mat_var_code,
+                &resolver,
+                AccountRole::MaterialUsageVariance,
+                dto.mfg_mat_var_code,
             )?),
             mfg_lab_var_code: Some(Self::role_ref(
-                &resolver, AccountRole::LabourEfficiencyVariance, dto.mfg_lab_var_code,
+                &resolver,
+                AccountRole::LabourEfficiencyVariance,
+                dto.mfg_lab_var_code,
             )?),
             mfg_moh_var_code: Some(Self::role_ref(
-                &resolver, AccountRole::OverheadVariance, dto.mfg_moh_var_code,
+                &resolver,
+                AccountRole::OverheadVariance,
+                dto.mfg_moh_var_code,
             )?),
             control_code: Some(Self::role_ref(
-                &resolver, AccountRole::ManufacturingOverheadControl, dto.control_code,
+                &resolver,
+                AccountRole::ManufacturingOverheadControl,
+                dto.control_code,
             )?),
         };
         Ok(self.repo.complete_production_order(dto, user_uuid).await?)

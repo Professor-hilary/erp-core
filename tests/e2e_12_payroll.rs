@@ -136,9 +136,7 @@ struct PayrollAccounts {
 async fn payroll_accounts(ctx: &mut TestContext) -> Result<PayrollAccounts, String> {
     let labor = match acct(ctx, &["520100", "520000"]) {
         Ok(id) => id,
-        Err(_) => {
-            ensure_account(ctx, "520100", "Factory Wages", "expense", "dr", "520000").await?
-        }
+        Err(_) => ensure_account(ctx, "520100", "Factory Wages", "expense", "dr", "520000").await?,
     };
     let paye = match acct(ctx, &["210300"]) {
         Ok(id) => id,
@@ -248,7 +246,10 @@ fn assert_reasonable_payroll_amounts(slip: &Value) {
     let net = json_amount(slip.get("net_pay").unwrap_or(&Value::Null));
     let other = json_amount(slip.get("other_deductions").unwrap_or(&Value::Null));
 
-    assert!(gross > BigDecimal::from(0), "expected positive gross, got {gross}");
+    assert!(
+        gross > BigDecimal::from(0),
+        "expected positive gross, got {gross}"
+    );
     assert!(
         gross >= BigDecimal::from(100_000),
         "gross {gross} looks too low for a full-time contract"
@@ -446,7 +447,10 @@ async fn payroll_process_calculates_and_locks() -> E2eResult<()> {
     for slip in &slips {
         assert!(!slip["calculated_at"].is_null(), "missing calculated_at");
         assert!(
-            !slip["calculation_version"].as_str().unwrap_or("").is_empty(),
+            !slip["calculation_version"]
+                .as_str()
+                .unwrap_or("")
+                .is_empty(),
             "missing calculation_version"
         );
         assert_reasonable_payroll_amounts(slip);
@@ -505,7 +509,10 @@ async fn payroll_rejects_cross_month_period() -> E2eResult<()> {
         .post(&format!("/api/payroll/payrun/process/{serial}"), json!({}))
         .await
         .map_err(|e| e.to_string())?;
-    assert!(!ok(s), "process must reject cross-month payrun, got {s} {body}");
+    assert!(
+        !ok(s),
+        "process must reject cross-month payrun, got {s} {body}"
+    );
     println!("✓ cross-month process rejected as expected");
     Ok(())
 }
@@ -615,7 +622,10 @@ async fn payroll_full_lifecycle() -> E2eResult<()> {
         .map_err(|e| e.to_string())?;
     assert!(ok(s), "create remittances: {s} {body}");
     let remittances = body["data"].as_array().cloned().unwrap_or_default();
-    assert!(!remittances.is_empty(), "expected PAYE/NSSF remittance rows");
+    assert!(
+        !remittances.is_empty(),
+        "expected PAYE/NSSF remittance rows"
+    );
 
     for rem in &remittances {
         let rem_uuid = rem["uuid"]
@@ -712,13 +722,25 @@ async fn payroll_remittance_requires_posted() -> E2eResult<()> {
 async fn payroll_list_surfaces() -> E2eResult<()> {
     let ctx = TestContext::from_saved_state().await?;
 
-    let (s, body) = ctx.client.get("/api/payroll/list/payruns").await.map_err(|e| e.to_string())?;
+    let (s, body) = ctx
+        .client
+        .get("/api/payroll/list/payruns")
+        .await
+        .map_err(|e| e.to_string())?;
     assert!(ok(s), "list payruns: {s} {body}");
 
-    let (s, body) = ctx.client.get("/api/payroll/list/payslips").await.map_err(|e| e.to_string())?;
+    let (s, body) = ctx
+        .client
+        .get("/api/payroll/list/payslips")
+        .await
+        .map_err(|e| e.to_string())?;
     assert!(ok(s), "list payslips: {s} {body}");
 
-    let (s, body) = ctx.client.get("/api/payroll/remittances").await.map_err(|e| e.to_string())?;
+    let (s, body) = ctx
+        .client
+        .get("/api/payroll/remittances")
+        .await
+        .map_err(|e| e.to_string())?;
     assert!(ok(s), "list remittances: {s} {body}");
 
     println!("✓ payroll list surfaces OK");
@@ -729,5 +751,5 @@ async fn payroll_list_surfaces() -> E2eResult<()> {
 #[ignore = "duplicate of payroll_full_lifecycle; run that test instead"]
 async fn monthly_payroll() -> E2eResult<()> {
     // payroll_full_lifecycle().await
-	Ok(())
+    Ok(())
 }

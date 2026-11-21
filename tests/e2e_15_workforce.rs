@@ -50,10 +50,7 @@ async fn workforce_departments_and_job_titles() -> E2eResult<()> {
         )
         .await
         .map_err(|e| e.to_string())?;
-    assert!(
-        ok(s) || s.as_u16() == 409,
-        "create department: {s} {body}"
-    );
+    assert!(ok(s) || s.as_u16() == 409, "create department: {s} {body}");
 
     let (s, body) = ctx
         .client

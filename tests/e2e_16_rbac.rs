@@ -23,19 +23,21 @@ async fn rbac_production_user_grant_deny() -> E2eResult<()> {
         .await
         .map_err(|e| e.to_string())?;
     assert!(ok(s), "admin /me: {s} {me}");
-    let admin_roles = me["data"]["roles"]
-        .as_array()
-        .cloned()
-        .unwrap_or_default();
+    let admin_roles = me["data"]["roles"].as_array().cloned().unwrap_or_default();
     assert!(
-        admin_roles.iter().any(|r| r.as_str() == Some("TenantAdmin"))
+        admin_roles
+            .iter()
+            .any(|r| r.as_str() == Some("TenantAdmin"))
             || me["data"]["is_tenant_admin"].as_bool() == Some(true),
         "creator should be tenant admin: {me}"
     );
     println!("✓ admin /api/rbac/me");
 
     // Register a second user (master only — no company yet)
-    let email = format!("prod.user.{}@test.local", chrono::Utc::now().timestamp_millis());
+    let email = format!(
+        "prod.user.{}@test.local",
+        chrono::Utc::now().timestamp_millis()
+    );
     let http = reqwest::Client::new();
     let reg = http
         .post(format!("{BASE}/api/auth/register"))
@@ -81,7 +83,11 @@ async fn rbac_production_user_grant_deny() -> E2eResult<()> {
     let dept_uuid = depts["data"]
         .as_array()
         .and_then(|a| a.first())
-        .and_then(|d| d.get("uuid").and_then(|u| u.as_str()).or_else(|| d.get("uuid").map(|u| u.as_str()).flatten()))
+        .and_then(|d| {
+            d.get("uuid")
+                .and_then(|u| u.as_str())
+                .or_else(|| d.get("uuid").map(|u| u.as_str()).flatten())
+        })
         .or_else(|| {
             depts["data"]
                 .as_array()
@@ -126,10 +132,7 @@ async fn rbac_production_user_grant_deny() -> E2eResult<()> {
     prod.refresh = refresh;
     println!("✓ prod user switched into company");
 
-    let (s, me2) = prod
-        .get("/api/rbac/me")
-        .await
-        .map_err(|e| e.to_string())?;
+    let (s, me2) = prod.get("/api/rbac/me").await.map_err(|e| e.to_string())?;
     assert!(ok(s), "prod /me: {s} {me2}");
     let perms = me2["data"]["permissions"]
         .as_array()
@@ -142,9 +145,7 @@ async fn rbac_production_user_grant_deny() -> E2eResult<()> {
         "expected manufacturing.issue: {me2}"
     );
     assert!(
-        !perms
-            .iter()
-            .any(|p| p.as_str() == Some("payroll.process")),
+        !perms.iter().any(|p| p.as_str() == Some("payroll.process")),
         "must not have payroll.process: {me2}"
     );
     println!("✓ prod permissions shaped correctly");

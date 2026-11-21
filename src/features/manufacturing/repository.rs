@@ -593,10 +593,6 @@ impl ManufacturingRepo {
         Ok(rows)
     }
 
-
-
-
-
     pub async fn create_team_time_entries(
         &self,
         dto: CreateTeamTimeEntriesDto,
@@ -624,16 +620,11 @@ impl ManufacturingRepo {
         Ok(rows)
     }
 
-    pub async fn bulk_submit_time_entries(
-        &self,
-        entry_uuids: &[Uuid],
-    ) -> Result<i32, AppError> {
-        let n: (i32,) = sqlx::query_as(
-            "SELECT manufacturing.bulk_submit_time_entries($1)",
-        )
-        .bind(entry_uuids)
-        .fetch_one(&self.pool)
-        .await?;
+    pub async fn bulk_submit_time_entries(&self, entry_uuids: &[Uuid]) -> Result<i32, AppError> {
+        let n: (i32,) = sqlx::query_as("SELECT manufacturing.bulk_submit_time_entries($1)")
+            .bind(entry_uuids)
+            .fetch_one(&self.pool)
+            .await?;
         Ok(n.0)
     }
 
@@ -643,14 +634,12 @@ impl ManufacturingRepo {
         approver: Uuid,
         hourly_rate: Option<BigDecimal>,
     ) -> Result<i32, AppError> {
-        let n: (i32,) = sqlx::query_as(
-            "SELECT manufacturing.bulk_approve_time_entries($1,$2,$3)",
-        )
-        .bind(entry_uuids)
-        .bind(approver)
-        .bind(hourly_rate)
-        .fetch_one(&self.pool)
-        .await?;
+        let n: (i32,) = sqlx::query_as("SELECT manufacturing.bulk_approve_time_entries($1,$2,$3)")
+            .bind(entry_uuids)
+            .bind(approver)
+            .bind(hourly_rate)
+            .fetch_one(&self.pool)
+            .await?;
         Ok(n.0)
     }
 
@@ -659,16 +648,15 @@ impl ManufacturingRepo {
         dto: BulkTimeEntryIdsDto,
         user_uuid: Uuid,
     ) -> Result<i32, AppError> {
-        let n: (i32,) = sqlx::query_as(
-            "SELECT manufacturing.bulk_post_time_entries($1,$2,$3,$4,$5)",
-        )
-        .bind(&dto.entry_uuids)
-        .bind(user_uuid)
-        .bind(dto.wip_account_code.as_deref().unwrap_or(""))
-        .bind(dto.wages_account_code.as_deref().unwrap_or(""))
-        .bind(dto.overhead_control_account.as_deref())
-        .fetch_one(&self.pool)
-        .await?;
+        let n: (i32,) =
+            sqlx::query_as("SELECT manufacturing.bulk_post_time_entries($1,$2,$3,$4,$5)")
+                .bind(&dto.entry_uuids)
+                .bind(user_uuid)
+                .bind(dto.wip_account_code.as_deref().unwrap_or(""))
+                .bind(dto.wages_account_code.as_deref().unwrap_or(""))
+                .bind(dto.overhead_control_account.as_deref())
+                .fetch_one(&self.pool)
+                .await?;
         Ok(n.0)
     }
 
@@ -811,9 +799,7 @@ impl ManufacturingRepo {
         Ok(rows)
     }
 
-    pub async fn labour_by_employee(
-        &self,
-    ) -> Result<Vec<LabourByEmployee>, AppError> {
+    pub async fn labour_by_employee(&self) -> Result<Vec<LabourByEmployee>, AppError> {
         let rows = sqlx::query_as::<_, LabourByEmployee>(
             "SELECT * FROM manufacturing.v_labour_by_employee ORDER BY month_start DESC, employee_uuid",
         )
@@ -822,9 +808,7 @@ impl ManufacturingRepo {
         Ok(rows)
     }
 
-    pub async fn labour_by_work_center(
-        &self,
-    ) -> Result<Vec<LabourByWorkCenter>, AppError> {
+    pub async fn labour_by_work_center(&self) -> Result<Vec<LabourByWorkCenter>, AppError> {
         let rows = sqlx::query_as::<_, LabourByWorkCenter>(
             "SELECT * FROM manufacturing.v_labour_by_work_center ORDER BY month_start DESC, work_center_code",
         )
@@ -934,17 +918,11 @@ impl ManufacturingRepo {
         Ok(row)
     }
 
-
-    pub async fn ensure_operation_executions(
-        &self,
-        order_uuid: Uuid,
-    ) -> Result<i32, AppError> {
-        let n: i32 = sqlx::query_scalar(
-            "SELECT manufacturing.ensure_operation_executions($1)",
-        )
-        .bind(order_uuid)
-        .fetch_one(&self.pool)
-        .await?;
+    pub async fn ensure_operation_executions(&self, order_uuid: Uuid) -> Result<i32, AppError> {
+        let n: i32 = sqlx::query_scalar("SELECT manufacturing.ensure_operation_executions($1)")
+            .bind(order_uuid)
+            .fetch_one(&self.pool)
+            .await?;
         Ok(n)
     }
 
@@ -1147,7 +1125,7 @@ impl ManufacturingRepo {
         }
     }
 
-        pub async fn complete_production_order(
+    pub async fn complete_production_order(
         &self,
         dto: CompleteProductionOrderDto,
         user_uuid: Uuid,

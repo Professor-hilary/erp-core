@@ -1,7 +1,7 @@
 //! Admin RBAC HTTP surface — membership, roles, modules, /me
 use crate::{
-    features::rbac::{Actor, Module, RbacService},
     features::rbac::service::UpsertMembershipRequest,
+    features::rbac::{Actor, Module, RbacService},
     interface::api::{errors::AppError, json_errors::AppJson, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,
     state::AppState,
@@ -94,8 +94,6 @@ async fn list_memberships(
     Ok(ApiResponse::success(rows, "Memberships"))
 }
 
-
-
 async fn upsert_membership(
     State(state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
@@ -103,14 +101,12 @@ async fn upsert_membership(
     AppJson(body): AppJson<UpsertMembershipRequest>,
 ) -> Result<Response, AppError> {
     require_user_admin(&actor)?;
-    RbacService::upsert_membership(
-        &user.tenant_pool,
-        &state.authz_cache,
-        user.company_id,
-        body,
-    )
-    .await?;
-    Ok(ApiResponse::success(serde_json::json!({}), "Membership upserted"))
+    RbacService::upsert_membership(&user.tenant_pool, &state.authz_cache, user.company_id, body)
+        .await?;
+    Ok(ApiResponse::success(
+        serde_json::json!({}),
+        "Membership upserted",
+    ))
 }
 
 #[derive(Debug, Deserialize)]
@@ -158,7 +154,10 @@ async fn set_modules(
         &body.modules,
     )
     .await?;
-    Ok(ApiResponse::success(serde_json::json!({}), "Modules updated"))
+    Ok(ApiResponse::success(
+        serde_json::json!({}),
+        "Modules updated",
+    ))
 }
 
 #[derive(Debug, Deserialize)]
@@ -182,5 +181,8 @@ async fn set_department(
         body.department_uuid,
     )
     .await?;
-    Ok(ApiResponse::success(serde_json::json!({}), "Department updated"))
+    Ok(ApiResponse::success(
+        serde_json::json!({}),
+        "Department updated",
+    ))
 }

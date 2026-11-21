@@ -54,8 +54,8 @@ pub struct ListCurrenciesQuery {
 async fn create_account(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    AppJson(payload): AppJson<CreateAccount>,
     Extension(actor): Extension<Actor>,
+    AppJson(payload): AppJson<CreateAccount>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::Accounting)?;
     actor.require("accounting.post")?;
@@ -119,8 +119,8 @@ async fn update_account(
     State(_state): State<Arc<AppState>>,
     Path(id): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
-    AppJson(payload): AppJson<CreateAccount>,
     Extension(actor): Extension<Actor>,
+    AppJson(payload): AppJson<CreateAccount>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::Accounting)?;
     actor.require("accounting.post")?;
@@ -135,8 +135,8 @@ async fn update_account(
 async fn delete_account(
     State(_state): State<Arc<AppState>>,
     Path(id): Path<Uuid>,
-    Extension(user): Extension<AuthenticatedTenant>,
     Extension(actor): Extension<Actor>,
+    Extension(user): Extension<AuthenticatedTenant>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::Accounting)?;
     actor.require("accounting.post")?;
@@ -176,8 +176,8 @@ async fn close_period(
 async fn create_currency(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    AppJson(payload): AppJson<CreateCurrency>,
     Extension(actor): Extension<Actor>,
+    AppJson(payload): AppJson<CreateCurrency>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::Accounting)?;
     actor.require("accounting.post")?;
@@ -226,8 +226,8 @@ async fn update_currency(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     Path(id): Path<Uuid>,
-    AppJson(payload): AppJson<UpdateCurrency>,
     Extension(actor): Extension<Actor>,
+    AppJson(payload): AppJson<UpdateCurrency>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::Accounting)?;
     actor.require("accounting.post")?;
@@ -245,8 +245,8 @@ async fn update_currency(
 async fn upsert_exchange_rate(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    AppJson(payload): AppJson<UpsertExchangeRate>,
     Extension(actor): Extension<Actor>,
+    AppJson(payload): AppJson<UpsertExchangeRate>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::Accounting)?;
     actor.require("accounting.post")?;

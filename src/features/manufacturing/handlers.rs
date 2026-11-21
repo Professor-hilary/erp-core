@@ -47,8 +47,14 @@ pub fn router() -> Router<Arc<AppState>> {
             post(raw_material_issuance_route),
         )
         .route("/apply/direct/labor", post(http_direct_labor_route))
-        .route("/labour-allocation/create", post(create_labour_allocation_route))
-        .route("/labour-allocation/post", post(post_labour_allocation_route))
+        .route(
+            "/labour-allocation/create",
+            post(create_labour_allocation_route),
+        )
+        .route(
+            "/labour-allocation/post",
+            post(post_labour_allocation_route),
+        )
         .route("/labour/categories", get(list_labour_categories_route))
         .route("/labour/categories", post(create_labour_category_route))
         .route("/labour/rates", post(create_labour_rate_route))
@@ -60,16 +66,34 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/timesheet/from-operation", post(draft_from_op_route))
         .route("/timesheet/list/{order_uuid}", get(list_timesheets_route))
         .route("/labour/summary/{order_uuid}", get(labour_summary_route))
-        .route("/labour/variances/{order_uuid}", post(compute_labour_variances_route))
-        .route("/labour/report/productivity", get(labour_productivity_route))
-        .route("/labour/report/productivity/{order_uuid}", get(labour_productivity_one_route))
+        .route(
+            "/labour/variances/{order_uuid}",
+            post(compute_labour_variances_route),
+        )
+        .route(
+            "/labour/report/productivity",
+            get(labour_productivity_route),
+        )
+        .route(
+            "/labour/report/productivity/{order_uuid}",
+            get(labour_productivity_one_route),
+        )
         .route("/labour/report/by-employee", get(labour_by_employee_route))
         .route("/labour/report/by-work-center", get(labour_by_wc_route))
-        .route("/labour/report/operation-efficiency", get(op_efficiency_route))
-        .route("/labour/report/operation-efficiency/{order_uuid}", get(op_efficiency_one_route))
+        .route(
+            "/labour/report/operation-efficiency",
+            get(op_efficiency_route),
+        )
+        .route(
+            "/labour/report/operation-efficiency/{order_uuid}",
+            get(op_efficiency_one_route),
+        )
         .route("/attendance/upsert", post(upsert_attendance_route))
         .route("/labour/reconcile", get(labour_reconcile_route))
-        .route("/labour/reconcile/period", get(labour_reconcile_period_route))
+        .route(
+            "/labour/reconcile/period",
+            get(labour_reconcile_period_route),
+        )
         .route("/labour/allocate-payslip", post(allocate_payslip_route))
         .route("/timesheet/team", post(team_timesheet_route))
         .route("/timesheet/bulk-submit", post(bulk_submit_route))
@@ -92,7 +116,6 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/get/bom/{uuid}", get(get_bom_route))
         .route("/default-product/{uuid}", get(default_bom_route))
 }
-
 
 async fn ensure_operations_route(
     State(_state): State<Arc<AppState>>,
@@ -166,7 +189,10 @@ async fn quality_inspection_route(
 ) -> Result<Response, AppError> {
     let repo = ManufacturingRepo::new(user.tenant_pool);
     let service = ManufacturingService::new(repo);
-    match service.record_quality_inspection(payload, user.user_id).await {
+    match service
+        .record_quality_inspection(payload, user.user_id)
+        .await
+    {
         Ok(row) => Ok(ApiResponse::created(row, "Quality inspection recorded")),
         Err(e) => Err(internal_error(e)),
     }
@@ -202,8 +228,8 @@ async fn create_bom_route(
 async fn new_order_route(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    AppJson(payload): AppJson<CreateProductionOrderDto>,
     Extension(actor): Extension<Actor>,
+    AppJson(payload): AppJson<CreateProductionOrderDto>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::Manufacturing)?;
     actor.require("manufacturing.manage")?;
@@ -285,8 +311,8 @@ async fn bulk_raw_material_issuance_route(
 async fn raw_material_issuance_route(
     State(state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    AppJson(payload): AppJson<SingleMaterialIssueDto>,
     Extension(actor): Extension<Actor>,
+    AppJson(payload): AppJson<SingleMaterialIssueDto>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::Manufacturing)?;
     actor.require("manufacturing.issue")?;
@@ -421,14 +447,17 @@ async fn create_labour_rate_route(
 async fn create_timesheet_route(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    AppJson(payload): AppJson<CreateLabourTimeEntryDto>,
     Extension(actor): Extension<Actor>,
+    AppJson(payload): AppJson<CreateLabourTimeEntryDto>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::Manufacturing)?;
     actor.require("manufacturing.timesheet")?;
     let repo = ManufacturingRepo::new(user.tenant_pool);
     let service = ManufacturingService::new(repo);
-    match service.create_labour_time_entry(payload, user.user_id).await {
+    match service
+        .create_labour_time_entry(payload, user.user_id)
+        .await
+    {
         Ok(row) => Ok(ApiResponse::created(row, "Timesheet draft created")),
         Err(e) => Err(internal_error(e)),
     }
@@ -455,14 +484,17 @@ async fn submit_timesheet_route(
 async fn approve_timesheet_route(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    AppJson(payload): AppJson<ApproveLabourTimeEntryDto>,
     Extension(actor): Extension<Actor>,
+    AppJson(payload): AppJson<ApproveLabourTimeEntryDto>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::Manufacturing)?;
     actor.require("manufacturing.timesheet")?;
     let repo = ManufacturingRepo::new(user.tenant_pool);
     let service = ManufacturingService::new(repo);
-    match service.approve_labour_time_entry(payload, user.user_id).await {
+    match service
+        .approve_labour_time_entry(payload, user.user_id)
+        .await
+    {
         Ok(row) => Ok(ApiResponse::success(row, "Timesheet approved")),
         Err(e) => Err(internal_error(e)),
     }
@@ -484,8 +516,8 @@ async fn reject_timesheet_route(
 async fn post_timesheet_route(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    AppJson(payload): AppJson<PostLabourTimeEntryDto>,
     Extension(actor): Extension<Actor>,
+    AppJson(payload): AppJson<PostLabourTimeEntryDto>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::Manufacturing)?;
     actor.require("manufacturing.timesheet")?;
@@ -504,8 +536,14 @@ async fn draft_from_op_route(
 ) -> Result<Response, AppError> {
     let repo = ManufacturingRepo::new(user.tenant_pool);
     let service = ManufacturingService::new(repo);
-    match service.draft_time_from_operation(payload, user.user_id).await {
-        Ok(row) => Ok(ApiResponse::created(row, "Timesheet drafted from operation")),
+    match service
+        .draft_time_from_operation(payload, user.user_id)
+        .await
+    {
+        Ok(row) => Ok(ApiResponse::created(
+            row,
+            "Timesheet drafted from operation",
+        )),
         Err(e) => Err(internal_error(e)),
     }
 }
@@ -523,10 +561,6 @@ async fn list_timesheets_route(
     }
 }
 
-
-
-
-
 async fn team_timesheet_route(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
@@ -534,7 +568,10 @@ async fn team_timesheet_route(
 ) -> Result<Response, AppError> {
     let repo = ManufacturingRepo::new(user.tenant_pool);
     let service = ManufacturingService::new(repo);
-    match service.create_team_time_entries(payload, user.user_id).await {
+    match service
+        .create_team_time_entries(payload, user.user_id)
+        .await
+    {
         Ok(rows) => Ok(ApiResponse::created(rows, "Team timesheets created")),
         Err(e) => Err(internal_error(e)),
     }
@@ -560,7 +597,10 @@ async fn bulk_approve_route(
 ) -> Result<Response, AppError> {
     let repo = ManufacturingRepo::new(user.tenant_pool);
     let service = ManufacturingService::new(repo);
-    match service.bulk_approve_time_entries(payload, user.user_id).await {
+    match service
+        .bulk_approve_time_entries(payload, user.user_id)
+        .await
+    {
         Ok(n) => Ok(ApiResponse::success(n, "Timesheets approved")),
         Err(e) => Err(internal_error(e)),
     }
@@ -587,7 +627,10 @@ async fn allocate_payrun_route(
     let repo = ManufacturingRepo::new(user.tenant_pool);
     let service = ManufacturingService::new(repo);
     match service.allocate_payrun_labour(payload, user.user_id).await {
-        Ok(rows) => Ok(ApiResponse::created(rows, "Payrun labour allocation results")),
+        Ok(rows) => Ok(ApiResponse::created(
+            rows,
+            "Payrun labour allocation results",
+        )),
         Err(e) => Err(internal_error(e)),
     }
 }
@@ -603,7 +646,10 @@ async fn draft_from_order_route(
         .draft_time_from_order_ops(payload.production_order_uuid, user.user_id)
         .await
     {
-        Ok(rows) => Ok(ApiResponse::created(rows, "Timesheets drafted from operations")),
+        Ok(rows) => Ok(ApiResponse::created(
+            rows,
+            "Timesheets drafted from operations",
+        )),
         Err(e) => Err(internal_error(e)),
     }
 }
@@ -628,7 +674,10 @@ async fn labour_reconcile_route(
     let repo = ManufacturingRepo::new(user.tenant_pool);
     let service = ManufacturingService::new(repo);
     match service.labour_hours_reconciliation(None).await {
-        Ok(rows) => Ok(ApiResponse::success(rows, "Attendance vs timesheet reconciliation")),
+        Ok(rows) => Ok(ApiResponse::success(
+            rows,
+            "Attendance vs timesheet reconciliation",
+        )),
         Err(e) => Err(internal_error(e)),
     }
 }
@@ -640,7 +689,10 @@ async fn labour_reconcile_period_route(
     let repo = ManufacturingRepo::new(user.tenant_pool);
     let service = ManufacturingService::new(repo);
     match service.labour_hours_reconciliation_period().await {
-        Ok(rows) => Ok(ApiResponse::success(rows, "Monthly labour hours reconciliation")),
+        Ok(rows) => Ok(ApiResponse::success(
+            rows,
+            "Monthly labour hours reconciliation",
+        )),
         Err(e) => Err(internal_error(e)),
     }
 }
@@ -653,7 +705,10 @@ async fn allocate_payslip_route(
     let repo = ManufacturingRepo::new(user.tenant_pool);
     let service = ManufacturingService::new(repo);
     match service.allocate_payslip_labour(payload, user.user_id).await {
-        Ok(rows) => Ok(ApiResponse::created(rows, "Payslip labour allocated to orders")),
+        Ok(rows) => Ok(ApiResponse::created(
+            rows,
+            "Payslip labour allocated to orders",
+        )),
         Err(e) => Err(internal_error(e)),
     }
 }
@@ -765,7 +820,10 @@ async fn create_labour_allocation_route(
 ) -> Result<Response, AppError> {
     let repo = ManufacturingRepo::new(user.tenant_pool);
     let service = ManufacturingService::new(repo);
-    match service.create_labour_allocation(payload, user.user_id).await {
+    match service
+        .create_labour_allocation(payload, user.user_id)
+        .await
+    {
         Ok(result) => Ok(ApiResponse::created(result, "Labour allocation created")),
         Err(e) => Err(internal_error(e)),
     }
@@ -789,8 +847,8 @@ async fn post_labour_allocation_route(
 async fn http_direct_labor_route(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    AppJson(payload): AppJson<ApplyDirectLaborDto>,
     Extension(actor): Extension<Actor>,
+    AppJson(payload): AppJson<ApplyDirectLaborDto>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::Manufacturing)?;
     actor.require("manufacturing.manage")?;
@@ -821,14 +879,13 @@ async fn http_direct_labor_route(
 //     }
 // }
 
-
 /// POST /manufacturing/start-production
 /// Explicit Planned → In Progress before costs / completion.
 async fn start_order_route(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    AppJson(payload): AppJson<StartProductionOrderDto>,
     Extension(actor): Extension<Actor>,
+    AppJson(payload): AppJson<StartProductionOrderDto>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::Manufacturing)?;
     actor.require("manufacturing.manage")?;
@@ -845,8 +902,8 @@ async fn start_order_route(
 async fn complete_order_route(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
-    AppJson(payload): AppJson<CompleteProductionOrderDto>,
     Extension(actor): Extension<Actor>,
+    AppJson(payload): AppJson<CompleteProductionOrderDto>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::Manufacturing)?;
     actor.require("manufacturing.manage")?;
