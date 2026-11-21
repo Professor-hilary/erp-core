@@ -12,8 +12,11 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::{
-    features::fixedassets::{
+    features::{
+        fixedassets::{
         repository::PostgresFixedAssetRepository, services::FixedAssetService,
+    },
+        rbac::{Actor, Module},
     },
     interface::api::{errors::AppError, json_errors::AppJson, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,
@@ -76,7 +79,10 @@ async fn http_create_asset(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     AppJson(payload): AppJson<CreateAsset>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::FixedAssets)?;
+    actor.require("fixed_assets.manage")?;
     let repo = PostgresFixedAssetRepository::new();
     let service = FixedAssetService::new(repo);
     let asset = service
@@ -113,7 +119,10 @@ async fn http_update_asset(
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
     AppJson(payload): AppJson<CreateAsset>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::FixedAssets)?;
+    actor.require("fixed_assets.manage")?;
     let repo = PostgresFixedAssetRepository::new();
     let service = FixedAssetService::new(repo);
     let asset = service
@@ -126,7 +135,10 @@ async fn http_delete_asset(
     State(_state): State<Arc<AppState>>,
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::FixedAssets)?;
+    actor.require("fixed_assets.manage")?;
     let repo = PostgresFixedAssetRepository::new();
     let service = FixedAssetService::new(repo);
     service
@@ -139,7 +151,10 @@ async fn http_create_asset_class(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     AppJson(payload): AppJson<CreateAssetClass>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::FixedAssets)?;
+    actor.require("fixed_assets.manage")?;
     let repo = PostgresFixedAssetRepository::new();
     let service = FixedAssetService::new(repo);
     let asset = service
@@ -178,7 +193,10 @@ async fn http_update_asset_class(
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
     AppJson(payload): AppJson<CreateAssetClass>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::FixedAssets)?;
+    actor.require("fixed_assets.manage")?;
     let repo = PostgresFixedAssetRepository::new();
     let service = FixedAssetService::new(repo);
     let asset = service
@@ -191,7 +209,10 @@ async fn http_delete_asset_class(
     State(_state): State<Arc<AppState>>,
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::FixedAssets)?;
+    actor.require("fixed_assets.manage")?;
     let repo = PostgresFixedAssetRepository::new();
     let service = FixedAssetService::new(repo);
     service
@@ -204,7 +225,10 @@ async fn http_create_asset_book(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     AppJson(payload): AppJson<CreateAssetBook>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::FixedAssets)?;
+    actor.require("fixed_assets.manage")?;
     let repo = PostgresFixedAssetRepository::new();
     let service = FixedAssetService::new(repo);
     let asset = service
@@ -244,7 +268,10 @@ async fn http_update_asset_book(
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
     AppJson(payload): AppJson<CreateAssetBook>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::FixedAssets)?;
+    actor.require("fixed_assets.manage")?;
     let repo = PostgresFixedAssetRepository::new();
     let service = FixedAssetService::new(repo);
     let asset = service
@@ -257,7 +284,10 @@ async fn http_delete_asset_book(
     State(_state): State<Arc<AppState>>,
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::FixedAssets)?;
+    actor.require("fixed_assets.manage")?;
     let repo = PostgresFixedAssetRepository::new();
     let service = FixedAssetService::new(repo);
     service
@@ -270,7 +300,10 @@ async fn http_create_asset_cwip(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     AppJson(payload): AppJson<CreateCWIP>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::FixedAssets)?;
+    actor.require("fixed_assets.manage")?;
     let repo = PostgresFixedAssetRepository::new();
     let service = FixedAssetService::new(repo);
     let asset = service
@@ -316,7 +349,10 @@ async fn http_update_asset_cwip(
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
     AppJson(payload): AppJson<CreateCWIP>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::FixedAssets)?;
+    actor.require("fixed_assets.manage")?;
     let repo = PostgresFixedAssetRepository::new();
     let service = FixedAssetService::new(repo);
     let asset = service
@@ -332,7 +368,10 @@ async fn http_delete_asset_cwip(
     State(_state): State<Arc<AppState>>,
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::FixedAssets)?;
+    actor.require("fixed_assets.manage")?;
     let repo = PostgresFixedAssetRepository::new();
     let service = FixedAssetService::new(repo);
     service
@@ -349,7 +388,10 @@ async fn http_capitalize_cwip(
     Path(cwip_uuid): Path<Uuid>,
     Path(asset_uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::FixedAssets)?;
+    actor.require("fixed_assets.manage")?;
     let repo = PostgresFixedAssetRepository::new();
     let service = FixedAssetService::new(repo);
     service
@@ -365,7 +407,10 @@ async fn http_capitalize_asset(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     AppJson(payload): AppJson<CapitalizeAssetOrCWIP>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::FixedAssets)?;
+    actor.require("fixed_assets.manage")?;
     let repo = PostgresFixedAssetRepository::new();
     let service = FixedAssetService::new(repo);
     service
@@ -385,7 +430,10 @@ async fn http_compute_depreciation(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     AppJson(payload): AppJson<CreateAssetDepreciation>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::FixedAssets)?;
+    actor.require("fixed_assets.manage")?;
     let repo = PostgresFixedAssetRepository::new();
     let service = FixedAssetService::new(repo);
     let asset = service
@@ -408,7 +456,10 @@ async fn http_run_depreciation(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     AppJson(payload): AppJson<RunDepreciationRequest>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::FixedAssets)?;
+    actor.require("fixed_assets.manage")?;
     let repo = PostgresFixedAssetRepository::new();
     let service = FixedAssetService::new(repo);
     let list = service
@@ -434,7 +485,10 @@ async fn http_post_depr_to_gl(
     State(_state): State<Arc<AppState>>,
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::FixedAssets)?;
+    actor.require("fixed_assets.manage")?;
     let repo = PostgresFixedAssetRepository::new();
     let service = FixedAssetService::new(repo);
     let asset = service
@@ -449,7 +503,10 @@ async fn http_create_asset_component(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     AppJson(payload): AppJson<CreateAssetComponent>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::FixedAssets)?;
+    actor.require("fixed_assets.manage")?;
     let repo = PostgresFixedAssetRepository::new();
     let service = FixedAssetService::new(repo);
     let asset = service
@@ -489,7 +546,10 @@ async fn http_update_asset_component(
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
     AppJson(payload): AppJson<CreateAssetComponent>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::FixedAssets)?;
+    actor.require("fixed_assets.manage")?;
     let repo = PostgresFixedAssetRepository::new();
     let service = FixedAssetService::new(repo);
     let asset = service
@@ -502,7 +562,10 @@ async fn http_delete_asset_component(
     State(_state): State<Arc<AppState>>,
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::FixedAssets)?;
+    actor.require("fixed_assets.manage")?;
     let repo = PostgresFixedAssetRepository::new();
     let service = FixedAssetService::new(repo);
     service
@@ -515,7 +578,10 @@ async fn http_create_insurance(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     AppJson(payload): AppJson<CreateAssetInsurance>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::FixedAssets)?;
+    actor.require("fixed_assets.manage")?;
     let repo = PostgresFixedAssetRepository::new();
     let service = FixedAssetService::new(repo);
     let asset = service
@@ -555,7 +621,10 @@ async fn http_update_insurance(
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
     AppJson(payload): AppJson<CreateAssetInsurance>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::FixedAssets)?;
+    actor.require("fixed_assets.manage")?;
     let repo = PostgresFixedAssetRepository::new();
     let service = FixedAssetService::new(repo);
     let asset = service
@@ -568,7 +637,10 @@ async fn http_delete_insurance(
     State(_state): State<Arc<AppState>>,
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::FixedAssets)?;
+    actor.require("fixed_assets.manage")?;
     let repo = PostgresFixedAssetRepository::new();
     let service = FixedAssetService::new(repo);
     service
@@ -629,7 +701,10 @@ async fn http_create_maintenance(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     AppJson(payload): AppJson<CreateAssetMaintenance>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::FixedAssets)?;
+    actor.require("fixed_assets.manage")?;
     let repo = PostgresFixedAssetRepository::new();
     let service = FixedAssetService::new(repo);
     let asset = service
@@ -669,7 +744,10 @@ async fn http_update_maintenance(
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
     AppJson(payload): AppJson<CreateAssetMaintenance>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::FixedAssets)?;
+    actor.require("fixed_assets.manage")?;
     let repo = PostgresFixedAssetRepository::new();
     let service = FixedAssetService::new(repo);
     let asset = service
@@ -682,7 +760,10 @@ async fn http_delete_maintenance(
     State(_state): State<Arc<AppState>>,
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::FixedAssets)?;
+    actor.require("fixed_assets.manage")?;
     let repo = PostgresFixedAssetRepository::new();
     let service = FixedAssetService::new(repo);
     service
@@ -695,7 +776,10 @@ async fn http_create_revaluation(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     AppJson(payload): AppJson<CreateAssetRevaluation>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::FixedAssets)?;
+    actor.require("fixed_assets.manage")?;
     let repo = PostgresFixedAssetRepository::new();
     let service = FixedAssetService::new(repo);
     let asset = service
@@ -721,7 +805,10 @@ async fn http_dispose_asset(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     AppJson(payload): AppJson<CreateAssetDisposal>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::FixedAssets)?;
+    actor.require("fixed_assets.manage")?;
     let repo = PostgresFixedAssetRepository::new();
     let service = FixedAssetService::new(repo);
     let asset = service

@@ -1,7 +1,10 @@
 // src/features/accounts/handlers.rs
 use crate::{
-    features::accounts::{
+    features::{
+        accounts::{
         repository::{AccountRepository, PostgresAccountRepo},
+        rbac::{Actor, Module},
+    },
         services::AccountingService,
     },
     interface::api::{errors::AppError, json_errors::AppJson, responses::ApiResponse},
@@ -52,7 +55,10 @@ async fn create_account(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     AppJson(payload): AppJson<CreateAccount>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Accounting)?;
+    actor.require("accounting.post")?;
     let repo: PostgresAccountRepo = PostgresAccountRepo::new();
     let service: AccountingService<PostgresAccountRepo> = AccountingService::new(repo);
     let account: Account = service
@@ -114,7 +120,10 @@ async fn update_account(
     Path(id): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
     AppJson(payload): AppJson<CreateAccount>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Accounting)?;
+    actor.require("accounting.post")?;
     let repo: PostgresAccountRepo = PostgresAccountRepo::new();
     let service: AccountingService<PostgresAccountRepo> = AccountingService::new(repo);
     let account: Account = service
@@ -127,7 +136,10 @@ async fn delete_account(
     State(_state): State<Arc<AppState>>,
     Path(id): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Accounting)?;
+    actor.require("accounting.post")?;
     let repo: PostgresAccountRepo = PostgresAccountRepo::new();
     let service: AccountingService<PostgresAccountRepo> = AccountingService::new(repo);
     service
@@ -140,7 +152,10 @@ async fn close_period(
     State(state): State<Arc<AppState>>,
     Path(period_id): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Accounting)?;
+    actor.require("accounting.period_close")?;
     let repo: PostgresAccountRepo = PostgresAccountRepo::new();
     let service: AccountingService<PostgresAccountRepo> = AccountingService::new(repo);
     service
@@ -162,7 +177,10 @@ async fn create_currency(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     AppJson(payload): AppJson<CreateCurrency>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Accounting)?;
+    actor.require("accounting.post")?;
     payload
         .validate()
         .map_err(|e| AppError::BadRequest(e.to_string()))?;
@@ -209,7 +227,10 @@ async fn update_currency(
     Extension(user): Extension<AuthenticatedTenant>,
     Path(id): Path<Uuid>,
     AppJson(payload): AppJson<UpdateCurrency>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Accounting)?;
+    actor.require("accounting.post")?;
     payload
         .validate()
         .map_err(|e| AppError::BadRequest(e.to_string()))?;
@@ -225,7 +246,10 @@ async fn upsert_exchange_rate(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     AppJson(payload): AppJson<UpsertExchangeRate>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Accounting)?;
+    actor.require("accounting.post")?;
     payload
         .validate()
         .map_err(|e| AppError::BadRequest(e.to_string()))?;

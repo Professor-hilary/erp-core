@@ -12,6 +12,7 @@ use uuid::Uuid;
 
 use crate::{
     features::{
+        rbac::{Actor, Module},
         fixedassets::{repository::PostgresFixedAssetRepository, services::FixedAssetService},
         reports::{
             repository::{ForceReload, PostgresReportRepo},
@@ -67,7 +68,10 @@ async fn http_balancesheet(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     Query(q): Query<AsOfQuery>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Reports)?;
+    actor.require("reports.view")?;
     let repo: PostgresReportRepo = PostgresReportRepo::new();
     let service: ReportService<PostgresReportRepo> = ReportService::new(repo);
 
@@ -91,7 +95,10 @@ async fn http_balancesheet_compare(
     State(_state): State<Arc<AppState>>,
     Query(q): Query<DateRangeQuery>,
     Extension(user): Extension<AuthenticatedTenant>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Reports)?;
+    actor.require("reports.view")?;
     let start = q
         .from
         .unwrap_or_else(|| chrono::Local::now().naive_local().to_string());
@@ -119,7 +126,10 @@ async fn http_income(
     State(_state): State<Arc<AppState>>,
     Query(q): Query<DateRangeQuery>,
     Extension(user): Extension<AuthenticatedTenant>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Reports)?;
+    actor.require("reports.view")?;
     let start = q
         .from
         .unwrap_or_else(|| chrono::Local::now().naive_local().to_string());
@@ -146,7 +156,10 @@ async fn http_aging_ap(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     Path(uuid): Path<Uuid>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Reports)?;
+    actor.require("reports.view")?;
     let repo: PostgresReportRepo = PostgresReportRepo::new();
     let service: ReportService<PostgresReportRepo> = ReportService::new(repo);
     let report = service
@@ -159,7 +172,10 @@ async fn http_aging_ar(
     State(_state): State<Arc<AppState>>,
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Reports)?;
+    actor.require("reports.view")?;
     let repo: PostgresReportRepo = PostgresReportRepo::new();
     let service: ReportService<PostgresReportRepo> = ReportService::new(repo);
     let report = service
@@ -172,7 +188,10 @@ async fn http_cf_direct(
     State(_state): State<Arc<AppState>>,
     Query(q): Query<DateRangeQuery>,
     Extension(user): Extension<AuthenticatedTenant>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Reports)?;
+    actor.require("reports.view")?;
     let start: String = q
         .from
         .unwrap_or_else(|| chrono::Local::now().naive_local().to_string());
@@ -202,7 +221,10 @@ async fn http_cf_indirect(
     State(_state): State<Arc<AppState>>,
     Query(q): Query<DateRangeQuery>,
     Extension(user): Extension<AuthenticatedTenant>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Reports)?;
+    actor.require("reports.view")?;
     let start = q
         .from
         .unwrap_or_else(|| chrono::Local::now().naive_local().to_string());
@@ -232,7 +254,10 @@ async fn http_change_equity(
     State(_state): State<Arc<AppState>>,
     Query(q): Query<DateRangeQuery>,
     Extension(user): Extension<AuthenticatedTenant>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Reports)?;
+    actor.require("reports.view")?;
     let start: String = q
         .from
         .unwrap_or_else(|| chrono::Local::now().naive_local().to_string());
@@ -263,7 +288,10 @@ async fn http_sales_report(
     Path(uuid): Path<Uuid>,
     Query(q): Query<DateRangeQuery>,
     Extension(user): Extension<AuthenticatedTenant>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Reports)?;
+    actor.require("reports.view")?;
     let from = parse_date_opt(q.from);
     let to = parse_date_opt(q.to);
 
@@ -280,7 +308,10 @@ async fn http_purchases_report(
     Path(uuid): Path<Uuid>,
     Query(q): Query<DateRangeQuery>,
     Extension(user): Extension<AuthenticatedTenant>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Reports)?;
+    actor.require("reports.view")?;
     let from = parse_date_opt(q.from);
     let to = parse_date_opt(q.to);
 
@@ -296,7 +327,10 @@ async fn refresh_reports_manual(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<ForceReload>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Reports)?;
+    actor.require("reports.view")?;
     let repo: PostgresReportRepo = PostgresReportRepo::new();
     let service: ReportService<PostgresReportRepo> = ReportService::new(repo);
     service.refresh_all(&user.tenant_pool, &payload).await?;
@@ -309,7 +343,10 @@ async fn http_trial_balance(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     Query(q): Query<AsOfQuery>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Reports)?;
+    actor.require("reports.view")?;
     let repo: PostgresReportRepo = PostgresReportRepo::new();
     let service: ReportService<PostgresReportRepo> = ReportService::new(repo);
 
@@ -332,7 +369,10 @@ async fn http_inventory_valuation(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     Path(_uuid): Path<Uuid>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Reports)?;
+    actor.require("reports.view")?;
     let repo: PostgresReportRepo = PostgresReportRepo::new();
     let service: ReportService<PostgresReportRepo> = ReportService::new(repo);
     let report = service
@@ -345,7 +385,10 @@ async fn http_customer_report(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     Path(_uuid): Path<Uuid>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Reports)?;
+    actor.require("reports.view")?;
     let repo: PostgresReportRepo = PostgresReportRepo::new();
     let service: ReportService<PostgresReportRepo> = ReportService::new(repo);
     let report = service
@@ -358,7 +401,10 @@ async fn http_payroll(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     Path(_uuid): Path<Uuid>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Reports)?;
+    actor.require("reports.view")?;
     let repo: PostgresReportRepo = PostgresReportRepo::new();
     let service: ReportService<PostgresReportRepo> = ReportService::new(repo);
     let report = service
@@ -371,7 +417,10 @@ async fn http_asset_register(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     Path(_uuid): Path<Uuid>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Reports)?;
+    actor.require("reports.view")?;
     let repo = PostgresFixedAssetRepository::new();
     let service = FixedAssetService::new(repo);
     let report = service
@@ -385,7 +434,10 @@ async fn http_asset_movement_report(
     Extension(user): Extension<AuthenticatedTenant>,
     Query(date): Query<(NaiveDate, NaiveDate)>,
     Path(_uuid): Path<Uuid>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Reports)?;
+    actor.require("reports.view")?;
     let from_date = date.0;
     let to_date = date.1;
 
@@ -402,7 +454,10 @@ async fn http_asset_depreciation_report(
     Extension(user): Extension<AuthenticatedTenant>,
     Query(date): Query<(NaiveDate, NaiveDate)>,
     Path(_uuid): Path<Uuid>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Reports)?;
+    actor.require("reports.view")?;
     let from_date = date.0;
     let to_date = date.1;
 
@@ -419,7 +474,10 @@ async fn http_asset_disposal_report(
     Extension(user): Extension<AuthenticatedTenant>,
     Query(date): Query<(NaiveDate, NaiveDate)>,
     Path(_uuid): Path<Uuid>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Reports)?;
+    actor.require("reports.view")?;
     let from_date = date.0;
     let to_date = date.1;
 

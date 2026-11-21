@@ -12,7 +12,10 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::{
-    features::capital::{repository::PostgresCapitalRepo, services::CapitalService},
+    features::{
+        capital::{repository::PostgresCapitalRepo, services::CapitalService},
+        rbac::{Actor, Module},
+    },
     interface::api::{errors::AppError, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,
     models::capital::*,
@@ -190,7 +193,10 @@ pub struct RecordCovenantTestPayload {
 async fn create_party(
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<CreateParty>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Capital)?;
+    actor.require("capital.manage")?;
     let instrument = service()
         .create_party(&user.tenant_pool, user.company_id, user.user_id, &payload)
         .await?;
@@ -221,7 +227,10 @@ async fn update_party(
     Path(id): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<CreateParty>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Capital)?;
+    actor.require("capital.manage")?;
     let party = service()
         .update_party(&user.tenant_pool, user.company_id, id, &payload)
         .await?;
@@ -235,7 +244,10 @@ async fn update_party(
 async fn create_instrument(
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<CreateCapitalInstrument>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Capital)?;
+    actor.require("capital.manage")?;
     let instrument = service()
         .create_instrument(&user.tenant_pool, user.company_id, user.user_id, &payload)
         .await?;
@@ -277,7 +289,10 @@ async fn update_instrument(
     Path(id): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<UpdateCapitalInstrument>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Capital)?;
+    actor.require("capital.manage")?;
     let instrument = service()
         .update_instrument(&user.tenant_pool, user.company_id, id, &payload)
         .await?;
@@ -287,21 +302,14 @@ async fn update_instrument(
     ))
 }
 
-async fn create_event_cap_contr(
-    Extension(user): Extension<AuthenticatedTenant>,
-    Json(payload): Json<CreateCapitalEvent>,
-) -> Result<Response, AppError> {
-    let event = service()
-        .create_event(&user.tenant_pool, user.company_id, user.user_id, &payload)
-        .await?;
-    Ok(ApiResponse::created(event, "Capital event recorded"))
-}
-
 async fn create_event(
     Path(instrument_id): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
     Json(mut payload): Json<CreateCapitalEvent>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Capital)?;
+    actor.require("capital.manage")?;
     // Ensure the path instrument is used if not supplied in body
     payload.instrument_id = Some(instrument_id);
 
@@ -328,7 +336,10 @@ async fn list_events_for_instrument(
 async fn create_facility(
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<CreateDebtFacility>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Capital)?;
+    actor.require("capital.manage")?;
     let facility = service()
         .create_facility(&user.tenant_pool, user.company_id, user.user_id, &payload)
         .await?;
@@ -362,7 +373,10 @@ async fn update_facility(
     Path(id): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<UpdateDebtFacility>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Capital)?;
+    actor.require("capital.manage")?;
     let facility = service()
         .update_facility(&user.tenant_pool, user.company_id, id, &payload)
         .await?;
@@ -373,7 +387,10 @@ async fn add_facility_lender(
     Path(facility_id): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<AddLenderPayload>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Capital)?;
+    actor.require("capital.manage")?;
     let lender = service()
         .add_facility_lender(
             &user.tenant_pool,
@@ -417,7 +434,11 @@ async fn borrow(
 //     Path(facility_id): Path<Uuid>,
 //     Extension(user): Extension<AuthenticatedTenant>,
 //     Json(mut payload): Json<CreateDrawdown>,
-// ) -> Result<Response, AppError> {
+//,
+    Extension(actor): Extension<Actor>,
+) -> Result<Response, AppError> {
+    actor.require_module(Module::Capital)?;
+    actor.require("capital.manage")?;
 //     payload.facility_id = facility_id;
 //     let drawdown = service()
 //         .create_drawdown(&user.tenant_pool, user.company_id, user.user_id, &payload)
@@ -439,7 +460,10 @@ async fn create_repayment(
     Path(facility_id): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
     Json(mut payload): Json<CreateRepayment>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Capital)?;
+    actor.require("capital.manage")?;
     payload.facility_id = facility_id;
     let repayment = service()
         .create_repayment(&user.tenant_pool, user.company_id, user.user_id, &payload)
@@ -461,7 +485,10 @@ async fn create_repayment_schedule(
     Path(facility_id): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
     Json(mut payload): Json<CreateRepaymentSchedule>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Capital)?;
+    actor.require("capital.manage")?;
     payload.facility_id = facility_id;
     let schedule = service()
         .create_repayment_schedule(&user.tenant_pool, &payload)
@@ -486,7 +513,10 @@ async fn create_interest_accrual(
     Path(facility_id): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
     Json(mut payload): Json<CreateInterestAccrual>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Capital)?;
+    actor.require("capital.manage")?;
     payload.facility_id = facility_id;
     let accrual = service()
         .create_interest_accrual(&user.tenant_pool, &payload, user.user_id)
@@ -508,7 +538,10 @@ async fn create_debt_fee(
     Path(facility_id): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
     Json(mut payload): Json<CreateDebtFee>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Capital)?;
+    actor.require("capital.manage")?;
     payload.facility_id = facility_id;
     let fee = service()
         .create_debt_fee(&user.tenant_pool, &payload)
@@ -520,7 +553,10 @@ async fn create_covenant(
     Path(facility_id): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
     Json(mut payload): Json<CreateDebtCovenant>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Capital)?;
+    actor.require("capital.manage")?;
     payload.facility_id = facility_id;
     let covenant = service()
         .create_covenant(&user.tenant_pool, &payload)
@@ -532,7 +568,10 @@ async fn create_covenant_test(
     Path(_facility_id): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<DebtCovenantTest>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Capital)?;
+    actor.require("capital.manage")?;
     // payload.facility_id = facility_id;
     let covenant = service()
         .record_covenant_test(
@@ -563,7 +602,10 @@ async fn create_collateral(
     Path(facility_id): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
     Json(mut payload): Json<CreateDebtCollateral>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Capital)?;
+    actor.require("capital.manage")?;
     payload.facility_id = facility_id;
     let collateral = service()
         .create_collateral(&user.tenant_pool, &payload)
@@ -574,7 +616,10 @@ async fn create_collateral(
 async fn create_refinancing(
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<CreateDebtRefinancing>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Capital)?;
+    actor.require("capital.manage")?;
     let refinancing = service()
         .create_refinancing(&user.tenant_pool, user.company_id, &payload)
         .await?;
@@ -588,7 +633,10 @@ async fn create_refinancing(
 async fn create_equity_contribution(
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<EquityContributionRequest>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Capital)?;
+    actor.require("capital.manage")?;
     let sc = service()
         .create_capital_contribution(&user.tenant_pool, user.company_id, user.user_id, &payload)
         .await?;
@@ -598,7 +646,10 @@ async fn create_equity_contribution(
 async fn create_share_class(
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<CreateShareClass>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Capital)?;
+    actor.require("capital.manage")?;
     let sc = service()
         .create_share_class(&user.tenant_pool, user.company_id, &payload)
         .await?;
@@ -627,7 +678,10 @@ async fn list_share_classes(
 async fn create_shareholder(
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<CreateShareholder>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Capital)?;
+    actor.require("capital.manage")?;
     let sh = service()
         .create_shareholder(&user.tenant_pool, user.company_id, &payload)
         .await?;
@@ -660,7 +714,10 @@ async fn get_shareholding(
 async fn create_share_transaction(
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<IssueSharesRequest>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Capital)?;
+    actor.require("capital.manage")?;
     let tx = service()
         .create_share_transaction(&user.tenant_pool, user.company_id, user.user_id, &payload)
         .await?;
@@ -680,7 +737,10 @@ async fn list_share_transactions(
 async fn create_dividend(
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<CreateDividend>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Capital)?;
+    actor.require("capital.manage")?;
     let div = service()
         .create_dividend(&user.tenant_pool, user.company_id, &payload, user.user_id)
         .await?;
@@ -700,7 +760,10 @@ async fn list_dividends(
 async fn pay_dividend(
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<PayDividendRequest>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Capital)?;
+    actor.require("capital.manage")?;
     // Resolve GL accounts from company defaults if you have them
     let (payable, cash) = (None, None); // or load from config
 
@@ -737,7 +800,10 @@ async fn list_dividend_payments(
 async fn create_equity_account(
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<CreateEquityAccount>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Capital)?;
+    actor.require("capital.manage")?;
     let account = service()
         .create_equity_account(&user.tenant_pool, user.company_id, &payload)
         .await?;
@@ -756,7 +822,10 @@ async fn list_equity_accounts(
 async fn create_equity_movement(
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<CreateEquityMovement>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Capital)?;
+    actor.require("capital.manage")?;
     let movement = service()
         .create_equity_movement(&user.tenant_pool, user.company_id, &payload)
         .await?;
@@ -786,7 +855,10 @@ async fn list_equity_movements(
 async fn create_structure_snapshot(
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<CreateCapitalStructureSnapshot>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Capital)?;
+    actor.require("capital.manage")?;
     let snap = service()
         .create_structure_snapshot(&user.tenant_pool, user.company_id, &payload)
         .await?;
@@ -811,7 +883,10 @@ async fn get_latest_structure(
 async fn create_allocation(
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<CreateCapitalAllocation>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Capital)?;
+    actor.require("capital.manage")?;
     let allocation = service()
         .create_allocation(&user.tenant_pool, user.company_id, &payload)
         .await?;
@@ -837,7 +912,10 @@ async fn list_allocations(
 async fn create_project(
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<CreateCapitalProject>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Capital)?;
+    actor.require("capital.manage")?;
     let project = service()
         .create_project(&user.tenant_pool, user.company_id, &payload)
         .await?;
@@ -868,7 +946,10 @@ async fn update_project(
     Path(id): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<UpdateCapitalProject>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Capital)?;
+    actor.require("capital.manage")?;
     let project = service()
         .update_project(&user.tenant_pool, user.company_id, id, &payload)
         .await?;
@@ -879,7 +960,10 @@ async fn add_project_funding(
     Path(project_id): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
     Json(mut payload): Json<CreateProjectFunding>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Capital)?;
+    actor.require("capital.manage")?;
     payload.project_id = project_id;
     let funding = service()
         .add_project_funding(&user.tenant_pool, &payload)

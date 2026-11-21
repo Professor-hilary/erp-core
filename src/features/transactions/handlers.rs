@@ -11,7 +11,10 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::{
-    features::transactions::{repository::PostgresTransactionRepo, services::TransactionService},
+    features::{
+        transactions::{repository::PostgresTransactionRepo, services::TransactionService},
+        rbac::{Actor, Module},
+    },
     interface::api::{errors::AppError, json_errors::AppJson, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,
     models::transaction::{
@@ -44,7 +47,10 @@ async fn create_entry(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     AppJson(payload): AppJson<CreateJournalEntry>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<impl IntoResponse, AppError> {
+    actor.require_module(Module::Accounting)?;
+    actor.require("accounting.post")?;
     tracing::debug!("Post trax api");
     let service: TransactionService<PostgresTransactionRepo> =
         TransactionService::new(PostgresTransactionRepo::new());
@@ -96,7 +102,10 @@ async fn post_entry(
     State(_state): State<Arc<AppState>>,
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<impl IntoResponse, AppError> {
+    actor.require_module(Module::Accounting)?;
+    actor.require("accounting.post")?;
     let service: TransactionService<PostgresTransactionRepo> =
         TransactionService::new(PostgresTransactionRepo::new());
     let entry: JournalEntryWithLines = service
@@ -110,7 +119,10 @@ async fn update_unposted_entry(
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
     AppJson(payload): AppJson<UpdateJournalEntry>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<impl IntoResponse, AppError> {
+    actor.require_module(Module::Accounting)?;
+    actor.require("accounting.post")?;
     let service: TransactionService<PostgresTransactionRepo> =
         TransactionService::new(PostgresTransactionRepo::new());
     let entry: JournalEntryWithLines = service
@@ -126,7 +138,10 @@ async fn delete_unposted_entry(
     State(_state): State<Arc<AppState>>,
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<impl IntoResponse, AppError> {
+    actor.require_module(Module::Accounting)?;
+    actor.require("accounting.post")?;
     let service: TransactionService<PostgresTransactionRepo> =
         TransactionService::new(PostgresTransactionRepo::new());
     service
@@ -159,7 +174,10 @@ async fn void_entry(
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
     AppJson(body): AppJson<serde_json::Value>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<impl IntoResponse, AppError> {
+    actor.require_module(Module::Accounting)?;
+    actor.require("accounting.post")?;
     let reason: String = body["reason"].as_str().unwrap_or("Voided").to_string();
     let service: TransactionService<PostgresTransactionRepo> =
         TransactionService::new(PostgresTransactionRepo::new());
