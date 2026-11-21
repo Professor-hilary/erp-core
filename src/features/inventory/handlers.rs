@@ -9,7 +9,10 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::{
-    features::inventory::{repository::PostgresInventoryRepo, services::InventoryService},
+    features::{
+        inventory::{repository::PostgresInventoryRepo, services::InventoryService},
+        rbac::{Actor, Module},
+    },
     interface::api::{errors::AppError, json_errors::AppJson, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,
     models::inventory::{
@@ -41,7 +44,10 @@ async fn http_create_item(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     AppJson(payload): AppJson<CreateItem>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Inventory)?;
+    actor.require("inventory.manage")?;
     let repo: PostgresInventoryRepo = PostgresInventoryRepo::new();
     let service: InventoryService<PostgresInventoryRepo> = InventoryService::new(repo);
     let item: Item = service
@@ -54,7 +60,10 @@ async fn http_create_warehouse(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     AppJson(payload): AppJson<CreateWarehouse>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Inventory)?;
+    actor.require("inventory.manage")?;
     let repo: PostgresInventoryRepo = PostgresInventoryRepo::new();
     let service: InventoryService<PostgresInventoryRepo> = InventoryService::new(repo);
     let category: Warehouse = service
@@ -67,7 +76,10 @@ async fn http_create_item_category(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     AppJson(payload): AppJson<CreateItemCategory>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Inventory)?;
+    actor.require("inventory.manage")?;
     let repo: PostgresInventoryRepo = PostgresInventoryRepo::new();
     let service: InventoryService<PostgresInventoryRepo> = InventoryService::new(repo);
     let category: ItemCategory = service
@@ -154,7 +166,10 @@ async fn http_update_item(
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
     AppJson(payload): AppJson<CreateItem>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Inventory)?;
+    actor.require("inventory.manage")?;
     let repo: PostgresInventoryRepo = PostgresInventoryRepo::new();
     let service: InventoryService<PostgresInventoryRepo> = InventoryService::new(repo);
     let item: Item = service
@@ -168,7 +183,10 @@ async fn http_update_item_category(
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
     AppJson(payload): AppJson<CreateItemCategory>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Inventory)?;
+    actor.require("inventory.manage")?;
     let repo: PostgresInventoryRepo = PostgresInventoryRepo::new();
     let service: InventoryService<PostgresInventoryRepo> = InventoryService::new(repo);
     let item: ItemCategory = service
@@ -182,7 +200,10 @@ async fn http_update_warehouse(
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
     AppJson(payload): AppJson<CreateWarehouse>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Inventory)?;
+    actor.require("inventory.manage")?;
     let repo: PostgresInventoryRepo = PostgresInventoryRepo::new();
     let service: InventoryService<PostgresInventoryRepo> = InventoryService::new(repo);
     let warehouse: Warehouse = service
@@ -195,7 +216,10 @@ async fn http_delete_item(
     State(_state): State<Arc<AppState>>,
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Inventory)?;
+    actor.require("inventory.manage")?;
     let repo: PostgresInventoryRepo = PostgresInventoryRepo::new();
     let service: InventoryService<PostgresInventoryRepo> = InventoryService::new(repo);
     service
@@ -208,7 +232,10 @@ async fn http_delete_item_category(
     State(_state): State<Arc<AppState>>,
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Inventory)?;
+    actor.require("inventory.manage")?;
     let repo: PostgresInventoryRepo = PostgresInventoryRepo::new();
     let service: InventoryService<PostgresInventoryRepo> = InventoryService::new(repo);
     service
@@ -221,7 +248,10 @@ async fn http_delete_warehouse(
     State(_state): State<Arc<AppState>>,
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Inventory)?;
+    actor.require("inventory.manage")?;
     let repo: PostgresInventoryRepo = PostgresInventoryRepo::new();
     let service: InventoryService<PostgresInventoryRepo> = InventoryService::new(repo);
     service

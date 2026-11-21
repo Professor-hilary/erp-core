@@ -10,7 +10,10 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::{
-    features::procurement::{repository::PostgresVendorRepo, services::VendorService},
+    features::{
+        procurement::{repository::PostgresVendorRepo, services::VendorService},
+        rbac::{Actor, Module},
+    },
     interface::api::{errors::AppError, json_errors::AppJson, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,
     models::vendor::{
@@ -37,7 +40,10 @@ async fn http_create_vendor(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     AppJson(payload): AppJson<CreateVendor>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Procurement)?;
+    actor.require("procurement.manage")?;
     let repo: PostgresVendorRepo = PostgresVendorRepo::new();
     let service: VendorService<PostgresVendorRepo> = VendorService::new(repo);
     let vendor: Vendor = service
@@ -72,7 +78,10 @@ async fn http_update_vendor(
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
     AppJson(payload): AppJson<CreateVendor>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Procurement)?;
+    actor.require("procurement.manage")?;
     let repo: PostgresVendorRepo = PostgresVendorRepo::new();
     let service: VendorService<PostgresVendorRepo> = VendorService::new(repo);
     let vendor: Vendor = service
@@ -85,7 +94,10 @@ async fn http_delete_vendor(
     State(_state): State<Arc<AppState>>,
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Procurement)?;
+    actor.require("procurement.manage")?;
     let repo: PostgresVendorRepo = PostgresVendorRepo::new();
     let service: VendorService<PostgresVendorRepo> = VendorService::new(repo);
     service
@@ -98,7 +110,10 @@ async fn http_create_bill(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     AppJson(payload): AppJson<CreatePurchase>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Procurement)?;
+    actor.require("procurement.manage")?;
     let repo: PostgresVendorRepo = PostgresVendorRepo::new();
     let service: VendorService<PostgresVendorRepo> = VendorService::new(repo);
     let bill: Purchase = service.create_bill(&user.tenant_pool, &payload).await?;
@@ -110,7 +125,10 @@ async fn http_credit_purchase(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     AppJson(payload): AppJson<PostPurchase>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Procurement)?;
+    actor.require("procurement.manage")?;
     let repo: PostgresVendorRepo = PostgresVendorRepo::new();
     let service: VendorService<PostgresVendorRepo> = VendorService::new(repo);
     let bill_id: i64 = service
@@ -127,7 +145,10 @@ async fn http_cash_purchase(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     AppJson(payload): AppJson<PostPurchase>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Procurement)?;
+    actor.require("procurement.manage")?;
     let repo = PostgresVendorRepo::new();
     let service = VendorService::new(repo);
     let bill_id: i64 = service
@@ -144,7 +165,10 @@ async fn http_apply_bill_payment(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     AppJson(payload): AppJson<ApplyPayment>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Procurement)?;
+    actor.require("procurement.manage")?;
     let repo: PostgresVendorRepo = PostgresVendorRepo::new();
     let service: VendorService<PostgresVendorRepo> = VendorService::new(repo);
     let payment: Payment = service.apply_payment(&user.tenant_pool, payload).await?;

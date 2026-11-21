@@ -8,7 +8,10 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::{
-    features::sales::{repository::PostgresCustomerRepo, services::CustomerService},
+    features::{
+        sales::{repository::PostgresCustomerRepo, services::CustomerService},
+        rbac::{Actor, Module},
+    },
     interface::api::{errors::AppError, json_errors::AppJson, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,
     models::customers::{
@@ -35,7 +38,10 @@ async fn http_create_customer(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<CreateCustomer>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Sales)?;
+    actor.require("sales.manage")?;
     let repo: PostgresCustomerRepo = PostgresCustomerRepo::new();
     let service: CustomerService<PostgresCustomerRepo> = CustomerService::new(repo);
     let customer: Customer = service
@@ -48,7 +54,10 @@ async fn http_post_sale(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     AppJson(payload): AppJson<PostTurnover>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Sales)?;
+    actor.require("sales.manage")?;
     let repo = PostgresCustomerRepo::new();
     let service = CustomerService::new(repo);
     service
@@ -83,7 +92,10 @@ async fn http_update_customer(
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<CreateCustomer>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Sales)?;
+    actor.require("sales.manage")?;
     let repo: PostgresCustomerRepo = PostgresCustomerRepo::new();
     let service: CustomerService<PostgresCustomerRepo> = CustomerService::new(repo);
     let customer: Customer = service
@@ -96,7 +108,10 @@ async fn http_delete_customer(
     State(_state): State<Arc<AppState>>,
     Path(uuid): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Sales)?;
+    actor.require("sales.manage")?;
     let repo: PostgresCustomerRepo = PostgresCustomerRepo::new();
     let service: CustomerService<PostgresCustomerRepo> = CustomerService::new(repo);
     let customer_id = service
@@ -112,7 +127,10 @@ async fn http_create_invoice(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<CreateTurnover>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Sales)?;
+    actor.require("sales.manage")?;
     let repo: PostgresCustomerRepo = PostgresCustomerRepo::new();
     let service: CustomerService<PostgresCustomerRepo> = CustomerService::new(repo);
     let invoice: Turnover = service.create_invoice(&user.tenant_pool, &payload).await?;
@@ -126,7 +144,10 @@ async fn http_post_invoice(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<PostTurnover>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Sales)?;
+    actor.require("sales.manage")?;
     let repo: PostgresCustomerRepo = PostgresCustomerRepo::new();
     let service: CustomerService<PostgresCustomerRepo> = CustomerService::new(repo);
     let invoice: Turnover = service
@@ -139,7 +160,10 @@ async fn http_apply_invoice_payment(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<ApplyPayment>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Sales)?;
+    actor.require("sales.manage")?;
     let repo: PostgresCustomerRepo = PostgresCustomerRepo::new();
     let service: CustomerService<PostgresCustomerRepo> = CustomerService::new(repo);
     let payment: Payment = service.apply_payment(&user.tenant_pool, payload).await?;

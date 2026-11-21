@@ -10,7 +10,10 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::{
-    features::workforce::{repository::PostgresHrRepo, services::HrService},
+    features::{
+        workforce::{repository::PostgresHrRepo, services::HrService},
+        rbac::{Actor, Module},
+    },
     interface::api::{errors::AppError, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,
     models::employee::*,
@@ -121,7 +124,10 @@ async fn create_department(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<CreateDepartment>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Workforce)?;
+    actor.require("workforce.manage")?;
     let row = svc()
         .create_department(&user.tenant_pool, user.user_id, &payload)
         .await?;
@@ -132,7 +138,10 @@ async fn create_job_title(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<CreateJobTitle>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Workforce)?;
+    actor.require("workforce.manage")?;
     let row = svc()
         .create_job_title(&user.tenant_pool, user.user_id, &payload)
         .await?;
@@ -184,7 +193,10 @@ async fn update_department(
     Path(id): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<CreateDepartment>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Workforce)?;
+    actor.require("workforce.manage")?;
     let row = svc()
         .update_department(&user.tenant_pool, id, user.user_id, &payload)
         .await?;
@@ -196,7 +208,10 @@ async fn update_job_title(
     Path(id): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<CreateJobTitle>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Workforce)?;
+    actor.require("workforce.manage")?;
     let row = svc()
         .update_job_title(&user.tenant_pool, id, user.user_id, &payload)
         .await?;
@@ -207,7 +222,10 @@ async fn delete_department(
     State(_state): State<Arc<AppState>>,
     Path(id): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Workforce)?;
+    actor.require("workforce.manage")?;
     svc()
         .delete_department(&user.tenant_pool, id, user.user_id)
         .await?;
@@ -218,7 +236,10 @@ async fn delete_job_title(
     State(_state): State<Arc<AppState>>,
     Path(id): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Workforce)?;
+    actor.require("workforce.manage")?;
     svc()
         .delete_job_title(&user.tenant_pool, id, user.user_id)
         .await?;
@@ -232,7 +253,10 @@ async fn create_employee(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<CreateEmployee>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Workforce)?;
+    actor.require("workforce.manage")?;
     let row = svc()
         .create_employee(&user.tenant_pool, user.user_id, &payload)
         .await?;
@@ -265,7 +289,10 @@ async fn update_employee(
     Path(id): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<UpdateEmployee>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Workforce)?;
+    actor.require("workforce.manage")?;
     let row = svc()
         .update_employee(&user.tenant_pool, id, user.user_id, &payload)
         .await?;
@@ -276,7 +303,10 @@ async fn delete_employee(
     State(_state): State<Arc<AppState>>,
     Path(id): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Workforce)?;
+    actor.require("workforce.manage")?;
     svc()
         .delete_employee(&user.tenant_pool, id, user.user_id)
         .await?;
@@ -353,7 +383,10 @@ async fn create_contract(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<CreateEmploymentContract>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Workforce)?;
+    actor.require("workforce.manage")?;
     let row = svc().create_contract(&user.tenant_pool, &payload).await?;
     Ok(ApiResponse::created(row, "Contract created"))
 }
@@ -383,7 +416,10 @@ async fn add_amendment(
     Path(id): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<CreateContractAmendment>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Workforce)?;
+    actor.require("workforce.manage")?;
     let row = svc().add_amendment(&user.tenant_pool, id, &payload).await?;
     Ok(ApiResponse::created(row, "Amendment recorded"))
 }
@@ -457,7 +493,10 @@ async fn decide_leave_request(
     Path(id): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<DecideLeaveRequest>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Workforce)?;
+    actor.require("workforce.manage")?;
     let row = svc()
         .decide_leave_request(&user.tenant_pool, id, &payload)
         .await?;
@@ -560,7 +599,10 @@ async fn start_exit(
     Path(id): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<StartExit>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Workforce)?;
+    actor.require("workforce.manage")?;
     let row = svc()
         .start_exit(&user.tenant_pool, id, user.user_id, &payload)
         .await?;
