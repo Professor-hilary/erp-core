@@ -430,21 +430,20 @@ async fn borrow(
     Ok(ApiResponse::created(drawdown, "Debt drawdown created"))
 }
 
-// async fn create_drawdown(
-//     Path(facility_id): Path<Uuid>,
-//     Extension(user): Extension<AuthenticatedTenant>,
-//     Json(mut payload): Json<CreateDrawdown>,
-//,
+async fn create_drawdown(
+    Path(facility_id): Path<Uuid>,
+    Extension(user): Extension<AuthenticatedTenant>,
+    Json(mut payload): Json<CreateDrawdown>,
     Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::Capital)?;
     actor.require("capital.manage")?;
-//     payload.facility_id = facility_id;
-//     let drawdown = service()
-//         .create_drawdown(&user.tenant_pool, user.company_id, user.user_id, &payload)
-//         .await?;
-//     Ok(ApiResponse::created(drawdown, "Debt drawdown created"))
-// }
+    payload.facility_id = facility_id;
+    let drawdown = service()
+        .create_drawdown(&user.tenant_pool, user.company_id, user.user_id, &payload)
+        .await?;
+    Ok(ApiResponse::created(drawdown, "Debt drawdown created"))
+}
 
 async fn list_drawdowns(
     Path(facility_id): Path<Uuid>,
