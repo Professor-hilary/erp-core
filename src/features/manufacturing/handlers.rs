@@ -203,7 +203,10 @@ async fn new_order_route(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     AppJson(payload): AppJson<CreateProductionOrderDto>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Manufacturing)?;
+    actor.require("manufacturing.manage")?;
     let repo: ManufacturingRepo = ManufacturingRepo::new(user.tenant_pool);
     let service: ManufacturingService = ManufacturingService::new(repo);
 
@@ -283,7 +286,10 @@ async fn raw_material_issuance_route(
     State(state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     AppJson(payload): AppJson<SingleMaterialIssueDto>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Manufacturing)?;
+    actor.require("manufacturing.issue")?;
     // Get the resolver for this tenant.
     // Clone the Arc so we don't hold the DashMap guard across an await.
     let resolver = state
@@ -416,7 +422,10 @@ async fn create_timesheet_route(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     AppJson(payload): AppJson<CreateLabourTimeEntryDto>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Manufacturing)?;
+    actor.require("manufacturing.timesheet")?;
     let repo = ManufacturingRepo::new(user.tenant_pool);
     let service = ManufacturingService::new(repo);
     match service.create_labour_time_entry(payload, user.user_id).await {
@@ -447,7 +456,10 @@ async fn approve_timesheet_route(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     AppJson(payload): AppJson<ApproveLabourTimeEntryDto>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Manufacturing)?;
+    actor.require("manufacturing.timesheet")?;
     let repo = ManufacturingRepo::new(user.tenant_pool);
     let service = ManufacturingService::new(repo);
     match service.approve_labour_time_entry(payload, user.user_id).await {
@@ -473,7 +485,10 @@ async fn post_timesheet_route(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     AppJson(payload): AppJson<PostLabourTimeEntryDto>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Manufacturing)?;
+    actor.require("manufacturing.timesheet")?;
     let repo = ManufacturingRepo::new(user.tenant_pool);
     let service = ManufacturingService::new(repo);
     match service.post_labour_time_entry(payload, user.user_id).await {
@@ -775,7 +790,10 @@ async fn http_direct_labor_route(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     AppJson(payload): AppJson<ApplyDirectLaborDto>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Manufacturing)?;
+    actor.require("manufacturing.manage")?;
     let repo: ManufacturingRepo = ManufacturingRepo::new(user.tenant_pool);
     let service: ManufacturingService = ManufacturingService::new(repo);
 
@@ -810,7 +828,10 @@ async fn start_order_route(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     AppJson(payload): AppJson<StartProductionOrderDto>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Manufacturing)?;
+    actor.require("manufacturing.manage")?;
     let repo: ManufacturingRepo = ManufacturingRepo::new(user.tenant_pool);
     let service: ManufacturingService = ManufacturingService::new(repo);
 
@@ -825,7 +846,10 @@ async fn complete_order_route(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     AppJson(payload): AppJson<CompleteProductionOrderDto>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Manufacturing)?;
+    actor.require("manufacturing.manage")?;
     let repo: ManufacturingRepo = ManufacturingRepo::new(user.tenant_pool);
     let service: ManufacturingService = ManufacturingService::new(repo);
 

@@ -182,6 +182,12 @@ impl RbacService {
                 "status must be active|disabled|invited".into(),
             ));
         }
+        // Non-admin operational users must belong to a department
+        if !is_admin && body.department_uuid.is_none() {
+            return Err(AppError::BadRequest(
+                "department_uuid is required for non-admin memberships".into(),
+            ));
+        }
 
         sqlx::query(
             r#"

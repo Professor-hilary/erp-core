@@ -71,6 +71,26 @@ async fn rbac_production_user_grant_deny() -> E2eResult<()> {
     assert!(ok(s), "add-member: {s} {body}");
     println!("✓ linked to company");
 
+    // Department is required for non-admin memberships
+    let (s, depts) = ctx
+        .client
+        .get("/api/workforce/list/departments")
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "list departments: {s} {depts}");
+    let dept_uuid = depts["data"]
+        .as_array()
+        .and_then(|a| a.first())
+        .and_then(|d| d.get("uuid").and_then(|u| u.as_str()).or_else(|| d.get("uuid").map(|u| u.as_str()).flatten()))
+        .or_else(|| {
+            depts["data"]
+                .as_array()
+                .and_then(|a| a.first())
+                .and_then(|d| d["uuid"].as_str())
+        })
+        .ok_or("need a department — run e2e_02")?;
+    println!("✓ department for prod user {dept_uuid}");
+
     // Admin grants ProductionSupervisor + manufacturing module only (no payroll)
     let (s, body) = ctx
         .client
@@ -78,6 +98,7 @@ async fn rbac_production_user_grant_deny() -> E2eResult<()> {
             "/api/rbac/memberships",
             json!({
                 "user_uuid": prod_user_uuid,
+                "department_uuid": dept_uuid,
                 "is_tenant_admin": false,
                 "status": "active",
                 "roles": ["ProductionSupervisor"],
@@ -139,6 +160,25 @@ async fn rbac_production_user_grant_deny() -> E2eResult<()> {
         "prod user must be forbidden from payroll process: {s} {body}"
     );
     println!("✓ payroll process denied (403)");
+
+    let (s, body) = prod
+        .post(
+            "/api/payroll/payrun/create",
+            json!({
+                "period_start": "2026-03-01",
+                "period_end": "2026-03-31",
+                "pay_date": "2026-03-31",
+                "pay_frequency": "Monthly"
+            }),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    assert_eq!(
+        s.as_u16(),
+        403,
+        "prod user must be forbidden from payrun create: {s} {body}"
+    );
+    println!("✓ payroll prepare/create denied (403)");
 
     // Allow path is harder without a live PO; assert issue endpoint is not 403
     // (may be 400/422/500 for missing payload — anything except 403 means authz passed)

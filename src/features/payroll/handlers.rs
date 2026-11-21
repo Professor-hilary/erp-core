@@ -62,7 +62,10 @@ async fn create_payrun(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<CreatePayrun>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Payroll)?;
+    actor.require("payroll.prepare")?;
     let service = PayrollService::new(PostgresPayrollRepo::new());
     let payrun = service
         .create_payrun(&user.tenant_pool, user.user_id, &payload)
@@ -87,7 +90,10 @@ async fn post_payrun(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<PostPayrun>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Payroll)?;
+    actor.require("payroll.process")?;
     let service = PayrollService::new(PostgresPayrollRepo::new());
     service
         .post_payrun(user.user_id, &user.tenant_pool, &payload)
@@ -143,7 +149,10 @@ async fn create_pay_component(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<CreatePayComponent>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Payroll)?;
+    actor.require("payroll.prepare")?;
     let service = PayrollService::new(PostgresPayrollRepo::new());
     let component = service
         .create_pay_component(&user.tenant_pool, &payload)
@@ -164,7 +173,10 @@ async fn create_component_assignment(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<CreateComponentAssignment>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Payroll)?;
+    actor.require("payroll.prepare")?;
     let service = PayrollService::new(PostgresPayrollRepo::new());
     let assignment = service
         .create_component_assignment(&user.tenant_pool, &payload)
@@ -213,7 +225,10 @@ async fn settle_employees(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<SettleEmployees>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Payroll)?;
+    actor.require("payroll.settle")?;
     let service = PayrollService::new(PostgresPayrollRepo::new());
     let batch = service
         .settle_employees(user.user_id, &user.tenant_pool, &payload)
@@ -245,7 +260,10 @@ async fn create_statutory_remittances(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<CreateStatutoryRemittance/*CreateRemittancesBody*/>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Payroll)?;
+    actor.require("payroll.settle")?;
     let service = PayrollService::new(PostgresPayrollRepo::new());
     let rows = service
         .create_statutory_remittances(&user.tenant_pool, &payload/*.payrun_uuid, payload.due_date*/)
@@ -257,7 +275,10 @@ async fn remit_statutory(
     State(_state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedTenant>,
     Json(payload): Json<RemitStatutory>,
+    Extension(actor): Extension<Actor>,
 ) -> Result<Response, AppError> {
+    actor.require_module(Module::Payroll)?;
+    actor.require("payroll.settle")?;
     let service = PayrollService::new(PostgresPayrollRepo::new());
     let row = service
         .remit_statutory(user.user_id, &user.tenant_pool, &payload)
