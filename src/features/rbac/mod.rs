@@ -1,6 +1,7 @@
-//! Tenant RBAC: roles, modules, Actor resolution with in-memory cache.
+//! Tenant RBAC: roles, modules, Actor resolution with Redis cache.
 pub mod actor;
+pub mod handlers;
 pub mod service;
 
 pub use actor::{Actor, Module};
-pub use service::RbacService;
+pub use service::{RbacService, UpsertMembershipRequest};

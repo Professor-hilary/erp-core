@@ -12,7 +12,7 @@ use crate::{
     AppState,
     features::{
         accounts, capital, company, fixedassets, inventory, investment, manufacturing, payroll,
-        procurement, reports, sales, transactions, workforce,
+        procurement, rbac, reports, sales, transactions, workforce,
     },
     interface::api::errors::AppError,
     middleware::{auth::AuthenticatedUser, layer::auth_middleware},
@@ -47,6 +47,9 @@ pub fn create_router(state: Arc<AppState>) -> Router {
     let inventory_routes: Router<Arc<AppState>> = inventory::handlers::router().layer(
         middleware::from_fn_with_state(state.clone(), auth_middleware),
     );
+    let rbac_routes: Router<Arc<AppState>> = rbac::handlers::router().layer(
+        middleware::from_fn_with_state(state.clone(), auth_middleware),
+    );
     let payroll_routes: Router<Arc<AppState>> = payroll::handlers::router().layer(
         middleware::from_fn_with_state(state.clone(), auth_middleware),
     );
@@ -79,6 +82,7 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .nest("/api/accounts", account_routes)
         .nest("/api/sales", customer_routes)
         .nest("/api/inventory", inventory_routes)
+        .nest("/api/rbac", rbac_routes)
         .nest("/api/payroll", payroll_routes)
         .nest("/api/reports", report_routes)
         .nest("/api/procurement", vendor_routes)
