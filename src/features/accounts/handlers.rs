@@ -2,10 +2,10 @@
 use crate::{
     features::{
         accounts::{
-        repository::{AccountRepository, PostgresAccountRepo},
+            repository::{AccountRepository, PostgresAccountRepo},
+            services::AccountingService,
+        },
         rbac::{Actor, Module},
-    },
-        services::AccountingService,
     },
     interface::api::{errors::AppError, json_errors::AppJson, responses::ApiResponse},
     middleware::auth::AuthenticatedTenant,

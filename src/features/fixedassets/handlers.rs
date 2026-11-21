@@ -14,8 +14,9 @@ use uuid::Uuid;
 use crate::{
     features::{
         fixedassets::{
-        repository::PostgresFixedAssetRepository, services::FixedAssetService,
-    },
+            repository::PostgresFixedAssetRepository,
+            services::FixedAssetService,
+        },
         rbac::{Actor, Module},
     },
     interface::api::{errors::AppError, json_errors::AppJson, responses::ApiResponse},

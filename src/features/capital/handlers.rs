@@ -3,7 +3,7 @@ use axum::{
     Extension, Router,
     extract::{Json, Path, Query},
     response::Response,
-    routing::{get, post},
+    routing::{get, post, put},
 };
 use bigdecimal::BigDecimal;
 use serde::Deserialize;
@@ -45,7 +45,7 @@ pub fn router() -> Router<Arc<AppState>> {
             "/instruments/{id}/events",
             get(list_events_for_instrument).post(create_event),
         )
-        .route("/instruments/event", post(create_event_cap_contr))
+        .route("/instruments/event", post(create_event_from_body))
         // ----- Parties -----
         .route("/party", post(create_party).get(list_parties))
         .route("/party/{id}", get(get_party).put(update_party))
@@ -313,6 +313,20 @@ async fn create_event(
     // Ensure the path instrument is used if not supplied in body
     payload.instrument_id = Some(instrument_id);
 
+    let event = service()
+        .create_event(&user.tenant_pool, user.company_id, user.user_id, &payload)
+        .await?;
+    Ok(ApiResponse::created(event, "Capital event recorded"))
+}
+
+/// Body-only capital event (instrument_id in JSON). Same auth as path variant.
+async fn create_event_from_body(
+    Extension(user): Extension<AuthenticatedTenant>,
+    Json(payload): Json<CreateCapitalEvent>,
+    Extension(actor): Extension<Actor>,
+) -> Result<Response, AppError> {
+    actor.require_module(Module::Capital)?;
+    actor.require("capital.manage")?;
     let event = service()
         .create_event(&user.tenant_pool, user.company_id, user.user_id, &payload)
         .await?;
