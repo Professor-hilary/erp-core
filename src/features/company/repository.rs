@@ -30,6 +30,14 @@ pub trait CompanyRepository: Send + Sync {
         company_id: Uuid,
     ) -> Result<(), AppError>;
 
+    /// Link an existing master user to this company (member). Does not grant tenant RBAC.
+    async fn assign_user_as_member<'e, E: Executor<'e, Database = Postgres>>(
+        &self,
+        executor: E,
+        user_id: Uuid,
+        company_id: Uuid,
+    ) -> Result<(), AppError>;
+
     /// # Assign Admin Privilege
     /// Make current user the admin for created company
     async fn update_company_secret<'e, E: Executor<'e, Database = Postgres>>(
@@ -147,6 +155,27 @@ impl CompanyRepository for PostgresCompanyRepository {
             INSERT INTO user_companies (user_id, company_id, role)
             VALUES ($1, $2, 'admin')
             ON CONFLICT (user_id, company_id) DO NOTHING
+            "#,
+        )
+        .bind(user_id)
+        .bind(company_id)
+        .execute(executor)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+        Ok(())
+    }
+
+    async fn assign_user_as_member<'e, E: Executor<'e, Database = Postgres>>(
+        &self,
+        executor: E,
+        user_id: Uuid,
+        company_id: Uuid,
+    ) -> Result<(), AppError> {
+        sqlx::query(
+            r#"
+            INSERT INTO user_companies (user_id, company_id, role)
+            VALUES ($1, $2, 'member')
+            ON CONFLICT (user_id, company_id) DO UPDATE SET role = EXCLUDED.role
             "#,
         )
         .bind(user_id)

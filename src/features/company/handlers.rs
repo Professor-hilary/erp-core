@@ -25,6 +25,7 @@ pub fn router() -> Router<Arc<AppState>> {
     Router::new()
         .route("/create", post(create_company))
         .route("/switch-company", post(switch_company))
+        .route("/add-member", post(add_member))
         .route("/list", get(list_companies))
         .route("/get/{id}", get(get_company))
         .route("/update/{id}", put(update_company))
@@ -130,5 +131,38 @@ async fn switch_company(
         access,
         refresh,
         "Company switched successfully",
+    ))
+}
+
+/// POST /api/companies/add-member
+/// Link an existing registered user to this company (master.user_companies).
+/// Tenant RBAC membership is assigned separately via /api/rbac/memberships.
+async fn add_member(
+    State(state): State<Arc<AppState>>,
+    Extension(tenant): Extension<AuthenticatedTenant>,
+    Extension(actor): Extension<crate::features::rbac::Actor>,
+    AppJson(payload): AppJson<serde_json::Value>,
+) -> Result<impl IntoResponse, AppError> {
+    // Only tenant admins / settings managers may link users
+    actor.require_module(crate::features::rbac::Module::Settings)?;
+    actor.require("settings.manage_users")?;
+
+    let user_uuid = payload
+        .get("user_uuid")
+        .and_then(|v| v.as_str())
+        .and_then(|s| Uuid::parse_str(s).ok())
+        .ok_or_else(|| AppError::BadRequest("user_uuid required".into()))?;
+
+    let repo = PostgresCompanyRepository;
+    repo.assign_user_as_member(&state.master_pool, user_uuid, tenant.company_id)
+        .await?;
+
+    Ok(ApiResponse::success(
+        serde_json::json!({
+            "user_uuid": user_uuid,
+            "company_id": tenant.company_id,
+            "role": "member"
+        }),
+        "User linked to company",
     ))
 }
