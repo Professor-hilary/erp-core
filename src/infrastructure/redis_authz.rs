@@ -3,7 +3,6 @@ use crate::{features::rbac::Actor, interface::api::errors::AppError};
 use redis::AsyncCommands;
 use redis::aio::ConnectionManager;
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
 use std::sync::Arc;
 use uuid::Uuid;
 

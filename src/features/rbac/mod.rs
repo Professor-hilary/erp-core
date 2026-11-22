@@ -4,4 +4,6 @@ pub mod handlers;
 pub mod service;
 
 pub use actor::{Actor, Module};
-pub use service::{RbacService, UpsertMembershipRequest};
+pub use service::RbacService;
+#[allow(unused_imports)]
+pub use service::UpsertMembershipRequest;

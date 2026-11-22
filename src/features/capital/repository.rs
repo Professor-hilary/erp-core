@@ -216,6 +216,7 @@ pub trait CapitalRepository: Send + Sync {
     // =========================================================================
     // 5. Drawdowns
     // =========================================================================
+    #[allow(dead_code)]
     async fn create_drawdown(
         &self,
         tx: &mut Transaction<'_, Postgres>,
@@ -1170,6 +1171,7 @@ impl CapitalRepository for PostgresCapitalRepo {
     // -------------------------------------------------------------------------
     // Drawdowns
     // -------------------------------------------------------------------------
+    #[allow(dead_code)]
     async fn create_drawdown(
         &self,
         tx: &mut Transaction<'_, Postgres>,

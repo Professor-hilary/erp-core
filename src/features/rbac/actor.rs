@@ -4,6 +4,7 @@ use uuid::Uuid;
 
 /// Coarse module gates (must match rbac.user_module_grants.module values).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[allow(dead_code)]
 pub enum Module {
     Settings,
     Accounting,
@@ -37,6 +38,7 @@ impl Module {
         }
     }
 
+    #[allow(dead_code)]
     pub fn parse(s: &str) -> Option<Self> {
         Some(match s {
             "settings" => Self::Settings,

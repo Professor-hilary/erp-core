@@ -3,7 +3,7 @@ use axum::{
     Extension, Router,
     extract::{Json, Path, Query},
     response::Response,
-    routing::{get, post, put},
+    routing::{get, post},
 };
 use bigdecimal::BigDecimal;
 use serde::Deserialize;
@@ -432,29 +432,19 @@ async fn list_facility_lenders(
 // Drawdowns / Repayments / Schedules / Accruals / Fees / Covenants / Collateral
 // =============================================================================
 
+/// Live drawdown endpoint (posts GL via create_debt / repo.borrow).
+/// Note: service.create_drawdown is an alternate lower-level path and is not routed.
 async fn borrow(
     Path(facility_id): Path<Uuid>,
     Extension(user): Extension<AuthenticatedTenant>,
-    Json(mut payload): Json<BorrowRequest>,
-) -> Result<Response, AppError> {
-    payload.facility_id = Some(facility_id);
-    let drawdown = service()
-        .create_debt(&user.tenant_pool, user.company_id, user.user_id, &payload)
-        .await?;
-    Ok(ApiResponse::created(drawdown, "Debt drawdown created"))
-}
-
-async fn create_drawdown(
-    Path(facility_id): Path<Uuid>,
-    Extension(user): Extension<AuthenticatedTenant>,
     Extension(actor): Extension<Actor>,
-    Json(mut payload): Json<CreateDrawdown>,
+    Json(mut payload): Json<BorrowRequest>,
 ) -> Result<Response, AppError> {
     actor.require_module(Module::Capital)?;
     actor.require("capital.manage")?;
-    payload.facility_id = facility_id;
+    payload.facility_id = Some(facility_id);
     let drawdown = service()
-        .create_drawdown(&user.tenant_pool, user.company_id, user.user_id, &payload)
+        .create_debt(&user.tenant_pool, user.company_id, user.user_id, &payload)
         .await?;
     Ok(ApiResponse::created(drawdown, "Debt drawdown created"))
 }

@@ -391,6 +391,8 @@ impl<R: CapitalRepository> CapitalService<R> {
     // =========================================================================
     // 4. Drawdowns
     // =========================================================================
+    // Alternate non-routed path; live HTTP path is create_debt via handlers::borrow.
+    #[allow(dead_code)]
     pub async fn create_drawdown(
         &self,
         pool: &PgPool,
