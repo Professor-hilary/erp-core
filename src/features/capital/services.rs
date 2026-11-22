@@ -391,8 +391,6 @@ impl<R: CapitalRepository> CapitalService<R> {
     // =========================================================================
     // 4. Drawdowns
     // =========================================================================
-    #[deprecated]
-    #[allow(unused)]
     pub async fn create_drawdown(
         &self,
         pool: &PgPool,
