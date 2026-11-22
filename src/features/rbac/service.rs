@@ -351,6 +351,7 @@ impl RbacService {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, sqlx::FromRow)]
 struct MembershipRow {
     user_uuid: Uuid,
