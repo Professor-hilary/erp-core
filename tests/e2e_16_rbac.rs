@@ -166,10 +166,10 @@ async fn rbac_production_user_grant_deny() -> E2eResult<()> {
         .post(
             "/api/payroll/payrun/create",
             json!({
-                "period_start": "2026-03-01",
-                "period_end": "2026-03-31",
-                "pay_date": "2026-03-31",
-                "pay_frequency": "Monthly"
+                "pay_period_start": "2026-03-01",
+                "pay_period_end": "2026-03-31",
+                "payment_date": "2026-03-31",
+                "notes": "rbac deny probe"
             }),
         )
         .await
