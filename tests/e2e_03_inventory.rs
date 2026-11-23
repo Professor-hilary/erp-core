@@ -34,10 +34,10 @@ fn find_by_sku<'a>(inv: &'a Value, sku: &str) -> Result<&'a Value, String> {
 async fn inventory_master_data() -> E2eResult<()> {
     let ctx = TestContext::from_saved_state().await?;
 
-    let inv_rm = acct(&ctx, &["110701", "110700"]);
-    let inv_fg = acct(&ctx, &["110703", "110701"]);
-    let cogs = acct(&ctx, &["500000"]);
-    let income = acct(&ctx, &["410000", "410100"]);
+    let inv_rm = acct(&ctx, &["110701"]);
+    let inv_fg = acct(&ctx, &["110703"]);
+    let cogs = acct(&ctx, &["560000"]);
+    let income = acct(&ctx, &["410100"]);
 
     // =========================================================================
     // 1. Warehouses

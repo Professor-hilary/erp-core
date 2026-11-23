@@ -123,9 +123,9 @@ impl AccountRole {
             Self::PayrollLabourExpense => "payroll_labour_expense",
             Self::PayrollNetPayable => "payroll_net_payable",
             Self::PayePayable => "paye_payable",
-            Self::EmployeeNssfPayable => "employee_nssf_payable",
-            Self::EmployerNssfPayable => "employer_nssf_payable",
-            Self::EmployerNssfExpense => "employer_nssf_expense",
+            Self::EmployeeNssfPayable => "employee_ss_payable",
+            Self::EmployerNssfPayable => "employer_ss_payable",
+            Self::EmployerNssfExpense => "employer_ss_expense",
             Self::OtherPayrollDeductionsPayable => "other_payroll_deductions_payable",
             Self::OtherEmployerPayrollExpense => "other_employer_payroll_expense",
         }

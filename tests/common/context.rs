@@ -110,8 +110,8 @@ impl TestContext {
             .or_else(|| self.account_uuid("110200"))
             .context("Cash/Bank account missing from COA")?;
         let equity = self
-            .account_uuid("310000")
-            .context("Owner's Equity (310000) missing from COA")?;
+            .account_uuid("310100")
+            .context("Owner's Equity (310100) missing from COA")?;
 
         let date = NaiveDate::from_ymd_opt(2025, 1, 5).unwrap();
         self.post_journal(
@@ -143,7 +143,7 @@ impl TestContext {
             .account_uuid("120101")
             .or_else(|| self.account_uuid("120100"))
             .context("PPE/Fixtures missing")?;
-        let equity = self.account_uuid("310000").context("Equity missing")?;
+        let equity = self.account_uuid("310100").context("Equity missing")?;
         let ap = self
             .account_uuid("210100")
             .context("Accounts Payable missing")?;

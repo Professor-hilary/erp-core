@@ -8,7 +8,7 @@ async fn period_close() -> E2eResult<()> {
     let ctx = TestContext::from_saved_state().await?;
 
     // small activity so close has nominal balances
-    if let (Some(cash), Some(equity)) = (ctx.account_uuid("110200"), ctx.account_uuid("310000")) {
+    if let (Some(cash), Some(equity)) = (ctx.account_uuid("110200"), ctx.account_uuid("310100")) {
         // already have capital; optional expense/income journals here
         let _ = (cash, equity);
     }

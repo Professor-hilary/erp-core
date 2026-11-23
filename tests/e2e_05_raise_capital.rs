@@ -59,7 +59,7 @@ async fn debt_facility_lifecycle() -> E2eResult<()> {
         .ok_or_else(|| "UGX not seeded — run e2e_02 first".to_string())?;
 
     let cash = acct_uuid(&ctx, &["110200", "110100"])?;
-    let loan_liab = acct_uuid(&ctx, &["220100", "220200"])?;
+    let loan_liab = acct_uuid(&ctx, &["220100"])?;
     let int_exp = acct_uuid(&ctx, &["640100"])?;
     let int_accrued = acct_uuid(&ctx, &["210400", "210500"])?;
 
@@ -372,7 +372,7 @@ async fn equity_share_issue_lifecycle() -> E2eResult<()> {
         .currency_id("UGX")
         .ok_or_else(|| "UGX not seeded — run e2e_02".to_string())?;
     let cash = acct_uuid(&ctx, &["110200", "110100"])?;
-    let share_cap = acct_uuid(&ctx, &["310100", "310000"])?;
+    let share_cap = acct_uuid(&ctx, &["310100"])?;
     // Premium optional — only pass if present
     let share_prem = ctx.account_uuid("310500"); // reval reserve is a stand-in; omit if wrong
 

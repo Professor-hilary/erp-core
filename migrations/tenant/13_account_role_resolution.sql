@@ -249,8 +249,8 @@ BEGIN
 END;
 $$;
 
-DROP TRIGGER IF EXISTS trg_mark_parent_non_postable
-    ON accounting.accounts;
+-- DROP TRIGGER IF EXISTS trg_mark_parent_non_postable
+--    ON accounting.accounts;
 
 CREATE TRIGGER trg_mark_parent_non_postable
 AFTER INSERT OR UPDATE OF parent_code
@@ -258,5 +258,5 @@ ON accounting.accounts
 FOR EACH ROW
 EXECUTE FUNCTION accounting.mark_parent_as_non_postable();
 
-DROP TRIGGER IF EXISTS trg_validate_posting_account
-    ON accounting.transaction_entries;
+-- DROP TRIGGER IF EXISTS trg_validate_posting_account
+--    ON accounting.transaction_entries;

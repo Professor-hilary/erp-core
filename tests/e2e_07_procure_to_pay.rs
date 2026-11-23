@@ -108,7 +108,7 @@ async fn procure_to_pay() -> E2eResult<()> {
 
     // ----- 5. Post credit purchase → inventory + input VAT + AP -----
     // Adjust VAT code if your COA uses a different input-VAT account.
-    let vat_input = "110800"; // common placeholder; change if your COA differs
+    let vat_input = "110501"; // common placeholder; change if your COA differs
     let ap_code = "210100";
 
     let (s, body) = ctx
@@ -184,7 +184,7 @@ async fn procure_to_pay() -> E2eResult<()> {
             "/api/procurement/post/cash/purchase",
             json!({
                 "bill_serial_id": bill_serial,
-                "vat_tax_account": "110800",
+                "vat_tax_account": "110501",
                 "payables_account": "210100",
                 "cash_account": "110100"   // bank/cash — adjust if COA differs
             }),

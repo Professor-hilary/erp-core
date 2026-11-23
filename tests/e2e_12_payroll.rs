@@ -144,35 +144,35 @@ async fn payroll_accounts(ctx: &mut TestContext) -> Result<PayrollAccounts, Stri
             ensure_account(ctx, "210300", "Taxes Payable", "liability", "cr", "210000").await?
         }
     };
-    let nssf_ee = match acct(ctx, &["210910", "210900", "210800"]) {
+    let nssf_ee = match acct(ctx, &["210901"]) {
         Ok(id) => id,
         Err(_) => {
             ensure_account(
                 ctx,
-                "210910",
-                "Employee NSSF Payable",
+                "210901",
+                "Employee Social Security Payable",
                 "liability",
                 "cr",
-                "210000",
+                "210900",
             )
             .await?
         }
     };
-    let nssf_er = match acct(ctx, &["210920", "210900", "210800"]) {
+    let nssf_er = match acct(ctx, &["210902"]) {
         Ok(id) => id,
         Err(_) => {
             ensure_account(
                 ctx,
-                "210920",
-                "Employer NSSF Payable",
+                "210902",
+                "Employer Social Security Payable",
                 "liability",
                 "cr",
-                "210000",
+                "210900",
             )
             .await?
         }
     };
-    let nssf_er_expense = match acct(ctx, &["520300", "520200", "520100"]) {
+    let nssf_er_expense = match acct(ctx, &["520300"]) {
         Ok(id) => id,
         Err(_) => {
             ensure_account(
@@ -186,7 +186,7 @@ async fn payroll_accounts(ctx: &mut TestContext) -> Result<PayrollAccounts, Stri
             .await?
         }
     };
-    let payable = match acct(ctx, &["210200", "210700"]) {
+    let payable = match acct(ctx, &["210200"]) {
         Ok(id) => id,
         Err(_) => {
             ensure_account(ctx, "210200", "Accrued Wages", "liability", "cr", "210000").await?
@@ -201,7 +201,7 @@ async fn payroll_accounts(ctx: &mut TestContext) -> Result<PayrollAccounts, Stri
         Err(_) => {
             ensure_account(
                 ctx,
-                "210930",
+                "210800",
                 "Other Payroll Deductions Payable",
                 "liability",
                 "cr",
@@ -210,7 +210,7 @@ async fn payroll_accounts(ctx: &mut TestContext) -> Result<PayrollAccounts, Stri
             .await?
         }
     };
-    let other_employer = match acct(ctx, &["520400", "520300", "520100"]) {
+    let other_employer = match acct(ctx, &["520400"]) {
         Ok(id) => id,
         Err(_) => {
             ensure_account(

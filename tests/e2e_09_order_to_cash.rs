@@ -60,7 +60,7 @@ async fn order_to_cash() -> E2eResult<()> {
                     "stock_item_id": stock_item_id,
                     "description": "White Bread Loaf",
                     "quantity": "9",
-                    "unit_price": "1150000",
+                    "unit_price": "5150000",
                     "tax_rate": "18"
                 }]
             }),
@@ -80,8 +80,8 @@ async fn order_to_cash() -> E2eResult<()> {
             json!({
                 "invoice_number": invoice_number,
                 "receivable_code": "110300",   // Accounts Receivable (adjust if needed)
-                "revenue_code": "400000",
-                "output_vat_code": "210300",   // Output VAT liability (adjust if needed)
+                "revenue_code": "410100",
+                "output_vat_code": "210701",   // Output VAT liability (adjust if needed)
                 "cash_account_code": null
             }),
         )

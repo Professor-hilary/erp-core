@@ -12,7 +12,7 @@ async fn onboarding_creates_company_and_coa() -> E2eResult<()> {
         "COA must be seeded for manufacturing"
     );
     assert!(
-        ctx.account_uuid("310000").is_some(),
+        ctx.account_uuid("310100").is_some(),
         "Owner's Equity required"
     );
 
