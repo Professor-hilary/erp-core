@@ -1724,7 +1724,7 @@ async fn manufacturing_deep_bom_volume() -> E2eResult<()> {
             "/api/procurement/post/credit/purchase",
             json!({
                 "bill_serial_id": bill_serial,
-                "vat_tax_account": "110800",
+                "vat_tax_account": "110501",
                 "payables_account": "210100",
                 "cash_account": null
             }),

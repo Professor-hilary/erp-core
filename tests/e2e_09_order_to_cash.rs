@@ -79,7 +79,7 @@ async fn order_to_cash() -> E2eResult<()> {
             "/api/sales/post/sale/invoice",
             json!({
                 "invoice_number": invoice_number,
-                "receivable_code": "110300",   // Accounts Receivable (adjust if needed)
+                "receivable_code": "110301",   // Accounts Receivable (adjust if needed)
                 "revenue_code": "410100",
                 "output_vat_code": "210701",   // Output VAT liability (adjust if needed)
                 "cash_account_code": null
