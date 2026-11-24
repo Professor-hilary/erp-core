@@ -435,7 +435,7 @@ impl TestContext {
                         "start_date": "2025-01-15",
                         "job_title_uuid": default_title,
                         "department_uuid": default_dept,
-                        "basic_salary": "150000",
+                        "basic_salary": "550000",
                         "pay_frequency": "Monthly",
                         "employment_type": "Full-time",
                         "status": "Active"
@@ -602,7 +602,7 @@ impl TestContext {
                     "start_date": hire_date,
                     "job_title_uuid": job_title_uuid,
                     "department_uuid": department_uuid,
-                    "basic_salary": "150000",
+                    "basic_salary": "550000",
                     "pay_frequency": "Monthly",
                     "employment_type": "Full-time",
                     "status": "Active"
