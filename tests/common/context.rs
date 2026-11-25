@@ -72,7 +72,7 @@ impl TestContext {
             "currency": "UGX",
             "business_type": "manufacturing",
             "period_type": "Yearly",
-            "period_start": "2025-01-01"
+            "period_start": "2026-01-01"
         });
         let (status, company_json) = client.post("/api/companies/create", company_body).await?;
         if !status.is_success() && status.as_u16() != 201 {
@@ -270,6 +270,41 @@ impl TestContext {
 
         extract_uuid(&value, &["data", "header", "uuid"])
             .or_else(|_| extract_uuid(&value, &["data", "uuid"]))
+    }
+
+    /// Period operating costs for realistic cash movement (factory + admin).
+    pub async fn post_operating_costs(&self) -> Result<()> {
+        let bank = self
+            .account_uuid("110200")
+            .or_else(|| self.account_uuid("110100"))
+            .context("Bank/Cash missing")?;
+        let date = NaiveDate::from_ymd_opt(2026, 1, 20).unwrap();
+
+        let items: &[(&str, &str, &str)] = &[
+            ("540700", "2500000", "Factory electricity & lighting"),
+            ("540200", "800000", "Factory utilities"),
+            ("540600", "1200000", "Factory maintenance & repairs"),
+            ("540100", "1500000", "Factory rent"),
+            ("620500", "450000", "Telephone & internet"),
+            ("620200", "900000", "Office rent"),
+            ("620400", "350000", "Office supplies"),
+        ];
+
+        for (code, amount, memo) in items {
+            let Some(exp) = self.account_uuid(code) else {
+                println!("⚠ skip opex {code} — not in COA");
+                continue;
+            };
+            self.post_journal(
+                date,
+                memo,
+                &[(exp, amount, "0", memo), (bank, "0", amount, memo)],
+                true,
+            )
+            .await?;
+            println!("✓ opex {code} {amount} — {memo}");
+        }
+        Ok(())
     }
 
     pub async fn assert_trial_balance_ok(&self, as_of: &str) -> Result<()> {

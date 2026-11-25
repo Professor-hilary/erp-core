@@ -643,15 +643,16 @@ impl ReportRepository for PostgresReportRepo {
         // 1. Apply category logic
         match acc.category.as_str() {
             "asset" => {
+                // Increase in assets uses cash
                 adj = -adj;
             }
-            "liability" => {
-                // Increase = cash inflow -> no flip
+            "liability" | "equity" => {
+                // Increase in liability/equity provides cash (before normal_balance flip)
             }
             _ => return BigDecimal::zero(),
         }
 
-        // 2. Increatse in current asset = cash outflow
+        // 2. Credit-normal accounts store signed balances differently
         if acc.normal_balance == "cr" {
             adj = -adj.clone();
         }
@@ -704,7 +705,7 @@ impl ReportRepository for PostgresReportRepo {
             ON te.account_uuid = a.uuid
         WHERE a.is_active = true
           AND a.cash_flow_category IS NOT NULL
-          AND a.cash_flow_category IN ('non-cash', 'working-capital')
+          AND a.cash_flow_category IN ('non-cash', 'working-capital', 'investing', 'financing')
           AND a.current_balance != 0
         GROUP BY a.code, a.name, a.category, a.cash_flow_category,
                  a.normal_balance, a.is_contra, a.current_balance
@@ -718,8 +719,12 @@ impl ReportRepository for PostgresReportRepo {
         // 3. Calculate adjustments
         let mut non_cash_adjustments: BigDecimal = BigDecimal::zero();
         let mut working_capital_changes: BigDecimal = BigDecimal::zero();
+        let mut inv_total: BigDecimal = BigDecimal::zero();
+        let mut fin_total: BigDecimal = BigDecimal::zero();
         let mut wc_nodes: Vec<Node> = vec![];
         let mut nc_nodes: Vec<Node> = vec![];
+        let mut inv_nodes: Vec<Node> = vec![];
+        let mut fin_nodes: Vec<Node> = vec![];
 
         for acc in &accounts {
             let delta: BigDecimal = acc.end_balance.clone() - acc.begin_balance.clone();
@@ -731,10 +736,7 @@ impl ReportRepository for PostgresReportRepo {
 
             match acc.cash_flow_category.as_deref() {
                 Some("non-cash") => {
-                    // Depreciation, Amortization, Provisions
                     non_cash_adjustments += acc.end_balance.clone();
-
-                    // Add as child node
                     nc_nodes.push(Node {
                         code: acc.code.clone(),
                         name: acc.name.clone(),
@@ -746,11 +748,42 @@ impl ReportRepository for PostgresReportRepo {
                 Some("working-capital") => {
                     let adjustment: BigDecimal = self.calculate_wc_adjustment(acc, &delta);
                     working_capital_changes += adjustment.clone();
-
                     wc_nodes.push(Node {
                         code: acc.code.clone(),
                         name: acc.name.clone(),
                         category: "working_capital".to_string(),
+                        total: adjustment,
+                        children: vec![],
+                    });
+                }
+                Some("investing") => {
+                    if acc.category != "asset" {
+                        continue;
+                    }
+                    let adjustment = self.calculate_wc_adjustment(acc, &delta);
+                    inv_total += adjustment.clone();
+                    inv_nodes.push(Node {
+                        code: acc.code.clone(),
+                        name: acc.name.clone(),
+                        category: "investing_line".to_string(),
+                        total: adjustment,
+                        children: vec![],
+                    });
+                }
+                Some("financing") => {
+                    // RE is explained by net profit — do not double count
+                    if acc.code == "310300" || acc.name.to_lowercase().contains("retained") {
+                        continue;
+                    }
+                    if acc.category != "liability" && acc.category != "equity" {
+                        continue;
+                    }
+                    let adjustment = self.calculate_wc_adjustment(acc, &delta);
+                    fin_total += adjustment.clone();
+                    fin_nodes.push(Node {
+                        code: acc.code.clone(),
+                        name: acc.name.clone(),
+                        category: "financing_line".to_string(),
                         total: adjustment,
                         children: vec![],
                     });
@@ -803,18 +836,26 @@ impl ReportRepository for PostgresReportRepo {
         };
         result.push(operating_node);
 
-        // 5. Investing & Financing — reuse direct method data
-        let direct_cf: Vec<Node> = self.get_cf_direct(pool, period_start, period_end).await?;
-
-        for node in direct_cf {
-            if node.code == "INVESTING" || node.code == "FINANCING" {
-                result.push(node);
-            }
-        }
+        // 5. Investing & Financing from BS movements (cash_flow_entries often empty).
+        result.push(Node {
+            code: "INVESTING".to_string(),
+            name: "Cash Flows from Investing Activities".to_string(),
+            category: "cashflow_section".to_string(),
+            total: inv_total.clone(),
+            children: inv_nodes,
+        });
+        result.push(Node {
+            code: "FINANCING".to_string(),
+            name: "Cash Flows from Financing Activities".to_string(),
+            category: "cashflow_section".to_string(),
+            total: fin_total.clone(),
+            children: fin_nodes,
+        });
 
         // 6. Net cash flow + opening/closing cash (same as direct)
         let net_cash_flow: BigDecimal = result
             .iter()
+            .filter(|n| matches!(n.code.as_str(), "OPERATING" | "INVESTING" | "FINANCING"))
             .map(|n: &Node| n.total.clone())
             .sum::<BigDecimal>();
 
