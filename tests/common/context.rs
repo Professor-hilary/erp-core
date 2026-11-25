@@ -113,7 +113,7 @@ impl TestContext {
             .account_uuid("310100")
             .context("Owner's Equity (310100) missing from COA")?;
 
-        let date = NaiveDate::from_ymd_opt(2025, 1, 5).unwrap();
+        let date = NaiveDate::from_ymd_opt(2026, 1, 5).unwrap();
         self.post_journal(
             date,
             "Owner capital contribution",
@@ -148,7 +148,7 @@ impl TestContext {
             .account_uuid("210100")
             .context("Accounts Payable missing")?;
 
-        let date = NaiveDate::from_ymd_opt(2025, 1, 1).unwrap();
+        let date = NaiveDate::from_ymd_opt(2026, 1, 1).unwrap();
         self.post_journal(
             date,
             "Opening balances",
