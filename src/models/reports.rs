@@ -186,7 +186,7 @@ pub struct FlatAccount {
     pub balance: BigDecimal,
 }
 
-#[derive(Debug, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct Node {
     pub code: String,
     pub name: String,

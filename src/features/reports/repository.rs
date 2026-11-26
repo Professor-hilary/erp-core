@@ -1155,7 +1155,10 @@ impl ReportRepository for PostgresReportRepo {
             .await
             .unwrap_or_else(|_| std::collections::HashMap::new());
 
-        fn codes_for(index: &HashMap<String, Vec<String>>, roles: &[&str]) -> std::collections::HashSet<String> {
+        fn codes_for(
+            index: &HashMap<String, Vec<String>>,
+            roles: &[&str],
+        ) -> std::collections::HashSet<String> {
             let mut set = std::collections::HashSet::new();
             for r in roles {
                 if let Some(codes) = index.get(*r) {
@@ -1165,26 +1168,47 @@ impl ReportRepository for PostgresReportRepo {
             set
         }
 
-        fn sum_by_codes(nodes: &[Node], codes: &std::collections::HashSet<String>) -> BigDecimal {
-            fn walk(n: &Node, codes: &std::collections::HashSet<String>, acc: &mut BigDecimal) {
-                if n.children.is_empty() && codes.contains(&n.code) {
-                    *acc += n.total.clone();
-                }
-                for c in &n.children {
-                    walk(c, codes, acc);
+        fn collect_leaves_matching(
+            nodes: &[Node],
+            codes: &std::collections::HashSet<String>,
+        ) -> Vec<Node> {
+            fn walk(n: &Node, codes: &std::collections::HashSet<String>, out: &mut Vec<Node>) {
+                if n.children.is_empty() {
+                    if codes.contains(&n.code) {
+                        out.push(Node {
+                            code: n.code.clone(),
+                            name: n.name.clone(),
+                            category: n.category.clone(),
+                            total: n.total.clone(),
+                            children: vec![],
+                        });
+                    }
+                } else {
+                    for c in &n.children {
+                        walk(c, codes, out);
+                    }
                 }
             }
-            let mut total = BigDecimal::zero();
+            let mut out = Vec::new();
             for n in nodes {
-                walk(n, codes, &mut total);
+                walk(n, codes, &mut out);
             }
-            total
+            out.sort_by(|a, b| a.code.cmp(&b.code));
+            out
         }
 
-        let mut revenue: BigDecimal = BigDecimal::zero();
+        fn sum_nodes(nodes: &[Node]) -> BigDecimal {
+            nodes
+                .iter()
+                .fold(BigDecimal::zero(), |acc, n| acc + n.total.clone())
+        }
+
+        let mut revenue_total = BigDecimal::zero();
+        let mut revenue_children: Vec<Node> = Vec::new();
         for node in &result {
             if node.category == "income" {
-                revenue += node.total.clone();
+                revenue_total += node.total.clone();
+                revenue_children.push(node.clone());
             }
         }
 
@@ -1211,20 +1235,27 @@ impl ReportRepository for PostgresReportRepo {
                 AccountRole::OtherEmployerPayrollExpense.key(),
             ],
         );
-        let period_opex_codes = codes_for(
+        let admin_codes = codes_for(
             &role_index,
             &[
                 AccountRole::AdministrativeExpense.key(),
-                AccountRole::InterestExpense.key(),
                 AccountRole::DepreciationExpense.key(),
             ],
         );
+        let finance_codes = codes_for(&role_index, &[AccountRole::InterestExpense.key()]);
 
-        let product_cogs = sum_by_codes(&result, &product_cogs_codes);
-        let variances = sum_by_codes(&result, &variance_codes);
-        let cogs = product_cogs.clone() + variances.clone();
-        let period_mfg = sum_by_codes(&result, &period_mfg_codes);
-        let period_opex = sum_by_codes(&result, &period_opex_codes);
+        let product_cogs_leaves = collect_leaves_matching(&result, &product_cogs_codes);
+        let variance_leaves = collect_leaves_matching(&result, &variance_codes);
+        let period_mfg_leaves = collect_leaves_matching(&result, &period_mfg_codes);
+        let admin_leaves = collect_leaves_matching(&result, &admin_codes);
+        let finance_leaves = collect_leaves_matching(&result, &finance_codes);
+
+        let product_cogs = sum_nodes(&product_cogs_leaves);
+        let variances = sum_nodes(&variance_leaves);
+        let cost_of_sales = product_cogs.clone() + variances.clone();
+        let period_mfg = sum_nodes(&period_mfg_leaves);
+        let admin = sum_nodes(&admin_leaves);
+        let finance = sum_nodes(&finance_leaves);
 
         let mut all_expense = BigDecimal::zero();
         for node in &result {
@@ -1232,39 +1263,95 @@ impl ReportRepository for PostgresReportRepo {
                 all_expense += node.total.clone();
             }
         }
-        let classified = cogs.clone() + period_mfg.clone() + period_opex.clone();
-        let other_period = all_expense.clone() - classified.clone();
+        let classified =
+            cost_of_sales.clone() + period_mfg.clone() + admin.clone() + finance.clone();
+        let other_period = all_expense - classified;
 
-        // 8) Compute profits (perpetual spine via roles)
-        let gross_profit: BigDecimal = revenue.clone() - cogs.clone();
-        let operating_profits: BigDecimal =
-            gross_profit.clone() - period_mfg.clone() - period_opex.clone() - other_period.clone();
-        let net_profit: BigDecimal = operating_profits.clone();
+        let gross_profit = revenue_total.clone() - cost_of_sales.clone();
+        let operating_profit =
+            gross_profit.clone() - period_mfg.clone() - admin.clone() - other_period.clone();
+        // IAS 1: finance costs below operating profit
+        let net_profit = operating_profit.clone() - finance.clone();
 
-        // 9) Push computed nodes
-        result.push(Node {
+        // 8) Statement of comprehensive income — presentation order
+        let mut cos_children = product_cogs_leaves;
+        cos_children.extend(variance_leaves);
+
+        let mut opex_children = period_mfg_leaves;
+        opex_children.extend(admin_leaves);
+        if other_period.abs() >= BigDecimal::from_f64(0.005).unwrap_or_else(BigDecimal::zero) {
+            opex_children.push(Node {
+                code: "OTHER_OPEX".to_string(),
+                name: "Other operating costs".to_string(),
+                category: "expense".to_string(),
+                total: other_period.clone(),
+                children: vec![],
+            });
+        }
+
+        let mut sci: Vec<Node> = Vec::new();
+
+        sci.push(Node {
+            code: "REVENUE".to_string(),
+            name: "Revenue".to_string(),
+            category: "income".to_string(),
+            total: revenue_total,
+            children: revenue_children,
+        });
+
+        sci.push(Node {
+            code: "COST_OF_SALES".to_string(),
+            name: "Cost of sales".to_string(),
+            category: "expense".to_string(),
+            total: cost_of_sales,
+            children: cos_children,
+        });
+
+        sci.push(Node {
             code: "GROSS_PROFIT".to_string(),
-            name: "Gross Profit".to_string(),
+            name: "Gross profit".to_string(),
             category: "computed".to_string(),
             total: gross_profit,
             children: vec![],
         });
 
-        result.push(Node {
+        sci.push(Node {
+            code: "OPERATING_EXPENSES".to_string(),
+            name: "Operating expenses".to_string(),
+            category: "expense".to_string(),
+            total: period_mfg + admin + other_period,
+            children: opex_children,
+        });
+
+        sci.push(Node {
             code: "OPERATING_PROFIT".to_string(),
-            name: "Operating Profit".to_string(),
+            name: "Operating profit".to_string(),
             category: "computed".to_string(),
-            total: operating_profits,
+            total: operating_profit,
             children: vec![],
         });
 
-        result.push(Node {
+        if finance.abs() >= BigDecimal::from_f64(0.005).unwrap_or_else(BigDecimal::zero)
+            || !finance_leaves.is_empty()
+        {
+            sci.push(Node {
+                code: "FINANCE_COSTS".to_string(),
+                name: "Finance costs".to_string(),
+                category: "expense".to_string(),
+                total: finance,
+                children: finance_leaves,
+            });
+        }
+
+        sci.push(Node {
             code: "NET_PROFIT".to_string(),
-            name: "Net Profit".to_string(),
+            name: "Profit for the period".to_string(),
             category: "computed".to_string(),
             total: net_profit,
             children: vec![],
         });
+
+        Ok(sci)
         Ok(result)
     }
 
