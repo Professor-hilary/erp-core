@@ -48,6 +48,11 @@ pub enum AccountRole {
     EmployerNssfExpense,
     OtherPayrollDeductionsPayable,
     OtherEmployerPayrollExpense,
+    // Report / statement classification (may map to many accounts via context_key)
+    SharePremium,
+    InterestExpense,
+    AdministrativeExpense,
+    ManufacturingOverheadExpense,
 }
 
 impl AccountRole {
@@ -88,6 +93,10 @@ impl AccountRole {
         Self::EmployerNssfExpense,
         Self::OtherPayrollDeductionsPayable,
         Self::OtherEmployerPayrollExpense,
+        Self::SharePremium,
+        Self::InterestExpense,
+        Self::AdministrativeExpense,
+        Self::ManufacturingOverheadExpense,
     ];
 
     pub const fn key(self) -> &'static str {
@@ -128,6 +137,10 @@ impl AccountRole {
             Self::EmployerNssfExpense => "employer_ss_expense",
             Self::OtherPayrollDeductionsPayable => "other_payroll_deductions_payable",
             Self::OtherEmployerPayrollExpense => "other_employer_payroll_expense",
+            Self::SharePremium => "share_premium",
+            Self::InterestExpense => "interest_expense",
+            Self::AdministrativeExpense => "administrative_expense",
+            Self::ManufacturingOverheadExpense => "manufacturing_overhead_expense",
         }
     }
 
@@ -178,6 +191,25 @@ impl AccountRole {
             Self::EmployerNssfExpense => &["payroll taxes factory", "payroll taxes - factory"],
             Self::OtherPayrollDeductionsPayable => &["payroll taxes payable", "accrued expenses"],
             Self::OtherEmployerPayrollExpense => &["labor benefits", "labour benefits"],
+            Self::SharePremium => &["share premium", "share premium account"],
+            Self::InterestExpense => &["interest expense", "finance costs", "finance cost"],
+            Self::AdministrativeExpense => &[
+                "administrative expenses",
+                "office rent",
+                "office supplies",
+                "telephone internet",
+                "telephone & internet",
+            ],
+            Self::ManufacturingOverheadExpense => &[
+                "factory rent",
+                "utilities factory",
+                "utilities - factory",
+                "maintenance repairs",
+                "maintenance & repairs",
+                "electricity factory",
+                "electricity - factory",
+                "other factory overheads",
+            ],
         }
     }
 
@@ -221,7 +253,11 @@ impl AccountRole {
             | Self::EmployerNssfExpense
             | Self::OtherEmployerPayrollExpense => &["expense"],
 
-            Self::ShareCapital | Self::RetainedEarnings => &["equity"],
+            Self::ShareCapital | Self::SharePremium | Self::RetainedEarnings => &["equity"],
+
+            Self::InterestExpense
+            | Self::AdministrativeExpense
+            | Self::ManufacturingOverheadExpense => &["expense"],
         }
     }
 
@@ -307,6 +343,7 @@ impl AccountRoleResolver {
                     report.missing.push(key.clone());
                     continue;
                 };
+                // Primary posting mapping (role -> one default account)
                 let result = sqlx::query(
                     r#"
                     INSERT INTO accounting.account_role_mappings (
@@ -324,12 +361,74 @@ impl AccountRoleResolver {
                     report.inserted += 1;
                     tracing::info!(role = role.key(), account_code = %code, "Seeded account role from CoA template");
                 }
+                // Classification mapping: same role may tag many accounts (context = account code)
+                let result = sqlx::query(
+                    r#"
+                    INSERT INTO accounting.account_role_mappings (
+                        role_key, context_key, account_uuid, mapping_source, is_active
+                    )
+                    VALUES ($1, $2, $3, 'seed', TRUE)
+                    ON CONFLICT (role_key, context_key) DO NOTHING
+                    "#,
+                )
+                .bind(role.key())
+                .bind(code)
+                .bind(account_uuid)
+                .execute(pool)
+                .await?;
+                if result.rows_affected() == 1 {
+                    report.inserted += 1;
+                }
             }
         }
         Ok(report)
     }
 
-    pub async fn discover_and_seed_defaults(
+
+    /// All account codes tagged with this role (posting default + classification contexts).
+    pub async fn codes_for_role(
+        pool: &PgPool,
+        role: AccountRole,
+    ) -> Result<Vec<String>, AccountRoleError> {
+        let rows: Vec<(String,)> = sqlx::query_as(
+            r#"
+            SELECT DISTINCT a.code
+            FROM accounting.account_role_mappings m
+            JOIN accounting.accounts a ON a.uuid = m.account_uuid
+            WHERE m.role_key = $1 AND m.is_active AND a.is_active
+            "#,
+        )
+        .bind(role.key())
+        .fetch_all(pool)
+        .await?;
+        Ok(rows.into_iter().map(|(c,)| c).collect())
+    }
+
+    /// role_key -> account codes (for statement classification).
+    pub async fn classification_index(
+        pool: &PgPool,
+    ) -> Result<HashMap<String, Vec<String>>, AccountRoleError> {
+        let rows: Vec<(String, String)> = sqlx::query_as(
+            r#"
+            SELECT m.role_key, a.code
+            FROM accounting.account_role_mappings m
+            JOIN accounting.accounts a ON a.uuid = m.account_uuid
+            WHERE m.is_active AND a.is_active
+            "#,
+        )
+        .fetch_all(pool)
+        .await?;
+        let mut map: HashMap<String, Vec<String>> = HashMap::new();
+        for (role, code) in rows {
+            let entry = map.entry(role).or_default();
+            if !entry.contains(&code) {
+                entry.push(code);
+            }
+        }
+        Ok(map)
+    }
+
+        pub async fn discover_and_seed_defaults(
         pool: &PgPool,
     ) -> Result<MappingDiscoveryReport, AccountRoleError> {
         let rows = sqlx::query(

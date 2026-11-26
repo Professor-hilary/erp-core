@@ -70,14 +70,14 @@
             "role_keys": []
         },
         {
-             "code": "110302",
-             "name": "Other Receivables",
-             "category": "asset",
-             "parent_code": "110000",
-             "normal_balance": "dr",
-             "is_contra": false,
-             "cash_flow_category": "working-capital",
-             "role_keys": []
+            "code": "110302",
+            "name": "Other Receivables",
+            "category": "asset",
+            "parent_code": "110000",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital",
+            "role_keys": []
         },
         {
             "code": "110400",
@@ -108,32 +108,32 @@
             "is_contra": false,
             "cash_flow_category": "working-capital",
             "role_keys": [
-            	"input_vat"
+                "input_vat"
             ]
         },
         {
-             "code": "110502",
-             "name": "Withholding Tax Receivable",
-             "category": "asset",
-             "parent_code": "110500",
-             "normal_balance": "dr",
-             "is_contra": false,
-             "cash_flow_category": "working-capital",
-             "role_keys": [
-             	"withholding_receivable"
-             ]
-         },
-         {
-             "code": "110503",
-             "name": "Prepaid Income Tax",
-             "category": "asset",
-             "parent_code": "110500",
-             "normal_balance": "dr",
-             "is_contra": false,
-             "cash_flow_category": "working-capital",
-             "role_keys": [
-             	"prepaid_income_tax"
-             ]
+            "code": "110502",
+            "name": "Withholding Tax Receivable",
+            "category": "asset",
+            "parent_code": "110500",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital",
+            "role_keys": [
+                "withholding_receivable"
+            ]
+        },
+        {
+            "code": "110503",
+            "name": "Prepaid Income Tax",
+            "category": "asset",
+            "parent_code": "110500",
+            "normal_balance": "dr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital",
+            "role_keys": [
+                "prepaid_income_tax"
+            ]
         },
         {
             "code": "110600",
@@ -557,14 +557,14 @@
             "role_keys": []
         },
         {
-             "code": "210700",
-             "name": "Taxes Payable",
-             "category": "liability",
-             "parent_code": "210000",
-             "normal_balance": "cr",
-             "is_contra": false,
-             "cash_flow_category": "working-capital",
-             "role_keys": []
+            "code": "210700",
+            "name": "Taxes Payable",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital",
+            "role_keys": []
         },
         {
             "code": "210701",
@@ -591,16 +591,16 @@
             ]
         },
         {
-             "code": "210800",
-             "name": "Payroll Deductions",
-             "category": "liability",
-             "parent_code": "210000",
-             "normal_balance": "cr",
-             "is_contra": false,
-             "cash_flow_category": "working-capital",
-             "role_keys": [
-                 "other_payroll_deductions_payable"
-             ]
+            "code": "210800",
+            "name": "Payroll Deductions",
+            "category": "liability",
+            "parent_code": "210000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "working-capital",
+            "role_keys": [
+                "other_payroll_deductions_payable"
+            ]
         },
         {
             "code": "210900",
@@ -758,7 +758,9 @@
             "normal_balance": "cr",
             "is_contra": false,
             "cash_flow_category": "financing",
-            "role_keys": []
+            "role_keys": [
+                "share_premium"
+            ]
         },
         {
             "code": "400000",
@@ -804,15 +806,15 @@
             "cash_flow_category": "operating",
             "role_keys": []
         },
-       	{
-             "code": "410300",
-             "name": "Freight & Shipment Billed on Customer",
-             "category": "income",
-             "parent_code": "410000",
-             "normal_balance": "cr",
-             "is_contra": false,
-             "cash_flow_category": "operating",
-             "role_keys": []
+        {
+            "code": "410300",
+            "name": "Freight & Shipment Billed on Customer",
+            "category": "income",
+            "parent_code": "410000",
+            "normal_balance": "cr",
+            "is_contra": false,
+            "cash_flow_category": "operating",
+            "role_keys": []
         },
         {
             "code": "420000",
@@ -1058,7 +1060,9 @@
             "normal_balance": "dr",
             "is_contra": false,
             "cash_flow_category": "operating",
-            "role_keys": []
+            "role_keys": [
+                "manufacturing_overhead_expense"
+            ]
         },
         {
             "code": "540200",
@@ -1068,7 +1072,9 @@
             "normal_balance": "dr",
             "is_contra": false,
             "cash_flow_category": "operating",
-            "role_keys": []
+            "role_keys": [
+                "manufacturing_overhead_expense"
+            ]
         },
         {
             "code": "540300",
@@ -1114,7 +1120,9 @@
             "normal_balance": "dr",
             "is_contra": false,
             "cash_flow_category": "operating",
-            "role_keys": []
+            "role_keys": [
+                "manufacturing_overhead_expense"
+            ]
         },
         {
             "code": "540700",
@@ -1124,7 +1132,9 @@
             "normal_balance": "dr",
             "is_contra": false,
             "cash_flow_category": "operating",
-            "role_keys": []
+            "role_keys": [
+                "manufacturing_overhead_expense"
+            ]
         },
         {
             "code": "540800",
@@ -1233,7 +1243,7 @@
             "is_contra": false,
             "cash_flow_category": null,
             "role_keys": [
-            	"cost_of_goods_sold"
+                "cost_of_goods_sold"
             ]
         },
         {
@@ -1334,7 +1344,9 @@
             "normal_balance": "dr",
             "is_contra": false,
             "cash_flow_category": "operating",
-            "role_keys": []
+            "role_keys": [
+                "administrative_expense"
+            ]
         },
         {
             "code": "620300",
@@ -1354,7 +1366,9 @@
             "normal_balance": "dr",
             "is_contra": false,
             "cash_flow_category": "operating",
-            "role_keys": []
+            "role_keys": [
+                "administrative_expense"
+            ]
         },
         {
             "code": "620500",
@@ -1364,7 +1378,9 @@
             "normal_balance": "dr",
             "is_contra": false,
             "cash_flow_category": "operating",
-            "role_keys": []
+            "role_keys": [
+                "administrative_expense"
+            ]
         },
         {
             "code": "620600",
@@ -1416,7 +1432,9 @@
             "normal_balance": "dr",
             "is_contra": false,
             "cash_flow_category": "operating",
-            "role_keys": []
+            "role_keys": [
+                "interest_expense"
+            ]
         },
         {
             "code": "640200",

@@ -1148,22 +1148,35 @@ impl ReportRepository for PostgresReportRepo {
             }
         }
 
-        // 7) Classify by account code (perpetual absorption layout)
-        // product COGS = 56xxxx (inventory relief) + 55xxxx (variances only)
-        // period manufacturing (52, 54) and admin/interest (6xxxx) sit below GP
-        fn sum_by_prefix(nodes: &[Node], prefixes: &[&str]) -> BigDecimal {
-            fn walk(n: &Node, prefixes: &[&str], acc: &mut BigDecimal) {
-                let is_leaf = n.children.is_empty();
-                if is_leaf && prefixes.iter().any(|p| n.code.starts_with(p)) {
+        // 7) Classify by account **roles** (not CoA number prefixes)
+        use crate::features::accounts::account_roles::{AccountRole, AccountRoleResolver};
+
+        let role_index = AccountRoleResolver::classification_index(pool)
+            .await
+            .unwrap_or_else(|_| std::collections::HashMap::new());
+
+        fn codes_for(index: &HashMap<String, Vec<String>>, roles: &[&str]) -> std::collections::HashSet<String> {
+            let mut set = std::collections::HashSet::new();
+            for r in roles {
+                if let Some(codes) = index.get(*r) {
+                    set.extend(codes.iter().cloned());
+                }
+            }
+            set
+        }
+
+        fn sum_by_codes(nodes: &[Node], codes: &std::collections::HashSet<String>) -> BigDecimal {
+            fn walk(n: &Node, codes: &std::collections::HashSet<String>, acc: &mut BigDecimal) {
+                if n.children.is_empty() && codes.contains(&n.code) {
                     *acc += n.total.clone();
                 }
                 for c in &n.children {
-                    walk(c, prefixes, acc);
+                    walk(c, codes, acc);
                 }
             }
             let mut total = BigDecimal::zero();
             for n in nodes {
-                walk(n, prefixes, &mut total);
+                walk(n, codes, &mut total);
             }
             total
         }
@@ -1174,14 +1187,45 @@ impl ReportRepository for PostgresReportRepo {
                 revenue += node.total.clone();
             }
         }
-        // True perpetual product cost + production variances
-        let product_cogs = sum_by_prefix(&result, &["56"]);
-        let variances = sum_by_prefix(&result, &["55"]);
+
+        let product_cogs_codes = codes_for(&role_index, &[AccountRole::CostOfGoodsSold.key()]);
+        let variance_codes = codes_for(
+            &role_index,
+            &[
+                AccountRole::MaterialUsageVariance.key(),
+                AccountRole::LabourEfficiencyVariance.key(),
+                AccountRole::OverheadVariance.key(),
+            ],
+        );
+        let period_mfg_codes = codes_for(
+            &role_index,
+            &[
+                AccountRole::DirectLabourExpense.key(),
+                AccountRole::WagesExpense.key(),
+                AccountRole::PayrollLabourExpense.key(),
+                AccountRole::DirectMaterialsExpense.key(),
+                AccountRole::ManufacturingOverheadControl.key(),
+                AccountRole::ManufacturingOverheadApplied.key(),
+                AccountRole::ManufacturingOverheadExpense.key(),
+                AccountRole::EmployerNssfExpense.key(),
+                AccountRole::OtherEmployerPayrollExpense.key(),
+            ],
+        );
+        let period_opex_codes = codes_for(
+            &role_index,
+            &[
+                AccountRole::AdministrativeExpense.key(),
+                AccountRole::InterestExpense.key(),
+                AccountRole::DepreciationExpense.key(),
+            ],
+        );
+
+        let product_cogs = sum_by_codes(&result, &product_cogs_codes);
+        let variances = sum_by_codes(&result, &variance_codes);
         let cogs = product_cogs.clone() + variances.clone();
-        // Everything else expense-side is period cost
-        let period_mfg = sum_by_prefix(&result, &["52", "54"]);
-        let period_opex = sum_by_prefix(&result, &["62", "63", "64", "65", "66", "67", "68", "69"]);
-        // catch-all residual expenses not classified above
+        let period_mfg = sum_by_codes(&result, &period_mfg_codes);
+        let period_opex = sum_by_codes(&result, &period_opex_codes);
+
         let mut all_expense = BigDecimal::zero();
         for node in &result {
             if node.category == "expense" {
@@ -1191,11 +1235,10 @@ impl ReportRepository for PostgresReportRepo {
         let classified = cogs.clone() + period_mfg.clone() + period_opex.clone();
         let other_period = all_expense.clone() - classified.clone();
 
-        // 8) Compute profits (perpetual spine)
+        // 8) Compute profits (perpetual spine via roles)
         let gross_profit: BigDecimal = revenue.clone() - cogs.clone();
         let operating_profits: BigDecimal =
             gross_profit.clone() - period_mfg.clone() - period_opex.clone() - other_period.clone();
-        // Interest sits in 64xxxx already inside period_opex; NP = OP for now
         let net_profit: BigDecimal = operating_profits.clone();
 
         // 9) Push computed nodes
