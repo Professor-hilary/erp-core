@@ -50,12 +50,19 @@ pub struct CashFlowRow {
     pub txn_date: NaiveDate,
 }
 
-#[derive(Debug, Serialize, Deserialize, FromRow)]
+/// One equity *component* as a row (transposed SOCIE).
+/// Columns are movements so codes stay on the margin and rows sum across to Closing.
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EquityChangeRow {
+    /// CoA code (e.g. 310100) or TOTAL / 310300-CY
     pub code: String,
     pub name: String,
-    pub description: String,
-    pub amount: Option<BigDecimal>,
+    pub opening: Option<BigDecimal>,
+    /// Share issues, capital contributions, other equity movements (not profit)
+    pub issues: Option<BigDecimal>,
+    /// Profit for the period (retained earnings column only)
+    pub profit: Option<BigDecimal>,
+    pub closing: Option<BigDecimal>,
 }
 
 #[derive(FromRow, Serialize, Debug)]

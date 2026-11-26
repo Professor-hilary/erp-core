@@ -385,25 +385,6 @@ impl AccountRoleResolver {
     }
 
 
-    /// All account codes tagged with this role (posting default + classification contexts).
-    pub async fn codes_for_role(
-        pool: &PgPool,
-        role: AccountRole,
-    ) -> Result<Vec<String>, AccountRoleError> {
-        let rows: Vec<(String,)> = sqlx::query_as(
-            r#"
-            SELECT DISTINCT a.code
-            FROM accounting.account_role_mappings m
-            JOIN accounting.accounts a ON a.uuid = m.account_uuid
-            WHERE m.role_key = $1 AND m.is_active AND a.is_active
-            "#,
-        )
-        .bind(role.key())
-        .fetch_all(pool)
-        .await?;
-        Ok(rows.into_iter().map(|(c,)| c).collect())
-    }
-
     /// role_key -> account codes (for statement classification).
     pub async fn classification_index(
         pool: &PgPool,

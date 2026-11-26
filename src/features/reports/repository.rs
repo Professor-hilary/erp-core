@@ -1394,7 +1394,8 @@ impl ReportRepository for PostgresReportRepo {
         start: NaiveDate,
         end: NaiveDate,
     ) -> Result<Vec<EquityChangeRow>, AppError> {
-        // Equity accounts (postable leaves preferred) with period movement
+        use crate::features::accounts::account_roles::{AccountRole, AccountRoleResolver};
+
         #[derive(Debug, sqlx::FromRow)]
         struct EqRow {
             code: String,
@@ -1433,7 +1434,95 @@ impl ReportRepository for PostgresReportRepo {
         .fetch_all(pool)
         .await?;
 
-        // Income statement net profit for the period (authoritative)
+        let role_index = AccountRoleResolver::classification_index(pool)
+            .await
+            .unwrap_or_else(|_| std::collections::HashMap::new());
+
+        let sc_codes: std::collections::HashSet<String> = role_index
+            .get(AccountRole::ShareCapital.key())
+            .into_iter()
+            .flatten()
+            .cloned()
+            .collect();
+        let sp_codes: std::collections::HashSet<String> = role_index
+            .get(AccountRole::SharePremium.key())
+            .into_iter()
+            .flatten()
+            .cloned()
+            .collect();
+        let re_codes: std::collections::HashSet<String> = role_index
+            .get(AccountRole::RetainedEarnings.key())
+            .into_iter()
+            .flatten()
+            .cloned()
+            .collect();
+
+        fn is_share_capital(code: &str, name: &str, sc: &std::collections::HashSet<String>) -> bool {
+            if sc.contains(code) {
+                return true;
+            }
+            let n = name.to_lowercase();
+            (n.contains("share capital") || (n.contains("owner") && n.contains("capital")))
+                && !n.contains("premium")
+        }
+        fn is_share_premium(code: &str, name: &str, sp: &std::collections::HashSet<String>) -> bool {
+            if sp.contains(code) {
+                return true;
+            }
+            name.to_lowercase().contains("premium")
+        }
+        fn is_retained(code: &str, name: &str, re: &std::collections::HashSet<String>) -> bool {
+            if re.contains(code) {
+                return true;
+            }
+            let n = name.to_lowercase();
+            n.contains("retained") || code == "310300"
+        }
+
+        let mut sc_open = BigDecimal::zero();
+        let mut sc_issues = BigDecimal::zero();
+        let mut sp_open = BigDecimal::zero();
+        let mut sp_issues = BigDecimal::zero();
+        let mut re_open = BigDecimal::zero();
+        let mut other_open = BigDecimal::zero();
+        let mut other_issues = BigDecimal::zero();
+        let mut other_code = String::from("OTHER");
+        let mut other_name = String::from("Other equity");
+        let mut sc_code = String::from("310100");
+        let mut sc_name = String::from("Share capital");
+        let mut sp_code = String::from("310500");
+        let mut sp_name = String::from("Share premium");
+        let mut re_code = String::from("310300");
+        let mut re_name = String::from("Retained earnings");
+
+        for r in &rows {
+            // Credit-normal equity presented as positive
+            let open_pos = -r.opening.clone();
+            let move_pos = -r.movement.clone();
+            if is_retained(&r.code, &r.name, &re_codes) {
+                re_open += open_pos;
+                re_code = r.code.clone();
+                re_name = r.name.clone();
+                continue;
+            }
+            if is_share_capital(&r.code, &r.name, &sc_codes) {
+                sc_open += open_pos;
+                sc_issues += move_pos;
+                sc_code = r.code.clone();
+                sc_name = r.name.clone();
+            } else if is_share_premium(&r.code, &r.name, &sp_codes) {
+                sp_open += open_pos;
+                sp_issues += move_pos;
+                sp_code = r.code.clone();
+                sp_name = r.name.clone();
+            } else {
+                other_open += open_pos;
+                other_issues += move_pos;
+                other_code = r.code.clone();
+                other_name = r.name.clone();
+            }
+        }
+
         let net_profit = self
             .income_statement(pool, start, end)
             .await?
@@ -1442,52 +1531,69 @@ impl ReportRepository for PostgresReportRepo {
             .map(|n| n.total)
             .unwrap_or_else(BigDecimal::zero);
 
-        let mut out: Vec<EquityChangeRow> = Vec::new();
-        let mut total_open = BigDecimal::zero();
-        let mut total_move = BigDecimal::zero();
+        fn opt(v: BigDecimal) -> Option<BigDecimal> {
+            Some(v)
+        }
+        fn z() -> BigDecimal {
+            BigDecimal::zero()
+        }
 
-        for r in rows {
-            // Present credit-normal equity as positive balances
-            let open_pos = -r.opening.clone();
-            let move_pos = -r.movement.clone();
-            // Skip pure RE book account — profit is shown once as Net Income
-            if r.code == "310300" || r.name.to_lowercase().contains("retained") {
-                continue;
-            }
-            if open_pos.abs() < BigDecimal::from_f64(0.005).unwrap_or_else(BigDecimal::zero)
-                && move_pos.abs() < BigDecimal::from_f64(0.005).unwrap_or_else(BigDecimal::zero)
-            {
-                continue;
-            }
-            total_open += open_pos.clone();
-            total_move += move_pos.clone();
+        let sc_close = sc_open.clone() + sc_issues.clone();
+        let sp_close = sp_open.clone() + sp_issues.clone();
+        let re_close = re_open.clone() + net_profit.clone();
+        let other_close = other_open.clone() + other_issues.clone();
+
+        let mut out = vec![
+            EquityChangeRow {
+                code: sc_code,
+                name: sc_name,
+                opening: opt(sc_open.clone()),
+                issues: opt(sc_issues.clone()),
+                profit: opt(z()),
+                closing: opt(sc_close.clone()),
+            },
+            EquityChangeRow {
+                code: sp_code,
+                name: sp_name,
+                opening: opt(sp_open.clone()),
+                issues: opt(sp_issues.clone()),
+                profit: opt(z()),
+                closing: opt(sp_close.clone()),
+            },
+            EquityChangeRow {
+                code: re_code,
+                name: re_name,
+                opening: opt(re_open.clone()),
+                issues: opt(z()),
+                profit: opt(net_profit.clone()),
+                closing: opt(re_close.clone()),
+            },
+        ];
+
+        if other_open.abs() + other_issues.abs()
+            >= BigDecimal::from_f64(0.005).unwrap_or_else(BigDecimal::zero)
+        {
             out.push(EquityChangeRow {
-                code: r.code.clone(),
-                name: r.name.clone(),
-                description: "Opening Balance".into(),
-                amount: Some(open_pos),
-            });
-            out.push(EquityChangeRow {
-                code: r.code,
-                name: r.name,
-                description: "Movements During Period".into(),
-                amount: Some(move_pos),
+                code: other_code,
+                name: other_name,
+                opening: opt(other_open.clone()),
+                issues: opt(other_issues.clone()),
+                profit: opt(z()),
+                closing: opt(other_close.clone()),
             });
         }
 
-        out.push(EquityChangeRow {
-            code: "999999".into(),
-            name: "Net Income".into(),
-            description: "Net Income for Period".into(),
-            amount: Some(net_profit.clone()),
-        });
+        let tot_open = sc_open + sp_open + re_open + other_open;
+        let tot_issues = sc_issues + sp_issues + other_issues;
+        let tot_close = sc_close + sp_close + re_close + other_close;
 
-        let closing = total_open + total_move + net_profit;
         out.push(EquityChangeRow {
             code: "TOTAL".into(),
-            name: "Total Equity".into(),
-            description: "Closing Balance".into(),
-            amount: Some(closing),
+            name: "Total equity".into(),
+            opening: opt(tot_open),
+            issues: opt(tot_issues),
+            profit: opt(net_profit),
+            closing: opt(tot_close),
         });
 
         Ok(out)

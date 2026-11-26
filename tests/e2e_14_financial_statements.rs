@@ -134,29 +134,37 @@ fn print_tree_statement(title: &str, body: &Value) {
     }
 }
 
-/// Change of equity: flat rows
+/// Change of equity: components as rows, movements as columns (codes on margin)
 fn print_equity_change(body: &Value) {
     print_header("STATEMENT OF CHANGES IN EQUITY");
     println!(
-        "{:<10} {:<28} {:<28} {:>14}",
-        "Code", "Account", "Description", "Amount"
+        "{:<10} {:<24} {:>14} {:>16} {:>14} {:>14}",
+        "Code",
+        "Component",
+        "Opening",
+        "Issues/contrib",
+        "Profit",
+        "Closing"
     );
-    println!("{}", "-".repeat(92));
+    println!("{}", "-".repeat(100));
     for r in data_array(body) {
         println!(
-            "{:<10} {:<28} {:<28} {:>14}",
+            "{:<10} {:<24} {:>14} {:>16} {:>14} {:>14}",
             s(r, "code"),
             {
                 let n = s(r, "name");
-                n.chars().take(28).collect::<String>()
+                n.chars().take(24).collect::<String>()
             },
-            {
-                let n = s(r, "description");
-                n.chars().take(28).collect::<String>()
-            },
-            fmt_money(&s(r, "amount")),
+            fmt_money(&s(r, "opening")),
+            fmt_money(&s(r, "issues")),
+            fmt_money(&s(r, "profit")),
+            fmt_money(&s(r, "closing")),
         );
     }
+    println!("{}", "-".repeat(100));
+    println!(
+        "(Each row: Opening + Issues/contrib + Profit = Closing. TOTAL row sums the components.)"
+    );
 }
 
 fn render_report(path: &str, body: &Value) {
