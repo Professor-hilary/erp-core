@@ -3,7 +3,7 @@ use crate::{interface::api::errors::AppError, models::reports::*};
 
 use async_trait::async_trait;
 use bigdecimal::{BigDecimal, FromPrimitive, Zero};
-use chrono::NaiveDate;
+use chrono::{Datelike, NaiveDate};
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use std::collections::HashMap;
@@ -278,6 +278,28 @@ impl ReportRepository for PostgresReportRepo {
                 "equity" => total_equity += node.total.clone(),
                 _ => (),
             }
+        }
+
+        // Current-year earnings not yet closed to RE — derive from P&L YTD
+        let ytd_start = NaiveDate::from_ymd_opt(as_of.year(), 1, 1).unwrap_or(as_of);
+        let cy_earnings = match self.income_statement(pool, ytd_start, as_of).await {
+            Ok(income_nodes) => income_nodes
+                .iter()
+                .find(|n| n.code == "NET_PROFIT")
+                .map(|n| n.total.clone())
+                .unwrap_or_else(BigDecimal::zero),
+            Err(_) => BigDecimal::zero(),
+        };
+
+        if cy_earnings.abs() >= BigDecimal::from_f64(0.01).unwrap_or_else(BigDecimal::zero) {
+            result.push(Node {
+                code: "310300-CY".to_string(),
+                name: "Current Year Earnings".to_string(),
+                category: "equity".to_string(),
+                total: cy_earnings.clone(),
+                children: vec![],
+            });
+            total_equity += cy_earnings.clone();
         }
 
         let total_liabilities_equity = total_liabilities.clone() + total_equity.clone();
@@ -736,12 +758,25 @@ impl ReportRepository for PostgresReportRepo {
 
             match acc.cash_flow_category.as_deref() {
                 Some("non-cash") => {
-                    non_cash_adjustments += acc.end_balance.clone();
+                    // Only true non-cash charges (depreciation / amortisation).
+                    // Production variances are already inside net profit — do not double-count.
+                    let lname = acc.name.to_lowercase();
+                    let is_depr = lname.contains("depreciat")
+                        || lname.contains("amortis")
+                        || lname.contains("amortiz")
+                        || acc.code.starts_with("6208")
+                        || acc.code.starts_with("5408");
+                    if !is_depr {
+                        continue;
+                    }
+                    // Period charge ≈ movement (end - begin) with expense sign
+                    let charge = delta.clone();
+                    non_cash_adjustments += charge.clone();
                     nc_nodes.push(Node {
                         code: acc.code.clone(),
                         name: acc.name.clone(),
                         category: "non_cash".to_string(),
-                        total: acc.end_balance.clone(),
+                        total: charge,
                         children: vec![],
                     });
                 }
@@ -852,57 +887,110 @@ impl ReportRepository for PostgresReportRepo {
             children: fin_nodes,
         });
 
-        // 6. Net cash flow + opening/closing cash (same as direct)
-        let net_cash_flow: BigDecimal = result
+        // 6. Section-based net (explanatory)
+        let section_net: BigDecimal = result
             .iter()
             .filter(|n| matches!(n.code.as_str(), "OPERATING" | "INVESTING" | "FINANCING"))
             .map(|n: &Node| n.total.clone())
             .sum::<BigDecimal>();
 
-        //=================================================================
-        // 5. Opening cash
-        //=================================================================
-
-        let opening: CashBalanceRow = sqlx::query_as::<_, CashBalanceRow>(
+        // Book cash balances are authoritative (must match cashbook / TB cash+bank)
+        let opening_cash: BigDecimal = sqlx::query_scalar::<_, BigDecimal>(
             r#"
-                SELECT
-                    COALESCE(
-                        SUM(te.debit - te.credit), 0
-                    ) AS opening_cash
+                SELECT COALESCE(SUM(te.debit - te.credit), 0)
                 FROM accounting.transaction_entries te
-                JOIN accounting.accounts acc
-                    ON acc.uuid = te.account_uuid
+                JOIN accounting.accounts acc ON acc.uuid = te.account_uuid
                 WHERE acc.cash_flow_category = 'cash'
-                AND te.created_at < $1
+                  AND te.created_at < $1
             "#,
         )
         .bind(period_start)
         .fetch_one(pool)
-        .await?;
+        .await
+        .unwrap_or_else(|_| BigDecimal::zero());
 
-        //=================================================================
-        // 6. Closing cash
-        //=================================================================
+        let closing_cash: BigDecimal = sqlx::query_scalar::<_, BigDecimal>(
+            r#"
+                SELECT COALESCE(SUM(te.debit - te.credit), 0)
+                FROM accounting.transaction_entries te
+                JOIN accounting.accounts acc ON acc.uuid = te.account_uuid
+                WHERE acc.cash_flow_category = 'cash'
+                  AND te.created_at <= ($1::date + INTERVAL '1 day' - INTERVAL '1 second')
+            "#,
+        )
+        .bind(period_end)
+        .fetch_one(pool)
+        .await
+        .unwrap_or_else(|_| BigDecimal::zero());
 
-        let closing_cash: BigDecimal = opening.opening_cash.clone() + net_cash_flow.clone();
+        // Prefer inclusive end-of-day via date on txn if created_at is noisy
+        let closing_cash = {
+            let alt: BigDecimal = sqlx::query_scalar::<_, BigDecimal>(
+                r#"
+                    SELECT COALESCE(SUM(te.debit - te.credit), 0)
+                    FROM accounting.transaction_entries te
+                    JOIN accounting.accounts acc ON acc.uuid = te.account_uuid
+                    JOIN accounting.transactions txn ON txn.uuid = te.transaction_uuid
+                    WHERE acc.cash_flow_category = 'cash'
+                      AND txn.txn_date <= $1
+                "#,
+            )
+            .bind(period_end)
+            .fetch_one(pool)
+            .await
+            .unwrap_or(closing_cash.clone());
+            if alt.abs() > BigDecimal::zero() {
+                alt
+            } else {
+                closing_cash
+            }
+        };
 
-        //=================================================================
-        // 7. Computed nodes
-        //=================================================================
+        let opening_cash = {
+            let alt: BigDecimal = sqlx::query_scalar::<_, BigDecimal>(
+                r#"
+                    SELECT COALESCE(SUM(te.debit - te.credit), 0)
+                    FROM accounting.transaction_entries te
+                    JOIN accounting.accounts acc ON acc.uuid = te.account_uuid
+                    JOIN accounting.transactions txn ON txn.uuid = te.transaction_uuid
+                    WHERE acc.cash_flow_category = 'cash'
+                      AND txn.txn_date < $1
+                "#,
+            )
+            .bind(period_start)
+            .fetch_one(pool)
+            .await
+            .unwrap_or(opening_cash.clone());
+            alt
+        };
+
+        let book_net = closing_cash.clone() - opening_cash.clone();
 
         result.push(Node {
             code: "NET_CASH_FLOW".to_string(),
             name: "Net Increase / (Decrease) in Cash".to_string(),
             category: "computed".to_string(),
-            total: net_cash_flow,
+            total: book_net.clone(),
             children: vec![],
         });
+
+        // Bridge residual so sections + residual = book movement
+        let residual = book_net.clone() - section_net.clone();
+        if residual.abs() >= BigDecimal::from_f64(0.01).unwrap_or_else(BigDecimal::zero) {
+            result.push(Node {
+                code: "CF_RESIDUAL".to_string(),
+                name: "Classification residual (sections vs cashbook)".to_string(),
+                category: "computed".to_string(),
+                total: residual,
+                children: vec![],
+            });
+        }
 
         result.push(Node {
             code: "OPENING_CASH".to_string(),
             name: "Cash at Beginning of Period".to_string(),
             category: "computed".to_string(),
-            total: opening.opening_cash,
+            total: opening_cash,
             children: vec![],
         });
 
@@ -1060,27 +1148,55 @@ impl ReportRepository for PostgresReportRepo {
             }
         }
 
-        // 7) Extract key sections
-        let mut revenue: BigDecimal = BigDecimal::zero();
-        let mut cogs: BigDecimal = BigDecimal::zero();
-        let mut expenses: BigDecimal = BigDecimal::zero();
-
-        for node in &result {
-            let name: String = node.name.to_lowercase();
-
-            if name.contains("revenue") || name.contains("income") {
-                revenue += node.total.clone();
-            } else if name.contains("cost of goods") || name.contains("cogs") {
-                cogs += node.total.clone();
-            } else if node.category == "expense" {
-                expenses += node.total.clone();
+        // 7) Classify by account code (perpetual absorption layout)
+        // product COGS = 56xxxx (inventory relief) + 55xxxx (variances only)
+        // period manufacturing (52, 54) and admin/interest (6xxxx) sit below GP
+        fn sum_by_prefix(nodes: &[Node], prefixes: &[&str]) -> BigDecimal {
+            fn walk(n: &Node, prefixes: &[&str], acc: &mut BigDecimal) {
+                let is_leaf = n.children.is_empty();
+                if is_leaf && prefixes.iter().any(|p| n.code.starts_with(p)) {
+                    *acc += n.total.clone();
+                }
+                for c in &n.children {
+                    walk(c, prefixes, acc);
+                }
             }
+            let mut total = BigDecimal::zero();
+            for n in nodes {
+                walk(n, prefixes, &mut total);
+            }
+            total
         }
 
-        // 8) Compute profits
-        let gross_profit: BigDecimal = revenue - cogs.clone();
-        let operating_profits: BigDecimal = gross_profit.clone() - (expenses.clone() - cogs); //remove double-counting
-        let net_profit: BigDecimal = gross_profit.clone() - expenses; // TODO: less other expenses add other incomes here
+        let mut revenue: BigDecimal = BigDecimal::zero();
+        for node in &result {
+            if node.category == "income" {
+                revenue += node.total.clone();
+            }
+        }
+        // True perpetual product cost + production variances
+        let product_cogs = sum_by_prefix(&result, &["56"]);
+        let variances = sum_by_prefix(&result, &["55"]);
+        let cogs = product_cogs.clone() + variances.clone();
+        // Everything else expense-side is period cost
+        let period_mfg = sum_by_prefix(&result, &["52", "54"]);
+        let period_opex = sum_by_prefix(&result, &["62", "63", "64", "65", "66", "67", "68", "69"]);
+        // catch-all residual expenses not classified above
+        let mut all_expense = BigDecimal::zero();
+        for node in &result {
+            if node.category == "expense" {
+                all_expense += node.total.clone();
+            }
+        }
+        let classified = cogs.clone() + period_mfg.clone() + period_opex.clone();
+        let other_period = all_expense.clone() - classified.clone();
+
+        // 8) Compute profits (perpetual spine)
+        let gross_profit: BigDecimal = revenue.clone() - cogs.clone();
+        let operating_profits: BigDecimal =
+            gross_profit.clone() - period_mfg.clone() - period_opex.clone() - other_period.clone();
+        // Interest sits in 64xxxx already inside period_opex; NP = OP for now
+        let net_profit: BigDecimal = operating_profits.clone();
 
         // 9) Push computed nodes
         result.push(Node {
@@ -1149,11 +1265,38 @@ impl ReportRepository for PostgresReportRepo {
         start: NaiveDate,
         end: NaiveDate,
     ) -> Result<Vec<EquityChangeRow>, AppError> {
-        let rows: Vec<EquityChangeRow> = sqlx::query_as::<_, EquityChangeRow>(
+        // Equity accounts (postable leaves preferred) with period movement
+        #[derive(Debug, sqlx::FromRow)]
+        struct EqRow {
+            code: String,
+            name: String,
+            opening: BigDecimal,
+            movement: BigDecimal,
+        }
+
+        let rows: Vec<EqRow> = sqlx::query_as::<_, EqRow>(
             r#"
-                SELECT code, name, description, amount
-                FROM reporting.get_statement_of_changes_in_equity($1, $2)
-                ORDER BY code, description
+            SELECT
+                a.code,
+                a.name,
+                COALESCE((
+                    SELECT SUM(te.debit - te.credit)
+                    FROM accounting.transaction_entries te
+                    JOIN accounting.transactions txn ON txn.uuid = te.transaction_uuid
+                    WHERE te.account_uuid = a.uuid AND txn.txn_date < $1
+                ), 0) AS opening,
+                COALESCE((
+                    SELECT SUM(te.debit - te.credit)
+                    FROM accounting.transaction_entries te
+                    JOIN accounting.transactions txn ON txn.uuid = te.transaction_uuid
+                    WHERE te.account_uuid = a.uuid
+                      AND txn.txn_date >= $1 AND txn.txn_date <= $2
+                ), 0) AS movement
+            FROM accounting.accounts a
+            WHERE a.category = 'equity'
+              AND COALESCE(a.is_postable, true) = true
+              AND a.code NOT IN ('300000', '310000')
+            ORDER BY a.code
             "#,
         )
         .bind(start)
@@ -1161,7 +1304,64 @@ impl ReportRepository for PostgresReportRepo {
         .fetch_all(pool)
         .await?;
 
-        Ok(rows)
+        // Income statement net profit for the period (authoritative)
+        let net_profit = self
+            .income_statement(pool, start, end)
+            .await?
+            .into_iter()
+            .find(|n| n.code == "NET_PROFIT")
+            .map(|n| n.total)
+            .unwrap_or_else(BigDecimal::zero);
+
+        let mut out: Vec<EquityChangeRow> = Vec::new();
+        let mut total_open = BigDecimal::zero();
+        let mut total_move = BigDecimal::zero();
+
+        for r in rows {
+            // Present credit-normal equity as positive balances
+            let open_pos = -r.opening.clone();
+            let move_pos = -r.movement.clone();
+            // Skip pure RE book account — profit is shown once as Net Income
+            if r.code == "310300" || r.name.to_lowercase().contains("retained") {
+                continue;
+            }
+            if open_pos.abs() < BigDecimal::from_f64(0.005).unwrap_or_else(BigDecimal::zero)
+                && move_pos.abs() < BigDecimal::from_f64(0.005).unwrap_or_else(BigDecimal::zero)
+            {
+                continue;
+            }
+            total_open += open_pos.clone();
+            total_move += move_pos.clone();
+            out.push(EquityChangeRow {
+                code: r.code.clone(),
+                name: r.name.clone(),
+                description: "Opening Balance".into(),
+                amount: Some(open_pos),
+            });
+            out.push(EquityChangeRow {
+                code: r.code,
+                name: r.name,
+                description: "Movements During Period".into(),
+                amount: Some(move_pos),
+            });
+        }
+
+        out.push(EquityChangeRow {
+            code: "999999".into(),
+            name: "Net Income".into(),
+            description: "Net Income for Period".into(),
+            amount: Some(net_profit.clone()),
+        });
+
+        let closing = total_open + total_move + net_profit;
+        out.push(EquityChangeRow {
+            code: "TOTAL".into(),
+            name: "Total Equity".into(),
+            description: "Closing Balance".into(),
+            amount: Some(closing),
+        });
+
+        Ok(out)
     }
 
     async fn get_sales_report(
