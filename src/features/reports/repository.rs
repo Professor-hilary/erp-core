@@ -1352,7 +1352,6 @@ impl ReportRepository for PostgresReportRepo {
         });
 
         Ok(sci)
-        Ok(result)
     }
 
     async fn get_aging_ar(
