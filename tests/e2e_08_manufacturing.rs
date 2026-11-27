@@ -1806,3 +1806,98 @@ async fn manufacturing_deep_bom_volume() -> E2eResult<()> {
     println!("✅ manufacturing_deep_bom_volume OK — 4 levels, {n_lines} leaf issues");
     Ok(())
 }
+
+
+/// Stage B: under actual costing, predetermined OH and routing applied labour are rejected.
+#[tokio::test]
+async fn manufacturing_costing_method_gates() -> E2eResult<()> {
+    let ctx = TestContext::from_saved_state().await?;
+
+    // Switch to actual
+    let (st, body) = ctx
+        .client
+        .put(
+            "/api/manufacturing/costing-policy",
+            serde_json::json!({ "costing_method": "actual" }),
+        )
+        .await?;
+    assert!(st.is_success(), "set actual: {st} {body}");
+    let data = body.get("data").cloned().unwrap_or(body.clone());
+    assert_eq!(data["costing_method"].as_str(), Some("actual"));
+
+    // Need any production order uuid from list or create minimal — use list of open orders if API exists
+    // Apply rated overhead should fail without needing a real order first... service checks policy before repo.
+    // Create a throwaway PO if we have FG product.
+    let (s, inv) = ctx.client.get("/api/inventory/list/inventory").await?;
+    assert!(s.is_success());
+    let fg = inv["data"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .find(|i| i["sku"].as_str() == Some("FG-CARGO-MULE"))
+        .ok_or("FG-CARGO-MULE missing")?;
+    let fg_uuid = fg["uuid"].as_str().ok_or("fg uuid")?;
+
+    let (s, po_body) = ctx
+        .client
+        .post(
+            "/api/manufacturing/create/production-order",
+            serde_json::json!({
+                "order_number": format!("PO-GATE-{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis()),
+                "product_item_uuid": fg_uuid,
+                "quantity_ordered": "1",
+                "start_date": "2026-06-01",
+                "expected_completion_date": "2026-06-30"
+            }),
+        )
+        .await?;
+    assert!(s.is_success(), "create PO: {s} {po_body}");
+    let po_uuid = po_body["data"]["uuid"].as_str().ok_or("po uuid")?;
+
+    let (s, oh) = ctx
+        .client
+        .post(
+            "/api/manufacturing/apply/overhead/applied",
+            serde_json::json!({
+                "production_order": po_uuid,
+                "base_hours": "1",
+                "allocation_base": "LABOR_HOURS"
+            }),
+        )
+        .await?;
+    assert!(
+        s.as_u16() == 422 || s.as_u16() == 400,
+        "applied OH under actual must be rejected, got {s} {oh}"
+    );
+    println!("✓ actual costing rejects predetermined OH ({s})");
+
+    let (s, dl) = ctx
+        .client
+        .post(
+            "/api/manufacturing/apply/direct/labor",
+            serde_json::json!({
+                "production_order_uuid": po_uuid,
+                "reference": "gate-test"
+            }),
+        )
+        .await?;
+    assert!(
+        s.as_u16() == 422 || s.as_u16() == 400,
+        "routing DL under actual must be rejected, got {s} {dl}"
+    );
+    println!("✓ actual costing rejects routing applied labour ({s})");
+
+    // Restore standard for later tests in the same process (if any)
+    let (st, _) = ctx
+        .client
+        .put(
+            "/api/manufacturing/costing-policy",
+            serde_json::json!({ "costing_method": "standard" }),
+        )
+        .await?;
+    assert!(st.is_success(), "restore standard");
+    println!("✅ manufacturing_costing_method_gates OK");
+    let _ = ctx.save_state();
+    Ok(())
+}
+

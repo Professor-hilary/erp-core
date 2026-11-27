@@ -1000,6 +1000,35 @@ impl CostingPolicy {
     pub fn oh_base(&self) -> OhApplicationBase {
         OhApplicationBase::parse(&self.oh_application_base).unwrap_or(OhApplicationBase::LaborHours)
     }
+
+    /// Routing / standard-hour applied labour posts product cost only under standard costing.
+    pub fn allows_routing_applied_labor(&self) -> bool {
+        matches!(self.method(), CostingMethod::Standard)
+    }
+
+    /// Predetermined OH rate application (Dr WIP / Cr OH applied).
+    /// Actual costing records OH only via recognize/actual paths.
+    pub fn allows_predetermined_overhead(&self) -> bool {
+        matches!(
+            self.method(),
+            CostingMethod::Standard | CostingMethod::Normal
+        )
+    }
+
+    /// Material/labour/OH standard-cost variance posts on completion & variance APIs.
+    pub fn posts_standard_variances(&self) -> bool {
+        matches!(self.method(), CostingMethod::Standard)
+    }
+
+    /// Shop-floor timesheets may post ActualLabor when enabled on the policy.
+    pub fn allows_timesheet_actual(&self) -> bool {
+        self.use_timesheet_actual
+    }
+
+    /// Payroll → production allocation when enabled on the policy.
+    pub fn allows_payroll_allocation(&self) -> bool {
+        self.use_payroll_allocation
+    }
 }
 
 #[derive(Debug, Deserialize)]

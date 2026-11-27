@@ -128,6 +128,13 @@ impl ManufacturingService {
         dto: ApplyOverheadDto,
         user_uuid: Uuid,
     ) -> Result<CostApplication, AppError> {
+        let policy = self.costing_policy().await?;
+        if !policy.allows_predetermined_overhead() {
+            return Err(AppError::Unprocessable(format!(
+                "Predetermined overhead application is not used under actual costing (current method: {}).                  Recognize actual overhead instead.",
+                policy.method().as_str()
+            )));
+        }
         let resolver = self.resolver().await?;
         let dto = ApplyOverheadDto {
             production_order: dto.production_order,
@@ -238,6 +245,14 @@ impl ManufacturingService {
         dto: PostLabourTimeEntryDto,
         user_uuid: Uuid,
     ) -> Result<CostApplication, AppError> {
+        let policy = self.costing_policy().await?;
+        if !policy.allows_timesheet_actual() {
+            return Err(AppError::Unprocessable(
+                "Timesheet actual labour is disabled on the costing policy (use_timesheet_actual=false)."
+                    .into(),
+            ));
+        }
+
         let resolver = self.resolver().await?;
         let dto = PostLabourTimeEntryDto {
             entry_uuid: dto.entry_uuid,
@@ -302,6 +317,14 @@ impl ManufacturingService {
         dto: BulkTimeEntryIdsDto,
         user_uuid: Uuid,
     ) -> Result<i32, AppError> {
+        let policy = self.costing_policy().await?;
+        if !policy.allows_timesheet_actual() {
+            return Err(AppError::Unprocessable(
+                "Timesheet actual labour is disabled on the costing policy (use_timesheet_actual=false)."
+                    .into(),
+            ));
+        }
+
         let resolver = self.resolver().await?;
         let dto = BulkTimeEntryIdsDto {
             entry_uuids: dto.entry_uuids,
@@ -326,6 +349,14 @@ impl ManufacturingService {
         dto: AllocatePayrunLabourDto,
         user_uuid: Uuid,
     ) -> Result<Vec<PayrunLabourAllocationRow>, AppError> {
+        let policy = self.costing_policy().await?;
+        if !policy.allows_payroll_allocation() {
+            return Err(AppError::Unprocessable(
+                "Payroll labour allocation is disabled on the costing policy (use_payroll_allocation=false)."
+                    .into(),
+            ));
+        }
+
         let resolver = self.resolver().await?;
         let dto = AllocatePayrunLabourDto {
             payrun_uuid: dto.payrun_uuid,
@@ -381,6 +412,14 @@ impl ManufacturingService {
         dto: AllocatePayslipLabourDto,
         user_uuid: Uuid,
     ) -> Result<Vec<PayslipLabourAllocationRow>, AppError> {
+        let policy = self.costing_policy().await?;
+        if !policy.allows_payroll_allocation() {
+            return Err(AppError::Unprocessable(
+                "Payroll labour allocation is disabled on the costing policy (use_payroll_allocation=false)."
+                    .into(),
+            ));
+        }
+
         let resolver = self.resolver().await?;
         let dto = AllocatePayslipLabourDto {
             payslip_uuid: dto.payslip_uuid,
@@ -426,6 +465,14 @@ impl ManufacturingService {
         order_uuid: Uuid,
         as_of: Option<chrono::NaiveDate>,
     ) -> Result<LabourVariance, AppError> {
+        let policy = self.costing_policy().await?;
+        if !policy.posts_standard_variances() {
+            return Err(AppError::Unprocessable(format!(
+                "Standard labour variance analysis applies under standard costing only (current method: {}).",
+                policy.method().as_str()
+            )));
+        }
+
         Ok(self
             .repo
             .compute_labour_variances(order_uuid, as_of)
@@ -528,6 +575,13 @@ impl ManufacturingService {
         dto: ApplyDirectLaborDto,
         user_uuid: Uuid,
     ) -> Result<CostApplication, AppError> {
+        let policy = self.costing_policy().await?;
+        if !policy.allows_routing_applied_labor() {
+            return Err(AppError::Unprocessable(format!(
+                "Routing applied labour is only used under standard costing (current method: {}).                  Post actual labour via timesheets or payroll allocation instead.",
+                policy.method().as_str()
+            )));
+        }
         let resolver = self.resolver().await?;
         let dto = ApplyDirectLaborDto {
             production_order_uuid: dto.production_order_uuid,
