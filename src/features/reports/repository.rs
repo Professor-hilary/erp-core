@@ -1395,6 +1395,7 @@ impl ReportRepository for PostgresReportRepo {
         end: NaiveDate,
     ) -> Result<Vec<EquityChangeRow>, AppError> {
         use crate::features::accounts::account_roles::{AccountRole, AccountRoleResolver};
+        use std::collections::HashMap;
 
         #[derive(Debug, sqlx::FromRow)]
         struct EqRow {
@@ -1404,28 +1405,28 @@ impl ReportRepository for PostgresReportRepo {
             movement: BigDecimal,
         }
 
+        // Date basis matches TB / BS: entry timestamp date, with txn_date when present.
         let rows: Vec<EqRow> = sqlx::query_as::<_, EqRow>(
             r#"
             SELECT
                 a.code,
                 a.name,
-                COALESCE((
-                    SELECT SUM(te.debit - te.credit)
-                    FROM accounting.transaction_entries te
-                    JOIN accounting.transactions txn ON txn.uuid = te.transaction_uuid
-                    WHERE te.account_uuid = a.uuid AND txn.txn_date < $1
+                COALESCE(SUM(te.debit - te.credit) FILTER (
+                    WHERE COALESCE(txn.txn_date, te.created_at::date) < $1
                 ), 0) AS opening,
-                COALESCE((
-                    SELECT SUM(te.debit - te.credit)
-                    FROM accounting.transaction_entries te
-                    JOIN accounting.transactions txn ON txn.uuid = te.transaction_uuid
-                    WHERE te.account_uuid = a.uuid
-                      AND txn.txn_date >= $1 AND txn.txn_date <= $2
+                COALESCE(SUM(te.debit - te.credit) FILTER (
+                    WHERE COALESCE(txn.txn_date, te.created_at::date) >= $1
+                      AND COALESCE(txn.txn_date, te.created_at::date) <= $2
                 ), 0) AS movement
             FROM accounting.accounts a
+            LEFT JOIN accounting.transaction_entries te
+                ON te.account_uuid = a.uuid
+            LEFT JOIN accounting.transactions txn
+                ON txn.uuid = te.transaction_uuid
             WHERE a.category = 'equity'
               AND COALESCE(a.is_postable, true) = true
               AND a.code NOT IN ('300000', '310000')
+            GROUP BY a.code, a.name
             ORDER BY a.code
             "#,
         )
@@ -1436,7 +1437,7 @@ impl ReportRepository for PostgresReportRepo {
 
         let role_index = AccountRoleResolver::classification_index(pool)
             .await
-            .unwrap_or_else(|_| std::collections::HashMap::new());
+            .unwrap_or_else(|_| HashMap::new());
 
         let sc_codes: std::collections::HashSet<String> = role_index
             .get(AccountRole::ShareCapital.key())
@@ -1479,50 +1480,6 @@ impl ReportRepository for PostgresReportRepo {
             n.contains("retained") || code == "310300"
         }
 
-        let mut sc_open = BigDecimal::zero();
-        let mut sc_issues = BigDecimal::zero();
-        let mut sp_open = BigDecimal::zero();
-        let mut sp_issues = BigDecimal::zero();
-        let mut re_open = BigDecimal::zero();
-        let mut other_open = BigDecimal::zero();
-        let mut other_issues = BigDecimal::zero();
-        let mut other_code = String::from("OTHER");
-        let mut other_name = String::from("Other equity");
-        let mut sc_code = String::from("310100");
-        let mut sc_name = String::from("Share capital");
-        let mut sp_code = String::from("310500");
-        let mut sp_name = String::from("Share premium");
-        let mut re_code = String::from("310300");
-        let mut re_name = String::from("Retained earnings");
-
-        for r in &rows {
-            // Credit-normal equity presented as positive
-            let open_pos = -r.opening.clone();
-            let move_pos = -r.movement.clone();
-            if is_retained(&r.code, &r.name, &re_codes) {
-                re_open += open_pos;
-                re_code = r.code.clone();
-                re_name = r.name.clone();
-                continue;
-            }
-            if is_share_capital(&r.code, &r.name, &sc_codes) {
-                sc_open += open_pos;
-                sc_issues += move_pos;
-                sc_code = r.code.clone();
-                sc_name = r.name.clone();
-            } else if is_share_premium(&r.code, &r.name, &sp_codes) {
-                sp_open += open_pos;
-                sp_issues += move_pos;
-                sp_code = r.code.clone();
-                sp_name = r.name.clone();
-            } else {
-                other_open += open_pos;
-                other_issues += move_pos;
-                other_code = r.code.clone();
-                other_name = r.name.clone();
-            }
-        }
-
         let net_profit = self
             .income_statement(pool, start, end)
             .await?
@@ -1530,6 +1487,61 @@ impl ReportRepository for PostgresReportRepo {
             .find(|n| n.code == "NET_PROFIT")
             .map(|n| n.total)
             .unwrap_or_else(BigDecimal::zero);
+
+        // Aggregate by component bucket so we never emit duplicate codes
+        let mut sc_open = BigDecimal::zero();
+        let mut sc_issues = BigDecimal::zero();
+        let mut sp_open = BigDecimal::zero();
+        let mut sp_issues = BigDecimal::zero();
+        let mut re_open = BigDecimal::zero();
+        let mut other_open = BigDecimal::zero();
+        let mut other_issues = BigDecimal::zero();
+        let mut sc_code = String::from("310100");
+        let mut sc_name = String::from("Share capital");
+        let mut sp_code = String::from("310500");
+        let mut sp_name = String::from("Share premium");
+        let mut re_code = String::from("310300");
+        let mut re_name = String::from("Retained earnings");
+        let mut other_code = String::from("OTHER");
+        let mut other_name = String::from("Other equity");
+        let mut saw_sc = false;
+        let mut saw_sp = false;
+        let mut saw_re = false;
+        let mut saw_other = false;
+
+        for r in &rows {
+            // Credit-normal equity → positive presentation amounts
+            let open_pos = -r.opening.clone();
+            let move_pos = -r.movement.clone();
+
+            if is_retained(&r.code, &r.name, &re_codes) {
+                // Opening RE only; period profit is injected once below (not book RE moves)
+                re_open += open_pos;
+                re_code = r.code.clone();
+                re_name = r.name.clone();
+                saw_re = true;
+                continue;
+            }
+            if is_share_capital(&r.code, &r.name, &sc_codes) {
+                sc_open += open_pos;
+                sc_issues += move_pos;
+                sc_code = r.code.clone();
+                sc_name = r.name.clone();
+                saw_sc = true;
+            } else if is_share_premium(&r.code, &r.name, &sp_codes) {
+                sp_open += open_pos;
+                sp_issues += move_pos;
+                sp_code = r.code.clone();
+                sp_name = r.name.clone();
+                saw_sp = true;
+            } else {
+                other_open += open_pos;
+                other_issues += move_pos;
+                other_code = r.code.clone();
+                other_name = r.name.clone();
+                saw_other = true;
+            }
+        }
 
         fn opt(v: BigDecimal) -> Option<BigDecimal> {
             Some(v)
@@ -1543,35 +1555,38 @@ impl ReportRepository for PostgresReportRepo {
         let re_close = re_open.clone() + net_profit.clone();
         let other_close = other_open.clone() + other_issues.clone();
 
-        let mut out = vec![
-            EquityChangeRow {
-                code: sc_code,
-                name: sc_name,
-                opening: opt(sc_open.clone()),
-                issues: opt(sc_issues.clone()),
-                profit: opt(z()),
-                closing: opt(sc_close.clone()),
-            },
-            EquityChangeRow {
-                code: sp_code,
-                name: sp_name,
-                opening: opt(sp_open.clone()),
-                issues: opt(sp_issues.clone()),
-                profit: opt(z()),
-                closing: opt(sp_close.clone()),
-            },
-            EquityChangeRow {
-                code: re_code,
-                name: re_name,
-                opening: opt(re_open.clone()),
-                issues: opt(z()),
-                profit: opt(net_profit.clone()),
-                closing: opt(re_close.clone()),
-            },
-        ];
+        let mut out: Vec<EquityChangeRow> = Vec::with_capacity(5);
 
-        if other_open.abs() + other_issues.abs()
-            >= BigDecimal::from_f64(0.005).unwrap_or_else(BigDecimal::zero)
+        // Always show the main three components (even if zero) for a stable matrix
+        let _ = (saw_sc, saw_sp, saw_re);
+        out.push(EquityChangeRow {
+            code: sc_code,
+            name: sc_name,
+            opening: opt(sc_open.clone()),
+            issues: opt(sc_issues.clone()),
+            profit: opt(z()),
+            closing: opt(sc_close.clone()),
+        });
+        out.push(EquityChangeRow {
+            code: sp_code,
+            name: sp_name,
+            opening: opt(sp_open.clone()),
+            issues: opt(sp_issues.clone()),
+            profit: opt(z()),
+            closing: opt(sp_close.clone()),
+        });
+        out.push(EquityChangeRow {
+            code: re_code,
+            name: re_name,
+            opening: opt(re_open.clone()),
+            issues: opt(z()),
+            profit: opt(net_profit.clone()),
+            closing: opt(re_close.clone()),
+        });
+
+        if saw_other
+            && (other_open.abs() + other_issues.abs()
+                >= BigDecimal::from_f64(0.005).unwrap_or_else(BigDecimal::zero))
         {
             out.push(EquityChangeRow {
                 code: other_code,
