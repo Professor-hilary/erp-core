@@ -73,6 +73,8 @@ async fn uuid_by_sku(ctx: &TestContext, sku: &str) -> Result<String, String> {
 #[tokio::test]
 async fn manufacturing_flow() -> E2eResult<()> {
 
+    let ctx = TestContext::from_saved_state().await?;
+
     // Stage A: costing policy defaults to standard; timesheet + payroll both allowed
     {
         let (st, body) = ctx.client.get("/api/manufacturing/costing-policy").await?;
@@ -87,7 +89,6 @@ async fn manufacturing_flow() -> E2eResult<()> {
         assert_eq!(data.get("use_payroll_allocation").and_then(|v| v.as_bool()), Some(true));
         println!("✓ costing policy default standard (timesheet+payroll enabled)");
     }
-    let ctx = TestContext::from_saved_state().await?;
 
     // ----- Inventory baseline: RMs from P2P + SA/FG shells from e2e_03 -----
     let (s, inv) = ctx

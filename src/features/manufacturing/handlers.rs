@@ -949,3 +949,35 @@ async fn default_bom_route(
         Err(e) => Err(internal_error(e)),
     }
 }
+
+
+async fn get_costing_policy_route(
+    State(_state): State<Arc<AppState>>,
+    Extension(user): Extension<AuthenticatedTenant>,
+    Extension(actor): Extension<Actor>,
+) -> Result<Response, AppError> {
+    actor.require_module(Module::Manufacturing)?;
+    actor.require("manufacturing.manage")?;
+    let repo = ManufacturingRepo::new(user.tenant_pool);
+    let service = ManufacturingService::new(repo);
+    match service.costing_policy().await {
+        Ok(p) => Ok(ApiResponse::success(p, "Costing policy")),
+        Err(e) => Err(internal_error(e)),
+    }
+}
+
+async fn update_costing_policy_route(
+    State(_state): State<Arc<AppState>>,
+    Extension(user): Extension<AuthenticatedTenant>,
+    Extension(actor): Extension<Actor>,
+    AppJson(payload): AppJson<UpdateCostingPolicyDto>,
+) -> Result<Response, AppError> {
+    actor.require_module(Module::Manufacturing)?;
+    actor.require("manufacturing.manage")?;
+    let repo = ManufacturingRepo::new(user.tenant_pool);
+    let service = ManufacturingService::new(repo);
+    match service.update_costing_policy(payload, user.user_id).await {
+        Ok(p) => Ok(ApiResponse::success(p, "Costing policy updated")),
+        Err(e) => Err(internal_error(e)),
+    }
+}
