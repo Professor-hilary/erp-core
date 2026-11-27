@@ -13,7 +13,7 @@ use axum::{
     Extension, Router,
     extract::{Path, State},
     response::Response,
-    routing::{/* delete, patch, */ get, post},
+    routing::{put, /* delete, patch, */ get, post},
 };
 use std::sync::Arc;
 use uuid::Uuid;
@@ -33,6 +33,8 @@ fn internal_error(e: impl std::fmt::Display) -> AppError {
 pub fn router() -> Router<Arc<AppState>> {
     Router::new()
         .route("/create/production-order", post(new_order_route))
+        .route("/costing-policy", get(get_costing_policy_route))
+        .route("/costing-policy", put(update_costing_policy_route))
         .route("/create/routing/workcenter", post(new_work_center))
         .route("/create/routing/header", post(new_routing))
         .route("/create/routing/operation", post(new_routing_operation))

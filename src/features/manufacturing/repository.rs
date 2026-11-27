@@ -1289,4 +1289,129 @@ impl ManufacturingRepo {
             Ok(None)
         }
     }
+
+    // ============================ Costing policy (Stage A) ============================
+    pub async fn load_costing_policy(&self) -> Result<CostingPolicy, AppError> {
+        let row: Option<CostingPolicy> = sqlx::query_as(
+            r#"
+            SELECT uuid, costing_method, oh_application_base,
+                   use_timesheet_actual, use_payroll_allocation,
+                   effective_from, notes, updated_at, updated_by
+            FROM manufacturing.costing_policies
+            ORDER BY effective_from DESC, updated_at DESC
+            LIMIT 1
+            "#,
+        )
+        .fetch_optional(&self.pool)
+        .await?;
+
+        if let Some(p) = row {
+            return Ok(p);
+        }
+
+        // Self-heal if seed row missing (legacy tenants)
+        sqlx::query(
+            r#"
+            INSERT INTO manufacturing.costing_policies (
+                costing_method, oh_application_base,
+                use_timesheet_actual, use_payroll_allocation
+            ) VALUES ('standard', 'labor_hours', true, true)
+            "#,
+        )
+        .execute(&self.pool)
+        .await?;
+
+        let p: CostingPolicy = sqlx::query_as(
+            r#"
+            SELECT uuid, costing_method, oh_application_base,
+                   use_timesheet_actual, use_payroll_allocation,
+                   effective_from, notes, updated_at, updated_by
+            FROM manufacturing.costing_policies
+            ORDER BY effective_from DESC, updated_at DESC
+            LIMIT 1
+            "#,
+        )
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(p)
+    }
+
+    pub async fn update_costing_policy(
+        &self,
+        dto: UpdateCostingPolicyDto,
+        updated_by: Uuid,
+    ) -> Result<CostingPolicy, AppError> {
+        let current = self.load_costing_policy().await?;
+
+        let method = dto
+            .costing_method
+            .as_deref()
+            .map(|s| {
+                CostingMethod::parse(s).ok_or_else(|| {
+                    AppError::BadRequest(
+                        "costing_method must be actual | normal | standard".into(),
+                    )
+                })
+            })
+            .transpose()?
+            .unwrap_or_else(|| current.method());
+
+        let oh_base = dto
+            .oh_application_base
+            .as_deref()
+            .map(|s| {
+                OhApplicationBase::parse(s).ok_or_else(|| {
+                    AppError::BadRequest(
+                        "oh_application_base must be labor_hours | machine_hours | units".into(),
+                    )
+                })
+            })
+            .transpose()?
+            .unwrap_or_else(|| current.oh_base());
+
+        let use_ts = dto
+            .use_timesheet_actual
+            .unwrap_or(current.use_timesheet_actual);
+        let use_pr = dto
+            .use_payroll_allocation
+            .unwrap_or(current.use_payroll_allocation);
+        if !use_ts && !use_pr {
+            return Err(AppError::BadRequest(
+                "At least one of use_timesheet_actual or use_payroll_allocation must be true".into(),
+            ));
+        }
+
+        let effective_from = dto.effective_from.unwrap_or(current.effective_from);
+        let notes = dto.notes.or(current.notes);
+
+        let p: CostingPolicy = sqlx::query_as(
+            r#"
+            UPDATE manufacturing.costing_policies SET
+                costing_method = $2,
+                oh_application_base = $3,
+                use_timesheet_actual = $4,
+                use_payroll_allocation = $5,
+                effective_from = $6,
+                notes = $7,
+                updated_at = now(),
+                updated_by = $8
+            WHERE uuid = $1
+            RETURNING uuid, costing_method, oh_application_base,
+                      use_timesheet_actual, use_payroll_allocation,
+                      effective_from, notes, updated_at, updated_by
+            "#,
+        )
+        .bind(current.uuid)
+        .bind(method.as_str())
+        .bind(oh_base.as_str())
+        .bind(use_ts)
+        .bind(use_pr)
+        .bind(effective_from)
+        .bind(notes)
+        .bind(updated_by)
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(p)
+    }
+
 }

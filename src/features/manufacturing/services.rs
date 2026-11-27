@@ -16,6 +16,20 @@ impl ManufacturingService {
         Self { repo }
     }
 
+
+    /// Stage A: load tenant costing policy (default standard). No posting behaviour change yet.
+    pub async fn costing_policy(&self) -> Result<CostingPolicy, AppError> {
+        self.repo.load_costing_policy().await
+    }
+
+    pub async fn update_costing_policy(
+        &self,
+        dto: UpdateCostingPolicyDto,
+        updated_by: Uuid,
+    ) -> Result<CostingPolicy, AppError> {
+        self.repo.update_costing_policy(dto, updated_by).await
+    }
+
     async fn resolver(&self) -> Result<AccountRoleResolver, AppError> {
         AccountRoleResolver::load(&self.repo.pool)
             .await

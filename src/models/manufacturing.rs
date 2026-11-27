@@ -921,3 +921,93 @@ pub struct PayrunLabourAllocationRow {
 pub struct DraftTimeFromOrderDto {
     pub production_order_uuid: Uuid,
 }
+
+
+/// Tenant manufacturing costing method (IAS / cost-accounting policy).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CostingMethod {
+    Actual,
+    Normal,
+    Standard,
+}
+
+impl CostingMethod {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Actual => "actual",
+            Self::Normal => "normal",
+            Self::Standard => "standard",
+        }
+    }
+
+    pub fn parse(s: &str) -> Option<Self> {
+        match s.trim().to_ascii_lowercase().as_str() {
+            "actual" => Some(Self::Actual),
+            "normal" => Some(Self::Normal),
+            "standard" => Some(Self::Standard),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum OhApplicationBase {
+    LaborHours,
+    MachineHours,
+    Units,
+}
+
+impl OhApplicationBase {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::LaborHours => "labor_hours",
+            Self::MachineHours => "machine_hours",
+            Self::Units => "units",
+        }
+    }
+
+    pub fn parse(s: &str) -> Option<Self> {
+        match s.trim().to_ascii_lowercase().as_str() {
+            "labor_hours" | "labour_hours" => Some(Self::LaborHours),
+            "machine_hours" => Some(Self::MachineHours),
+            "units" => Some(Self::Units),
+            _ => None,
+        }
+    }
+}
+
+/// Loaded costing policy for the tenant (singleton row in Stage A).
+#[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
+pub struct CostingPolicy {
+    pub uuid: Uuid,
+    pub costing_method: String,
+    pub oh_application_base: String,
+    pub use_timesheet_actual: bool,
+    pub use_payroll_allocation: bool,
+    pub effective_from: NaiveDate,
+    pub notes: Option<String>,
+    pub updated_at: DateTime<Utc>,
+    pub updated_by: Option<Uuid>,
+}
+
+impl CostingPolicy {
+    pub fn method(&self) -> CostingMethod {
+        CostingMethod::parse(&self.costing_method).unwrap_or(CostingMethod::Standard)
+    }
+
+    pub fn oh_base(&self) -> OhApplicationBase {
+        OhApplicationBase::parse(&self.oh_application_base).unwrap_or(OhApplicationBase::LaborHours)
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct UpdateCostingPolicyDto {
+    pub costing_method: Option<String>,
+    pub oh_application_base: Option<String>,
+    pub use_timesheet_actual: Option<bool>,
+    pub use_payroll_allocation: Option<bool>,
+    pub effective_from: Option<NaiveDate>,
+    pub notes: Option<String>,
+}

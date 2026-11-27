@@ -4658,3 +4658,33 @@ LEFT JOIN LATERAL (
     ORDER BY created_at DESC
     LIMIT 1
 ) lv ON true;
+
+
+-- =============================================================================
+-- Costing policy (Stage A): tenant chooses actual | normal | standard
+-- Default standard; timesheet actual and payroll allocation may both be enabled.
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS manufacturing.costing_policies (
+    uuid uuid PRIMARY KEY DEFAULT uuidv7(),
+    costing_method text NOT NULL DEFAULT 'standard'
+        CHECK (costing_method IN ('actual', 'normal', 'standard')),
+    oh_application_base text NOT NULL DEFAULT 'labor_hours'
+        CHECK (oh_application_base IN ('labor_hours', 'machine_hours', 'units')),
+    -- Both may be true: timesheets capture shop-floor hours; payroll allocation
+    -- supplies employment cost. Stage B decides which feeds product cost per method.
+    use_timesheet_actual boolean NOT NULL DEFAULT true,
+    use_payroll_allocation boolean NOT NULL DEFAULT true,
+    effective_from date NOT NULL DEFAULT CURRENT_DATE,
+    notes text,
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    updated_by uuid
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS costing_policies_one_current
+    ON manufacturing.costing_policies ((true));
+
+INSERT INTO manufacturing.costing_policies (
+    costing_method, oh_application_base, use_timesheet_actual, use_payroll_allocation
+)
+SELECT 'standard', 'labor_hours', true, true
+WHERE NOT EXISTS (SELECT 1 FROM manufacturing.costing_policies);
