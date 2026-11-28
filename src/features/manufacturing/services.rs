@@ -621,6 +621,8 @@ impl ManufacturingService {
         dto: CompleteProductionOrderDto,
         user_uuid: Uuid,
     ) -> Result<ProductionOrder, AppError> {
+        let policy = self.costing_policy().await?;
+
         let resolver = self.resolver().await?;
         let dto = CompleteProductionOrderDto {
             production_order_uuid: dto.production_order_uuid,
@@ -657,7 +659,7 @@ impl ManufacturingService {
                 dto.control_code,
             )?),
         };
-        Ok(self.repo.complete_production_order(dto, user_uuid).await?)
+        Ok(self.repo.complete_production_order(dto, user_uuid, policy.method().as_str()).await?)
     }
 
     pub async fn prorate_variance(

@@ -4688,3 +4688,209 @@ INSERT INTO manufacturing.costing_policies (
 )
 SELECT 'standard', 'labor_hours', true, true
 WHERE NOT EXISTS (SELECT 1 FROM manufacturing.costing_policies);
+
+
+-- =============================================================================
+-- Stage C: method-aware completion valuation
+-- standard → FG/WIP @ standard unit cost + variances on full complete
+-- normal  → FG/WIP @ accumulated actual DM/DL + applied OH (no std variances)
+-- actual  → FG/WIP @ accumulated actual DM/DL/OH (no std variances)
+-- =============================================================================
+CREATE OR REPLACE FUNCTION manufacturing.complete_production_order(
+    p_order_uuid            uuid,
+    p_completed_quantity    numeric(18,4),
+    p_user                  uuid,
+    p_control_account       text,
+    p_wip_account           text,
+    p_fg_account            text,
+    p_mfg_mat_var_account   text,
+    p_mfg_lab_var_account   text,
+    p_mfg_moh_var_account   text,
+    p_completion_date       date  DEFAULT CURRENT_DATE,
+    p_fg_warehouse_serial   bigint DEFAULT NULL,
+    p_costing_method        text DEFAULT 'standard'
+) RETURNS uuid
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_order                 manufacturing.production_orders%ROWTYPE;
+    v_product               inventory.items%ROWTYPE;
+    v_std_unit_cost         numeric(18,4);
+    v_std_total             numeric(18,2);
+    v_unit_cost             numeric(18,4);
+    v_xfer_total            numeric(18,2);
+    v_order_cost            numeric(18,2);
+    v_prior_cost            numeric(18,2);
+    v_remaining_cost        numeric(18,2);
+    v_remaining_qty         numeric(18,4);
+    v_wip_uuid              uuid;
+    v_woh_uuid              uuid;
+    v_fg_uuid               uuid;
+    v_txn_serial            bigint;
+    v_new_completed         numeric(18,4);
+    v_method                text;
+    v_memo                  text;
+BEGIN
+    SELECT * INTO v_order FROM manufacturing.production_orders WHERE uuid = p_order_uuid;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Production order % not found', p_order_uuid;
+    END IF;
+    IF v_order.status != 'In Progress' THEN
+        RAISE EXCEPTION 'Order must be In Progress to complete';
+    END IF;
+
+    IF p_completed_quantity IS NULL OR p_completed_quantity <= 0 THEN
+        RAISE EXCEPTION 'Completed quantity must be positive';
+    END IF;
+    IF p_completed_quantity > (v_order.quantity_ordered - v_order.quantity_completed) THEN
+        RAISE EXCEPTION 'Completed quantity % exceeds remaining order quantity %',
+            p_completed_quantity,
+            v_order.quantity_ordered - v_order.quantity_completed;
+    END IF;
+
+    SELECT * INTO v_product FROM inventory.items WHERE uuid = v_order.product_item_uuid;
+
+    v_method := lower(COALESCE(NULLIF(trim(p_costing_method), ''), 'standard'));
+    IF v_method NOT IN ('actual', 'normal', 'standard') THEN
+        RAISE EXCEPTION 'Invalid costing method %', p_costing_method;
+    END IF;
+
+    v_std_unit_cost := COALESCE(
+        v_order.standard_unit_cost,
+        manufacturing.calculate_standard_cost(v_product.uuid, COALESCE(v_order.start_date, CURRENT_DATE))
+    );
+    v_std_total := ROUND(p_completed_quantity * v_std_unit_cost, 2);
+
+    v_wip_uuid := accounting.resolve_account_ref(p_wip_account);
+    v_fg_uuid := accounting.resolve_account_ref(p_fg_account);
+    v_woh_uuid := accounting.resolve_account_ref(p_control_account);
+
+    IF v_method = 'standard' THEN
+        v_unit_cost := v_std_unit_cost;
+        v_xfer_total := v_std_total;
+        v_memo := 'Production Completion - Standard Cost';
+    ELSE
+        -- Accumulated product cost charged to this order (method-specific types)
+        IF v_method = 'actual' THEN
+            SELECT COALESCE(SUM(amount), 0) INTO v_order_cost
+            FROM manufacturing.cost_applications
+            WHERE production_order_uuid = p_order_uuid
+              AND type IN ('DirectMaterial', 'ActualLabor', 'ActualOverhead', 'IndirectLabor');
+        ELSE
+            -- normal: actual materials & labour + predetermined OH
+            SELECT COALESCE(SUM(amount), 0) INTO v_order_cost
+            FROM manufacturing.cost_applications
+            WHERE production_order_uuid = p_order_uuid
+              AND type IN (
+                  'DirectMaterial', 'ActualLabor', 'DirectLabor',
+                  'AppliedOverhead', 'IndirectLabor'
+              );
+        END IF;
+
+        SELECT COALESCE(SUM(quantity_completed * unit_cost), 0) INTO v_prior_cost
+        FROM manufacturing.completions
+        WHERE production_order_uuid = p_order_uuid;
+
+        v_remaining_cost := GREATEST(v_order_cost - v_prior_cost, 0);
+        v_remaining_qty := v_order.quantity_ordered - v_order.quantity_completed;
+        IF v_remaining_qty <= 0 THEN
+            RAISE EXCEPTION 'No remaining quantity to complete';
+        END IF;
+
+        v_unit_cost := ROUND(v_remaining_cost / v_remaining_qty, 4);
+        v_xfer_total := ROUND(p_completed_quantity * v_unit_cost, 2);
+        v_memo := format('Production Completion - %s Cost', initcap(v_method));
+    END IF;
+
+    v_new_completed := v_order.quantity_completed + p_completed_quantity;
+
+    UPDATE manufacturing.production_orders
+    SET quantity_completed = v_new_completed,
+        actual_completion_date = p_completion_date,
+        status = CASE
+            WHEN v_new_completed >= quantity_ordered THEN 'Completed'
+            ELSE 'In Progress'
+        END,
+        updated_at = now()
+    WHERE uuid = p_order_uuid;
+
+    -- Dr FG / Cr WIP at method unit cost
+    v_txn_serial := accounting.post_transaction(
+        v_order.order_number || '-COMPLETION',
+        v_memo,
+        p_user, 'manufacturing', p_completion_date,
+        jsonb_build_array(
+            jsonb_build_object(
+                'account_ref', v_fg_uuid, 'debit', v_xfer_total, 'credit', 0,
+                'memo', format('FG at %s cost', v_method)
+            ),
+            jsonb_build_object(
+                'account_ref', v_wip_uuid, 'debit', 0, 'credit', v_xfer_total,
+                'memo', format('Relieve WIP at %s cost', v_method)
+            )
+        )
+    );
+
+    INSERT INTO inventory.movements (
+        item_uuid, warehouse_uuid, movement_type, reference_type, reference_id,
+        quantity, unit_cost, direction, gl_transaction_uuid, movement_date
+    ) VALUES (
+        v_product.uuid,
+        (SELECT uuid FROM inventory.warehouses WHERE serial_id = COALESCE(
+            p_fg_warehouse_serial, v_order.fg_warehouse_serial, v_product.warehouse_serial
+        )),
+        'PROD_COMPLETION',
+        'production',
+        v_order.serial_id,
+        p_completed_quantity,
+        v_unit_cost,
+        'IN',
+        (SELECT uuid FROM accounting.transactions WHERE serial_id = v_txn_serial),
+        p_completion_date
+    );
+
+    INSERT INTO manufacturing.completions (
+        production_order_uuid, quantity_completed, unit_cost, completed_at
+    ) VALUES (
+        p_order_uuid, p_completed_quantity, v_unit_cost, p_completion_date
+    );
+
+    IF v_product.valuation_method IN ('FIFO','LIFO') THEN
+        INSERT INTO inventory.lots (
+            item_uuid, warehouse_uuid, reference_type, reference_id,
+            received_date, original_quantity, original_cost_per_unit, remaining_quantity
+        ) VALUES (
+            v_product.uuid,
+            (SELECT uuid FROM inventory.warehouses WHERE serial_id = COALESCE(
+                p_fg_warehouse_serial, v_order.fg_warehouse_serial, v_product.warehouse_serial
+            )),
+            'PROD_COMPLETION', v_order.serial_id,
+            p_completion_date, p_completed_quantity, v_unit_cost, p_completed_quantity
+        );
+    ELSIF v_product.valuation_method = 'WAVG' THEN
+        INSERT INTO inventory.wavg_warehouse (item_uuid, warehouse_uuid, total_quantity, total_cost)
+        VALUES (
+            v_product.uuid,
+            (SELECT uuid FROM inventory.warehouses WHERE serial_id = COALESCE(
+                p_fg_warehouse_serial, v_order.fg_warehouse_serial, v_product.warehouse_serial
+            )),
+            p_completed_quantity,
+            v_xfer_total
+        )
+        ON CONFLICT (item_uuid, warehouse_uuid) DO UPDATE SET
+            total_quantity = inventory.wavg_warehouse.total_quantity + p_completed_quantity,
+            total_cost     = inventory.wavg_warehouse.total_cost     + EXCLUDED.total_cost,
+            last_updated_at = now();
+    END IF;
+
+    -- Standard-cost variances only under standard costing
+    IF v_method = 'standard' AND v_new_completed >= v_order.quantity_ordered THEN
+        PERFORM manufacturing.calculate_and_post_variances(
+            p_order_uuid, p_user, v_wip_uuid, p_mfg_mat_var_account,
+            p_mfg_lab_var_account, p_mfg_moh_var_account, p_completion_date
+        );
+    END IF;
+
+    RETURN (SELECT uuid FROM accounting.transactions WHERE serial_id = v_txn_serial);
+END;
+$$;

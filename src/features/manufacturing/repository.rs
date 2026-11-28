@@ -1129,11 +1129,12 @@ impl ManufacturingRepo {
         &self,
         dto: CompleteProductionOrderDto,
         user_uuid: Uuid,
+        costing_method: &str,
     ) -> Result<ProductionOrder, AppError> {
         let _gl_txn: Uuid = sqlx::query_scalar(
             r#"
         SELECT manufacturing.complete_production_order(
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_DATE, $10
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_DATE, $10, $11
         )
         "#,
         )
@@ -1147,6 +1148,7 @@ impl ManufacturingRepo {
         .bind(dto.mfg_lab_var_code.as_deref().unwrap_or(""))
         .bind(dto.mfg_moh_var_code.as_deref().unwrap_or(""))
         .bind(dto.fg_warehouse_serial)
+        .bind(costing_method)
         .fetch_one(&self.pool)
         .await?;
 
