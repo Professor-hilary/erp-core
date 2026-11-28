@@ -969,7 +969,13 @@ async fn get_costing_policy_route(
     let repo = ManufacturingRepo::new(user.tenant_pool);
     let service = ManufacturingService::new(repo);
     match service.costing_policy().await {
-        Ok(p) => Ok(ApiResponse::success(p, "Costing policy")),
+        Ok(p) => {
+            let rules = p.product_cost_rules();
+            Ok(ApiResponse::success(
+                CostingPolicyResponse { policy: p, rules },
+                "Costing policy",
+            ))
+        }
         Err(e) => Err(map_service_err(e)),
     }
 }
@@ -985,7 +991,13 @@ async fn update_costing_policy_route(
     let repo = ManufacturingRepo::new(user.tenant_pool);
     let service = ManufacturingService::new(repo);
     match service.update_costing_policy(payload, user.user_id).await {
-        Ok(p) => Ok(ApiResponse::success(p, "Costing policy updated")),
+        Ok(p) => {
+            let rules = p.product_cost_rules();
+            Ok(ApiResponse::success(
+                CostingPolicyResponse { policy: p, rules },
+                "Costing policy updated",
+            ))
+        }
         Err(e) => Err(map_service_err(e)),
     }
 }

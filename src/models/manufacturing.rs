@@ -1029,6 +1029,58 @@ impl CostingPolicy {
     pub fn allows_payroll_allocation(&self) -> bool {
         self.use_payroll_allocation
     }
+
+    /// Human-readable rules for the active method (API / UI).
+    pub fn product_cost_rules(&self) -> CostingMethodRules {
+        let method = self.method();
+        CostingMethodRules {
+            costing_method: method.as_str().to_string(),
+            routing_applied_labor: self.allows_routing_applied_labor(),
+            predetermined_overhead: self.allows_predetermined_overhead(),
+            standard_variances: self.posts_standard_variances(),
+            timesheet_actual: self.allows_timesheet_actual(),
+            payroll_allocation: self.allows_payroll_allocation(),
+            completion_basis: match method {
+                CostingMethod::Standard => "standard_unit_cost".into(),
+                CostingMethod::Normal => "accumulated_dm_dl_applied_oh".into(),
+                CostingMethod::Actual => "accumulated_dm_actual_lab_actual_oh".into(),
+            },
+            notes: match method {
+                CostingMethod::Standard => {
+                    "FG at standard; routing labour + applied OH; variances on full complete."
+                        .into()
+                }
+                CostingMethod::Normal => {
+                    "FG at accumulated actual materials & labour + predetermined OH; no std variances."
+                        .into()
+                }
+                CostingMethod::Actual => {
+                    "FG at accumulated actual materials, timesheet/payroll labour & recognized OH; no applied OH or std variances."
+                        .into()
+                }
+            },
+        }
+    }
+}
+
+/// Stage D: method behaviour exposed on GET /costing-policy.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CostingMethodRules {
+    pub costing_method: String,
+    pub routing_applied_labor: bool,
+    pub predetermined_overhead: bool,
+    pub standard_variances: bool,
+    pub timesheet_actual: bool,
+    pub payroll_allocation: bool,
+    pub completion_basis: String,
+    pub notes: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CostingPolicyResponse {
+    #[serde(flatten)]
+    pub policy: CostingPolicy,
+    pub rules: CostingMethodRules,
 }
 
 #[derive(Debug, Deserialize)]
