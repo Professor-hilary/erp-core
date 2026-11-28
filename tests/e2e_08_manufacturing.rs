@@ -2075,7 +2075,7 @@ async fn manufacturing_flow_actual_completion() -> E2eResult<()> {
                 "code": "WC-ASSY",
                 "name": "Assembly",
                 "labor_rate": "15000",
-                "allocation_base": "LABOR_HOURS",
+                "allocation_base": "DirectLaborHours",
                 "department_code": "Production"
             }),
         )
@@ -2236,7 +2236,7 @@ async fn manufacturing_flow_actual_completion() -> E2eResult<()> {
             json!({
                 "production_order_uuid": po_uuid,
                 "base_amount": "25000",
-                "allocation_base": "LABOR_HOURS",
+                "allocation_base": "DirectLaborHours",
                 "reference": "actual-oh-completion"
             }),
         )
