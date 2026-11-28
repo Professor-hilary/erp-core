@@ -1955,7 +1955,7 @@ async fn manufacturing_costing_method_gates() -> E2eResult<()> {
 /// Stage C: under actual costing, complete transfers FG at accumulated actual cost
 /// (materials + timesheet labour + recognized OH) without routing applied labour.
 #[tokio::test]
-async fn manufacturing_actual_completion_path() -> E2eResult<()> {
+async fn manufacturing_flow_actual_completion() -> E2eResult<()> {
     let mut ctx = TestContext::from_saved_state().await?;
 
     let (st, body) = ctx
@@ -2059,6 +2059,59 @@ async fn manufacturing_actual_completion_path() -> E2eResult<()> {
     assert!(emp_rows.len() >= 2, "need ≥2 employees");
     let emp1 = extract_uuid(&emp_rows[0], &["uuid"]).map_err(|e| e.to_string())?;
     let emp2 = extract_uuid(&emp_rows[1], &["uuid"]).map_err(|e| e.to_string())?;
+
+    // Self-contained: may run before manufacturing_flow (alphabetical / parallel)
+    let mcu = extract_uuid(find_item(&inv, "MCU-STM32")?, &["uuid"]).map_err(|e| e.to_string())?;
+    let imu = extract_uuid(find_item(&inv, "IMU-9DOF")?, &["uuid"]).map_err(|e| e.to_string())?;
+    let bat = extract_uuid(find_item(&inv, "BAT-4S5AH")?, &["uuid"]).map_err(|e| e.to_string())?;
+    let pcb = extract_uuid(find_item(&inv, "PCB-CTRL-V1")?, &["uuid"]).map_err(|e| e.to_string())?;
+    let frm = extract_uuid(find_item(&inv, "FRM-GROUND")?, &["uuid"]).map_err(|e| e.to_string())?;
+
+    let (s, body) = ctx
+        .client
+        .post(
+            "/api/manufacturing/create/routing/workcenter",
+            json!({
+                "code": "WC-ASSY",
+                "name": "Assembly",
+                "labor_rate": "15000",
+                "allocation_base": "LABOR_HOURS",
+                "department_code": "Production"
+            }),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s) || already_exists(s, &body), "work center: {s} {body}");
+
+    let (s, body) = ctx
+        .client
+        .post(
+            "/api/manufacturing/create/bom",
+            json!({
+                "header": {
+                    "bom_code": "BOM-FG-ACTUAL-E2E-v1",
+                    "product_item_uuid": fg_uuid,
+                    "description": "Minimal FG BOM for actual-costing completion e2e",
+                    "revision": "1",
+                    "is_default": true,
+                    "is_active": true
+                },
+                "lines": [
+                    {"line_number": 1, "component_item_uuid": mcu, "quantity_per": "1", "uom": "pc", "scrap_factor": "1.0"},
+                    {"line_number": 2, "component_item_uuid": imu, "quantity_per": "1", "uom": "pc", "scrap_factor": "1.0"},
+                    {"line_number": 3, "component_item_uuid": pcb, "quantity_per": "1", "uom": "pc", "scrap_factor": "1.0"},
+                    {"line_number": 4, "component_item_uuid": bat, "quantity_per": "1", "uom": "pc", "scrap_factor": "1.0"},
+                    {"line_number": 5, "component_item_uuid": frm, "quantity_per": "1", "uom": "pc", "scrap_factor": "1.0"}
+                ]
+            }),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(
+        ok(s) || already_exists(s, &body),
+        "ensure FG BOM for actual completion: {s} {body}"
+    );
+    println!("✓ FG BOM ready for actual-completion PO");
 
     let order_no = format!(
         "PO-ACT-{}",
@@ -2242,7 +2295,7 @@ async fn manufacturing_actual_completion_path() -> E2eResult<()> {
         .await
         .map_err(|e| e.to_string())?;
     assert!(st.is_success(), "restore standard: {st} {body}");
-    println!("✅ manufacturing_actual_completion_path OK");
+    println!("✅ manufacturing_flow_actual_completion OK");
     let _ = ctx.save_state();
     Ok(())
 }
