@@ -13,20 +13,25 @@ fn ok(status: reqwest::StatusCode) -> bool {
 
 /// Work centres / master data may already exist when tests run out of order.
 fn already_exists(status: reqwest::StatusCode, body: &serde_json::Value) -> bool {
-    if status.as_u16() == 409 || status.as_u16() == 400 {
-        return true;
-    }
-    if status.as_u16() != 500 {
-        return false;
-    }
     let msg = body
         .pointer("/message")
         .and_then(|v| v.as_str())
         .or_else(|| body.pointer("/error").and_then(|v| v.as_str()))
         .unwrap_or("");
-    msg.contains("duplicate key")
+    let overlap = msg.contains("Overlapping labour_rates")
+        || msg.contains("duplicate key")
         || msg.contains("unique constraint")
-        || msg.contains("already exists")
+        || msg.contains("already exists");
+    if status.as_u16() == 409 {
+        return true;
+    }
+    if status.as_u16() == 400 && overlap {
+        return true;
+    }
+    if status.as_u16() == 500 && overlap {
+        return true;
+    }
+    false
 }
 
 fn dec(v: &serde_json::Value) -> f64 {
@@ -1065,7 +1070,10 @@ async fn manufacturing_labour_actual_path() -> E2eResult<()> {
             )
             .await
             .map_err(|e| e.to_string())?;
-        assert!(ok(s), "create actual rate: {s} {body}");
+        assert!(
+            ok(s) || already_exists(s, &body),
+            "create actual rate: {s} {body}"
+        );
         println!("✓ Actual ASSY rate 15000");
     }
 
