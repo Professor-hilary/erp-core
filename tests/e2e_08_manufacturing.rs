@@ -2607,13 +2607,13 @@ async fn manufacturing_flow_normal_completion() -> E2eResult<()> {
     }
     println!("✓ timesheet actual labour under normal");
 
-    // Predetermined OH allowed under normal
+    // Predetermined OH allowed under normal (API keys order by order_number, not uuid)
     let (s, body) = ctx
         .client
         .post(
             "/api/manufacturing/apply/overhead/applied",
             json!({
-                "production_order": po_uuid,
+                "production_order": order_no,
                 "base_hours": "4",
                 "allocation_base": "DirectLaborHours"
             }),
