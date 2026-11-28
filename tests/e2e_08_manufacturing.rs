@@ -1904,13 +1904,16 @@ async fn manufacturing_costing_method_gates() -> E2eResult<()> {
         )
         .await?;
     let oh_txt = oh.to_string();
-    assert!(
-        s.as_u16() == 422
-            || s.as_u16() == 400
-            || (s.as_u16() == 500 && oh_txt.contains("actual costing")),
-        "applied OH under actual must be rejected, got {s} {oh}"
+    assert_eq!(
+        s.as_u16(),
+        422,
+        "applied OH under actual must be 422 Unprocessable, got {s} {oh}"
     );
-    println!("✓ actual costing rejects predetermined OH ({s})");
+    assert!(
+        oh_txt.contains("actual costing") || oh_txt.contains("Predetermined"),
+        "message should mention actual/predetermined: {oh}"
+    );
+    println!("✓ actual costing rejects predetermined OH (422)");
 
     let (s, dl) = ctx
         .client
@@ -1923,13 +1926,16 @@ async fn manufacturing_costing_method_gates() -> E2eResult<()> {
         )
         .await?;
     let dl_txt = dl.to_string();
-    assert!(
-        s.as_u16() == 422
-            || s.as_u16() == 400
-            || (s.as_u16() == 500 && dl_txt.contains("standard costing")),
-        "routing DL under actual must be rejected, got {s} {dl}"
+    assert_eq!(
+        s.as_u16(),
+        422,
+        "routing DL under actual must be 422 Unprocessable, got {s} {dl}"
     );
-    println!("✓ actual costing rejects routing applied labour ({s})");
+    assert!(
+        dl_txt.contains("standard costing") || dl_txt.contains("Routing applied"),
+        "message should mention standard/routing: {dl}"
+    );
+    println!("✓ actual costing rejects routing applied labour (422)");
 
     // Always restore — shared tenant state
     let (st, body) = ctx
@@ -1944,3 +1950,300 @@ async fn manufacturing_costing_method_gates() -> E2eResult<()> {
     let _ = ctx.save_state();
     Ok(())
 }
+
+
+/// Stage C: under actual costing, complete transfers FG at accumulated actual cost
+/// (materials + timesheet labour + recognized OH) without routing applied labour.
+#[tokio::test]
+async fn manufacturing_actual_completion_path() -> E2eResult<()> {
+    let mut ctx = TestContext::from_saved_state().await?;
+
+    let (st, body) = ctx
+        .client
+        .put(
+            "/api/manufacturing/costing-policy",
+            serde_json::json!({ "costing_method": "actual" }),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(st.is_success(), "set actual: {st} {body}");
+
+    let (s, inv) = ctx
+        .client
+        .get("/api/inventory/list/inventory")
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "list inv: {s}");
+    let fg = find_item(&inv, "FG-CARGO-MULE")
+        .map_err(|e| format!("{e} — run manufacturing_flow first"))?;
+    let fg_uuid = extract_uuid(fg, &["uuid"]).map_err(|e| e.to_string())?;
+    let anchor = find_item(&inv, RMS[0].sku).map_err(|e| e.to_string())?;
+    let warehouse_serial = anchor["warehouse_serial"]
+        .as_i64()
+        .or_else(|| anchor["warehouse_serial_id"].as_i64())
+        .unwrap_or(1);
+
+    // Restock RMs via credit purchase (qty 1 completion needs little stock)
+    if ctx.vendors.is_empty() {
+        let _ = ctx.seed_trading_partners().await;
+    }
+    if let Some(vendor_uuid) = ctx.vendors.values().next().copied() {
+        let rows = inv["data"].as_array().cloned().unwrap_or_default();
+        let mut bill_items = Vec::new();
+        for rm in RMS {
+            let Some(row) = rows.iter().find(|i| i["sku"].as_str() == Some(rm.sku)) else {
+                continue;
+            };
+            let Some(stock_item_id) = row["serial_id"].as_i64() else {
+                continue;
+            };
+            bill_items.push(json!({
+                "stock_item_id": stock_item_id,
+                "description": rm.name,
+                "quantity": "5",
+                "unit_price": rm.unit_price,
+                "tax_rate": "18"
+            }));
+        }
+        if !bill_items.is_empty() {
+            let (s, body) = ctx
+                .client
+                .post(
+                    "/api/procurement/create/purchase",
+                    json!({
+                        "bill_number": format!(
+                            "BILL-ACT-{}",
+                            std::time::SystemTime::now()
+                                .duration_since(std::time::UNIX_EPOCH)
+                                .unwrap()
+                                .as_millis()
+                        ),
+                        "vendor_uuid": vendor_uuid,
+                        "bill_date": "2026-03-01",
+                        "due_date": "2026-03-31",
+                        "reference": "RESTOCK-ACTUAL-COMPLETION",
+                        "settlement_type": "credit",
+                        "payment_status": "unpaid",
+                        "items": bill_items
+                    }),
+                )
+                .await
+                .map_err(|e| e.to_string())?;
+            if ok(s) {
+                if let Some(bill_serial) = body["data"]["serial_id"].as_i64() {
+                    let _ = ctx
+                        .client
+                        .post(
+                            "/api/procurement/post/credit/purchase",
+                            json!({
+                                "bill_serial_id": bill_serial,
+                                "vat_tax_account": "110501",
+                                "payables_account": "210100",
+                                "cash_account": null
+                            }),
+                        )
+                        .await;
+                    println!("✓ RM restocked for actual completion");
+                }
+            }
+        }
+    }
+
+    let (s, emps) = ctx
+        .client
+        .get("/api/workforce/list/employees")
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "employees: {s}");
+    let emp_rows = emps["data"].as_array().cloned().unwrap_or_default();
+    assert!(emp_rows.len() >= 2, "need ≥2 employees");
+    let emp1 = extract_uuid(&emp_rows[0], &["uuid"]).map_err(|e| e.to_string())?;
+    let emp2 = extract_uuid(&emp_rows[1], &["uuid"]).map_err(|e| e.to_string())?;
+
+    let order_no = format!(
+        "PO-ACT-{}",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis()
+    );
+    let (s, body) = ctx
+        .client
+        .post(
+            "/api/manufacturing/create/production-order",
+            json!({
+                "order_number": order_no,
+                "product_item_uuid": fg_uuid,
+                "quantity_ordered": "1",
+                "start_date": "2026-03-01",
+                "expected_completion_date": "2026-03-10"
+            }),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "create PO: {s} {body}");
+    let po_uuid = extract_uuid(&body, &["data", "uuid"]).map_err(|e| e.to_string())?;
+    println!("✓ actual-path PO {po_uuid}");
+
+    let (s, body) = ctx
+        .client
+        .post(
+            "/api/manufacturing/apply/direct/material",
+            json!({
+                "warehouse_serial_id": warehouse_serial,
+                "production_order_uuid": po_uuid
+            }),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "issue materials: {s} {body}");
+    println!("✓ materials issued under actual");
+
+    let (s, dl) = ctx
+        .client
+        .post(
+            "/api/manufacturing/apply/direct/labor",
+            json!({ "production_order_uuid": po_uuid, "reference": "should-fail" }),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    assert_eq!(s.as_u16(), 422, "routing DL forbidden under actual: {s} {dl}");
+    println!("✓ routing DL rejected 422 under actual");
+
+    let (_s, cats) = ctx
+        .client
+        .get("/api/manufacturing/labour/categories")
+        .await
+        .map_err(|e| e.to_string())?;
+    let cat_uuid = cats["data"]
+        .as_array()
+        .and_then(|a| {
+            a.iter()
+                .find(|c| c["code"].as_str() == Some("ASSY"))
+                .and_then(|c| c["uuid"].as_str())
+        })
+        .map(|s| s.to_string());
+    if let Some(ref cu) = cat_uuid {
+        let _ = ctx
+            .client
+            .post(
+                "/api/manufacturing/labour/rates",
+                json!({
+                    "labour_category_uuid": cu,
+                    "rate_kind": "Actual",
+                    "hourly_rate": "15000",
+                    "effective_from": "2026-01-01"
+                }),
+            )
+            .await;
+    }
+
+    let (s, body) = ctx
+        .client
+        .post(
+            "/api/manufacturing/timesheet/team",
+            json!({
+                "employee_uuids": [emp1, emp2],
+                "work_date": "2026-03-02",
+                "hours": "2",
+                "activity_type": "Direct",
+                "production_order_uuid": po_uuid,
+                "work_center_code": "WC-ASSY",
+                "labour_category_uuid": cat_uuid,
+                "memo": "actual completion labour"
+            }),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "team timesheet: {s} {body}");
+    let entry_ids: Vec<_> = body["data"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|e| e["uuid"].as_str().map(|s| s.to_string()))
+        .collect();
+    for path in [
+        "/api/manufacturing/timesheet/bulk-submit",
+        "/api/manufacturing/timesheet/bulk-approve",
+        "/api/manufacturing/timesheet/bulk-post",
+    ] {
+        let (s, body) = ctx
+            .client
+            .post(path, json!({ "entry_uuids": entry_ids.clone() }))
+            .await
+            .map_err(|e| e.to_string())?;
+        assert!(ok(s), "{path}: {s} {body}");
+    }
+    println!("✓ timesheet actual labour posted");
+
+    let (s, body) = ctx
+        .client
+        .post(
+            "/api/manufacturing/apply/overhead/actual",
+            json!({
+                "production_order_uuid": po_uuid,
+                "base_amount": "25000",
+                "allocation_base": "LABOR_HOURS",
+                "reference": "actual-oh-completion"
+            }),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "actual OH: {s} {body}");
+    println!("✓ actual overhead recognized 25000");
+
+    let (s, body) = ctx
+        .client
+        .post(
+            "/api/manufacturing/start-production",
+            json!({ "production_order_uuid": po_uuid }),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "start: {s} {body}");
+
+    let (s, body) = ctx
+        .client
+        .post(
+            "/api/manufacturing/complete-production",
+            json!({
+                "production_order_uuid": po_uuid,
+                "completed_quantity": "1"
+            }),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(ok(s), "complete under actual: {s} {body}");
+    let status = body["data"]["status"].as_str().unwrap_or("");
+    assert_eq!(status, "Completed", "order should be Completed, got {status}");
+    println!("✓ actual-cost completion → Completed");
+
+    let (s, var) = ctx
+        .client
+        .post(
+            &format!("/api/manufacturing/labour/variances/{po_uuid}"),
+            json!({}),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    assert_eq!(
+        s.as_u16(),
+        422,
+        "std labour variances forbidden under actual: {s} {var}"
+    );
+    println!("✓ std labour variance API returns 422 under actual");
+
+    let (st, body) = ctx
+        .client
+        .put(
+            "/api/manufacturing/costing-policy",
+            serde_json::json!({ "costing_method": "standard" }),
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    assert!(st.is_success(), "restore standard: {st} {body}");
+    println!("✅ manufacturing_actual_completion_path OK");
+    let _ = ctx.save_state();
+    Ok(())
+}
+

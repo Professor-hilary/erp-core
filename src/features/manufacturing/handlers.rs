@@ -24,10 +24,18 @@ pub struct CreateBomPayload {
     pub lines: Vec<CreateBomLineDto>,
 }
 
-// Helper for displaying clean json error messages
-fn internal_error(e: impl std::fmt::Display) -> AppError {
-    tracing::error!("Internal error: {}", e);
-    AppError::Internal(e.to_string())
+/// Pass through client/domain errors (400/403/404/422); only log true internals.
+fn map_service_err(e: AppError) -> AppError {
+    match &e {
+        AppError::Internal(msg) => {
+            tracing::error!("Internal error: {msg}");
+        }
+        AppError::Database(err) => {
+            tracing::error!("Database error: {err}");
+        }
+        _ => {}
+    }
+    e
 }
 
 pub fn router() -> Router<Arc<AppState>> {
@@ -128,7 +136,7 @@ async fn ensure_operations_route(
     let service = ManufacturingService::new(repo);
     match service.ensure_operation_executions(payload).await {
         Ok(n) => Ok(ApiResponse::success(n, "Operation executions ensured")),
-        Err(e) => Err(internal_error(e)),
+        Err(e) => Err(map_service_err(e)),
     }
 }
 
@@ -141,7 +149,7 @@ async fn list_operations_route(
     let service = ManufacturingService::new(repo);
     match service.list_operation_executions(order_uuid).await {
         Ok(rows) => Ok(ApiResponse::success(rows, "Operation executions")),
-        Err(e) => Err(internal_error(e)),
+        Err(e) => Err(map_service_err(e)),
     }
 }
 
@@ -154,7 +162,7 @@ async fn start_operation_route(
     let service = ManufacturingService::new(repo);
     match service.start_operation(payload).await {
         Ok(row) => Ok(ApiResponse::success(row, "Operation started")),
-        Err(e) => Err(internal_error(e)),
+        Err(e) => Err(map_service_err(e)),
     }
 }
 
@@ -167,7 +175,7 @@ async fn complete_operation_route(
     let service = ManufacturingService::new(repo);
     match service.complete_operation(payload).await {
         Ok(row) => Ok(ApiResponse::success(row, "Operation completed")),
-        Err(e) => Err(internal_error(e)),
+        Err(e) => Err(map_service_err(e)),
     }
 }
 
@@ -180,7 +188,7 @@ async fn scrap_rework_route(
     let service = ManufacturingService::new(repo);
     match service.record_scrap_rework(payload, user.user_id).await {
         Ok(row) => Ok(ApiResponse::created(row, "Scrap/rework recorded")),
-        Err(e) => Err(internal_error(e)),
+        Err(e) => Err(map_service_err(e)),
     }
 }
 
@@ -196,7 +204,7 @@ async fn quality_inspection_route(
         .await
     {
         Ok(row) => Ok(ApiResponse::created(row, "Quality inspection recorded")),
-        Err(e) => Err(internal_error(e)),
+        Err(e) => Err(map_service_err(e)),
     }
 }
 
@@ -220,7 +228,7 @@ async fn create_bom_route(
         .await
     {
         Ok(result) => Ok(ApiResponse::created(result, "BOM Created")),
-        Err(e) => Err(internal_error(e)),
+        Err(e) => Err(map_service_err(e)),
     }
 }
 
@@ -240,7 +248,7 @@ async fn new_order_route(
 
     match service.create_order(payload).await {
         Ok(result) => Ok(ApiResponse::created(result, "Production Order Created")),
-        Err(e) => Err(internal_error(e)),
+        Err(e) => Err(map_service_err(e)),
     }
 }
 
@@ -255,7 +263,7 @@ async fn new_work_center(
 
     match service.new_work_center(payload).await {
         Ok(result) => Ok(ApiResponse::created(result, "Work Center Created")),
-        Err(e) => Err(internal_error(e)),
+        Err(e) => Err(map_service_err(e)),
     }
 }
 
@@ -270,7 +278,7 @@ async fn new_routing(
 
     match service.new_routing(payload).await {
         Ok(result) => Ok(ApiResponse::created(result, "Routing Header Created")),
-        Err(e) => Err(internal_error(e)),
+        Err(e) => Err(map_service_err(e)),
     }
 }
 
@@ -285,7 +293,7 @@ async fn new_routing_operation(
 
     match service.new_routing_operation(payload).await {
         Ok(result) => Ok(ApiResponse::created(result, "Routing Operation Created")),
-        Err(e) => Err(internal_error(e)),
+        Err(e) => Err(map_service_err(e)),
     }
 }
 
@@ -304,7 +312,7 @@ async fn bulk_raw_material_issuance_route(
 
     match service.bulk_issue_material(payload, user.user_id).await {
         Ok(result) => Ok(ApiResponse::created(result, "Material Issuance Successful")),
-        Err(e) => Err(internal_error(e)),
+        Err(e) => Err(map_service_err(e)),
     }
 }
 
@@ -333,7 +341,7 @@ async fn raw_material_issuance_route(
 
     /*match service.issue_material(payload, user.user_id).await {
         Ok(result) => Ok(ApiResponse::created(result, "Material Issuance Successful")),
-        Err(e) => Err(internal_error(e)),
+        Err(e) => Err(map_service_err(e)),
     }*/
     let result = service
         .issue_material(&resolver, payload, user.user_id)
@@ -353,7 +361,7 @@ async fn new_overhead_rate_route(
 
     match service.create_overhead_rate(payload).await {
         Ok(result) => Ok(ApiResponse::created(result, "Production Order Created")),
-        Err(e) => Err(internal_error(e)),
+        Err(e) => Err(map_service_err(e)),
     }
 }
 
@@ -368,7 +376,7 @@ async fn prorate_variance_route(
 
     match service.prorate_variance(payload, user.user_id).await {
         Ok(result) => Ok(ApiResponse::created(result, "Proration Successful")),
-        Err(e) => Err(internal_error(e)),
+        Err(e) => Err(map_service_err(e)),
     }
 }
 
@@ -385,7 +393,7 @@ async fn actual_overhead_route(
 
     match service.recognize_overhead_paid(payload, user.user_id).await {
         Ok(result) => Ok(ApiResponse::created(result, "Actual Overhead Recognized")),
-        Err(e) => Err(internal_error(e)),
+        Err(e) => Err(map_service_err(e)),
     }
 }
 
@@ -402,7 +410,7 @@ async fn applied_overhead_route(
 
     match service.apply_rated_overhead(payload, user.user_id).await {
         Ok(result) => Ok(ApiResponse::created(result, "Applied Overhead Applied")),
-        Err(e) => Err(internal_error(e)),
+        Err(e) => Err(map_service_err(e)),
     }
 }
 
@@ -416,7 +424,7 @@ async fn list_labour_categories_route(
     let service = ManufacturingService::new(repo);
     match service.list_labour_categories().await {
         Ok(rows) => Ok(ApiResponse::success(rows, "Labour categories")),
-        Err(e) => Err(internal_error(e)),
+        Err(e) => Err(map_service_err(e)),
     }
 }
 
@@ -429,7 +437,7 @@ async fn create_labour_category_route(
     let service = ManufacturingService::new(repo);
     match service.create_labour_category(payload).await {
         Ok(row) => Ok(ApiResponse::created(row, "Labour category created")),
-        Err(e) => Err(internal_error(e)),
+        Err(e) => Err(map_service_err(e)),
     }
 }
 
@@ -442,7 +450,7 @@ async fn create_labour_rate_route(
     let service = ManufacturingService::new(repo);
     match service.create_labour_rate(payload).await {
         Ok(row) => Ok(ApiResponse::created(row, "Labour rate created")),
-        Err(e) => Err(internal_error(e)),
+        Err(e) => Err(map_service_err(e)),
     }
 }
 
@@ -461,7 +469,7 @@ async fn create_timesheet_route(
         .await
     {
         Ok(row) => Ok(ApiResponse::created(row, "Timesheet draft created")),
-        Err(e) => Err(internal_error(e)),
+        Err(e) => Err(map_service_err(e)),
     }
 }
 
@@ -479,7 +487,7 @@ async fn submit_timesheet_route(
     let service = ManufacturingService::new(repo);
     match service.submit_labour_time_entry(entry_uuid).await {
         Ok(row) => Ok(ApiResponse::success(row, "Timesheet submitted")),
-        Err(e) => Err(internal_error(e)),
+        Err(e) => Err(map_service_err(e)),
     }
 }
 
@@ -498,7 +506,7 @@ async fn approve_timesheet_route(
         .await
     {
         Ok(row) => Ok(ApiResponse::success(row, "Timesheet approved")),
-        Err(e) => Err(internal_error(e)),
+        Err(e) => Err(map_service_err(e)),
     }
 }
 
@@ -511,7 +519,7 @@ async fn reject_timesheet_route(
     let service = ManufacturingService::new(repo);
     match service.reject_labour_time_entry(payload).await {
         Ok(row) => Ok(ApiResponse::success(row, "Timesheet rejected")),
-        Err(e) => Err(internal_error(e)),
+        Err(e) => Err(map_service_err(e)),
     }
 }
 
@@ -527,7 +535,7 @@ async fn post_timesheet_route(
     let service = ManufacturingService::new(repo);
     match service.post_labour_time_entry(payload, user.user_id).await {
         Ok(row) => Ok(ApiResponse::created(row, "Actual labour posted")),
-        Err(e) => Err(internal_error(e)),
+        Err(e) => Err(map_service_err(e)),
     }
 }
 
@@ -546,7 +554,7 @@ async fn draft_from_op_route(
             row,
             "Timesheet drafted from operation",
         )),
-        Err(e) => Err(internal_error(e)),
+        Err(e) => Err(map_service_err(e)),
     }
 }
 
@@ -559,7 +567,7 @@ async fn list_timesheets_route(
     let service = ManufacturingService::new(repo);
     match service.list_labour_time_entries_for_order(order_uuid).await {
         Ok(rows) => Ok(ApiResponse::success(rows, "Timesheets")),
-        Err(e) => Err(internal_error(e)),
+        Err(e) => Err(map_service_err(e)),
     }
 }
 
@@ -575,7 +583,7 @@ async fn team_timesheet_route(
         .await
     {
         Ok(rows) => Ok(ApiResponse::created(rows, "Team timesheets created")),
-        Err(e) => Err(internal_error(e)),
+        Err(e) => Err(map_service_err(e)),
     }
 }
 
@@ -588,7 +596,7 @@ async fn bulk_submit_route(
     let service = ManufacturingService::new(repo);
     match service.bulk_submit_time_entries(payload.entry_uuids).await {
         Ok(n) => Ok(ApiResponse::success(n, "Timesheets submitted")),
-        Err(e) => Err(internal_error(e)),
+        Err(e) => Err(map_service_err(e)),
     }
 }
 
@@ -604,7 +612,7 @@ async fn bulk_approve_route(
         .await
     {
         Ok(n) => Ok(ApiResponse::success(n, "Timesheets approved")),
-        Err(e) => Err(internal_error(e)),
+        Err(e) => Err(map_service_err(e)),
     }
 }
 
@@ -617,7 +625,7 @@ async fn bulk_post_route(
     let service = ManufacturingService::new(repo);
     match service.bulk_post_time_entries(payload, user.user_id).await {
         Ok(n) => Ok(ApiResponse::success(n, "Timesheets posted to WIP")),
-        Err(e) => Err(internal_error(e)),
+        Err(e) => Err(map_service_err(e)),
     }
 }
 
@@ -633,7 +641,7 @@ async fn allocate_payrun_route(
             rows,
             "Payrun labour allocation results",
         )),
-        Err(e) => Err(internal_error(e)),
+        Err(e) => Err(map_service_err(e)),
     }
 }
 
@@ -652,7 +660,7 @@ async fn draft_from_order_route(
             rows,
             "Timesheets drafted from operations",
         )),
-        Err(e) => Err(internal_error(e)),
+        Err(e) => Err(map_service_err(e)),
     }
 }
 
@@ -665,7 +673,7 @@ async fn upsert_attendance_route(
     let service = ManufacturingService::new(repo);
     match service.upsert_attendance(payload, user.user_id).await {
         Ok(row) => Ok(ApiResponse::created(row, "Attendance saved")),
-        Err(e) => Err(internal_error(e)),
+        Err(e) => Err(map_service_err(e)),
     }
 }
 
@@ -680,7 +688,7 @@ async fn labour_reconcile_route(
             rows,
             "Attendance vs timesheet reconciliation",
         )),
-        Err(e) => Err(internal_error(e)),
+        Err(e) => Err(map_service_err(e)),
     }
 }
 
@@ -695,7 +703,7 @@ async fn labour_reconcile_period_route(
             rows,
             "Monthly labour hours reconciliation",
         )),
-        Err(e) => Err(internal_error(e)),
+        Err(e) => Err(map_service_err(e)),
     }
 }
 
@@ -711,7 +719,7 @@ async fn allocate_payslip_route(
             rows,
             "Payslip labour allocated to orders",
         )),
-        Err(e) => Err(internal_error(e)),
+        Err(e) => Err(map_service_err(e)),
     }
 }
 
@@ -723,7 +731,7 @@ async fn labour_productivity_route(
     let service = ManufacturingService::new(repo);
     match service.labour_productivity_by_order(None).await {
         Ok(rows) => Ok(ApiResponse::success(rows, "Labour productivity by order")),
-        Err(e) => Err(internal_error(e)),
+        Err(e) => Err(map_service_err(e)),
     }
 }
 
@@ -736,7 +744,7 @@ async fn labour_productivity_one_route(
     let service = ManufacturingService::new(repo);
     match service.labour_productivity_by_order(Some(order_uuid)).await {
         Ok(rows) => Ok(ApiResponse::success(rows, "Labour productivity")),
-        Err(e) => Err(internal_error(e)),
+        Err(e) => Err(map_service_err(e)),
     }
 }
 
@@ -748,7 +756,7 @@ async fn labour_by_employee_route(
     let service = ManufacturingService::new(repo);
     match service.labour_by_employee().await {
         Ok(rows) => Ok(ApiResponse::success(rows, "Labour by employee")),
-        Err(e) => Err(internal_error(e)),
+        Err(e) => Err(map_service_err(e)),
     }
 }
 
@@ -760,7 +768,7 @@ async fn labour_by_wc_route(
     let service = ManufacturingService::new(repo);
     match service.labour_by_work_center().await {
         Ok(rows) => Ok(ApiResponse::success(rows, "Labour by work centre")),
-        Err(e) => Err(internal_error(e)),
+        Err(e) => Err(map_service_err(e)),
     }
 }
 
@@ -772,7 +780,7 @@ async fn op_efficiency_route(
     let service = ManufacturingService::new(repo);
     match service.operation_efficiency(None).await {
         Ok(rows) => Ok(ApiResponse::success(rows, "Operation efficiency")),
-        Err(e) => Err(internal_error(e)),
+        Err(e) => Err(map_service_err(e)),
     }
 }
 
@@ -785,7 +793,7 @@ async fn op_efficiency_one_route(
     let service = ManufacturingService::new(repo);
     match service.operation_efficiency(Some(order_uuid)).await {
         Ok(rows) => Ok(ApiResponse::success(rows, "Operation efficiency")),
-        Err(e) => Err(internal_error(e)),
+        Err(e) => Err(map_service_err(e)),
     }
 }
 
@@ -798,7 +806,7 @@ async fn compute_labour_variances_route(
     let service = ManufacturingService::new(repo);
     match service.compute_labour_variances(order_uuid, None).await {
         Ok(row) => Ok(ApiResponse::created(row, "Labour variances computed")),
-        Err(e) => Err(internal_error(e)),
+        Err(e) => Err(map_service_err(e)),
     }
 }
 
@@ -811,7 +819,7 @@ async fn labour_summary_route(
     let service = ManufacturingService::new(repo);
     match service.production_order_labour_summary(order_uuid).await {
         Ok(row) => Ok(ApiResponse::success(row, "Labour cost summary")),
-        Err(e) => Err(internal_error(e)),
+        Err(e) => Err(map_service_err(e)),
     }
 }
 
@@ -827,7 +835,7 @@ async fn create_labour_allocation_route(
         .await
     {
         Ok(result) => Ok(ApiResponse::created(result, "Labour allocation created")),
-        Err(e) => Err(internal_error(e)),
+        Err(e) => Err(map_service_err(e)),
     }
 }
 
@@ -841,7 +849,7 @@ async fn post_labour_allocation_route(
     let service = ManufacturingService::new(repo);
     match service.post_labour_allocation(payload, user.user_id).await {
         Ok(result) => Ok(ApiResponse::created(result, "Labour allocation posted")),
-        Err(e) => Err(internal_error(e)),
+        Err(e) => Err(map_service_err(e)),
     }
 }
 
@@ -862,7 +870,7 @@ async fn http_direct_labor_route(
         .await
     {
         Ok(result) => Ok(ApiResponse::created(result, "Direct Labor Costs Applied")),
-        Err(e) => Err(internal_error(e)),
+        Err(e) => Err(map_service_err(e)),
     }
 }
 
@@ -877,7 +885,7 @@ async fn http_direct_labor_route(
 
 //     match service.apply_indirect_labor_costs(payload, user.user_id).await {
 //         Ok(result) => Ok(ApiResponse::created(result, "Inirect Labor Costs Applied")),
-//         Err(e) => Err(internal_error(e)),
+//         Err(e) => Err(map_service_err(e)),
 //     }
 // }
 
@@ -896,7 +904,7 @@ async fn start_order_route(
 
     match service.start_order(payload).await {
         Ok(result) => Ok(ApiResponse::success(result, "Production started")),
-        Err(e) => Err(internal_error(e)),
+        Err(e) => Err(map_service_err(e)),
     }
 }
 
@@ -914,7 +922,7 @@ async fn complete_order_route(
 
     match service.complete_order(payload, user.user_id).await {
         Ok(result) => Ok(ApiResponse::created(result, "Production Completed")),
-        Err(e) => Err(internal_error(e)),
+        Err(e) => Err(map_service_err(e)),
     }
 }
 
@@ -930,7 +938,7 @@ async fn get_bom_route(
     match service.get_bom(uuid).await {
         Ok(Some(result)) => Ok(ApiResponse::success(result, "BOM Created")),
         Ok(None) => Err(AppError::NotFound("BOM not found".into())),
-        Err(e) => Err(internal_error(e)),
+        Err(e) => Err(map_service_err(e)),
     }
 }
 
@@ -946,7 +954,7 @@ async fn default_bom_route(
     match service.default_bom(uuid).await {
         Ok(Some(result)) => Ok(ApiResponse::success(result, "BOM found")),
         Ok(None) => Err(AppError::NotFound("No default OM found".into())),
-        Err(e) => Err(internal_error(e)),
+        Err(e) => Err(map_service_err(e)),
     }
 }
 
@@ -962,7 +970,7 @@ async fn get_costing_policy_route(
     let service = ManufacturingService::new(repo);
     match service.costing_policy().await {
         Ok(p) => Ok(ApiResponse::success(p, "Costing policy")),
-        Err(e) => Err(internal_error(e)),
+        Err(e) => Err(map_service_err(e)),
     }
 }
 
@@ -978,6 +986,6 @@ async fn update_costing_policy_route(
     let service = ManufacturingService::new(repo);
     match service.update_costing_policy(payload, user.user_id).await {
         Ok(p) => Ok(ApiResponse::success(p, "Costing policy updated")),
-        Err(e) => Err(internal_error(e)),
+        Err(e) => Err(map_service_err(e)),
     }
 }
